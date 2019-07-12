@@ -2,6 +2,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
+#include <zagtos/unixcompat.h>
 
 FILE *fopen(const char *restrict filename, const char *restrict mode)
 {
@@ -18,15 +20,15 @@ FILE *fopen(const char *restrict filename, const char *restrict mode)
 	/* Compute the flags to pass to open() */
 	flags = __fmodeflags(mode);
 
-	fd = sys_open(filename, flags, 0666);
+    fd = open(filename, flags, 0666);
 	if (fd < 0) return 0;
 	if (flags & O_CLOEXEC)
-		__syscall(SYS_fcntl, fd, F_SETFD, FD_CLOEXEC);
+        zagtos_set_file_descriptor_cloexec(fd, 1);
 
 	f = __fdopen(fd, mode);
 	if (f) return f;
 
-	__syscall(SYS_close, fd);
+    close(fd);
 	return 0;
 }
 

@@ -25,7 +25,7 @@ extern "C" {
 #define MAP_FIXED      0x10
 #define MAP_ANON       0x20
 #define MAP_ANONYMOUS  MAP_ANON
-#define MAP_NORESERVE  0x4000
+/*#define MAP_NORESERVE  0x4000
 #define MAP_GROWSDOWN  0x0100
 #define MAP_DENYWRITE  0x0800
 #define MAP_EXECUTABLE 0x1000
@@ -36,7 +36,8 @@ extern "C" {
 #define MAP_HUGETLB    0x40000
 #define MAP_SYNC       0x80000
 #define MAP_FIXED_NOREPLACE 0x100000
-#define MAP_FILE       0
+#define MAP_FILE       0*/
+#define MAP_PHYSICAL 0x80000000
 
 #define MAP_HUGE_SHIFT 26
 #define MAP_HUGE_MASK  0x3f
@@ -115,23 +116,11 @@ int munmap (void *, size_t);
 int mprotect (void *, size_t, int);
 int msync (void *, size_t, int);
 
-int posix_madvise (void *, size_t, int);
-
-int mlock (const void *, size_t);
-int munlock (const void *, size_t);
-int mlockall (int);
-int munlockall (void);
 
 #ifdef _GNU_SOURCE
 void *mremap (void *, size_t, size_t, int, ...);
 int remap_file_pages (void *, size_t, int, size_t, int);
 int memfd_create (const char *, unsigned);
-int mlock2 (const void *, size_t, unsigned);
-#endif
-
-#if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
-int madvise (void *, size_t, int);
-int mincore (void *, size_t, unsigned char *);
 #endif
 
 int shm_open (const char *, int, mode_t);

@@ -1,6 +1,6 @@
 #include <fcntl.h>
 #include <stdarg.h>
-#include "syscall.h"
+#include "__open_common.h"
 
 int open(const char *filename, int flags, ...)
 {
@@ -13,11 +13,7 @@ int open(const char *filename, int flags, ...)
 		va_end(ap);
 	}
 
-	int fd = __sys_open_cp(filename, flags, mode);
-	if (fd>=0 && (flags & O_CLOEXEC))
-		__syscall(SYS_fcntl, fd, F_SETFD, FD_CLOEXEC);
-
-	return __syscall_ret(fd);
+    return __open_common(AT_FDCWD, filename, flags, mode);
 }
 
 weak_alias(open, open64);

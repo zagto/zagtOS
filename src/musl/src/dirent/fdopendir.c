@@ -3,29 +3,31 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <zagtos/filesystem.h>
+#include <zagtos/unixcompat.h>
 #include "__dirent.h"
 
 DIR *fdopendir(int fd)
 {
-	DIR *dir;
-	struct stat st;
+    if (fd >= 0 && fd < 3) { /* stdio */
+        errno = ENOTDIR;
+        return 0;
+    }
+    ZFileDescriptor *zfd = zagtos_get_file_descriptor_object(fd);
+    if (!zfd || !zfd->read) {
+        errno = EBADF;
+        return 0;
+    }
+    if (!zagtos_compare_uuid(zfd->object->info.type, TYPE_DIRECTORY)) {
+        errno = ENOTDIR;
+        return 0;
+    }
 
-	if (fstat(fd, &st) < 0) {
-		return 0;
-	}
-	if (fcntl(fd, F_GETFL) & O_PATH) {
-		errno = EBADF;
-		return 0;
-	}
-	if (!S_ISDIR(st.st_mode)) {
-		errno = ENOTDIR;
-		return 0;
-	}
-	if (!(dir = calloc(1, sizeof *dir))) {
-		return 0;
-	}
+    ZDirectory *zdir = (ZDirectory *)zfd->object;
 
-	fcntl(fd, F_SETFD, FD_CLOEXEC);
-	dir->fd = fd;
+    DIR *dir = zagtos_directory_to_dirstream(zdir);
+    if (dir) {
+        zagtos_free_file_descriptor(fd);
+    }
 	return dir;
 }

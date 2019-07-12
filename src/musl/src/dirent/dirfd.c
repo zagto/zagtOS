@@ -1,7 +1,8 @@
 #include <dirent.h>
-#include "__dirent.h"
+#include <errno.h>
 
 int dirfd(DIR *d)
 {
-	return d->fd;
+    errno = ENOTSUP;
+    return -1;
 }

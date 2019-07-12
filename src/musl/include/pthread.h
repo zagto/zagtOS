@@ -27,7 +27,6 @@ extern "C" {
 
 #include <bits/alltypes.h>
 
-#include <sched.h>
 #include <time.h>
 
 #define PTHREAD_CREATE_JOINABLE 0
@@ -94,10 +93,10 @@ int pthread_setcanceltype(int, int *);
 void pthread_testcancel(void);
 int pthread_cancel(pthread_t);
 
-int pthread_getschedparam(pthread_t, int *__restrict, struct sched_param *__restrict);
-int pthread_setschedparam(pthread_t, int, const struct sched_param *);
+/*int pthread_getschedparam(, int *__restrict, struct sched_param *__restrict);
+int pthread_setschedparam(pthread_tpthread_t, int, const struct sched_param *);
 int pthread_setschedprio(pthread_t, int);
-
+*/
 int pthread_once(pthread_once_t *, void (*)(void));
 
 int pthread_mutex_init(pthread_mutex_t *__restrict, const pthread_mutexattr_t *__restrict);
@@ -156,12 +155,6 @@ int pthread_attr_getstack(const pthread_attr_t *__restrict, void **__restrict, s
 int pthread_attr_setstack(pthread_attr_t *, void *, size_t);
 int pthread_attr_getscope(const pthread_attr_t *__restrict, int *__restrict);
 int pthread_attr_setscope(pthread_attr_t *, int);
-int pthread_attr_getschedpolicy(const pthread_attr_t *__restrict, int *__restrict);
-int pthread_attr_setschedpolicy(pthread_attr_t *, int);
-int pthread_attr_getschedparam(const pthread_attr_t *__restrict, struct sched_param *__restrict);
-int pthread_attr_setschedparam(pthread_attr_t *__restrict, const struct sched_param *__restrict);
-int pthread_attr_getinheritsched(const pthread_attr_t *__restrict, int *__restrict);
-int pthread_attr_setinheritsched(pthread_attr_t *, int);
 
 int pthread_mutexattr_destroy(pthread_mutexattr_t *);
 int pthread_mutexattr_getprioceiling(const pthread_mutexattr_t *__restrict, int *__restrict);

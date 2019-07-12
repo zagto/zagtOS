@@ -33,8 +33,6 @@ int creat(const char *, mode_t);
 int fcntl(int, int, ...);
 int open(const char *, int, ...);
 int openat(int, const char *, int, ...);
-int posix_fadvise(int, off_t, off_t, int);
-int posix_fallocate(int, off_t, off_t);
 
 #define O_SEARCH  O_PATH
 #define O_EXEC    O_PATH
@@ -176,8 +174,6 @@ struct f_owner_ex {
 #define SPLICE_F_NONBLOCK 2
 #define SPLICE_F_MORE 4
 #define SPLICE_F_GIFT 8
-int fallocate(int, int, off_t, off_t);
-#define fallocate64 fallocate
 int name_to_handle_at(int, const char *, struct file_handle *, int *, int);
 int open_by_handle_at(int, struct file_handle *, int);
 ssize_t readahead(int, off_t, size_t);

@@ -1,25 +1,28 @@
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-#include <limits.h>
+#include <zagtos/filesystem.h>
 #include <string.h>
 #include "syscall.h"
 
 char *getcwd(char *buf, size_t size)
 {
-	char tmp[buf ? 1 : PATH_MAX];
-	if (!buf) {
-		buf = tmp;
-		size = sizeof tmp;
-	} else if (!size) {
-		errno = EINVAL;
-		return 0;
-	}
-	long ret = syscall(SYS_getcwd, buf, size);
-	if (ret < 0)
-		return 0;
-	if (ret == 0 || buf[0] != '/') {
-		errno = ENOENT;
-		return 0;
-	}
-	return buf == tmp ? strdup(buf) : buf;
+    if (size == 0 && buf) {
+        errno = EINVAL;
+        return NULL;
+    }
+
+    char *result = zagtos_get_current_directory_name();
+    if (!buf || !result) {
+        return result;
+    } else {
+        if (strlen(result) + 1 > size) {
+            free(result);
+            errno = ERANGE;
+            return NULL;
+        }
+
+        strcpy(buf, result);
+        return buf;
+    }
 }

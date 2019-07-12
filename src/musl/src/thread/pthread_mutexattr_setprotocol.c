@@ -7,7 +7,7 @@ static int check_pi_result;
 static void check_pi()
 {
 	volatile int lk = 0;
-	check_pi_result = -__syscall(SYS_futex, &lk, FUTEX_LOCK_PI, 0, 0);
+    check_pi_result = -zagtos_syscall(SYS_FUTEX, &lk, FUTEX_LOCK_PI, 0, 0);
 }
 
 int pthread_mutexattr_setprotocol(pthread_mutexattr_t *a, int protocol)

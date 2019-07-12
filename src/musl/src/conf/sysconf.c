@@ -1,9 +1,8 @@
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
-#include <sys/resource.h>
-#include <signal.h>
 #include <sys/sysinfo.h>
+#include <zagtos/hardware.h>
 #include "syscall.h"
 #include "libc.h"
 
@@ -22,14 +21,15 @@
 
 #define RLIM(x) (-32768|(RLIMIT_ ## x))
 
+
 long sysconf(int name)
 {
 	static const short values[] = {
 		[_SC_ARG_MAX] = JT_ARG_MAX,
-		[_SC_CHILD_MAX] = RLIM(NPROC),
+        [_SC_CHILD_MAX] = 128,
 		[_SC_CLK_TCK] = 100,
 		[_SC_NGROUPS_MAX] = 32,
-		[_SC_OPEN_MAX] = RLIM(NOFILE),
+        [_SC_OPEN_MAX] = 128,
 		[_SC_STREAM_MAX] = -1,
 		[_SC_TZNAME_MAX] = TZNAME_MAX,
 		[_SC_JOB_CONTROL] = 1,
@@ -56,7 +56,7 @@ long sysconf(int name)
 		[_SC_MQ_PRIO_MAX] = JT_MQ_PRIO_MAX,
 		[_SC_VERSION] = VER,
 		[_SC_PAGE_SIZE] = JT_PAGE_SIZE,
-		[_SC_RTSIG_MAX] = _NSIG - 1 - 31 - 3,
+        [_SC_RTSIG_MAX] = 0,
 		[_SC_SEM_NSEMS_MAX] = SEM_NSEMS_MAX,
 		[_SC_SEM_VALUE_MAX] = JT_SEM_VALUE_MAX,
 		[_SC_SIGQUEUE_MAX] = -1,
@@ -172,13 +172,7 @@ long sysconf(int name)
 		return -1;
 	} else if (values[name] >= -1) {
 		return values[name];
-	} else if (values[name] < -256) {
-		struct rlimit lim;
-		getrlimit(values[name]&16383, &lim);
-		if (lim.rlim_cur == RLIM_INFINITY)
-			return -1;
-		return lim.rlim_cur > LONG_MAX ? LONG_MAX : lim.rlim_cur;
-	}
+    }
 
 	switch ((unsigned char)values[name]) {
 	case VER & 255:
@@ -195,23 +189,11 @@ long sysconf(int name)
 		return DELAYTIMER_MAX;
 	case JT_NPROCESSORS_CONF & 255:
 	case JT_NPROCESSORS_ONLN & 255: ;
-		unsigned char set[128] = {1};
-		int i, cnt;
-		__syscall(SYS_sched_getaffinity, 0, sizeof set, set);
-		for (i=cnt=0; i<sizeof set; i++)
-			for (; set[i]; set[i]&=set[i]-1, cnt++);
-		return cnt;
+        return zagtos_get_processor_count();
 	case JT_PHYS_PAGES & 255:
 	case JT_AVPHYS_PAGES & 255: ;
-		unsigned long long mem;
-		struct sysinfo si;
-		__lsysinfo(&si);
-		if (!si.mem_unit) si.mem_unit = 1;
-		if (name==_SC_PHYS_PAGES) mem = si.totalram;
-		else mem = si.freeram + si.bufferram;
-		mem *= si.mem_unit;
-		mem /= PAGE_SIZE;
-		return (mem > LONG_MAX) ? LONG_MAX : mem;
+        // always claim to have 1GiB
+        return (1024 * 1024 * 1024) / PAGE_SIZE;
 	case JT_ZERO & 255:
 		return 0;
 	}

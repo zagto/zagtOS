@@ -3,37 +3,74 @@
 #include <errno.h>
 #include <stdint.h>
 #include <limits.h>
+#include <zagtos/unixcompat.h>
 #include "syscall.h"
 
-static void dummy(void) { }
-weak_alias(dummy, __vm_wait);
-
-#define UNIT SYSCALL_MMAP2_UNIT
-#define OFF_MASK ((-0x2000ULL << (8*sizeof(syscall_arg_t)-1)) | (UNIT-1))
+struct mmap_args {
+    ZUUID target;
+    void *start_address;
+    size_t offset;
+    size_t length;
+    void *result;
+    uint32_t protection;
+    uint32_t flags;
+    uint32_t error;
+};
 
 void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 {
-	long ret;
-	if (off & OFF_MASK) {
+    size_t ret;
+    if (off & PAGE_SIZE) {
 		errno = EINVAL;
 		return MAP_FAILED;
 	}
 	if (len >= PTRDIFF_MAX) {
 		errno = ENOMEM;
 		return MAP_FAILED;
-	}
-	if (flags & MAP_FIXED) {
-		__vm_wait();
-	}
-#ifdef SYS_mmap2
-	ret = __syscall(SYS_mmap2, start, len, prot, flags, fd, off/UNIT);
-#else
-	ret = __syscall(SYS_mmap, start, len, prot, flags, fd, off);
-#endif
-	/* Fixup incorrect EPERM from kernel. */
-	if (ret == -EPERM && !start && (flags&MAP_ANON) && !(flags&MAP_FIXED))
-		ret = -ENOMEM;
-	return (void *)__syscall_ret(ret);
+    }
+
+    if (!(flags & (MAP_SHARED | MAP_PRIVATE)) || !len) {
+        errno = EINVAL;
+        return MAP_FAILED;
+    }
+
+    ZFileDescriptor *zfd = NULL;
+    if (!(flags & MAP_ANON)) {
+        zfd = zagtos_get_file_descriptor_object(fd);
+        if (!zfd) {
+            errno = EBADF;
+            return MAP_FAILED;
+        }
+        /* Wo don't support executing code this way */
+        if (prot & PROT_EXEC) {
+            errno = EACCES;
+            return MAP_FAILED;
+        }
+        if ((prot & PROT_WRITE) && !(prot & MAP_PRIVATE) && !zfd->write) {
+            errno = EACCES;
+            return MAP_FAILED;
+        }
+    }
+
+    size_t num_pages = (len - 1) / PAGE_SIZE + 1;
+
+    struct mmap_args args = {
+        .start_address = start,
+        .offset = off,
+        .length = len,
+        .protection  = prot,
+        .flags = flags
+    };
+    if (zfd) {
+        args.target = zfd->object->info.id;
+    }
+
+    ret = zagtos_syscall(SYS_MMAP, &args);
+    if (args.error) {
+        errno = args.error;
+        return MAP_FAILED;
+    }
+    return (void *)ret;
 }
 
 weak_alias(__mmap, mmap);

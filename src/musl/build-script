@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+SRCDIR="$PWD"
+cd "$SHBUID_BUILD_DIR"
+
+"$SRCDIR/configure" --prefix="$SYSROOT" --target="$ARCH-zagto-zagtos" --disable-shared
+make -j "$PARALLEL_JOBS"
+make install
+

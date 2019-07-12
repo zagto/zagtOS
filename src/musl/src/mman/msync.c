@@ -1,7 +1,13 @@
 #include <sys/mman.h>
+#include <errno.h>
 #include "syscall.h"
 
 int msync(void *start, size_t len, int flags)
 {
-	return syscall_cp(SYS_msync, start, len, flags);
+    int ret = zagtos_syscall(SYS_MSYNC, start, len, flags);
+    if (ret) {
+        errno = ret;
+        return -1;
+    }
+    return 0;
 }

@@ -2,7 +2,9 @@
 #include <fcntl.h>
 #include <errno.h>
 
-int lockf(int fd, int op, off_t size)
+// TODO
+
+/*int lockf(int fd, int op, off_t size)
 {
 	struct flock l = {
 		.l_type = F_WRLCK,
@@ -27,6 +29,6 @@ int lockf(int fd, int op, off_t size)
 	}
 	errno = EINVAL;
 	return -1;
-}
+}*/
 
-weak_alias(lockf, lockf64);
+//weak_alias(lockf, lockf64);

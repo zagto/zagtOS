@@ -5,7 +5,7 @@
 
 int closedir(DIR *dir)
 {
-	int ret = close(dir->fd);
+    free(dir->entries);
 	free(dir);
-	return ret;
+    return 0;
 }

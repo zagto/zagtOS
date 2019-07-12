@@ -116,10 +116,6 @@ void srandom (unsigned int);
 char *initstate (unsigned int, char *, size_t);
 char *setstate (char *);
 int putenv (char *);
-int posix_openpt (int);
-int grantpt (int);
-int unlockpt (int);
-char *ptsname (int);
 char *l64a (long);
 long a64l (const char *);
 void setkey (const char *);
@@ -148,7 +144,6 @@ int clearenv(void);
 #endif
 
 #ifdef _GNU_SOURCE
-int ptsname_r(int, char *, size_t);
 char *ecvt(double, int, int *, int *);
 char *fcvt(double, int, int *, int *);
 char *gcvt(double, int, char *);

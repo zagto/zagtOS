@@ -1,56 +1,30 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <zagtos/filesystem.h>
+#include <zagtos/unixcompat.h>
 #include "syscall.h"
 #include "pthread_impl.h"
 
-struct ctx {
-	int fd;
-	const char *filename;
-	int amode;
-	int p;
-};
-
-static int checker(void *p)
+int faccessat(int dir_fd, const char *filename, int amode, int flag)
 {
-	struct ctx *c = p;
-	int ret;
-	if (__syscall(SYS_setregid, __syscall(SYS_getegid), -1)
-	    || __syscall(SYS_setreuid, __syscall(SYS_geteuid), -1))
-		__syscall(SYS_exit, 1);
-	ret = __syscall(SYS_faccessat, c->fd, c->filename, c->amode, 0);
-	__syscall(SYS_write, c->p, &ret, sizeof ret);
-	return 0;
-}
+    /* allow the flag, but it is ignored as we have no symlinks */
+    if ((amode & ~(R_OK|W_OK|X_OK)) && amode != F_OK) {
+        errno = EINVAL;
+        return -1;
+    }
 
-int faccessat(int fd, const char *filename, int amode, int flag)
-{
-	if (!flag || (flag==AT_EACCESS && getuid()==geteuid() && getgid()==getegid()))
-		return syscall(SYS_faccessat, fd, filename, amode, flag);
+    struct stat st;
+    if (fstatat(dir_fd, filename, &st, 0)) {
+        return -1;
+    }
 
-	if (flag != AT_EACCESS)
-		return __syscall_ret(-EINVAL);
-
-	char stack[1024];
-	sigset_t set;
-	pid_t pid;
-	int status;
-	int ret, p[2];
-
-	if (pipe2(p, O_CLOEXEC)) return __syscall_ret(-EBUSY);
-	struct ctx c = { .fd = fd, .filename = filename, .amode = amode, .p = p[1] };
-
-	__block_all_sigs(&set);
-	
-	pid = __clone(checker, stack+sizeof stack, 0, &c);
-	__syscall(SYS_close, p[1]);
-
-	if (pid<0 || __syscall(SYS_read, p[0], &ret, sizeof ret) != sizeof(ret))
-		ret = -EBUSY;
-	__syscall(SYS_close, p[0]);
-	__syscall(SYS_wait4, pid, &status, __WCLONE, 0);
-
-	__restore_sigs(&set);
-
-	return __syscall_ret(ret);
+    if (((amode & R_OK) && !(st.st_mode & 0400))
+            || ((amode & W_OK) && !(st.st_mode & 0200))
+            || ((amode & X_OK) && !(st.st_mode & 0100))) {
+        errno = EACCES;
+        return -1;
+    }
+    return 0;
 }

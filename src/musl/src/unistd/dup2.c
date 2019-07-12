@@ -1,20 +1,18 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <zagtos/unixcompat.h>
 #include "syscall.h"
 
 int dup2(int old, int new)
 {
-	int r;
-#ifdef SYS_dup2
-	while ((r=__syscall(SYS_dup2, old, new))==-EBUSY);
-#else
-	if (old==new) {
-		r = __syscall(SYS_fcntl, old, F_GETFD);
-		if (r >= 0) return old;
-	} else {
-		while ((r=__syscall(SYS_dup3, old, new, 0))==-EBUSY);
+    if (!zagtos_get_file_descriptor_object(old)) {
+        errno = EBADF;
+        return -1;
+    }
+
+    if (old!=new) {
+        zagtos_clone_file_descriptor(old, new, 1);
 	}
-#endif
-	return __syscall_ret(r);
+    return new;
 }

@@ -1,59 +1,46 @@
-#include <elf.h>
-#include <poll.h>
-#include <fcntl.h>
-#include <signal.h>
+#include <stdlib.h>
+#include <assert.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "syscall.h"
 #include "atomic.h"
 #include "libc.h"
-
-static void dummy(void) {}
-weak_alias(dummy, _init);
+#include <zagtos/uuid.h>
+#include <zagtos/unixcompat.h>
 
 extern weak hidden void (*const __init_array_start)(void), (*const __init_array_end)(void);
 
-static void dummy1(void *p) {}
-weak_alias(dummy1, __init_ssp);
+static char *dummy_environ = NULL;
+static char *dummy_pn = "/run";
 
-#define AUX_CNT 38
+static ZFileDescriptor syslog_fd = {
+    .object = NULL,
+    .position = 0,
+    .is_syslog = 1,
+    .read = 1,
+    .write = 1,
+    .lock = 0,
+    .refcount = 4, /* never try to deallocate */
+    .flags = O_RDWR,
+};
+
+weak void _init();
+
 
 #ifdef __GNUC__
 __attribute__((__noinline__))
 #endif
-void __init_libc(char **envp, char *pn)
+void __init_libc(char **envp, char *pn, size_t tls_base)
+
 {
-	size_t i, *auxv, aux[AUX_CNT] = { 0 };
-	__environ = envp;
-	for (i=0; envp[i]; i++);
-	libc.auxv = auxv = (void *)(envp+i+1);
-	for (i=0; auxv[i]; i+=2) if (auxv[i]<AUX_CNT) aux[auxv[i]] = auxv[i+1];
-	__hwcap = aux[AT_HWCAP];
-	__sysinfo = aux[AT_SYSINFO];
-	libc.page_size = aux[AT_PAGESZ];
+    __environ = envp;
+    __progname = pn;
+    __progname_full = pn;
 
-	if (!pn) pn = (void*)aux[AT_EXECFN];
-	if (!pn) pn = "";
-	__progname = __progname_full = pn;
-	for (i=0; pn[i]; i++) if (pn[i]=='/') __progname = pn+i+1;
+    __init_tls(tls_base);
+    __init_ssp();
 
-	__init_tls(aux);
-	__init_ssp((void *)aux[AT_RANDOM]);
-
-	if (aux[AT_UID]==aux[AT_EUID] && aux[AT_GID]==aux[AT_EGID]
-		&& !aux[AT_SECURE]) return;
-
-	struct pollfd pfd[3] = { {.fd=0}, {.fd=1}, {.fd=2} };
-	int r =
-#ifdef SYS_poll
-	__syscall(SYS_poll, pfd, 3, 0);
-#else
-	__syscall(SYS_ppoll, pfd, 3, &(struct timespec){0}, 0, _NSIG/8);
-#endif
-	if (r<0) a_crash();
-	for (i=0; i<3; i++) if (pfd[i].revents&POLLNVAL)
-		if (__sys_open("/dev/null", O_RDWR)<0)
-			a_crash();
-	libc.secure = 1;
+    libc.secure = 1;
 }
 
 static void libc_start_init(void)
@@ -69,14 +56,61 @@ weak_alias(libc_start_init, __libc_start_init);
 typedef int lsm2_fn(int (*)(int,char **,char **), int, char **);
 static lsm2_fn libc_start_main_stage2;
 
-int __libc_start_main(int (*main)(int,char **,char **), int argc, char **argv)
+int __libc_start_main(int (*main)(int,char **,char **),
+                      ZObject *run_msg,
+                      size_t tls_base,
+                      size_t master_tls_base,
+                      size_t tls_size)
 {
-	char **envp = argv+argc+1;
+    int argc;
+    char **argv;
+    char **envp;
+    if (zagtos_compare_uuid(run_msg->info.id, TYPE_UNIX_RUN)) {
+        ZUnixRun *urun = (ZUnixRun *)run_msg;
+        argc = urun->argc;
+        argv = calloc(argc, sizeof(char *));
+        assert(argv);
+
+        char *p = &urun->argv_environ_blob;
+        int arg_index = 0;
+        char *begin = p;
+        while (arg_index < argc) {
+            if (!*p) {
+                argv[arg_index] = begin;
+                arg_index++;
+                begin = p + 1;
+            }
+            p++;
+        }
+
+        envp = calloc(urun->environ_count + 1, sizeof(char *));
+        int env_index = 0;
+        while (arg_index < urun->environ_count) {
+            if (!*p) {
+                envp[env_index] = begin;
+                env_index++;
+                begin = p + 1;
+            }
+            p++;
+        }
+        envp[urun->environ_count] = NULL;
+
+        // TODO: stdin/out
+    } else {
+        argc = 1;
+        argv = &dummy_pn;
+        envp = &dummy_environ;
+        zagtos_init_file_descriptor(0, &syslog_fd);
+        zagtos_init_file_descriptor(1, &syslog_fd);
+        zagtos_init_file_descriptor(2, &syslog_fd);
+    }
 
 	/* External linkage, and explicit noinline attribute if available,
 	 * are used to prevent the stack frame used during init from
 	 * persisting for the entire process lifetime. */
-	__init_libc(envp, argv[0]);
+    libc.master_tls_base = master_tls_base;
+    libc.tls_size = tls_size;
+    __init_libc(envp, argv[0], tls_base);
 
 	/* Barrier against hoisting application code or anything using ssp
 	 * or thread pointer prior to its initialization above. */

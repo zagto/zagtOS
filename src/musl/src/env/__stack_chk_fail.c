@@ -1,15 +1,14 @@
 #include <string.h>
 #include <stdint.h>
+#include <zagtos/syscall.h>
 #include "pthread_impl.h"
 
 uintptr_t __stack_chk_guard;
 
-void __init_ssp(void *entropy)
+void __init_ssp(void)
 {
-	if (entropy) memcpy(&__stack_chk_guard, entropy, sizeof(uintptr_t));
-	else __stack_chk_guard = (uintptr_t)&__stack_chk_guard * 1103515245;
-
-	__pthread_self()->CANARY = __stack_chk_guard;
+    zagtos_syscall(SYS_RANDOM, sizeof(uintptr_t), &__stack_chk_guard);
+    pthread_self()->CANARY = __stack_chk_guard;
 }
 
 void __stack_chk_fail(void)

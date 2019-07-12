@@ -1,6 +1,7 @@
 #include "stdio_impl.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <zagtos/unixcompat.h>
 
 /* The basic idea of this implementation is to open a new FILE,
  * hack the necessary parts of the new FILE into the old one, then
@@ -21,10 +22,20 @@ FILE *freopen(const char *restrict filename, const char *restrict mode, FILE *re
 
 	if (!filename) {
 		if (fl&O_CLOEXEC)
-			__syscall(SYS_fcntl, f->fd, F_SETFD, FD_CLOEXEC);
+            zagtos_set_file_descriptor_cloexec(f->fd, 1);
 		fl &= ~(O_CREAT|O_EXCL|O_CLOEXEC);
-		if (syscall(SYS_fcntl, f->fd, F_SETFL, fl) < 0)
-			goto fail;
+        ZFileDescriptor *zfd = zagtos_get_file_descriptor_object(f->fd);
+        zfd->flags = fl;
+        if (fl | O_WRONLY) {
+            zfd->write = 1;
+            zfd->read = 0;
+        } else  if (fl | O_RDWR) {
+            zfd->read = 1;
+            zfd->write = 1;
+        } else {
+            zfd->write = 0;
+            zfd->read = 1;
+        }
 	} else {
 		f2 = fopen(filename, mode);
 		if (!f2) goto fail;

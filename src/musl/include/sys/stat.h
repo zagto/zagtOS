@@ -20,7 +20,13 @@ extern "C" {
 
 #include <bits/alltypes.h>
 
-#include <bits/stat.h>
+struct stat {
+    mode_t st_mode;
+    off_t st_size;
+    // TODO: support these in future
+    //struct timespec st_mtim;
+    //struct timespec st_ctim;
+};
 
 #define st_atime st_atim.tv_sec
 #define st_mtime st_mtim.tv_sec
@@ -74,25 +80,10 @@ int stat(const char *__restrict, struct stat *__restrict);
 int fstat(int, struct stat *);
 int lstat(const char *__restrict, struct stat *__restrict);
 int fstatat(int, const char *__restrict, struct stat *__restrict, int);
-int chmod(const char *, mode_t);
-int fchmod(int, mode_t);
-int fchmodat(int, const char *, mode_t, int);
-mode_t umask(mode_t);
 int mkdir(const char *, mode_t);
-int mkfifo(const char *, mode_t);
 int mkdirat(int, const char *, mode_t);
-int mkfifoat(int, const char *, mode_t);
-
-#if defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
-int mknod(const char *, mode_t, dev_t);
-int mknodat(int, const char *, mode_t, dev_t);
-#endif
-
-int futimens(int, const struct timespec [2]);
-int utimensat(int, const char *, const struct timespec [2], int);
 
 #if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
-int lchmod(const char *, mode_t);
 #define S_IREAD S_IRUSR
 #define S_IWRITE S_IWUSR
 #define S_IEXEC S_IXUSR

@@ -1,8 +1,8 @@
 #include <fcntl.h>
 #include <stdarg.h>
-#include "syscall.h"
+#include "__open_common.h"
 
-int openat(int fd, const char *filename, int flags, ...)
+int openat(int dir_fd, const char *filename, int flags, ...)
 {
 	mode_t mode = 0;
 
@@ -13,7 +13,7 @@ int openat(int fd, const char *filename, int flags, ...)
 		va_end(ap);
 	}
 
-	return syscall_cp(SYS_openat, fd, filename, flags|O_LARGEFILE, mode);
+    return __open_common(dir_fd, filename, flags, mode);
 }
 
 weak_alias(openat, openat64);

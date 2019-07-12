@@ -68,7 +68,6 @@ typedef unsigned long u_long, ulong;
 typedef long long quad_t;
 typedef unsigned long long u_quad_t;
 #include <endian.h>
-#include <sys/select.h>
 #include <sys/sysmacros.h>
 #endif
 

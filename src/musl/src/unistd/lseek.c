@@ -1,14 +1,42 @@
 #include <unistd.h>
+#include <errno.h>
+#include <zagtos/unixcompat.h>
 #include "syscall.h"
+#include "lock.h"
 
 off_t lseek(int fd, off_t offset, int whence)
 {
-#ifdef SYS__llseek
-	off_t result;
-	return syscall(SYS__llseek, fd, offset>>32, offset, &result, whence) ? -1 : result;
-#else
-	return syscall(SYS_lseek, fd, offset, whence);
-#endif
+    ZFileDescriptor *zfd = zagtos_get_file_descriptor_object(fd);
+    if (!zfd) {
+        errno = EBADF;
+        return -1;
+    }
+    LOCK(&zfd->lock);
+    if (whence == SEEK_SET) {
+        if (offset < 0) {
+            errno = EINVAL;
+            goto fail;
+        }
+        zfd->position = offset;
+    } else if (whence == SEEK_CUR) {
+        if (offset < 0 && zfd->position < -offset) {
+            errno = EINVAL;
+            goto fail;
+        }
+        zfd->position += offset;
+    } else if (whence == SEEK_END) {
+        zfd->position = zfd->object->info.num_data_bytes + offset;
+    } else {
+        errno = EINVAL;
+        goto fail;
+    }
+
+    UNLOCK(&zfd->lock);
+    return 0;
+
+fail:
+    UNLOCK(&zfd->lock);
+    return -1;
 }
 
 weak_alias(lseek, lseek64);

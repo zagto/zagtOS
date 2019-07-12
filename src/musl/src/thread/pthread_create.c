@@ -7,16 +7,6 @@
 #include <string.h>
 #include <stddef.h>
 
-static void dummy_0()
-{
-}
-weak_alias(dummy_0, __acquire_ptc);
-weak_alias(dummy_0, __release_ptc);
-weak_alias(dummy_0, __pthread_tsd_run_dtors);
-weak_alias(dummy_0, __do_orphaned_stdio_locks);
-weak_alias(dummy_0, __dl_thread_cleanup);
-weak_alias(dummy_0, __membarrier_init);
-
 static int tl_lock_count;
 static int tl_lock_waiters;
 
@@ -75,18 +65,16 @@ _Noreturn void __pthread_exit(void *result)
 	 * joinable threads it's a valid usage that must be handled. */
 	LOCK(self->killlock);
 
-	/* The thread list lock must be AS-safe, and thus requires
-	 * application signals to be blocked before it can be taken. */
-	__block_app_sigs(&set);
-	__tl_lock();
+    /* The thread list lock must be AS-safe, and thus requires
+     * application signals to be blocked before it can be taken. */
+    __tl_lock();
 
 	/* If this is the only thread in the list, don't proceed with
 	 * termination of the thread, but restore the previous lock and
 	 * signal state to prepare for exit to call atexit handlers. */
 	if (self->next == self) {
 		__tl_unlock();
-		__restore_sigs(&set);
-		UNLOCK(self->killlock);
+        UNLOCK(self->killlock);
 		exit(0);
 	}
 
@@ -99,27 +87,26 @@ _Noreturn void __pthread_exit(void *result)
 	self->prev->next = self->next;
 	self->prev = self->next = self;
 
-	/* Process robust list in userspace to handle non-pshared mutexes
-	 * and the detached thread case where the robust list head will
-	 * be invalid when the kernel would process it. */
-	__vm_lock();
-	volatile void *volatile *rp;
-	while ((rp=self->robust_list.head) && rp != &self->robust_list.head) {
-		pthread_mutex_t *m = (void *)((char *)rp
-			- offsetof(pthread_mutex_t, _m_next));
-		int waiters = m->_m_waiters;
-		int priv = (m->_m_type & 128) ^ 128;
-		self->robust_list.pending = rp;
-		self->robust_list.head = *rp;
-		int cont = a_swap(&m->_m_lock, 0x40000000);
-		self->robust_list.pending = 0;
-		if (cont < 0 || waiters)
-			__wake(&m->_m_lock, 1, priv);
-	}
-	__vm_unlock();
+    /* Process robust list in userspace to handle non-pshared mutexes
+     * and the detached thread case where the robust list head will
+     * be invalid when the kernel would process it. */
+    __vm_lock();
+    volatile void *volatile *rp;
+    while ((rp=self->robust_list.head) && rp != &self->robust_list.head) {
+        pthread_mutex_t *m = (void *)((char *)rp
+            - offsetof(pthread_mutex_t, _m_next));
+        int waiters = m->_m_waiters;
+        int priv = (m->_m_type & 128) ^ 128;
+        self->robust_list.pending = rp;
+        self->robust_list.head = *rp;
+        int cont = a_swap(&m->_m_lock, 0x40000000);
+        self->robust_list.pending = 0;
+        if (cont < 0 || waiters)
+            __wake(&m->_m_lock, 1, priv);
+    }
+    __vm_unlock();
 
-	__do_orphaned_stdio_locks();
-	__dl_thread_cleanup();
+    __do_orphaned_stdio_locks();
 
 	/* This atomic potentially competes with a concurrent pthread_detach
 	 * call; the loser is responsible for freeing thread resources. */
@@ -129,14 +116,13 @@ _Noreturn void __pthread_exit(void *result)
 		/* Detached threads must block even implementation-internal
 		 * signals, since they will not have a stack in their last
 		 * moments of existence. */
-		__block_all_sigs(&set);
 
-		/* Robust list will no longer be valid, and was already
-		 * processed above, so unregister it with the kernel. */
-		if (self->robust_list.off)
-			__syscall(SYS_set_robust_list, 0, 3*sizeof(long));
+        /* Robust list will no longer be valid, and was already
+         * processed above, so unregister it with the kernel. */
+        if (self->robust_list.off)
+            zagtos_syscall(SYS_SET_ROBUST_LIST, 0, 3*sizeof(long));
 
-		/* Since __unmapself bypasses the normal munmap code path,
+        /* Since __unmapself bypasses the normal munmap code path,
 		 * explicitly wait for vmlock holders first. */
 		__vm_wait();
 
@@ -151,10 +137,10 @@ _Noreturn void __pthread_exit(void *result)
 	/* After the kernel thread exits, its tid may be reused. Clear it
 	 * to prevent inadvertent use and inform functions that would use
 	 * it that it's no longer available. */
-	self->tid = 0;
+    self->tid = 0;
 	UNLOCK(self->killlock);
 
-	for (;;) __syscall(SYS_exit, 0);
+    for (;;) zagtos_syscall(SYS_EXIT, 0);
 }
 
 void __do_cleanup_push(struct __ptcb *cb)
@@ -174,25 +160,12 @@ struct start_args {
 	void *start_arg;
 	pthread_attr_t *attr;
 	volatile int *perr;
-	unsigned long sig_mask[_NSIG/8/sizeof(long)];
 };
 
 static int start(void *p)
 {
 	struct start_args *args = p;
-	if (args->attr) {
-		pthread_t self = __pthread_self();
-		int ret = -__syscall(SYS_sched_setscheduler, self->tid,
-			args->attr->_a_policy, &args->attr->_a_prio);
-		if (a_swap(args->perr, ret)==-2)
-			__wake(args->perr, 1, 1);
-		if (ret) {
-			self->detach_state = DT_DETACHED;
-			__pthread_exit(0);
-		}
-	}
-	__syscall(SYS_rt_sigprocmask, SIG_SETMASK, &args->sig_mask, 0, _NSIG/8);
-	__pthread_exit(args->start_func(args->start_arg));
+    __pthread_exit(args->start_func(args->start_arg));
 	return 0;
 }
 
@@ -228,14 +201,10 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	size_t size, guard;
 	struct pthread *self, *new;
 	unsigned char *map = 0, *stack = 0, *tsd = 0, *stack_limit;
-	unsigned flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND
-		| CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS
-		| CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_DETACHED;
 	pthread_attr_t attr = { 0 };
 	sigset_t set;
 	volatile int err = -1;
 
-	if (!libc.can_do_threads) return ENOSYS;
 	self = __pthread_self();
 	if (!libc.threaded) {
 		for (FILE *f=*__ofl_lock(); f; f=f->next)
@@ -244,9 +213,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		init_file_lock(__stdin_used);
 		init_file_lock(__stdout_used);
 		init_file_lock(__stderr_used);
-		__syscall(SYS_rt_sigprocmask, SIG_UNBLOCK, SIGPT_SET, 0, _NSIG/8);
 		self->tsd = (void **)__pthread_tsd_main;
-		__membarrier_init();
 		libc.threaded = 1;
 	}
 	if (attrp && !c11) attr = *attrp;
@@ -258,7 +225,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	}
 
 	if (attr._a_stackaddr) {
-		size_t need = libc.tls_size + __pthread_tsd_size;
+        size_t need = libc.tls_size + pthread_struct_area_size + __pthread_tsd_size;
 		size = attr._a_stacksize;
 		stack = (void *)(attr._a_stackaddr & -16);
 		stack_limit = (void *)(attr._a_stackaddr - size);
@@ -267,7 +234,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		 * application's stack space. */
 		if (need < size/8 && need < 2048) {
 			tsd = stack - __pthread_tsd_size;
-			stack = tsd - libc.tls_size;
+            stack = tsd - libc.tls_size - pthread_struct_area_size;
 			memset(stack, 0, need);
 		} else {
 			size = ROUND(need);
@@ -276,7 +243,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	} else {
 		guard = ROUND(attr._a_guardsize);
 		size = guard + ROUND(attr._a_stacksize
-			+ libc.tls_size +  __pthread_tsd_size);
+            + libc.tls_size + pthread_struct_area_size +  __pthread_tsd_size);
 	}
 
 	if (!tsd) {
@@ -294,12 +261,14 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		}
 		tsd = map + size - __pthread_tsd_size;
 		if (!stack) {
-			stack = tsd - libc.tls_size;
+            stack = tsd - libc.tls_size - pthread_struct_area_size;
 			stack_limit = map + guard;
 		}
 	}
 
-	new = __copy_tls(tsd - libc.tls_size);
+    new = (struct pthread *)(tsd - libc.tls_size - pthread_struct_area_size);
+    memcpy((char *)new + pthread_struct_area_size, (void *)libc.master_tls_base, libc.tls_size);
+
 	new->map_base = map;
 	new->map_size = size;
 	new->stack = stack;
@@ -332,21 +301,9 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		args->perr = 0;
 	}
 
-	/* Application signals (but not the synccall signal) must be
-	 * blocked before the thread list lock can be taken, to ensure
-	 * that the lock is AS-safe. */
-	__block_app_sigs(&set);
-
-	/* Ensure SIGCANCEL is unblocked in new thread. This requires
-	 * working with a copy of the set so we can restore the
-	 * original mask in the calling thread. */
-	memcpy(&args->sig_mask, &set, sizeof args->sig_mask);
-	args->sig_mask[(SIGCANCEL-1)/8/sizeof(long)] &=
-		~(1UL<<((SIGCANCEL-1)%(8*sizeof(long))));
-
 	__tl_lock();
 	libc.threads_minus_1++;
-	ret = __clone((c11 ? start_c11 : start), stack, flags, args, &new->tid, TP_ADJ(new), &__thread_list_lock);
+    ret = zagtos_syscall(SYS_CREATE_THREAD, c11 ? start_c11 : start, stack, args, new, &new->tid, &__thread_list_lock);
 
 	/* If clone succeeded, new thread must be linked on the thread
 	 * list before unlocking it, even if scheduling may still fail. */
@@ -357,7 +314,6 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		new->prev->next = new;
 	}
 	__tl_unlock();
-	__restore_sigs(&set);
 	__release_ptc();
 
 	if (ret < 0) {

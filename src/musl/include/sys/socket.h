@@ -324,7 +324,7 @@ struct sockaddr_storage {
 };
 
 int socket (int, int, int);
-int socketpair (int, int, int, int [2]);
+//int socketpair (int, int, int, int [2]);
 
 int shutdown (int, int);
 

@@ -3,5 +3,7 @@
 
 int clock_getres(clockid_t clk, struct timespec *ts)
 {
-	return syscall(SYS_clock_getres, clk, ts);
+    /* Zagtos clocks have Microsecond-resolution */
+    ts->tv_sec = 0;
+    ts->tv_nsec = 1000;
 }

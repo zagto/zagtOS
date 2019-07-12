@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 #include <bits/alltypes.h>
+#include <zagtos/uuid.h>
 
 typedef struct __dirstream DIR;
 
@@ -27,6 +28,7 @@ struct dirent {
 	unsigned short d_reclen;
 	unsigned char d_type;
 	char d_name[256];
+    ZUUID d_objid;
 };
 
 #define d_fileno d_ino

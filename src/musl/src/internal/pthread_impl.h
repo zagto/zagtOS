@@ -2,7 +2,6 @@
 #define _PTHREAD_IMPL_H
 
 #include <pthread.h>
-#include <signal.h>
 #include <errno.h>
 #include <limits.h>
 #include <sys/mman.h>
@@ -19,11 +18,10 @@ struct pthread {
 	struct pthread *self;
 	uintptr_t *dtv;
 	struct pthread *prev, *next; /* non-ABI */
-	uintptr_t sysinfo;
 	uintptr_t canary, canary2;
 
 	/* Part 2 -- implementation details, non-ABI. */
-	int tid;
+    int tid;
 	int errno_val;
 	volatile int detach_state;
 	volatile int cancel;
@@ -38,12 +36,12 @@ struct pthread {
 	void *result;
 	struct __ptcb *cancelbuf;
 	void **tsd;
-	struct {
-		volatile void *volatile head;
-		long off;
-		volatile void *volatile pending;
-	} robust_list;
-	volatile int timer_id;
+    struct {
+        volatile void *volatile head;
+        long off;
+        volatile void *volatile pending;
+    } robust_list;
+    volatile int timer_id;
 	locale_t locale;
 	volatile int killlock[1];
 	char *dlerror_buf;
@@ -54,6 +52,8 @@ struct pthread {
 	uintptr_t canary_at_end;
 	uintptr_t *dtv_copy;
 };
+
+static const size_t pthread_struct_area_size = 0x400;
 
 enum {
 	DT_EXITING = 0,
@@ -124,14 +124,7 @@ struct __timer {
 	((sigset_t *)(const unsigned long [_NSIG/8/sizeof(long)]){ \
 	 0x80000000 })
 
-void *__tls_get_addr(tls_mod_off_t *);
-hidden void *__tls_get_new(tls_mod_off_t *);
-hidden int __init_tp(void *);
-hidden void *__copy_tls(unsigned char *);
-hidden void __reset_tls();
 
-hidden void __membarrier_init(void);
-hidden void __dl_thread_cleanup(void);
 hidden void __testcancel();
 hidden void __do_cleanup_push(struct __ptcb *);
 hidden void __do_cleanup_pop(struct __ptcb *);
@@ -145,9 +138,7 @@ extern hidden void *__pthread_tsd_main[];
 extern hidden volatile int __aio_fut;
 extern hidden volatile int __eintr_valid_flag;
 
-hidden int __clone(int (*)(void *), void *, int, void *, ...);
 hidden int __set_thread_area(void *);
-hidden int __libc_sigaction(int, const struct sigaction *, struct sigaction *);
 hidden void __unmapself(void *, size_t);
 
 hidden int __timedwait(volatile int *, int, clockid_t, const struct timespec *, int);
@@ -157,14 +148,14 @@ static inline void __wake(volatile void *addr, int cnt, int priv)
 {
 	if (priv) priv = FUTEX_PRIVATE;
 	if (cnt<0) cnt = INT_MAX;
-	__syscall(SYS_futex, addr, FUTEX_WAKE|priv, cnt) != -ENOSYS ||
-	__syscall(SYS_futex, addr, FUTEX_WAKE, cnt);
+    zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAKE|priv, cnt) != -ENOSYS ||
+    zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAKE, cnt);
 }
 static inline void __futexwait(volatile void *addr, int val, int priv)
 {
 	if (priv) priv = FUTEX_PRIVATE;
-	__syscall(SYS_futex, addr, FUTEX_WAIT|priv, val, 0) != -ENOSYS ||
-	__syscall(SYS_futex, addr, FUTEX_WAIT, val, 0);
+    zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT|priv, val, 0) != -ENOSYS ||
+    zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT, val, 0);
 }
 
 hidden void __acquire_ptc(void);

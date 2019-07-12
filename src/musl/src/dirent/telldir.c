@@ -3,5 +3,5 @@
 
 long telldir(DIR *dir)
 {
-	return dir->tell;
+    return dir->current_entry;
 }

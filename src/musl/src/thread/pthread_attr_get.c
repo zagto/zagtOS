@@ -11,23 +11,17 @@ int pthread_attr_getguardsize(const pthread_attr_t *restrict a, size_t *restrict
 	return 0;
 }
 
-int pthread_attr_getinheritsched(const pthread_attr_t *restrict a, int *restrict inherit)
+/*int pthread_attr_getinheritsched(const pthread_attr_t *restrict a, int *restrict inherit)
 {
 	*inherit = a->_a_sched;
 	return 0;
 }
 
-int pthread_attr_getschedparam(const pthread_attr_t *restrict a, struct sched_param *restrict param)
-{
-	param->sched_priority = a->_a_prio;
-	return 0;
-}
-
 int pthread_attr_getschedpolicy(const pthread_attr_t *restrict a, int *restrict policy)
 {
-	*policy = a->_a_policy;
-	return 0;
-}
+    *policy = a->_a_policy;
+    return 0;
+}*/
 
 int pthread_attr_getscope(const pthread_attr_t *restrict a, int *restrict scope)
 {

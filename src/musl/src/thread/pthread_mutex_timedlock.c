@@ -7,19 +7,15 @@ static int pthread_mutex_timedlock_pi(pthread_mutex_t *restrict m, const struct 
 	pthread_t self = __pthread_self();
 	int e;
 
-	if (!priv) self->robust_list.pending = &m->_m_next;
-
-	do e = -__syscall(SYS_futex, &m->_m_lock, FUTEX_LOCK_PI|priv, 0, at);
+    do e = -zagtos_syscall(SYS_FUTEX, &m->_m_lock, FUTEX_LOCK_PI|priv, 0, at);
 	while (e==EINTR);
-	if (e) self->robust_list.pending = 0;
 
 	switch (e) {
 	case 0:
 		/* Catch spurious success for non-robust mutexes. */
 		if (!(type&4) && ((m->_m_lock & 0x40000000) || m->_m_waiters)) {
 			a_store(&m->_m_waiters, -1);
-			__syscall(SYS_futex, &m->_m_lock, FUTEX_UNLOCK_PI|priv);
-			self->robust_list.pending = 0;
+            zagtos_syscall(SYS_FUTEX, &m->_m_lock, FUTEX_UNLOCK_PI|priv);
 			break;
 		}
 		/* Signal to trylock that we already have the lock. */

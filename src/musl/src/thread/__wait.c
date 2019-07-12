@@ -1,3 +1,4 @@
+#include <zagtos/syscall.h>
 #include "pthread_impl.h"
 
 void __wait(volatile int *addr, volatile int *waiters, int val, int priv)
@@ -10,8 +11,7 @@ void __wait(volatile int *addr, volatile int *waiters, int val, int priv)
 	}
 	if (waiters) a_inc(waiters);
 	while (*addr==val) {
-		__syscall(SYS_futex, addr, FUTEX_WAIT|priv, val, 0) != -ENOSYS
-		|| __syscall(SYS_futex, addr, FUTEX_WAIT, val, 0);
+        zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT|priv, val, 0);
 	}
 	if (waiters) a_dec(waiters);
 }
