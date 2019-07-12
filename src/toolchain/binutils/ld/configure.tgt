@@ -264,6 +264,7 @@ i[3-7]86-*-redox*)	targ_emul=elf_i386
 			targ_extra_emuls=elf_x86_64 ;;
 x86_64-*-redox*)	targ_emul=elf_x86_64
 			targ_extra_emuls=elf_i386 ;;
+x86_64-*-zagtos*)	targ_emul=elf_x86_64 ;;
 i[3-7]86-*-sysv[45]*)	targ_emul=elf_i386
 			targ_extra_emuls=elf_iamcu ;;
 i[3-7]86-*-solaris2*)	targ_emul=elf_i386_sol2
@@ -827,6 +828,10 @@ i[03-9x]86-*-cygwin* | x86_64-*-cygwin*)
   ;;
 
 *-*-netbsd*)
+  ;;
+
+*-*-zagtos*)
+  NATIVE_LIB_DIRS='/lib /local/lib'
   ;;
 
 alpha*-*-*)

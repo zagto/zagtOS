@@ -259,7 +259,8 @@ elf_x86_allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 		  htab->elf.srelplt->reloc_count++;
 		}
 	    }
-
+// HACK
+#if 0
 	  if (htab->target_os == is_vxworks && !bfd_link_pic (info))
 	    {
 	      /* VxWorks has a second set of relocations for each PLT entry
@@ -280,6 +281,7 @@ elf_x86_allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 
 	      srelplt2->size += (htab->sizeof_reloc * 2);
 	    }
+#endif
 	}
       else
 	{
@@ -1390,8 +1392,11 @@ _bfd_x86_elf_size_dynamic_sections (bfd *output_bfd,
 		return FALSE;
 	    }
 	}
+// HACK
+#if 0
       if (htab->target_os == is_vxworks
 	  && !elf_vxworks_add_dynamic_entries (output_bfd, info))
+#endif
 	return FALSE;
     }
 #undef add_dynamic_entry
@@ -1482,9 +1487,12 @@ _bfd_x86_elf_finish_dynamic_sections (bfd *output_bfd,
       switch (dyn.d_tag)
 	{
 	default:
+// HACK
+#if 0
 	  if (htab->target_os == is_vxworks
 	      && elf_vxworks_finish_dynamic_entry (output_bfd, &dyn))
 	    break;
+#endif
 	  continue;
 
 	case DT_PLTGOT:
@@ -2753,6 +2761,8 @@ error_alignment:
       htab->plt.eh_frame_plt = htab->lazy_plt->eh_frame_plt;
     }
 
+// HACK
+#if 0
   if (htab->target_os == is_vxworks
       && !elf_vxworks_create_dynamic_sections (dynobj, info,
 					       &htab->srelplt2))
@@ -2760,6 +2770,7 @@ error_alignment:
       info->callbacks->einfo (_("%F%P: failed to create VxWorks dynamic sections\n"));
       return pbfd;
     }
+#endif
 
   /* Since create_dynamic_sections isn't always called, but GOT
      relocations need GOT relocations, create them here so that we
