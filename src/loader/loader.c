@@ -28,7 +28,7 @@ EFI_STATUS EFIAPI efi_main (EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE *systemTabl
     volume = FindOwnVolume(imageHandle);
     kernel = (struct ElfFileHeader *)LoadFile(volume, L"SHKERNEL.BIN", NULL);
 
-    initDataInfo.address = (UINTN)LoadFile(volume, L"INITDATA.A", &initDataInfo.size);
+    initDataInfo.address = (UINTN)LoadFile(volume, L"INIT.BIN", &initDataInfo.size);
 
     GetMemoryMapAndExitBootServices(imageHandle, &memoryMapInfo);
     LogExitBootServices();

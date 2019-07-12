@@ -34,7 +34,7 @@ done
 mkdir -p out/esp/EFI/BOOT
 cp build/loader/BOOTX64.EFI out/esp/EFI/BOOT/
 cp build/kernel/SHKERNEL.BIN out/esp/
-ar rc out/esp/INITDATA.A build/acpi/acpi #build/initdata/init
+cp build/acpi/acpi out/esp/INIT.BIN
 # create image
 dd if=/dev/zero of=out/disk.img bs=1M count=34
 dd if=/dev/zero of=out/esp.img bs=1M count=33
