@@ -1,0 +1,46 @@
+# currently broken as there is no support for booting without UEFI
+
+
+# how much memory the emulated machine will have
+megs: 1024
+
+
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata1-master: type=disk, mode=flat, path="./out/disk.img"
+ata0-master:  type=cdrom, path="./emulate/ubuntu.iso", status=inserted
+boot: cdrom, disk
+
+# choose the boot disk.
+# boot: c
+
+
+# where do we send log messages?
+#log: bochs.log
+log: /dev/stdout
+
+
+#debug: action=report
+info: action=report
+error: action=report
+panic: action=report
+
+
+#display_library: x, options="gui_debug"
+display_library: x
+
+
+# This means that time in the emulated machine is the same as
+# realtime.  This can be scary because running the same simulation
+# twice in a row can lead to different results (because they started
+# at different times, for instance).  If you want to use non-real
+# time, then use sync=none.
+clock: sync=realtime, time0=local
+# clock: sync=none, time0=946681200 # jan 1, 2000
+
+#reset_on_triple_fault=0
+
+com1: enabled=1, mode=file, dev=/dev/stdout
+
+cpu: count=1, ips=10000000, reset_on_triple_fault=0
+
+#magic_break: enabled=1

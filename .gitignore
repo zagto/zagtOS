@@ -1,0 +1,10 @@
+out
+build
+*.bak
+*.config
+*.creator
+*.creator.*
+*.files
+*.includes
+*.cflags
+*.cxxflags

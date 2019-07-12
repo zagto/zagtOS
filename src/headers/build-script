@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+cd ../musl
+SRCDIR="$PWD"
+cd "$SHBUID_BUILD_DIR"
+
+export CC=gcc
+"$SRCDIR/configure" --prefix="$SYSROOT" --target="$ARCH-zagto-zagtos" --disable-shared
+make install-headers
+
