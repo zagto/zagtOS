@@ -38,21 +38,6 @@ bool PageTableEntry::present() {
     return data & PRESENT_BIT;
 }
 
-PageTable *PageTableEntry::pageTable() {
-    usize address = reinterpret_cast<usize>(this);
-    address -= address % PAGE_SIZE;
-    return reinterpret_cast<PageTable *>(address);
-}
-
-usize PageTableEntry::index() {
-    usize ownAddress = reinterpret_cast<usize>(this);
-    return ownAddress % PAGE_SIZE;
-}
-
-bool PageTableEntry::pointsToPageTable() {
-    return pageTable()->level() > 0;
-}
-
 PhysicalAddress PageTableEntry::addressValue() {
     Assert(present());
 

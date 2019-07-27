@@ -33,7 +33,10 @@ static constexpr Region UserStackRegion(
     UserSpaceRegion.length - USER_STACK_SIZE,
     USER_STACK_SIZE
 );
-static constexpr usize UserHeapEnd = UserSpaceRegion.start - USER_STACK_BORDER;
+static constexpr Region UserStackBorderRegion(
+    UserSpaceRegion.length - USER_STACK_SIZE - USER_STACK_BORDER,
+    USER_STACK_BORDER
+);
 
 static constexpr Region IdentityMapping(
     0xffffb00000000000,

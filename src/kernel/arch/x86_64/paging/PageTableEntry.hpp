@@ -18,10 +18,6 @@ private:
 
     usize data;
 
-    PageTable *pageTable();
-    usize index();
-    bool pointsToPageTable();
-
 public:
     PageTableEntry();
     PageTableEntry(PhysicalAddress addressValue,

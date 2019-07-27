@@ -6,7 +6,8 @@
 #include <tasks/Object.hpp>
 
 
-Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage) {
+Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
+        mappedAreas(this) {
     LockHolder lh(pagingLock);
 
     masterPageTable = new MasterPageTable();
@@ -17,13 +18,18 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage) {
     for (usize index = 0; index < elf.numSegments(); index++) {
         elf::Segment segment = elf.segment(index);
         if (segment.type() == elf::Segment::TYPE_LOAD) {
+            Log << "A Segment Type: " << (u64)segment.type() << "\n";
             Region region = segment.regionInMemory();
 
             MappedArea *ma = new MappedArea(this, region, segment.permissions());
             mappedAreas.insert(ma);
-            ma->mapEverything();
 
-            segment.load();
+            Log << "Mapped areas: \n";
+            for (usize i = 0; i < mappedAreas.size(); i++) {
+                Log << mappedAreas[i]->region.start << ", size " << mappedAreas[i]->region.length << "\n";
+            }
+
+            segment.load(this);
 
             if (segment.endAddress().value() > maxEndAddress.value()) {
                 maxEndAddress = segment.endAddress();
@@ -57,20 +63,18 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage) {
         masterTLSBase = elf.tlsSegment().address();
     }
 
-    bool valid;
-    Region tlsRegion = findFreeRegion(tlsSize + THREAD_STRUCT_AREA_SIZE, valid);
-    if (!valid) {
+    MappedArea *tlsArea = mappedAreas.addNew(tlsSize + THREAD_STRUCT_AREA_SIZE, Permissions::WRITE);
+    if (tlsArea == nullptr) {
         Log << "TODO: whatever should happen if there is no memory" << EndLine;
         Panic();
     }
 
-    MappedArea *tlsArea = new MappedArea(this, tlsRegion, Permissions::WRITE);
     tlsArea->mapEverything();
     mappedAreas.insert(tlsArea);
 
-    UserVirtualAddress tlsBase(tlsRegion.start + THREAD_STRUCT_AREA_SIZE);
+    UserVirtualAddress tlsBase(tlsArea->region.start + THREAD_STRUCT_AREA_SIZE);
     if (elf.hasTLS()) {
-        elf.tlsSegment().load(tlsBase);
+        elf.tlsSegment().load(this, tlsBase);
     }
 
     Thread *mainThread = new Thread(this,
@@ -108,79 +112,14 @@ bool Task::handlePageFault(UserVirtualAddress address) {
     UserVirtualAddress pageAddress{align(address.value(), PAGE_SIZE, AlignDirection::DOWN)};
     LockHolder lh(pagingLock);
 
-    MappedArea *ma = findMappedArea(address);
+    MappedArea *ma = mappedAreas.findMappedArea(address);
+    Log << "found mapped area\n";
     if (ma) {
         return ma->handlePageFault(pageAddress);
     } else {
         return false;
     }
 }
-
-MappedArea *Task::findMappedArea(UserVirtualAddress address) {
-    Assert(pagingLock.isLocked());
-
-    usize low = 0;
-    usize high = mappedAreas.size() - 1;
-    while (low < high) {
-        usize index = (high + low) / 2;
-        if (address.isInRegion(mappedAreas[index]->region)) {
-            return mappedAreas[index];
-        }
-        if (address.value() > mappedAreas[index]->region.start) {
-            low = index + 1;
-        } else {
-            high = index - 1;
-        }
-    }
-    return nullptr;
-}
-
-Region Task::findFreeRegion(usize length, bool &valid) {
-    Assert(pagingLock.isLocked());
-
-    valid = false;
-
-    length = align(length, PAGE_SIZE, AlignDirection::UP);
-
-    usize base = heapStart.value();
-    if (mappedAreas.size() && mappedAreas[0]->region.start < base + length) {
-        for (usize index = 0; index < mappedAreas.size(); index++) {
-            usize nextStart;
-            if (index == mappedAreas.size()) {
-                nextStart = UserHeapEnd;
-            } else {
-                nextStart = mappedAreas[index + 1]->region.start;
-            }
-            if (nextStart > UserHeapEnd) {
-                nextStart = UserHeapEnd;
-            }
-
-            usize areaEnd = mappedAreas[index]->region.end();
-            Assert(nextStart <= areaEnd);
-
-            if (areaEnd >= UserHeapEnd) {
-                /* We've failed... there is no big enough memory region in heap area left */
-                goto fail;
-            }
-
-            if (nextStart - areaEnd < length) {
-                base = areaEnd;
-                break;
-            }
-        }
-        if (base == heapStart.value()) {
-            /* base still has initial non-usable value. nothing found :( */
-            goto fail;
-        }
-    }
-
-    valid = true;
-    return Region(base, length);
-
-fail:
-    return Region(0, 0);
-}
-
 
 void Task::removeThread(Thread *thread) {
     threads.remove(thread);

@@ -5,6 +5,8 @@
 #include <lib/Vector.hpp>
 #include <lib/Slice.hpp>
 
+class Task;
+
 namespace elf {
     struct FileHeader32 {
         u8 ident[16];
@@ -80,9 +82,9 @@ namespace elf {
         Segment(Slice<Vector, u8> data, ProgramHeader header) :
             data{data}, header{header} {}
 
-        void load(UserVirtualAddress address);
-        void load() {
-            load(header.vaddr);
+        void load(Task *task, UserVirtualAddress address);
+        void load(Task *task) {
+            load(task, header.vaddr);
         }
 
         UserVirtualAddress endAddress();
@@ -92,7 +94,7 @@ namespace elf {
         UserVirtualAddress address() {
             return header.vaddr;
         }
-        bool type() {
+        u32 type() {
             return header.type;
         }
         Region regionInMemory();

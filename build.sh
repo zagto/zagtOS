@@ -11,7 +11,7 @@ rm -rf out/esp
 export PATH="$SHBUILD_ROOT/out/toolchain/loader-${ARCH}/bin:$SHBUILD_ROOT/out/toolchain/kernel-${ARCH}/bin:$SHBUILD_ROOT/out/toolchain/system-${ARCH}/bin:$PATH"
 export SYSROOT="$SHBUILD_ROOT/out/toolchain/sysroot-${ARCH}"
 
-export KERNEL_CFLAGS_x86_64="-mcmodel=large -mno-red-zone -ffixed-r15 -g"
+export KERNEL_CFLAGS_x86_64="-mcmodel=large -mno-red-zone -ffixed-r15"
 
 # install headers first
 rm -rf "$SYSROOT"

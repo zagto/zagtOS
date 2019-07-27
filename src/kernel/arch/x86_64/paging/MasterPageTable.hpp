@@ -9,9 +9,27 @@ private:
     enum class MissingStrategy {
         NONE, RETURN_NULLPTR, CREATE
     };
+    struct WalkData {
+        PageTable *tables[NUM_LEVELS];
+
+        WalkData(MasterPageTable *mpt) {
+            tables[MASTER_LEVEL] = mpt;
+        }
+    };
+
+    /* The partial version of this method exposes the path taken by the page walk via the walkData
+     * parameter, which can be used to skip parts of the page walk on subsequent calls */
+    PageTableEntry *partialWalkEntries(VirtualAddress address,
+                                       MissingStrategy missingStrategy,
+                                       usize startLevel,
+                                       WalkData &walkData);
     PageTableEntry *walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
 
 public:
+    enum class AccessOpertion {
+        READ, WRITE, VERIFY_ONLY
+    };
+
     static const usize KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
     static const usize NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
 
@@ -28,6 +46,13 @@ public:
              PhysicalAddress to,
              Permissions permissions);
     PhysicalAddress resolve(UserVirtualAddress address);
+    void accessRange(UserVirtualAddress address,
+                     usize numPages,
+                     usize startOffset,
+                     usize endOffset,
+                     u8 *buffer,
+                     AccessOpertion accOp,
+                     Permissions newPagesPermissions);
     void unmap(UserVirtualAddress address);
     bool isMapped(UserVirtualAddress address);
     void invalidateLocally(UserVirtualAddress address);
@@ -35,7 +60,8 @@ public:
     bool isActive();
     void activate();
 
-    void completelyUnmapRegion(Region region);
+    void completelyUnmapUserSpaceRegion();
+    void completelyUnmapLoaderRegion();
 };
 
 #endif // MASTERPAGETABLE_HPP

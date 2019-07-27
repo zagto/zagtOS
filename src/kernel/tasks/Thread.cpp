@@ -1,6 +1,6 @@
-#include <memory/UserSpaceWindow.h>
+#include <memory/UserSpaceObject.hpp>
 #include <common/common.hpp>
-#include <memory/UserSpaceWindow.h>
+#include <memory/UserSpaceObject.hpp>
 #include <tasks/Thread.hpp>
 #include <tasks/Task.hpp>
 #include <tasks/MMAP.hpp>
@@ -20,13 +20,23 @@ bool Thread::handleSyscall() {
     switch (registerState.syscallNr()) {
     case SYS_LOG: {
         LockHolder lh(task->pagingLock);
-        UserSpaceWindow window(registerState.syscallParameter(1),
-                               registerState.syscallParameter(0));
-        if (!window.isValid()) {
+        static const usize MAX_LOG_SIZE = 10000;
+        usize address = registerState.syscallParameter(1);
+        usize length = registerState.syscallParameter(0);
+
+        if (length > MAX_LOG_SIZE) {
+            Log << "Task attempted to send huge log. ingnoring.\n";
+            return true;
+        }
+
+        Vector<u8> buffer(MAX_LOG_SIZE);
+        bool valid = task->copyFromUser(&buffer[0], address, length, false);
+        if (!valid) {
+            Log << "SYS_LOG: invalid buffer\n";
             return false;
         }
-        for (usize index = 0; index < window.size(); index++) {
-            log::Log << static_cast<char>(window[index]);
+        for (usize index = 0; index < buffer.size(); index++) {
+            log::Log << static_cast<char>(buffer[index]);
         }
         return true;
     }
@@ -40,11 +50,12 @@ bool Thread::handleSyscall() {
 
     case SYS_MMAP: {
         Assert(task);
-        UserSpaceObject<MMAP> uso(registerState.syscallParameter(0));
-        if (!uso.isValid()) {
+        UserSpaceObject<MMAP, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
+                                                                task);
+        if (!uso.valid) {
             return false;
         }
-        uso.object()->perform(*task);
+        uso.object.perform(*task);
         return true;
     }
     default:

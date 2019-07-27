@@ -1,33 +1,31 @@
 #include <common/common.hpp>
 #include <paging/PageTable.hpp>
+#include <system/System.hpp>
 
 
-usize PageTable::level() {
-    usize ownAddress = reinterpret_cast<usize>(this);
-    usize limit = 0;
+usize PageTable::indexFor(VirtualAddress address, usize level) {
+    Assert(address.isPageAligned());
+    Assert(level <= MASTER_LEVEL);
 
-    for (usize level = 0; level < NUM_LEVELS; level++) {
-        limit -= (1 << level * TABLE_LEVEL_SHIFT) * PAGE_SIZE;
-        if (ownAddress >= limit) {
-            return level;
-        }
-    }
+    static const usize ADDRESS_BITS = (usize(1) << 48) - 1;
+    static const usize INDEX_MASK = ((usize(1)) << TABLE_LEVEL_SHIFT) - 1;
 
-    Log << "called level on what is not an active page table\n";
-    Panic();
-}
-
-bool PageTable::isMaster() {
-    return level() == NUM_LEVELS - 1;
+    return ((address.value() & ADDRESS_BITS) >> (12 + level * TABLE_LEVEL_SHIFT)) & INDEX_MASK;
 }
 
 
 PageTableEntry *PageTable::entryFor(VirtualAddress address, usize level) {
-    Assert(address.isPageAligned());
-    Assert(level >= 1 && level <= 4);
+    return &entries[indexFor(address, level)];
+}
 
-    static const usize ADDRESS_BITS = (usize(1) << 48) - 1;
-    static const usize INDEX_MASK = ((usize(1)) << 12) - 1;
-
-    return &entries[((address.value() & ADDRESS_BITS) >> ((3 + level * 9))) & INDEX_MASK];
+void PageTable::unmapEverything(usize level) {
+    for (usize index = 0; index < NUM_ENTRIES; index++) {
+        PageTableEntry &entry = entries[index];
+        if (entry.present()) {
+            if (level > 0) {
+                entry.addressValue().identityMapped().asPointer<PageTable>()->unmapEverything(level - 1);
+            }
+            //CurrentSystem.memory.freePhysicalFrame(entry.addressValue());
+        }
+    }
 }

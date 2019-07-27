@@ -9,16 +9,17 @@
 extern "C" void basicInvalidate(VirtualAddress address);
 
 
-PageTableEntry *MasterPageTable::walkEntries(VirtualAddress address, MissingStrategy ms) {
+PageTableEntry *MasterPageTable::partialWalkEntries(VirtualAddress address,
+                                                    MissingStrategy missingStrategy,
+                                                    usize startLevel,
+                                                    WalkData &data) {
     Assert(!address.isInRegion(IdentityMapping));
 
-    PageTable *table = this;
-
-    for (usize level = NUM_LEVELS; level > 1; level--) {
-        PageTableEntry *entry = table->entryFor(address, level);
+    for (usize level = startLevel; level > 0; level--) {
+        PageTableEntry *entry = data.tables[level]->entryFor(address, level);
 
         if (!entry->present()) {
-            switch (ms) {
+            switch (missingStrategy) {
             case MissingStrategy::NONE:
                 Log << "non-present entry during resolve which should not have happened\n";
                 Panic();
@@ -26,17 +27,21 @@ PageTableEntry *MasterPageTable::walkEntries(VirtualAddress address, MissingStra
                 return nullptr;
             case MissingStrategy::CREATE: {
                 PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
-                Log << "frame: " << frame.value() << "\n";
-
                 *entry = PageTableEntry(frame, Permissions::WRITE_AND_EXECUTE, true);
                 break;
             }
             }
         }
 
-        table = entry->addressValue().identityMapped().asPointer<PageTable>();
+        data.tables[level-1] = entry->addressValue().identityMapped().asPointer<PageTable>();
     }
-    return table->entryFor(address, 1);
+    return data.tables[0]->entryFor(address, 0);
+}
+
+
+PageTableEntry *MasterPageTable::walkEntries(VirtualAddress address, MissingStrategy ms) {
+    WalkData walkData(this);
+    return partialWalkEntries(address, ms, MASTER_LEVEL, walkData);
 }
 
 
@@ -76,6 +81,68 @@ void MasterPageTable::unmap(KernelVirtualAddress address) {
 
 PhysicalAddress MasterPageTable::resolve(UserVirtualAddress address) {
     return walkEntries(address, MissingStrategy::NONE)->addressValue();
+}
+
+
+void MasterPageTable::accessRange(UserVirtualAddress address,
+                                  usize numPages,
+                                  usize startOffset,
+                                  usize endOffset,
+                                  u8 *buffer,
+                                  AccessOpertion accOp,
+                                  Permissions newPagesPermissions) {
+    Assert(address.isPageAligned());
+    Assert(startOffset < PAGE_SIZE);
+    Assert(endOffset < PAGE_SIZE);
+    Assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
+
+    WalkData walkData(this);
+    usize indexes[NUM_LEVELS];
+
+    for (usize i = 0; i < NUM_LEVELS; i++) {
+        indexes[i] = indexFor(address, i);
+    }
+
+    usize changedLevel = MASTER_LEVEL;
+
+    while (numPages > 0) {
+        PageTableEntry *entry = partialWalkEntries(address,
+                                                   MissingStrategy::CREATE,
+                                                   changedLevel,
+                                                   walkData);
+        if (!entry->present()) {
+            PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
+            *entry = PageTableEntry(frame, newPagesPermissions, true);
+        }
+
+        usize lengthInPage = PAGE_SIZE - startOffset;
+        if (numPages == 1) {
+            lengthInPage -= endOffset;
+        }
+        u8 *dataPtr = entry->addressValue().identityMapped().asPointer<u8>() + startOffset;
+
+        if (accOp == AccessOpertion::READ) {
+            memcpy(buffer, dataPtr, lengthInPage);
+        } else if (accOp == AccessOpertion::WRITE) {
+            memcpy(dataPtr, buffer, lengthInPage);
+        } else {
+            Log << "accessRange: invalid operation\n";
+            Panic();
+        }
+
+        /* set startOffset to zero so it is only applied on first page */
+        startOffset = 0;
+        buffer += lengthInPage;
+
+        changedLevel = 0;
+        while (indexes[changedLevel] == NUM_ENTRIES) {
+            Assert(changedLevel < MASTER_LEVEL);
+            indexes[changedLevel] = 0;
+            indexes[changedLevel + 1]++;
+            changedLevel++;
+        }
+        numPages--;
+    }
 }
 
 
@@ -130,10 +197,20 @@ void MasterPageTable::activate() {
     }
 }
 
-void MasterPageTable::completelyUnmapRegion(Region region) {
-    usize end = region.start + region.length;
+void MasterPageTable::completelyUnmapUserSpaceRegion() {
+    for (usize index = 0; index < KERNEL_ENTRIES_OFFSET; index++) {
+        PageTableEntry &entry = entries[index];
+        if (entry.present()) {
+            entry.addressValue().identityMapped().asPointer<PageTable>()->unmapEverything(MASTER_LEVEL - 1);
+            CurrentSystem.memory.freePhysicalFrame(entry.addressValue());
+        }
+    }
+}
 
-    Assert(entryFor(end, NUM_LEVELS-1) != entryFor(end+1, NUM_LEVELS-1));
+void MasterPageTable::completelyUnmapLoaderRegion() {
+    /* this may be different on future supported platforms */
+    static_assert(LoaderRegion.start == UserSpaceRegion.start
+                  && LoaderRegion.length == UserSpaceRegion.length);
 
-    /* TODO */
+    completelyUnmapUserSpaceRegion();
 }

@@ -3,19 +3,24 @@
 
 #include <lib/Vector.hpp>
 
-template<typename ElementType> class SortedVector : public Vector<ElementType> {
-private:
+template<typename ElementType, bool Comperator(ElementType, ElementType)>
+class SortedVector : public Vector<ElementType> {
+protected:
     usize findIndexFor(ElementType element) {
         usize low = 0;
         usize high = this->numElements;
-        while (low + 1 < high) {
+        while (low < high) {
             usize index = low + (high - low) / 2;
-            if (element < this->data[index]) {
-                high = index;
+            if (Comperator(element, this->data[index])) {
+                if (index == low) {
+                    return low;
+                }
+                high = index - 1;
             } else {
-                low = index;
+                low = index + 1;
             }
         }
+        Assert(low == high);
         return low;
     }
 
@@ -35,5 +40,6 @@ public:
         static_cast<Vector<ElementType> *>(this)->insert(element, findIndexFor(element));
     }
 };
+
 
 #endif // SORTEDVECTOR_HPP

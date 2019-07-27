@@ -24,8 +24,24 @@ extern "C" {
 }
 
 usize align(usize address, usize alignment, AlignDirection direction);
-void alignedShrink(usize *start, usize *length, usize alignment);
-void alignedGrow(usize *start, usize *length, usize alignment);
+void alignedShrink(usize &start, usize &length, usize alignment);
+void alignedGrow(usize &start, usize &length, usize alignment);
+
+template <typename T> T min(T a, T b) {
+    if (a < b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+template <typename T> T max(T a, T b) {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
+    }
+}
 
 usize randomU32();
 template <typename T> T random() {

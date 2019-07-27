@@ -2,7 +2,7 @@
 #include <tasks/ELF.hpp>
 #include <system/System.hpp>
 #include <lib/Slice.hpp>
-#include <memory/UserSpaceWindow.h>
+#include <memory/UserSpaceObject.hpp>
 
 using namespace elf;
 
@@ -88,8 +88,8 @@ ELF::ELF(Slice<Vector, u8> file) : file{file} {
                     continue;
                 }
 
-                alignedGrow(&programHeader.vaddr, &programHeader.memsz, PAGE_SIZE);
-                alignedGrow(&otherHeader.vaddr, &otherHeader.memsz, PAGE_SIZE);
+                alignedGrow(programHeader.vaddr, programHeader.memsz, PAGE_SIZE);
+                alignedGrow(otherHeader.vaddr, otherHeader.memsz, PAGE_SIZE);
 
                 /* https://stackoverflow.com/questions/3269434/whats-the-most-efficient-way-to-test-
                  * two-integer-ranges-for-overlap */
@@ -144,7 +144,7 @@ UserVirtualAddress ELF::entry() {
 Region Segment::regionInMemory() {
     usize alignedAddress = header.vaddr;
     usize alignedSize = header.memsz;
-    alignedGrow(&alignedAddress, &alignedSize, PAGE_SIZE);
+    alignedGrow(alignedAddress, alignedSize, PAGE_SIZE);
 
     return Region(alignedAddress, alignedSize);
 }
@@ -159,12 +159,12 @@ Permissions Segment::permissions() {
     }
 }
 
-void Segment::load(UserVirtualAddress address) {
+void Segment::load(Task *task, UserVirtualAddress address) {
     Assert(header.type == TYPE_LOAD || header.type == TYPE_TLS);
-    Log << "Loading Segment to " << address.value() << EndLine;
+    Log << "Loading Segment from " << (usize)&data[0] << " to " << address.value() << ", size " << header.filesz << EndLine;
 
-    UserSpaceWindow win(address.value(), header.filesz);
-    arrayCopy(win, data, header.filesz);
+    bool valid = task->copyToUser(address.value(), &data[0], header.filesz, false);
+    Assert(valid);
 }
 
 UserVirtualAddress Segment::endAddress() {

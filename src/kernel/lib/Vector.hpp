@@ -8,8 +8,8 @@
 template<typename ElementType> class Vector {
 protected:
     ElementType *data{nullptr};
-    usize numElements{0};
-    usize numAllocated{1};
+    usize numElements;
+    usize numAllocated;
 
     void updateAllocatedSize() {
         data = Memory::instance()->resizeVirtualArea(KernelVirtualAddress(data),
@@ -21,10 +21,8 @@ public:
             numElements{numElements},
             numAllocated{numElements}  {
 
-        log::Log << "Vector\n";
         data = Memory::instance()->allocateVirtualArea(
                     sizeof(ElementType) * numAllocated).asPointer<ElementType>();
-        log::Log << "Vector2\n";
     }
 
     ~Vector() {
@@ -44,7 +42,7 @@ public:
 
     void pushBack(ElementType element) {
         if (numElements == numAllocated) {
-            numAllocated = numAllocated * 3 / 2;
+            numAllocated = (numAllocated + 1) * 3 / 2;
         }
         updateAllocatedSize();
 
@@ -54,7 +52,7 @@ public:
 
     void insert(ElementType element, usize index) {
         if (numElements == numAllocated) {
-            numAllocated = numAllocated * 3 / 2;
+            numAllocated = (numAllocated + 1) * 3 / 2;
         }
         updateAllocatedSize();
 

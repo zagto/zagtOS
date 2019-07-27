@@ -8,7 +8,7 @@
 
 class Memory
 {
-public:
+public: /* TODO: make private */
     FrameStack usedFrameStack;
     FrameStack freshFrameStack;
     KernelVirtualAddress heapEnd{KernelHeapRegion.start};

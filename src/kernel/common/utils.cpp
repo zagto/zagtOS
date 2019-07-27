@@ -38,26 +38,26 @@ usize align(usize address, usize alignment, AlignDirection direction)
         return address - address % alignment;
 }
 
-void alignedShrink(usize *start, usize *length, usize alignment)
+void alignedShrink(usize &start, usize &length, usize alignment)
 {
-    usize newStart = align(*start, alignment, AlignDirection::UP);
-    if (*length < newStart - *start)
-        *length = newStart; // TODO : 0????
+    usize newStart = align(start, alignment, AlignDirection::UP);
+    if (length < newStart - start)
+        length = newStart; // TODO : 0????
     else
     {
-        *length -= newStart - *start;
-        *length = align(*length, alignment, AlignDirection::DOWN);
+        length -= newStart - start;
+        length = align(length, alignment, AlignDirection::DOWN);
     }
-    *start = newStart;
+    start = newStart;
 }
 
 
-void alignedGrow(usize *start, usize *length, usize alignment)
+void alignedGrow(usize &start, usize &length, usize alignment)
 {
-    usize newStart = align(*start, alignment, AlignDirection::DOWN);
-    *length += *start - newStart;
-    *length = align(*length, alignment, AlignDirection::UP);
-    *start = newStart;
+    usize newStart = align(start, alignment, AlignDirection::DOWN);
+    length += start - newStart;
+    length = align(length, alignment, AlignDirection::UP);
+    start = newStart;
 }
 
 

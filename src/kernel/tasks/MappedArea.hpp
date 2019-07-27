@@ -3,25 +3,42 @@
 
 #include <common/common.hpp>
 #include <common/Region.hpp>
+#include <lib/SortedVector.hpp>
 
 class Task;
 
 class MappedArea {
+private:
     enum class Source {
         MEMORY = 1, STACK = 2,
     };
     Task *task;
     Source source;
-    Permissions permissions;
 
 public:
     Region region;
+    Permissions permissions;
 
     MappedArea(Task *task, Region region, Permissions permissions);
 
     bool handlePageFault(UserVirtualAddress address);
     void mapEverything();
-    //void changePermissions(Permissions permissions);
+
+    static inline bool compare(MappedArea *a, MappedArea *b) {
+        return a->region.start < b->region.start;
+    }
+};
+
+class MappedAreaVector : public SortedVector<MappedArea *, MappedArea::compare> {
+private:
+    Task *task;
+
+public:
+    MappedAreaVector(Task *task):
+        task{task} {}
+    Region findFreeRegion(usize length, bool &valid, usize &index);
+    MappedArea *findMappedArea(UserVirtualAddress address);
+    MappedArea *addNew(usize length, Permissions permissions);
 };
 
 #endif // MAPPEDAREA_HPP

@@ -12,9 +12,8 @@ Memory::Memory(BootInfo *bootInfo) :
 }
 
 PhysicalAddress Memory::allocatePhysicalFrame() {
-    Log << "allocatePhysicalFrame\n";
     if (freshFrameStack.isEmpty()) {
-        Log << "Warning: fresh physical frame stack empty on alloc, trying recycle" << EndLine;
+        //Log << "Warning: fresh physical frame stack empty on alloc, trying recycle" << EndLine;
         recyclePhysicalFrame();
     }
     return freshFrameStack.pop();

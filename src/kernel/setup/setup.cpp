@@ -47,7 +47,7 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
     new Task(initELF, Thread::Priority::FOREGROUND, &obj);
 
     /* the ELF data is the last thing we wanted to read from loader memory */
-    CurrentSystem.kernelOnlyMasterPageTable->completelyUnmapRegion(LoaderRegion);
+    CurrentSystem.kernelOnlyMasterPageTable->completelyUnmapLoaderRegion();
 
     Log << "Entering first task..." << EndLine;
     CurrentProcessor->interrupts.returnToUserMode();

@@ -3,13 +3,12 @@
 
 #include <lib/List.hpp>
 #include <lib/Lock.hpp>
-#include <lib/SortedVector.hpp>
 #include <paging/MasterPageTable.hpp>
 #include <tasks/ELF.hpp>
 #include <tasks/Thread.hpp>
+#include <tasks/MappedArea.hpp>
 #include <paging/PageTableEntry.hpp>
 
-class MappedArea;
 class Object;
 
 class Task {
@@ -20,13 +19,19 @@ private:
     friend class MasterPageTable;
     friend class Thread;
     Vector<Thread *>threads;
-    SortedVector<MappedArea *>mappedAreas;
-    UserVirtualAddress heapStart;
+    MappedAreaVector mappedAreas;
+
+    bool accessUserSpace(u8 *buffer,
+                         usize start,
+                         usize length,
+                         MasterPageTable::AccessOpertion accOp,
+                         bool requireWritePermissions);
 
 public:
     Lock pagingLock;
     Lock threadsLock;
     MasterPageTable *masterPageTable;
+    UserVirtualAddress heapStart;
 
     Task(ELF elf, Thread::Priority initialPrioriy, Object *message);
     void activate();
@@ -36,8 +41,9 @@ public:
     bool handlePageFault(UserVirtualAddress address);
     void removeThread(Thread *thread);
 
-    Region findFreeRegion(usize size, bool &valid);
-    MappedArea *findMappedArea(UserVirtualAddress address);
+    bool copyFromUser(u8 *destination, usize address, usize length, bool requireWritePermissions);
+    bool copyToUser(usize address, const u8 *source, usize length, bool requireWritePermissions);
+    bool verifyUserAccess(usize address, usize length, bool requireWritePermissions);
 };
 
 #endif // TASK_HPP
