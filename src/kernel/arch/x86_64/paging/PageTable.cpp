@@ -4,8 +4,8 @@
 
 
 size_t PageTable::indexFor(VirtualAddress address, size_t level) {
-    Assert(address.isPageAligned());
-    Assert(level <= MASTER_LEVEL);
+    assert(address.isPageAligned());
+    assert(level <= MASTER_LEVEL);
 
     static const size_t ADDRESS_BITS = (size_t(1) << 48) - 1;
     static const size_t INDEX_MASK = ((size_t(1)) << TABLE_LEVEL_SHIFT) - 1;

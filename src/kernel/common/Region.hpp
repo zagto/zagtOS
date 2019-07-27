@@ -15,7 +15,7 @@ public:
             length{length} {
     }
     size_t end() const {
-        Assert(start + length >= start);
+        assert(start + length >= start);
         return start + length;
     }
     bool isPageAligned() {

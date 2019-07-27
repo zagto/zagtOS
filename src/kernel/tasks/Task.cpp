@@ -45,12 +45,12 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
     mappedAreas.insert(new MappedArea(this, UserStackRegion, Permissions::WRITE));
 
     size_t objSize = runMessage->sizeInMemory();
-    Assert(UserStackRegion.end() > objSize);
+    assert(UserStackRegion.end() > objSize);
     size_t objAddr = UserStackRegion.end() - objSize;
     while (objAddr % 16) {
         objAddr--;
     }
-    Assert(objAddr > UserStackRegion.start);
+    assert(objAddr > UserStackRegion.start);
 
     for (size_t address = objAddr; address + PAGE_SIZE < objAddr + objSize; address+=PAGE_SIZE) {
         handlePageFault(UserVirtualAddress(address));
@@ -99,7 +99,7 @@ void Task::activate() {
 
 PhysicalAddress Task::allocateFrame(UserVirtualAddress address,
                                     Permissions permissions) {
-    Assert(permissions == Permissions::WRITE
+    assert(permissions == Permissions::WRITE
            || permissions == Permissions::EXECUTE
            || permissions == Permissions::NONE);
 

@@ -13,7 +13,7 @@ PageTableEntry *MasterPageTable::partialWalkEntries(VirtualAddress address,
                                                     MissingStrategy missingStrategy,
                                                     size_t startLevel,
                                                     WalkData &data) {
-    Assert(!address.isInRegion(IdentityMapping));
+    assert(!address.isInRegion(IdentityMapping));
 
     for (size_t level = startLevel; level > 0; level--) {
         PageTableEntry *entry = data.tables[level]->entryFor(address, level);
@@ -46,7 +46,7 @@ PageTableEntry *MasterPageTable::walkEntries(VirtualAddress address, MissingStra
 
 
 MasterPageTable::MasterPageTable() {
-    Assert(this != CurrentProcessor->activeMasterPageTable);
+    assert(this != CurrentProcessor->activeMasterPageTable);
 
     for (size_t index = KERNEL_ENTRIES_OFFSET;
          index < NUM_ENTRIES - 1;
@@ -60,7 +60,7 @@ void MasterPageTable::map(KernelVirtualAddress from,
                           PhysicalAddress to,
                           Permissions permissions) {
     PageTableEntry *entry = CurrentSystem.kernelOnlyMasterPageTable->walkEntries(from, MissingStrategy::CREATE);
-    Assert(!entry->present());
+    assert(!entry->present());
 
     *entry = PageTableEntry(to, permissions, false);
     basicInvalidate(from);
@@ -91,10 +91,10 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
                                   uint8_t *buffer,
                                   AccessOpertion accOp,
                                   Permissions newPagesPermissions) {
-    Assert(address.isPageAligned());
-    Assert(startOffset < PAGE_SIZE);
-    Assert(endOffset < PAGE_SIZE);
-    Assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
+    assert(address.isPageAligned());
+    assert(startOffset < PAGE_SIZE);
+    assert(endOffset < PAGE_SIZE);
+    assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
 
     WalkData walkData(this);
     size_t indexes[NUM_LEVELS];
@@ -137,7 +137,7 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
 
         changedLevel = 0;
         while (indexes[changedLevel] == NUM_ENTRIES) {
-            Assert(changedLevel < MASTER_LEVEL);
+            assert(changedLevel < MASTER_LEVEL);
             indexes[changedLevel] = 0;
             indexes[changedLevel + 1]++;
             changedLevel++;
@@ -155,7 +155,7 @@ void MasterPageTable::map(UserVirtualAddress from,
                           PhysicalAddress to,
                           Permissions permissions) {
     PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
-    Assert(!entry->present());
+    assert(!entry->present());
 
     *entry = PageTableEntry(to, permissions, true);
     if (isActive()) {
@@ -181,9 +181,9 @@ void MasterPageTable::invalidateLocally(KernelVirtualAddress address) {
 }
 
 void MasterPageTable::invalidateLocally(UserVirtualAddress address) {
-    Assert(isActive());
-    Assert(this == CurrentProcessor->currentTask->masterPageTable);
-    Assert(CurrentProcessor->currentTask->pagingLock.isLocked());
+    assert(isActive());
+    assert(this == CurrentProcessor->currentTask->masterPageTable);
+    assert(CurrentProcessor->currentTask->pagingLock.isLocked());
 
     basicInvalidate(address);
 }

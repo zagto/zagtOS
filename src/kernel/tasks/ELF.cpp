@@ -110,13 +110,13 @@ bool ELF::isValid() {
 }
 
 size_t ELF::numSegments() {
-    Assert(valid);
+    assert(valid);
     return fileHeader.phnum;
 }
 
 Segment ELF::segment(size_t index) {
-    Assert(valid);
-    Assert(index < fileHeader.phnum);
+    assert(valid);
+    assert(index < fileHeader.phnum);
 
     ProgramHeader programHeader = segmentHeader(index);
 
@@ -127,8 +127,8 @@ Segment ELF::segment(size_t index) {
 }
 
 Segment ELF::tlsSegment() {
-    Assert(valid);
-    Assert(_hasTLS);
+    assert(valid);
+    assert(_hasTLS);
 
     return segment(tlsSegmentIndex);
 }
@@ -160,11 +160,11 @@ Permissions Segment::permissions() {
 }
 
 void Segment::load(Task *task, UserVirtualAddress address) {
-    Assert(header.type == TYPE_LOAD || header.type == TYPE_TLS);
+    assert(header.type == TYPE_LOAD || header.type == TYPE_TLS);
     cout << "Loading Segment from " << (size_t)&data[0] << " to " << address.value() << ", size " << header.filesz << endl;
 
     bool valid = task->copyToUser(address.value(), &data[0], header.filesz, false);
-    Assert(valid);
+    assert(valid);
 }
 
 UserVirtualAddress Segment::endAddress() {

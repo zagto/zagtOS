@@ -36,12 +36,12 @@ namespace list {
         }
 
         ElementType *popFront() {
-            Assert(!isEmpty());
+            assert(!isEmpty());
 
             Node<ElementType> *resultNode = firstNode;
             firstNode = resultNode->nextNode;
             if (firstNode == nullptr) {
-                Assert(lastNode == resultNode);
+                assert(lastNode == resultNode);
                 lastNode = nullptr;
             } else {
                 firstNode->previousNode = nullptr;

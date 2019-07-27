@@ -24,7 +24,7 @@ bool MMAP::addressLengthValid() {
 
 
 void MMAP::perform(Task &task) {
-    Assert(task.pagingLock.isLocked());
+    assert(task.pagingLock.isLocked());
 
     result = 0;
     error = 0;

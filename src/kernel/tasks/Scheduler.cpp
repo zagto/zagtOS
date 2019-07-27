@@ -40,7 +40,7 @@ void Scheduler::remove(Thread *thread) {
 }
 
 void Scheduler::scheduleNext() {
-    Assert(_currentThread == nullptr);
+    assert(_currentThread == nullptr);
 
     for (ssize_t prio = Thread::NUM_PRIORITIES; prio >= 0; prio--) {
         if (!threads[prio].isEmpty()) {

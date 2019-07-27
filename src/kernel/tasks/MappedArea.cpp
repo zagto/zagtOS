@@ -8,16 +8,16 @@ MappedArea::MappedArea(Task *task, Region region, Permissions permissions) :
         source{Source::MEMORY},
         region{region},
         permissions{permissions} {
-    Assert(UserVirtualAddress::checkInRegion(region.start));
-    Assert(UserVirtualAddress::checkInRegion(region.end() - 1));
-    Assert(region.isPageAligned());
-    Assert(permissions != Permissions::WRITE_AND_EXECUTE);
+    assert(UserVirtualAddress::checkInRegion(region.start));
+    assert(UserVirtualAddress::checkInRegion(region.end() - 1));
+    assert(region.isPageAligned());
+    assert(permissions != Permissions::WRITE_AND_EXECUTE);
 }
 
 
 bool MappedArea::handlePageFault(UserVirtualAddress address) {
     if (source == Source::MEMORY) {
-        Assert(task->pagingLock.isLocked());
+        assert(task->pagingLock.isLocked());
         if (task->masterPageTable->isMapped(address)) {
             task->masterPageTable->invalidateLocally(address);
         } else {
@@ -30,7 +30,7 @@ bool MappedArea::handlePageFault(UserVirtualAddress address) {
 }
 
 void MappedArea::mapEverything() {
-    Assert(source == Source::MEMORY);
+    assert(source == Source::MEMORY);
 
     for (size_t address = region.start; address < region.length; address += PAGE_SIZE) {
         if (!task->masterPageTable->isMapped(address)) {
@@ -40,7 +40,7 @@ void MappedArea::mapEverything() {
 }
 
 MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
-    Assert(task->pagingLock.isLocked());
+    assert(task->pagingLock.isLocked());
 
     if (size() == 0) {
         return nullptr;
@@ -65,7 +65,7 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
             low = index + 1;
         }
     }
-    Assert(low == high);
+    assert(low == high);
     if (address.isInRegion(data[low]->region)) {
         return data[low];
     } else {
@@ -74,7 +74,7 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
 }
 
 Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newIndex) {
-    Assert(task->pagingLock.isLocked());
+    assert(task->pagingLock.isLocked());
 
     valid = false;
 
@@ -96,7 +96,7 @@ Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newI
             }
 
             size_t areaEnd = data[index]->region.end();
-            Assert(nextStart >= areaEnd);
+            assert(nextStart >= areaEnd);
 
             if (areaEnd >= UserSpaceRegion.end()) {
                 /* We've failed... there is no big enough memory region in heap area left */
@@ -136,7 +136,7 @@ MappedArea *MappedAreaVector::addNew(size_t length, Permissions permissions) {
     MappedArea *ma = new MappedArea(task, region, permissions);
     cout << "index from findFreeRegion: " << index << "\n";
     cout << "index from findIndexFor: " << this->findIndexFor(ma) << "\n";
-    Assert(index == this->findIndexFor(ma));
+    assert(index == this->findIndexFor(ma));
 
     static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
     return ma;

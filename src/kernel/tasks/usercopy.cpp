@@ -8,7 +8,7 @@ bool Task::accessUserSpace(uint8_t *buffer,
                            size_t length,
                            MasterPageTable::AccessOpertion accOp,
                            bool requireWritePermissions) {
-    Assert(CurrentProcessor->currentTask->pagingLock.isLocked());
+    assert(CurrentProcessor->currentTask->pagingLock.isLocked());
 
     if (!VirtualAddress(start).isInRegion(UserSpaceRegion)) {
         return false;

@@ -32,7 +32,7 @@ public:
     }
 
     ElementType &operator[](size_t index) {
-        Assert(index < numElements);
+        assert(index < numElements);
         return data[index];
     }
 
@@ -56,7 +56,7 @@ public:
         }
         updateAllocatedSize();
 
-        Assert(index <= numElements);
+        assert(index <= numElements);
         memmove(&data[index+1], &data[index], (numElements - index) * sizeof(ElementType));
 
         data[index] = element;

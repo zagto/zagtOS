@@ -14,7 +14,7 @@ size_t Address::value() {
 
 PhysicalAddress PhysicalAddress::fromIdentitdyMappedPointer(void *ptr) {
     size_t value = reinterpret_cast<size_t>(ptr);
-    Assert(VirtualAddress::checkInRegion(IdentityMapping, value));
+    assert(VirtualAddress::checkInRegion(IdentityMapping, value));
 
     return PhysicalAddress(value - IdentityMapping.start);
 }
@@ -49,7 +49,7 @@ void VirtualAddress::checkInUsableRegion() {
 
 
 KernelVirtualAddress::KernelVirtualAddress(size_t value) : VirtualAddress(value) {
-    Assert(isKernel());
+    assert(isKernel());
 }
 
 

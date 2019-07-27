@@ -11,7 +11,7 @@ PageTableEntry::PageTableEntry() {
 PageTableEntry::PageTableEntry(PhysicalAddress addressValue,
                                Permissions permissions,
                                bool user) {
-    Assert(addressValue.isPageAligned());
+    assert(addressValue.isPageAligned());
 
     data = PRESENT_BIT | addressValue.value();
     if (user) {
@@ -39,13 +39,13 @@ bool PageTableEntry::present() {
 }
 
 PhysicalAddress PageTableEntry::addressValue() {
-    Assert(present());
+    assert(present());
 
     return data & ADDRESS_MASK;
 }
 
 void PageTableEntry::setAddressValue(PhysicalAddress addressValue) {
-    Assert(addressValue.isPageAligned());
+    assert(addressValue.isPageAligned());
 
     data = (data & ~ADDRESS_MASK) | (addressValue.value() & ADDRESS_MASK);
 }

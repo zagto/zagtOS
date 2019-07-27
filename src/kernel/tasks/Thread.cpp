@@ -8,9 +8,9 @@
 
 
 Thread::~Thread() {
-    Assert(currentProcessor == CurrentProcessor);
+    assert(currentProcessor == CurrentProcessor);
     /* don't try deleting special threads */
-    Assert(task);
+    assert(task);
 
     CurrentProcessor->scheduler.remove(this);
     task->removeThread(this);
@@ -49,7 +49,7 @@ bool Thread::handleSyscall() {
         return true;
 
     case SYS_MMAP: {
-        Assert(task);
+        assert(task);
         UserSpaceObject<MMAP, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
                                                                 task);
         if (!uso.valid) {

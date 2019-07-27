@@ -12,7 +12,7 @@ private:
 public:
     Slice(ContainerType<ElementType> *container, size_t offset, size_t size) :
             container{container}, offset{offset}, _size{size} {
-        Assert(offset + _size <= container->size() && offset + _size >= offset);
+        assert(offset + _size <= container->size() && offset + _size >= offset);
     }
 
     Slice(ContainerType<ElementType> *container) : Slice(container, 0, container->size()) {}
@@ -25,12 +25,12 @@ public:
         if (size == 0) {
             return;
         }
-        Assert(offset + size < bigSlice->size());
-        Assert(offset + size > offset);
+        assert(offset + size < bigSlice->size());
+        assert(offset + size > offset);
     }
 
     ElementType &operator[](size_t index) {
-        Assert(index < _size);
+        assert(index < _size);
         return (*container)[index + offset];
     }
 

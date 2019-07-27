@@ -32,7 +32,7 @@ public:
     ~UserSpaceObject() {
         if (op != USOOperation::READ) {
             bool result = task->copyToUser(address, reinterpret_cast<uint8_t *>(&object), sizeof(T), true);
-            Assert(result);
+            assert(result);
         }
     }
 };

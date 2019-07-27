@@ -67,8 +67,8 @@ Memory *Memory::instance() {
 }
 
 KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
-    Assert(change >= 0);
-    Assert(change % PAGE_SIZE == 0);
+    assert(change >= 0);
+    assert(change % PAGE_SIZE == 0);
 
     for (size_t index = 0; index < change / PAGE_SIZE; index++) {
         MasterPageTable::map(heapEnd + index * PAGE_SIZE,

@@ -91,7 +91,7 @@ void operator delete(void *object) {
 }
 
 void operator delete(void *object, size_t size) {
-    Assert(size <= PAGE_SIZE);
+    assert(size <= PAGE_SIZE);
     operator delete(object);
 }
 
@@ -100,6 +100,6 @@ void operator delete[](void *object) {
 }
 
 void operator delete[](void *object, size_t size) {
-    Assert(size <= PAGE_SIZE);
+    assert(size <= PAGE_SIZE);
     operator delete(object);
 }

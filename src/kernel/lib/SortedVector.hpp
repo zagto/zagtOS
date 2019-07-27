@@ -20,7 +20,7 @@ protected:
                 low = index + 1;
             }
         }
-        Assert(low == high);
+        assert(low == high);
         return low;
     }
 

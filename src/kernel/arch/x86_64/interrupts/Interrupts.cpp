@@ -28,7 +28,7 @@ __attribute__((noreturn)) void Interrupts::kernelHandler(RegisterState *register
 
 __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerState) {
     Thread *currentThread = CurrentProcessor->scheduler.currentThread();
-    Assert(&currentThread->registerState == registerState);
+    assert(&currentThread->registerState == registerState);
 
     switch (registerState->intNr) {
     case SYSCALL_INTERRUPT:
@@ -77,7 +77,7 @@ __attribute__((noreturn)) void Interrupts::returnToUserMode() {
 
 __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState) {
     cout << "Interrupt" << endl;
-    Assert(this == &CurrentProcessor->interrupts);
+    assert(this == &CurrentProcessor->interrupts);
 
     if (registerState->cs == (0x18|3)) {
         userHandler(registerState);
