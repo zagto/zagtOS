@@ -51,17 +51,14 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
     while (low < high) {
         size_t index = low + (high - low) / 2;
         if (address.isInRegion(data[index]->region)) {
-            cout << "found\n";
             return data[index];
         }
         if (address.value() < data[index]->region.start) {
             if (index == low) {
                 return nullptr;
             }
-            cout << "left\n";
             high = index - 1;
         } else {
-            cout << "right\n";
             low = index + 1;
         }
     }
@@ -134,8 +131,6 @@ MappedArea *MappedAreaVector::addNew(size_t length, Permissions permissions) {
     }
 
     MappedArea *ma = new MappedArea(task, region, permissions);
-    cout << "index from findFreeRegion: " << index << "\n";
-    cout << "index from findIndexFor: " << this->findIndexFor(ma) << "\n";
     assert(index == this->findIndexFor(ma));
 
     static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
