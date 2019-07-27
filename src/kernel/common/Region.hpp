@@ -13,9 +13,9 @@ public:
     constexpr Region(size_t start, size_t length) :
             start{start},
             length{length} {
-        //Assert(start + length >= start);
     }
     size_t end() const {
+        Assert(start + length >= start);
         return start + length;
     }
     bool isPageAligned() {
