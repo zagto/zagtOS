@@ -7,23 +7,23 @@ bool Address::isPageAligned() {
     return _value % PAGE_SIZE == 0;
 }
 
-usize Address::value() {
+size_t Address::value() {
     return _value;
 }
 
 
 PhysicalAddress PhysicalAddress::fromIdentitdyMappedPointer(void *ptr) {
-    usize value = reinterpret_cast<usize>(ptr);
+    size_t value = reinterpret_cast<size_t>(ptr);
     Assert(VirtualAddress::checkInRegion(IdentityMapping, value));
 
     return PhysicalAddress(value - IdentityMapping.start);
 }
 
-VirtualAddress::VirtualAddress(usize value) : Address(value) {
+VirtualAddress::VirtualAddress(size_t value) : Address(value) {
     checkInUsableRegion();
 }
 
-bool VirtualAddress::checkInRegion(const Region &region, usize address) {
+bool VirtualAddress::checkInRegion(const Region &region, size_t address) {
     return address >= region.start && address < region.end();
 }
 
@@ -43,27 +43,27 @@ void VirtualAddress::checkInUsableRegion() {
         }
     }
 
-    Log << "Virtual address out of range: " << value() << EndLine;
+    cout << "Virtual address out of range: " << value() << endl;
     Panic();
 }
 
 
-KernelVirtualAddress::KernelVirtualAddress(usize value) : VirtualAddress(value) {
+KernelVirtualAddress::KernelVirtualAddress(size_t value) : VirtualAddress(value) {
     Assert(isKernel());
 }
 
 
 KernelVirtualAddress::KernelVirtualAddress(const void *pointer) :
-    KernelVirtualAddress(reinterpret_cast<usize>(pointer)) {}
+    KernelVirtualAddress(reinterpret_cast<size_t>(pointer)) {}
 
 
-UserVirtualAddress::UserVirtualAddress(usize value) : VirtualAddress(value) {
+UserVirtualAddress::UserVirtualAddress(size_t value) : VirtualAddress(value) {
     if (!isInRegion(UserSpaceRegion)) {
-        Log << "Virtual address not in user space region: " << this->value() << EndLine;
+        cout << "Virtual address not in user space region: " << this->value() << endl;
         Panic();
     }
 }
 
-bool UserVirtualAddress::checkInRegion(usize address) {
+bool UserVirtualAddress::checkInRegion(size_t address) {
     return VirtualAddress::checkInRegion(UserSpaceRegion, address);
 }

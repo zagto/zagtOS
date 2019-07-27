@@ -2,17 +2,17 @@
 #define PROGRAM_HPP
 
 
-#include <lib/Vector.hpp>
+#include <lib/vector.hpp>
 #include <tasks/ELF.hpp>
 
 
 class Program {
 private:
-    Vector<u8> data;
+    vector<uint8_t> data;
     ELF elf;
 
 public:
-    Program(Slice<Vector, u8> _data);
+    Program(Slice<vector, uint8_t> _data);
 };
 
 #endif // PROGRAM_HPP

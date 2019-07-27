@@ -9,13 +9,13 @@ class Task;
 class MMAP {
 private:
     UUID target;
-    usize start_address;
-    usize offset;
-    usize length;
-    usize result;
-    u32 protection;
-    u32 flags;
-    u32 error;
+    size_t start_address;
+    size_t offset;
+    size_t length;
+    size_t result;
+    uint32_t protection;
+    uint32_t flags;
+    uint32_t error;
 
     bool addressLengthValid();
     bool addressLengthAvailable();

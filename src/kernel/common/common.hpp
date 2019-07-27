@@ -8,7 +8,7 @@
 #include <common/random.hpp>
 #include <log/logger.hpp>
 
-using log::Log;
-using log::EndLine;
+using log::cout;
+using log::endl;
 
 #endif // COMMON_HPP

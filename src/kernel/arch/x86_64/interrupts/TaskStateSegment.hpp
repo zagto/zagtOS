@@ -8,12 +8,12 @@ class Thread;
 class __attribute__((__packed__)) TaskStateSegment
 {
 public:
-    u32 ununsed0{0};
-    u32 rspLow{0};
-    u32 rspHigh{0};
-    u32 unused1[22]{0};
-    u16 unused2{0};
-    u16 ioBase{0};
+    uint32_t ununsed0{0};
+    uint32_t rspLow{0};
+    uint32_t rspHigh{0};
+    uint32_t unused1[22]{0};
+    uint16_t unused2{0};
+    uint16_t ioBase{0};
 
 public:
     void update(Thread *thread);

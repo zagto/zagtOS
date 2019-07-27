@@ -9,14 +9,14 @@ class PageTable;
 class PageTableEntry {
 public:
 private:
-    static const usize ADDRESS_MASK = 0x000ffffffffff000;
-    static const usize PRESENT_BIT        = 1;
-    static const usize WRITEABLE_BIT      = 1 << 1;
-    static const usize USER_BIT           = 1 << 2;
-    static const usize GLOBAL_BIT         = 1 << 8;
-    static const usize NON_EXECUTABLE_BIT = 1ul << 63;
+    static const size_t ADDRESS_MASK = 0x000ffffffffff000;
+    static const size_t PRESENT_BIT        = 1;
+    static const size_t WRITEABLE_BIT      = 1 << 1;
+    static const size_t USER_BIT           = 1 << 2;
+    static const size_t GLOBAL_BIT         = 1 << 8;
+    static const size_t NON_EXECUTABLE_BIT = 1ul << 63;
 
-    usize data;
+    size_t data;
 
 public:
     PageTableEntry();

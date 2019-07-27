@@ -7,9 +7,9 @@ class Processor;
 class Scheduler;
 class Task;
 
-static const usize THREAD_STRUCT_AREA_SIZE = 0x400;
+static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
 
-static const u32  SYS_LOG = 1,
+static const uint32_t  SYS_LOG = 1,
                   SYS_EXIT = 2,
                   SYS_SEND_MESSAGE = 3,
                   SYS_WAIT_MESSAGE = 4,
@@ -52,7 +52,7 @@ public:
     enum Priority {
         IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_BACKGROUND, INTERACTIVE_FOREGROUND
     };
-    static const usize NUM_PRIORITIES = 5;
+    static const size_t NUM_PRIORITIES = 5;
 
 public:
     RegisterState registerState;
@@ -67,7 +67,7 @@ public:
            UserVirtualAddress stackPointer,
            UserVirtualAddress tlsBase,
            UserVirtualAddress masterTLSBase,
-           usize tlsSize) :
+           size_t tlsSize) :
         registerState(entry, stackPointer, tlsBase, masterTLSBase, tlsSize),
         task{task},
         tlsBase{tlsBase},

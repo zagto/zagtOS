@@ -21,7 +21,7 @@ private:
      * parameter, which can be used to skip parts of the page walk on subsequent calls */
     PageTableEntry *partialWalkEntries(VirtualAddress address,
                                        MissingStrategy missingStrategy,
-                                       usize startLevel,
+                                       size_t startLevel,
                                        WalkData &walkData);
     PageTableEntry *walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
 
@@ -30,8 +30,8 @@ public:
         READ, WRITE, VERIFY_ONLY
     };
 
-    static const usize KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
-    static const usize NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
+    static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
+    static const size_t NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
 
     MasterPageTable();
 
@@ -47,10 +47,10 @@ public:
              Permissions permissions);
     PhysicalAddress resolve(UserVirtualAddress address);
     void accessRange(UserVirtualAddress address,
-                     usize numPages,
-                     usize startOffset,
-                     usize endOffset,
-                     u8 *buffer,
+                     size_t numPages,
+                     size_t startOffset,
+                     size_t endOffset,
+                     uint8_t *buffer,
                      AccessOpertion accOp,
                      Permissions newPagesPermissions);
     void unmap(UserVirtualAddress address);

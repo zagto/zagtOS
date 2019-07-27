@@ -15,18 +15,18 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
 
     UserVirtualAddress maxEndAddress = 0;
 
-    for (usize index = 0; index < elf.numSegments(); index++) {
+    for (size_t index = 0; index < elf.numSegments(); index++) {
         elf::Segment segment = elf.segment(index);
         if (segment.type() == elf::Segment::TYPE_LOAD) {
-            Log << "A Segment Type: " << (u64)segment.type() << "\n";
+            cout << "A Segment Type: " << (uint64_t)segment.type() << "\n";
             Region region = segment.regionInMemory();
 
             MappedArea *ma = new MappedArea(this, region, segment.permissions());
             mappedAreas.insert(ma);
 
-            Log << "Mapped areas: \n";
-            for (usize i = 0; i < mappedAreas.size(); i++) {
-                Log << mappedAreas[i]->region.start << ", size " << mappedAreas[i]->region.length << "\n";
+            cout << "Mapped areas: \n";
+            for (size_t i = 0; i < mappedAreas.size(); i++) {
+                cout << mappedAreas[i]->region.start << ", size " << mappedAreas[i]->region.length << "\n";
             }
 
             segment.load(this);
@@ -44,20 +44,20 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
 
     mappedAreas.insert(new MappedArea(this, UserStackRegion, Permissions::WRITE));
 
-    usize objSize = runMessage->sizeInMemory();
+    size_t objSize = runMessage->sizeInMemory();
     Assert(UserStackRegion.end() > objSize);
-    usize objAddr = UserStackRegion.end() - objSize;
+    size_t objAddr = UserStackRegion.end() - objSize;
     while (objAddr % 16) {
         objAddr--;
     }
     Assert(objAddr > UserStackRegion.start);
 
-    for (usize address = objAddr; address + PAGE_SIZE < objAddr + objSize; address+=PAGE_SIZE) {
+    for (size_t address = objAddr; address + PAGE_SIZE < objAddr + objSize; address+=PAGE_SIZE) {
         handlePageFault(UserVirtualAddress(address));
     }
 
     UserVirtualAddress masterTLSBase{0};
-    usize tlsSize{0};
+    size_t tlsSize{0};
     if (elf.hasTLS()) {
         tlsSize = elf.tlsSegment().length();
         masterTLSBase = elf.tlsSegment().address();
@@ -65,7 +65,7 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
 
     MappedArea *tlsArea = mappedAreas.addNew(tlsSize + THREAD_STRUCT_AREA_SIZE, Permissions::WRITE);
     if (tlsArea == nullptr) {
-        Log << "TODO: whatever should happen if there is no memory" << EndLine;
+        cout << "TODO: whatever should happen if there is no memory" << endl;
         Panic();
     }
 
@@ -85,7 +85,7 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
                                     masterTLSBase,
                                     tlsSize);
 
-    threads.pushBack(mainThread);
+    threads.push_back(mainThread);
     CurrentProcessor->scheduler.add(mainThread);
 }
 
@@ -113,7 +113,7 @@ bool Task::handlePageFault(UserVirtualAddress address) {
     LockHolder lh(pagingLock);
 
     MappedArea *ma = mappedAreas.findMappedArea(address);
-    Log << "found mapped area\n";
+    cout << "found mapped area\n";
     if (ma) {
         return ma->handlePageFault(pageAddress);
     } else {

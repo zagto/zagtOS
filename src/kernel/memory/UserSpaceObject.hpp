@@ -11,17 +11,17 @@ enum class USOOperation {
 template <typename T, USOOperation op> class UserSpaceObject {
 public:
     T object;
-    usize address;
+    size_t address;
     Task *task;
     bool valid;
 
-    UserSpaceObject(usize address, Task *task) :
+    UserSpaceObject(size_t address, Task *task) :
             address{address},
             task{task} {
         if (op == USOOperation::WRITE) {
             valid = task->verifyUserAccess(address, sizeof(T), true);
         } else {
-            valid = task->copyFromUser(reinterpret_cast<u8 *>(&object),
+            valid = task->copyFromUser(reinterpret_cast<uint8_t *>(&object),
                                        address,
                                        sizeof(T),
                                        /* already check for write permissions if we need them
@@ -31,7 +31,7 @@ public:
     }
     ~UserSpaceObject() {
         if (op != USOOperation::READ) {
-            bool result = task->copyToUser(address, reinterpret_cast<u8 *>(&object), sizeof(T), true);
+            bool result = task->copyToUser(address, reinterpret_cast<uint8_t *>(&object), sizeof(T), true);
             Assert(result);
         }
     }

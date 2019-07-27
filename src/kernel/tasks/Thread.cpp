@@ -20,23 +20,23 @@ bool Thread::handleSyscall() {
     switch (registerState.syscallNr()) {
     case SYS_LOG: {
         LockHolder lh(task->pagingLock);
-        static const usize MAX_LOG_SIZE = 10000;
-        usize address = registerState.syscallParameter(1);
-        usize length = registerState.syscallParameter(0);
+        static const size_t MAX_LOG_SIZE = 10000;
+        size_t address = registerState.syscallParameter(1);
+        size_t length = registerState.syscallParameter(0);
 
         if (length > MAX_LOG_SIZE) {
-            Log << "Task attempted to send huge log. ingnoring.\n";
+            cout << "Task attempted to send huge log. ingnoring.\n";
             return true;
         }
 
-        Vector<u8> buffer(length);
+        vector<uint8_t> buffer(length);
         bool valid = task->copyFromUser(&buffer[0], address, length, false);
         if (!valid) {
-            Log << "SYS_LOG: invalid buffer\n";
+            cout << "SYS_LOG: invalid buffer\n";
             return false;
         }
-        for (usize index = 0; index < buffer.size(); index++) {
-            log::Log << static_cast<char>(buffer[index]);
+        for (size_t index = 0; index < buffer.size(); index++) {
+            log::cout << static_cast<char>(buffer[index]);
         }
         return true;
     }

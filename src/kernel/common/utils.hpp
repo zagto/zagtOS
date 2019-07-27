@@ -17,15 +17,15 @@ enum class Permissions {
 // used by dlmalloc
 extern "C" {
 #endif
-    void memset(void *pointer, char value, usize len);
-    void memcpy(void *dest, const void *src, usize len);
-    void memmove(void *dest, const void *src, usize len);
+    void memset(void *pointer, char value, size_t len);
+    void memcpy(void *dest, const void *src, size_t len);
+    void memmove(void *dest, const void *src, size_t len);
 #ifdef __cplusplus
 }
 
-usize align(usize address, usize alignment, AlignDirection direction);
-void alignedShrink(usize &start, usize &length, usize alignment);
-void alignedGrow(usize &start, usize &length, usize alignment);
+size_t align(size_t address, size_t alignment, AlignDirection direction);
+void alignedShrink(size_t &start, size_t &length, size_t alignment);
+void alignedGrow(size_t &start, size_t &length, size_t alignment);
 
 template <typename T> T min(T a, T b) {
     if (a < b) {
@@ -43,20 +43,20 @@ template <typename T> T max(T a, T b) {
     }
 }
 
-usize randomU32();
+size_t randomU32();
 template <typename T> T random() {
-    constexpr usize numRandom = (sizeof(T) - 1) / sizeof(u32) + 1;
+    constexpr size_t numRandom = (sizeof(T) - 1) / sizeof(uint32_t) + 1;
 
-    u32 r[numRandom];
+    uint32_t r[numRandom];
     T result;
     memcpy(&result, r, sizeof(T));
     return result;
 }
 
-void *operator new(usize, KernelVirtualAddress address);
+void *operator new(size_t, KernelVirtualAddress address);
 
-template<typename T1, typename T2> bool arrayCompare(T1 &a, T2 &b, usize length) {
-    for (usize index = 0; index < length; index++) {
+template<typename T1, typename T2> bool arrayCompare(T1 &a, T2 &b, size_t length) {
+    for (size_t index = 0; index < length; index++) {
         if (a[index] != b[index]) {
             return false;
         }
@@ -66,10 +66,10 @@ template<typename T1, typename T2> bool arrayCompare(T1 &a, T2 &b, usize length)
 
 template<typename T1, typename T2> void arrayCopy(T1 destination,
                                                   T2 source,
-                                                  usize length,
-                                                  usize destinationOffset = 0,
-                                                  usize sourceOffset = 0) {
-    for (usize index = 0; index < length; index++) {
+                                                  size_t length,
+                                                  size_t destinationOffset = 0,
+                                                  size_t sourceOffset = 0) {
+    for (size_t index = 0; index < length; index++) {
         destination[index + destinationOffset] = source[index + sourceOffset];
     }
 }

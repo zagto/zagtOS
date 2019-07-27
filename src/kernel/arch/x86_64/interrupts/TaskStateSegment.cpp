@@ -6,9 +6,9 @@
 
 void TaskStateSegment::update(Thread *thread)
 {
-    usize rsp = reinterpret_cast<usize>(&thread->registerState) + sizeof(RegisterState);
-    rspLow = static_cast<u32>(rsp);
-    rspHigh = static_cast<u32>(rsp >> 32);
+    size_t rsp = reinterpret_cast<size_t>(&thread->registerState) + sizeof(RegisterState);
+    rspLow = static_cast<uint32_t>(rsp);
+    rspHigh = static_cast<uint32_t>(rsp >> 32);
 
     loadTaskStateSegment();
 }

@@ -5,8 +5,8 @@ using namespace log;
 using namespace framebufferbackend;
 
 
-void FramebufferBackend::writePixel(u32 x, u32 y, Color color) {
-    volatile u8 *pixel = &framebuffer[y * bytesPerLine + x * bytesPerPixel];
+void FramebufferBackend::writePixel(uint32_t x, uint32_t y, Color color) {
+    volatile uint8_t *pixel = &framebuffer[y * bytesPerLine + x * bytesPerPixel];
     switch (format) {
     case FramebufferFormat::RGB:
         pixel[0] = color.red;
@@ -24,8 +24,8 @@ void FramebufferBackend::writePixel(u32 x, u32 y, Color color) {
 
 
 void FramebufferBackend::clear(bool fuzzy) {
-    for (u32 y = 0; y < height; y++) {
-        for (u32 x = 0; x < width; x++) {
+    for (uint32_t y = 0; y < height; y++) {
+        for (uint32_t x = 0; x < width; x++) {
             if (!fuzzy) {
                 writePixel(x, y, backgroundColor);
             } else if ((x % 2 + y) % 2) {
@@ -37,7 +37,7 @@ void FramebufferBackend::clear(bool fuzzy) {
 
 
 void FramebufferBackend::init(const BootInfo::FramebufferInfo *framebufferInfo) {
-    framebuffer = reinterpret_cast<u8 *>(framebufferInfo->baseAddress);
+    framebuffer = reinterpret_cast<uint8_t *>(framebufferInfo->baseAddress);
     width = framebufferInfo->width;
     height = framebufferInfo->height;
     bytesPerLine = framebufferInfo->bytesPerLine;
@@ -79,8 +79,8 @@ void FramebufferBackend::write(char character) {
         return;
     }
 
-    for (u32 y = 0; y < Font::characterHeight; y++) {
-        for (u32 x = 0; x < Font::characterWidth; x++) {
+    for (uint32_t y = 0; y < Font::characterHeight; y++) {
+        for (uint32_t x = 0; x < Font::characterWidth; x++) {
             writePixel(currentColumn * Font::characterWidth + x,
                        currentLine * Font::characterHeight + y,
                        Font::getPixel(character, x, y) ? foregroundColor : backgroundColor);

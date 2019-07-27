@@ -8,7 +8,7 @@
 extern "C" {
 #endif
     __attribute__((noreturn)) void BasicDLMallocPanic(const char *location);
-    void *sbrk(isize increment);
+    void *sbrk(ssize_t increment);
 
     #define STR2(x) #x
     #define STR1(x) STR2(x)

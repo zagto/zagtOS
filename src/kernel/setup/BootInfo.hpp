@@ -6,17 +6,17 @@
 
 struct BootInfo {
     struct FramebufferInfo {
-        usize baseAddress;
-        u32 width;
-        u32 height;
-        u32 bytesPerPixel;
-        u32 bytesPerLine;
-        u32 format;
+        size_t baseAddress;
+        uint32_t width;
+        uint32_t height;
+        uint32_t bytesPerPixel;
+        uint32_t bytesPerLine;
+        uint32_t format;
     };
 
     struct InitialObjectsInfo {
         PhysicalAddress address;
-        usize size;
+        size_t size;
     };
 
     FramebufferInfo framebufferInfo;

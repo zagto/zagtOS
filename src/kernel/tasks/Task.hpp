@@ -13,17 +13,17 @@ class Object;
 
 class Task {
 public:
-    const static usize MAX_THREADS = 64;
+    const static size_t MAX_THREADS = 64;
 
 private:
     friend class MasterPageTable;
     friend class Thread;
-    Vector<Thread *>threads;
+    vector<Thread *>threads;
     MappedAreaVector mappedAreas;
 
-    bool accessUserSpace(u8 *buffer,
-                         usize start,
-                         usize length,
+    bool accessUserSpace(uint8_t *buffer,
+                         size_t start,
+                         size_t length,
                          MasterPageTable::AccessOpertion accOp,
                          bool requireWritePermissions);
 
@@ -41,9 +41,9 @@ public:
     bool handlePageFault(UserVirtualAddress address);
     void removeThread(Thread *thread);
 
-    bool copyFromUser(u8 *destination, usize address, usize length, bool requireWritePermissions);
-    bool copyToUser(usize address, const u8 *source, usize length, bool requireWritePermissions);
-    bool verifyUserAccess(usize address, usize length, bool requireWritePermissions);
+    bool copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions);
+    bool copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
+    bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
 };
 
 #endif // TASK_HPP

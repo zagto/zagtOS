@@ -2,66 +2,66 @@
 #define ELF_HPP
 
 #include <common/common.hpp>
-#include <lib/Vector.hpp>
+#include <lib/vector.hpp>
 #include <lib/Slice.hpp>
 
 class Task;
 
 namespace elf {
     struct FileHeader32 {
-        u8 ident[16];
-        u16 type;
-        u16 machine;
-        u32 version;
-        usize entry;
-        usize phoff;
-        usize shoff;
-        u32 flags;
-        u16 ehsize;
-        u16 phentsize;
-        u16 phnum;
-        u16 shentsize;
-        u16 shnum;
-        u16 shstrndx;
+        uint8_t ident[16];
+        uint16_t type;
+        uint16_t machine;
+        uint32_t version;
+        size_t entry;
+        size_t phoff;
+        size_t shoff;
+        uint32_t flags;
+        uint16_t ehsize;
+        uint16_t phentsize;
+        uint16_t phnum;
+        uint16_t shentsize;
+        uint16_t shnum;
+        uint16_t shstrndx;
     };
 
     struct FileHeader64 {
-        u8 ident[16];
-        u16 type;
-        u16 machine;
-        u32 version;
-        usize entry;
-        usize phoff;
-        usize shoff;
-        u32 flags;
-        u16 ehsize;
-        u16 phentsize;
-        u16 phnum;
-        u16 shentsize;
-        u16 shnum;
-        u16 shstrndx;
+        uint8_t ident[16];
+        uint16_t type;
+        uint16_t machine;
+        uint32_t version;
+        size_t entry;
+        size_t phoff;
+        size_t shoff;
+        uint32_t flags;
+        uint16_t ehsize;
+        uint16_t phentsize;
+        uint16_t phnum;
+        uint16_t shentsize;
+        uint16_t shnum;
+        uint16_t shstrndx;
     };
 
     struct ProgramHeader32 {
-        u32 type;
-        usize offset;
-        usize vaddr;
-        usize paddr;
-        u32 filesz;
-        u32 memsz;
-        u32 flags;
-        u32 align;
+        uint32_t type;
+        size_t offset;
+        size_t vaddr;
+        size_t paddr;
+        uint32_t filesz;
+        uint32_t memsz;
+        uint32_t flags;
+        uint32_t align;
     };
 
     struct ProgramHeader64 {
-        u32 type;
-        u32 flags;
-        usize offset;
-        usize vaddr;
-        usize paddr;
-        u64 filesz;
-        u64 memsz;
-        u64 align;
+        uint32_t type;
+        uint32_t flags;
+        size_t offset;
+        size_t vaddr;
+        size_t paddr;
+        uint64_t filesz;
+        uint64_t memsz;
+        uint64_t align;
     };
 
     typedef ProgramHeader64 ProgramHeader;
@@ -69,17 +69,17 @@ namespace elf {
 
     class Segment {
     private:
-        Slice<Vector, u8> data;
+        Slice<vector, uint8_t> data;
         ProgramHeader header;
 
     public:
-        static const u32 TYPE_LOAD{1};
-        static const u32 TYPE_TLS{7};
-        static const u32 FLAG_EXECUTABLE{1};
-        static const u32 FLAG_WRITEABLE{2};
-        static const u32 FLAG_READABLE{4};
+        static const uint32_t TYPE_LOAD{1};
+        static const uint32_t TYPE_TLS{7};
+        static const uint32_t FLAG_EXECUTABLE{1};
+        static const uint32_t FLAG_WRITEABLE{2};
+        static const uint32_t FLAG_READABLE{4};
 
-        Segment(Slice<Vector, u8> data, ProgramHeader header) :
+        Segment(Slice<vector, uint8_t> data, ProgramHeader header) :
             data{data}, header{header} {}
 
         void load(Task *task, UserVirtualAddress address);
@@ -88,13 +88,13 @@ namespace elf {
         }
 
         UserVirtualAddress endAddress();
-        usize length() {
+        size_t length() {
             return header.memsz;
         }
         UserVirtualAddress address() {
             return header.vaddr;
         }
-        u32 type() {
+        uint32_t type() {
             return header.type;
         }
         Region regionInMemory();
@@ -103,23 +103,23 @@ namespace elf {
 
     class ELF {
     private:
-        Slice<Vector, u8> file;
+        Slice<vector, uint8_t> file;
         FileHeader fileHeader;
         bool _hasTLS;
-        usize tlsSegmentIndex;
+        size_t tlsSegmentIndex;
         bool valid;
 
-        ProgramHeader segmentHeader(usize index);
+        ProgramHeader segmentHeader(size_t index);
 
     public:
-        ELF(Slice<Vector, u8> file);
+        ELF(Slice<vector, uint8_t> file);
         bool isValid();
         bool hasTLS() {
             return _hasTLS;
         }
 
-        usize numSegments();
-        Segment segment(usize index);
+        size_t numSegments();
+        Segment segment(size_t index);
         UserVirtualAddress entry();
         Segment tlsSegment();
     };

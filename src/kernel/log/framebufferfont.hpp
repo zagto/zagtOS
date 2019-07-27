@@ -6,10 +6,10 @@
 namespace log::framebufferbackend {
     class Font {
     public:
-        static const u32 characterWidth = 20;
-        static const u32 characterHeight = 30;
+        static const uint32_t characterWidth = 20;
+        static const uint32_t characterHeight = 30;
 
-        static bool getPixel(char character, u32 x, u32 y);
+        static bool getPixel(char character, uint32_t x, uint32_t y);
     };
 }
 

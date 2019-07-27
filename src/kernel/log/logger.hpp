@@ -12,15 +12,15 @@ namespace log {
         void init(const BootInfo *bootInfo);
         Logger operator<<(char character);
         Logger operator<<(const char *string);
-        Logger operator<<(usize value);
+        Logger operator<<(size_t value);
         Logger operator<<(volatile void *pointer);
         Logger operator<<(const void *pointer);
         Logger operator<<(void *pointer);
         Logger operator<<(const RegisterState &registerState);
     };
 
-    extern Logger Log;
-    static const char EndLine = '\n';
+    extern Logger cout;
+    static const char endl = '\n';
 }
 
 #endif

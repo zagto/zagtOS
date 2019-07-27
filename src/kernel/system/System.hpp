@@ -2,7 +2,7 @@
 #define SYSTEM_HPP
 
 #include <common/common.hpp>
-#include <lib/Vector.hpp>
+#include <lib/vector.hpp>
 #include <system/Processor.hpp>
 #include <memory/Memory.hpp>
 #include <setup/BootInfo.hpp>
@@ -14,7 +14,7 @@ public:
     Memory memory;
     /* Memory and the MasterPageTable must be initialized before dynamic memory can be used */
     MasterPageTable *kernelOnlyMasterPageTable;
-    Vector<Processor *> processors;
+    vector<Processor *> processors;
 
     System(BootInfo *bootInfo) :
         memory(bootInfo),

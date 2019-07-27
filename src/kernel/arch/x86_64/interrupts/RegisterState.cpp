@@ -7,7 +7,7 @@ RegisterState::RegisterState(VirtualAddress entry,
                              UserVirtualAddress stackPtr,
                              UserVirtualAddress tlsBase,
                              UserVirtualAddress masterTLSBase,
-                             usize tlsSize)
+                             size_t tlsSize)
 {
     memset(this, 0, sizeof(RegisterState));
     rsp = UserSpaceRegion.end();

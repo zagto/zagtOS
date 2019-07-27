@@ -5,11 +5,11 @@
 #include <memory/Memory.hpp>
 #include <log/logger.hpp>
 
-template<typename ElementType> class Vector {
+template<typename ElementType> class vector {
 protected:
     ElementType *data{nullptr};
-    usize numElements;
-    usize numAllocated;
+    size_t numElements;
+    size_t numAllocated;
 
     void updateAllocatedSize() {
         data = Memory::instance()->resizeVirtualArea(KernelVirtualAddress(data),
@@ -17,7 +17,7 @@ protected:
     }
 
 public:
-    Vector(usize numElements = 0) :
+    vector(size_t numElements = 0) :
             numElements{numElements},
             numAllocated{numElements}  {
 
@@ -25,22 +25,22 @@ public:
                     sizeof(ElementType) * numAllocated).asPointer<ElementType>();
     }
 
-    ~Vector() {
-        for (usize i = 0; i < numElements; i++) {
+    ~vector() {
+        for (size_t i = 0; i < numElements; i++) {
             data[i].~ElementType();
         }
     }
 
-    ElementType &operator[](usize index) {
+    ElementType &operator[](size_t index) {
         Assert(index < numElements);
         return data[index];
     }
 
-    usize size() {
+    size_t size() {
         return numElements;
     }
 
-    void pushBack(ElementType element) {
+    void push_back(ElementType element) {
         if (numElements == numAllocated) {
             numAllocated = (numAllocated + 1) * 3 / 2;
         }
@@ -50,7 +50,7 @@ public:
         numElements++;
     }
 
-    void insert(ElementType element, usize index) {
+    void insert(ElementType element, size_t index) {
         if (numElements == numAllocated) {
             numAllocated = (numAllocated + 1) * 3 / 2;
         }
@@ -64,7 +64,7 @@ public:
     }
 
     void remove(ElementType element) {
-        usize index;
+        size_t index;
         for (index = 0; index < numElements; index++) {
             if (data[index] == element) {
                 break;
@@ -72,7 +72,7 @@ public:
         }
 
         if (index == numElements) {
-            log::Log << "Tried to remove Element that is not in vector" << log::EndLine;
+            log::cout << "Tried to remove Element that is not in vector" << log::endl;
             Panic();
         }
 

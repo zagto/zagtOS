@@ -11,17 +11,17 @@ extern "C" void basicInvalidate(VirtualAddress address);
 
 PageTableEntry *MasterPageTable::partialWalkEntries(VirtualAddress address,
                                                     MissingStrategy missingStrategy,
-                                                    usize startLevel,
+                                                    size_t startLevel,
                                                     WalkData &data) {
     Assert(!address.isInRegion(IdentityMapping));
 
-    for (usize level = startLevel; level > 0; level--) {
+    for (size_t level = startLevel; level > 0; level--) {
         PageTableEntry *entry = data.tables[level]->entryFor(address, level);
 
         if (!entry->present()) {
             switch (missingStrategy) {
             case MissingStrategy::NONE:
-                Log << "non-present entry during resolve which should not have happened\n";
+                cout << "non-present entry during resolve which should not have happened\n";
                 Panic();
             case MissingStrategy::RETURN_NULLPTR:
                 return nullptr;
@@ -48,7 +48,7 @@ PageTableEntry *MasterPageTable::walkEntries(VirtualAddress address, MissingStra
 MasterPageTable::MasterPageTable() {
     Assert(this != CurrentProcessor->activeMasterPageTable);
 
-    for (usize index = KERNEL_ENTRIES_OFFSET;
+    for (size_t index = KERNEL_ENTRIES_OFFSET;
          index < NUM_ENTRIES - 1;
          index++) {
          entries[index] = CurrentProcessor->activeMasterPageTable->entries[index];
@@ -85,10 +85,10 @@ PhysicalAddress MasterPageTable::resolve(UserVirtualAddress address) {
 
 
 void MasterPageTable::accessRange(UserVirtualAddress address,
-                                  usize numPages,
-                                  usize startOffset,
-                                  usize endOffset,
-                                  u8 *buffer,
+                                  size_t numPages,
+                                  size_t startOffset,
+                                  size_t endOffset,
+                                  uint8_t *buffer,
                                   AccessOpertion accOp,
                                   Permissions newPagesPermissions) {
     Assert(address.isPageAligned());
@@ -97,13 +97,13 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
     Assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
 
     WalkData walkData(this);
-    usize indexes[NUM_LEVELS];
+    size_t indexes[NUM_LEVELS];
 
-    for (usize i = 0; i < NUM_LEVELS; i++) {
+    for (size_t i = 0; i < NUM_LEVELS; i++) {
         indexes[i] = indexFor(address, i);
     }
 
-    usize changedLevel = MASTER_LEVEL;
+    size_t changedLevel = MASTER_LEVEL;
 
     while (true) {
         PageTableEntry *entry = partialWalkEntries(address,
@@ -111,23 +111,23 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
                                                    changedLevel,
                                                    walkData);
         if (!entry->present()) {
-            Log << "adding entry in accessRange for " << address.value() << "\n";
+            cout << "adding entry in accessRange for " << address.value() << "\n";
             PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
             *entry = PageTableEntry(frame, newPagesPermissions, true);
         }
 
-        usize lengthInPage = PAGE_SIZE - startOffset;
+        size_t lengthInPage = PAGE_SIZE - startOffset;
         if (numPages == 1) {
             lengthInPage -= endOffset;
         }
-        u8 *dataPtr = entry->addressValue().identityMapped().asPointer<u8>() + startOffset;
+        uint8_t *dataPtr = entry->addressValue().identityMapped().asPointer<uint8_t>() + startOffset;
 
         if (accOp == AccessOpertion::READ) {
             memcpy(buffer, dataPtr, lengthInPage);
         } else if (accOp == AccessOpertion::WRITE) {
             memcpy(dataPtr, buffer, lengthInPage);
         } else {
-            Log << "accessRange: invalid operation\n";
+            cout << "accessRange: invalid operation\n";
             Panic();
         }
 
@@ -197,13 +197,13 @@ extern "C" void basicSwitchMasterPageTable(PhysicalAddress address);
 void MasterPageTable::activate() {
     if (!isActive()) {
         CurrentProcessor->activeMasterPageTable = this;
-        Log << (usize)this << "\n";
+        cout << (size_t)this << "\n";
         basicSwitchMasterPageTable(MasterPageTable::resolve(KernelVirtualAddress(this)));
     }
 }
 
 void MasterPageTable::completelyUnmapUserSpaceRegion() {
-    for (usize index = 0; index < KERNEL_ENTRIES_OFFSET; index++) {
+    for (size_t index = 0; index < KERNEL_ENTRIES_OFFSET; index++) {
         PageTableEntry &entry = entries[index];
         if (entry.present()) {
             entry.addressValue().identityMapped().asPointer<PageTable>()->unmapEverything(MASTER_LEVEL - 1);

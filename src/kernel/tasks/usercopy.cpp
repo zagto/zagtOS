@@ -3,9 +3,9 @@
 #include <tasks/Task.hpp>
 
 
-bool Task::accessUserSpace(u8 *buffer,
-                           usize start,
-                           usize length,
+bool Task::accessUserSpace(uint8_t *buffer,
+                           size_t start,
+                           size_t length,
                            MasterPageTable::AccessOpertion accOp,
                            bool requireWritePermissions) {
     Assert(CurrentProcessor->currentTask->pagingLock.isLocked());
@@ -17,30 +17,30 @@ bool Task::accessUserSpace(u8 *buffer,
         return false;
     }
 
-    usize alignedStart = start;
-    usize alignedLength = length;
+    size_t alignedStart = start;
+    size_t alignedLength = length;
     alignedGrow(alignedStart, alignedLength, PAGE_SIZE);
 
     MappedArea *area = mappedAreas.findMappedArea(UserVirtualAddress(alignedStart));
     if (area == nullptr) {
-        Log << "accessUserSpace beginning at unmapped address " << start << "\n";
+        cout << "accessUserSpace beginning at unmapped address " << start << "\n";
         return false;
     }
 
-    usize areaPrefix = alignedStart - area->region.start;
+    size_t areaPrefix = alignedStart - area->region.start;
     if (area->region.length - areaPrefix < alignedLength) {
-        Log << "accessUserSpace address " << start << ", length " << length << " too long for "
+        cout << "accessUserSpace address " << start << ", length " << length << " too long for "
             << "area " << area->region.start << ", length: " << area->region.length <<"\n";
         return false;
     }
 
     if (requireWritePermissions && area->permissions != Permissions::WRITE) {
-        Log << "accessUserSpace address " << start << ": no write permissions\n";
+        cout << "accessUserSpace address " << start << ": no write permissions\n";
         return false;
     }
 
     if (accOp != MasterPageTable::AccessOpertion::VERIFY_ONLY) {
-        usize pagePrefix = start - alignedStart;
+        size_t pagePrefix = start - alignedStart;
 
         masterPageTable->accessRange(UserVirtualAddress(alignedStart),
                                      alignedLength / PAGE_SIZE,
@@ -54,7 +54,7 @@ bool Task::accessUserSpace(u8 *buffer,
     return true;
 }
 
-bool Task::copyFromUser(u8 *destination, usize address, usize length, bool requireWritePermissions) {
+bool Task::copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions) {
     return accessUserSpace(destination,
                            address,
                            length,
@@ -62,15 +62,15 @@ bool Task::copyFromUser(u8 *destination, usize address, usize length, bool requi
                            requireWritePermissions);
 }
 
-bool Task::copyToUser(usize address, const u8 *source, usize length, bool requireWritePermissions) {
-    return accessUserSpace(const_cast<u8 *>(source),
+bool Task::copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions) {
+    return accessUserSpace(const_cast<uint8_t *>(source),
                            address,
                            length,
                            MasterPageTable::AccessOpertion::WRITE,
                            requireWritePermissions);
 }
 
-bool Task::verifyUserAccess(usize address, usize length, bool requireWritePermissions) {
+bool Task::verifyUserAccess(size_t address, size_t length, bool requireWritePermissions) {
     return accessUserSpace(nullptr,
                            address,
                            length,

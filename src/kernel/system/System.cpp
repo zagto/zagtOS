@@ -3,10 +3,10 @@
 
 
 void System::addBootProcessor() {
-    Log << "Initializing first processor..." << EndLine;
+    cout << "Initializing first processor..." << endl;
     CurrentProcessor = new Processor;
     CurrentProcessor->activeMasterPageTable = CurrentSystem.kernelOnlyMasterPageTable;
-    Log << "Processor object created. registering..." << EndLine;
-    processors.pushBack(CurrentProcessor);
-    Log << "Processor initialized." << EndLine;
+    cout << "Processor object created. registering..." << endl;
+    processors.push_back(CurrentProcessor);
+    cout << "Processor initialized." << endl;
 }

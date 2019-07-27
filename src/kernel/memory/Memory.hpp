@@ -22,13 +22,13 @@ public:
     void freePhysicalFrame(PhysicalAddress address);
     void recyclePhysicalFrame();
 
-    KernelVirtualAddress allocateVirtualArea(usize length, usize align = 0);
-    KernelVirtualAddress resizeVirtualArea(KernelVirtualAddress address, usize length);
+    KernelVirtualAddress allocateVirtualArea(size_t length, size_t align = 0);
+    KernelVirtualAddress resizeVirtualArea(KernelVirtualAddress address, size_t length);
     void freeVirtualArea(KernelVirtualAddress address);
 
     static Memory *instance();
 
-    KernelVirtualAddress resizeHeapArea(isize change);
+    KernelVirtualAddress resizeHeapArea(ssize_t change);
 };
 
 #endif // MEMORY_HPP

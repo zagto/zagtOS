@@ -7,15 +7,15 @@
 
 class Region {
 public:
-    usize start;
-    usize length;
+    size_t start;
+    size_t length;
 
-    constexpr Region(usize start, usize length) :
+    constexpr Region(size_t start, size_t length) :
             start{start},
             length{length} {
         //Assert(start + length >= start);
     }
-    usize end() const {
+    size_t end() const {
         return start + length;
     }
     bool isPageAligned() {

@@ -4,10 +4,10 @@
 #include <tasks/ErrorCodes.hpp>
 
 
-static const i32 PROTECTION_READ = 1,
+static const int32_t PROTECTION_READ = 1,
                  PROTECTION_WRITE = 2,
                  PROTECTION_EXECUTE = 4;
-static const u32 FLAG_PRIVATE = 0x02,
+static const uint32_t FLAG_PRIVATE = 0x02,
                  FLAG_FIXED = 0x10,
                  FLAG_ANONYMOUS = 0x20;
 
@@ -53,10 +53,10 @@ void MMAP::perform(Task &task) {
     } else if (protection == (PROTECTION_READ | PROTECTION_EXECUTE)) {
         permissions = Permissions::EXECUTE;
     } else {
-        Log << "mmap: unsupported protection " << static_cast<u64>(protection) << "\n";
+        cout << "mmap: unsupported protection " << static_cast<uint64_t>(protection) << "\n";
         error = EINVAL;
         return;
     }
 
-    Log << "TDODO: doMMAP" << static_cast<usize>(permissions == Permissions::WRITE) << "\n";
+    cout << "TDODO: doMMAP" << static_cast<size_t>(permissions == Permissions::WRITE) << "\n";
 }

@@ -4,7 +4,7 @@
 
 class KernelStack
 {
-    u8 data[PAGE_SIZE];
+    uint8_t data[PAGE_SIZE];
 };
 
 #endif // KERNELSTACK_HPP

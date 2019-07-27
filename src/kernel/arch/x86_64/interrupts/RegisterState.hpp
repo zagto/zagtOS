@@ -8,25 +8,25 @@
 class alignas(16) RegisterState
 {
 public:
-    static const u64 FLAG_USER_IOPL{(3 << 12)};
-    static const u64 FLAG_INTERRUPTS{(1 << 9)};
+    static const uint64_t FLAG_USER_IOPL{(3 << 12)};
+    static const uint64_t FLAG_INTERRUPTS{(1 << 9)};
 
-    u64 r15, r14, r13, r12, r11, r10, r9, r8;
-    u64 rbp, rdi, rsi;
-    u64 rdx, rcx, rbx, rax;
-    u64 intNr, errorCode;
-    u64 rip, cs, rflags, rsp, ss;
+    uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
+    uint64_t rbp, rdi, rsi;
+    uint64_t rdx, rcx, rbx, rax;
+    uint64_t intNr, errorCode;
+    uint64_t rip, cs, rflags, rsp, ss;
 
     RegisterState(VirtualAddress entry,
                   UserVirtualAddress stackPointer,
                   UserVirtualAddress tlsBase,
                   UserVirtualAddress masterTLSBase,
-                  usize tlsSize);
+                  size_t tlsSize);
 
-    inline u32 syscallNr() {
+    inline uint32_t syscallNr() {
         return rdi;
     }
-    inline u64 syscallParameter(usize index) {
+    inline uint64_t syscallParameter(size_t index) {
         switch (index) {
         case 0:
             return rsi;
@@ -42,10 +42,10 @@ public:
             Panic();
         }
     }
-    inline usize stackPointer() {
+    inline size_t stackPointer() {
         return rsp;
     }
-    inline void setSyscallResult(usize value) {
+    inline void setSyscallResult(size_t value) {
         rax = value;
     }
 };

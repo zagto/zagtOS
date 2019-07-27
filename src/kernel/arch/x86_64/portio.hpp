@@ -4,8 +4,8 @@
 #include <common/common.hpp>
 
 namespace portIO {
-    extern "C" u8 InB(u16 port);
-    extern "C" void OutB(u16 port, u8 data);
+    extern "C" uint8_t InB(uint16_t port);
+    extern "C" void OutB(uint16_t port, uint8_t data);
 }
 
 #endif // PORTIO_HPP

@@ -3,23 +3,23 @@
 #include <system/System.hpp>
 
 
-usize PageTable::indexFor(VirtualAddress address, usize level) {
+size_t PageTable::indexFor(VirtualAddress address, size_t level) {
     Assert(address.isPageAligned());
     Assert(level <= MASTER_LEVEL);
 
-    static const usize ADDRESS_BITS = (usize(1) << 48) - 1;
-    static const usize INDEX_MASK = ((usize(1)) << TABLE_LEVEL_SHIFT) - 1;
+    static const size_t ADDRESS_BITS = (size_t(1) << 48) - 1;
+    static const size_t INDEX_MASK = ((size_t(1)) << TABLE_LEVEL_SHIFT) - 1;
 
     return ((address.value() & ADDRESS_BITS) >> (12 + level * TABLE_LEVEL_SHIFT)) & INDEX_MASK;
 }
 
 
-PageTableEntry *PageTable::entryFor(VirtualAddress address, usize level) {
+PageTableEntry *PageTable::entryFor(VirtualAddress address, size_t level) {
     return &entries[indexFor(address, level)];
 }
 
-void PageTable::unmapEverything(usize level) {
-    for (usize index = 0; index < NUM_ENTRIES; index++) {
+void PageTable::unmapEverything(size_t level) {
+    for (size_t index = 0; index < NUM_ENTRIES; index++) {
         PageTableEntry &entry = entries[index];
         if (entry.present()) {
             if (level > 0) {

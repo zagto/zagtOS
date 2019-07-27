@@ -3,9 +3,9 @@
 
 #include <common/Region.hpp>
 
-static constexpr usize USER_STACK_SIZE = 2 * 1024 * 1024;
-static constexpr usize USER_STACK_BORDER = 0x1000 * 10;
-static constexpr usize RED_ZONE_SIZE = 128;
+static constexpr size_t USER_STACK_SIZE = 2 * 1024 * 1024;
+static constexpr size_t USER_STACK_BORDER = 0x1000 * 10;
+static constexpr size_t RED_ZONE_SIZE = 128;
 
 extern "C" char _kernelHeapStart;
 
@@ -19,10 +19,10 @@ static constexpr Region FramebufferRegion(
 );
 static const Region KernelStaticDataRegion(
     0xffffa00000000000,
-    reinterpret_cast<usize>(&_kernelHeapStart) - 0xffffa00000000000
+    reinterpret_cast<size_t>(&_kernelHeapStart) - 0xffffa00000000000
 );
 static const Region KernelHeapRegion(
-    reinterpret_cast<usize>(&_kernelHeapStart),
+    reinterpret_cast<size_t>(&_kernelHeapStart),
     0x0000080000000000
 );
 static constexpr Region UserSpaceRegion(

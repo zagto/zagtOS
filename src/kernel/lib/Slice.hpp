@@ -6,18 +6,18 @@
 template<template<typename> class ContainerType, typename ElementType> class Slice {
 private:
     ContainerType<ElementType> *container;
-    usize offset;
-    usize _size;
+    size_t offset;
+    size_t _size;
 
 public:
-    Slice(ContainerType<ElementType> *container, usize offset, usize size) :
+    Slice(ContainerType<ElementType> *container, size_t offset, size_t size) :
             container{container}, offset{offset}, _size{size} {
         Assert(offset + _size <= container->size() && offset + _size >= offset);
     }
 
     Slice(ContainerType<ElementType> *container) : Slice(container, 0, container->size()) {}
 
-    Slice(Slice<ContainerType, ElementType> *bigSlice, usize offset, usize size) :
+    Slice(Slice<ContainerType, ElementType> *bigSlice, size_t offset, size_t size) :
             container{bigSlice->container},
             offset{bigSlice->offset + offset},
             _size{size} {
@@ -29,18 +29,18 @@ public:
         Assert(offset + size > offset);
     }
 
-    ElementType &operator[](usize index) {
+    ElementType &operator[](size_t index) {
         Assert(index < _size);
         return (*container)[index + offset];
     }
 
-    usize size() {
+    size_t size() {
         return _size;
     }
 
-    template<typename ResultType> ResultType interpretAsObject(usize offset) {
+    template<typename ResultType> ResultType interpretAsObject(size_t offset) {
         ResultType result;
-        arrayCopy(reinterpret_cast<u8 *>(&result), *this, sizeof(ResultType), 0, offset);
+        arrayCopy(reinterpret_cast<uint8_t *>(&result), *this, sizeof(ResultType), 0, offset);
         return result;
     }
 

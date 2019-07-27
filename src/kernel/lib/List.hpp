@@ -58,7 +58,7 @@ namespace list {
                 node = node->nextNode;
             }
             if (!node) {
-                log::Log << "Tried to remove Element that is not in list" << log::EndLine;
+                log::cout << "Tried to remove Element that is not in list" << log::endl;
                 Panic();
             }
 
@@ -74,7 +74,7 @@ namespace list {
             }
         }
 
-        ElementType *operator[](usize index) {
+        ElementType *operator[](size_t index) {
             Node<ElementType> *node = firstNode;
             while(index) {
                 node = node->next();

@@ -6,7 +6,7 @@
 namespace frameStack {
     class Node {
     public:
-        static const usize NUM_ENTRIES{PAGE_SIZE / sizeof(PhysicalAddress) - 1};
+        static const size_t NUM_ENTRIES{PAGE_SIZE / sizeof(PhysicalAddress) - 1};
 
         Node *next;
         PhysicalAddress entries[NUM_ENTRIES];
@@ -17,7 +17,7 @@ namespace frameStack {
     class FrameStack {
     private:
         Node *head;
-        usize addIndex;
+        size_t addIndex;
         Lock lock;
 
     public:
@@ -30,9 +30,9 @@ namespace frameStack {
         PhysicalAddress pop();
         void push(PhysicalAddress address);
         void print(){
-            Log << "this: " << this << "\n";
-            Log << "head: " << head << "\n";
-            Log << "addIndex: " << addIndex << "\n";
+            cout << "this: " << this << "\n";
+            cout << "head: " << head << "\n";
+            cout << "addIndex: " << addIndex << "\n";
 
         }
     };

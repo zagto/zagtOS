@@ -3,6 +3,6 @@
 
 #include <common/inttypes.hpp>
 
-extern "C" u32 random();
+extern "C" uint32_t random();
 
 #endif // RANDOM_HPP

@@ -3,7 +3,7 @@
 
 #include <common/inttypes.hpp>
 
-static const u32 ENOMEM = 12,
+static const uint32_t ENOMEM = 12,
                  EINVAL = 22;
 
 #endif // ERRORCODES_HPP

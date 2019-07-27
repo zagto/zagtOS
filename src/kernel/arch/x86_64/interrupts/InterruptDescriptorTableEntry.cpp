@@ -2,7 +2,7 @@
 
 
 void InterruptDescriptorTableEntry::init(InterruptServiceRoutine *interruptServiceRoutine, bool user) {
-    usize address = reinterpret_cast<usize>(interruptServiceRoutine);
+    size_t address = reinterpret_cast<size_t>(interruptServiceRoutine);
 
     // Address 0-15
     addressLow = address;

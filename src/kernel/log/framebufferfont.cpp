@@ -5,7 +5,7 @@
 using namespace log::framebufferbackend;
 
 
-bool Font::getPixel(char character, u32 x, u32 y) {
+bool Font::getPixel(char character, uint32_t x, uint32_t y) {
     if (character < 32 || character > 126) {
         // always use the same character for stuff we can't print
         character = 0;
@@ -15,8 +15,8 @@ bool Font::getPixel(char character, u32 x, u32 y) {
         Halt();
     }
 
-    usize bit = y * beautifulfont_width + static_cast<u32>(character) * characterWidth + x;
-    usize byte = bit / 8;
-    usize bitInByte = bit % 8;
+    size_t bit = y * beautifulfont_width + static_cast<uint32_t>(character) * characterWidth + x;
+    size_t byte = bit / 8;
+    size_t bitInByte = bit % 8;
     return (beautifulfont_bits[byte] >> bitInByte) & 1;
 }

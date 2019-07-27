@@ -4,15 +4,15 @@
 
 
 extern "C" void BasicDLMallocPanic(const char *location) {
-    Log << "DLMalloc problem occured at: " << location << "\n";
+    cout << "DLMalloc problem occured at: " << location << "\n";
     Panic();
 }
 
 
-extern "C" void *sbrk(isize increment) {
-    Log << "sbrk " << (usize)increment << "\n";
-    Log << "old heap end: " << Memory::instance()->heapEnd.value() << "\n";
+extern "C" void *sbrk(ssize_t increment) {
+    cout << "sbrk " << (size_t)increment << "\n";
+    cout << "old heap end: " << Memory::instance()->heapEnd.value() << "\n";
     auto res = Memory::instance()->resizeHeapArea(increment).asPointer<void>();
-    Log << "sbrk end\n";
+    cout << "sbrk end\n";
     return  res;
 }

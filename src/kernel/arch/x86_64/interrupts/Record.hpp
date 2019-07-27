@@ -8,7 +8,7 @@
 template<typename T> class __attribute__((__packed__)) Record
 {
 private:
-    u16 size;
+    uint16_t size;
     T *address;
 
 public:

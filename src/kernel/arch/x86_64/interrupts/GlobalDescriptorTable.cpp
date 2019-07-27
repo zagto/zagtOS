@@ -9,8 +9,8 @@ GlobalDescriptorTable::GlobalDescriptorTable(TaskStateSegment *taskStateSegment)
             FLAG_USER | FLAG_PRESENT | FLAG_SEGMENT | FLAG_WRITEABLE | FLAG_CODE | FLAG_LONGMODE;
     userDataEntry = FLAG_USER | FLAG_PRESENT | FLAG_SEGMENT | FLAG_WRITEABLE;
 
-    u64 taskStateSegmentAddress = reinterpret_cast<u64>(taskStateSegment);
-    u64 taskStateSegmentSize = sizeof(TaskStateSegment);
+    uint64_t taskStateSegmentAddress = reinterpret_cast<uint64_t>(taskStateSegment);
+    uint64_t taskStateSegmentSize = sizeof(TaskStateSegment);
     taskStateSegmentEntry[0] = FLAG_PRESENT
             | FLAG_TSS
             | taskStateSegmentSize

@@ -11,9 +11,9 @@ namespace log {
         };
 
         struct Color {
-            u8 red;
-            u8 green;
-            u8 blue;
+            uint8_t red;
+            uint8_t green;
+            uint8_t blue;
         };
 
         class FramebufferBackend
@@ -23,19 +23,19 @@ namespace log {
             constexpr static const Color foregroundColor{0xff, 0xcc, 0x00};
             constexpr static const Color fuzzyColor{0x88, 0x00, 0x00};
 
-            volatile u8 *framebuffer;
-            u32 width;
-            u32 height;
-            u32 bytesPerLine;
-            u32 bytesPerPixel;
+            volatile uint8_t *framebuffer;
+            uint32_t width;
+            uint32_t height;
+            uint32_t bytesPerLine;
+            uint32_t bytesPerPixel;
             FramebufferFormat format;
-            u32 numColumns;
-            u32 numLines;
-            u32 currentColumn;
-            u32 currentLine;
+            uint32_t numColumns;
+            uint32_t numLines;
+            uint32_t currentColumn;
+            uint32_t currentLine;
 
             void clear(bool fuzzy = false);
-            void writePixel(u32 x, u32 y, Color color);
+            void writePixel(uint32_t x, uint32_t y, Color color);
             void newLine();
             void increasePosition();
 

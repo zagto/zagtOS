@@ -6,12 +6,12 @@
 
 class Address {
 private:
-    usize _value;
+    size_t _value;
 
 public:
-    Address(usize value) : _value{value} {}
+    Address(size_t value) : _value{value} {}
 
-    usize value();
+    size_t value();
     bool isPageAligned();
 };
 
@@ -21,9 +21,9 @@ private:
 
 public:
     VirtualAddress() : Address(0) {}
-    VirtualAddress(usize value);
+    VirtualAddress(size_t value);
 
-    static bool checkInRegion(const Region &region, usize address);
+    static bool checkInRegion(const Region &region, size_t address);
 
     bool isInRegion(const Region &region);
     bool isKernel();
@@ -35,13 +35,13 @@ public:
 class KernelVirtualAddress : public VirtualAddress {
 public:
     KernelVirtualAddress() : VirtualAddress() {}
-    KernelVirtualAddress(usize value);
+    KernelVirtualAddress(size_t value);
     KernelVirtualAddress(const void *pointer);
 
-    KernelVirtualAddress operator+(usize offset) {
+    KernelVirtualAddress operator+(size_t offset) {
         return KernelVirtualAddress(value() + offset);
     }
-    KernelVirtualAddress operator+(isize offset) {
+    KernelVirtualAddress operator+(ssize_t offset) {
         return KernelVirtualAddress(value() + offset);
     }
 
@@ -49,10 +49,10 @@ public:
 
 class PhysicalAddress : public Address {
 public:
-    static const usize NULL{0x1337affe1337affe};
+    static const size_t NULL{0x1337affe1337affe};
 
     PhysicalAddress() : Address(NULL) {}
-    PhysicalAddress(usize value) : Address(value) {}
+    PhysicalAddress(size_t value) : Address(value) {}
 
     KernelVirtualAddress identityMapped() {
         return KernelVirtualAddress(value() + IdentityMapping.start);
@@ -62,17 +62,17 @@ public:
     bool operator==(PhysicalAddress other) {
         return value() == other.value();
     }
-    PhysicalAddress operator+(usize offset) {
+    PhysicalAddress operator+(size_t offset) {
         return PhysicalAddress(value() + offset);
     }
 };
 
 class UserVirtualAddress : public VirtualAddress {
 public:
-    static bool checkInRegion(usize address);
+    static bool checkInRegion(size_t address);
 
     UserVirtualAddress() : VirtualAddress() {}
-    UserVirtualAddress(usize value);
+    UserVirtualAddress(size_t value);
 };
 
 #endif

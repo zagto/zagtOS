@@ -25,22 +25,22 @@ void Memory::freePhysicalFrame(PhysicalAddress address) {
 
 void Memory::recyclePhysicalFrame() {
     if (usedFrameStack.isEmpty()) {
-        Log << "Out of memory." << EndLine;
+        cout << "Out of memory." << endl;
         Panic();
     }
     PhysicalAddress frame = usedFrameStack.pop();
-    memset(frame.identityMapped().asPointer<u8>(), 0, PAGE_SIZE);
+    memset(frame.identityMapped().asPointer<uint8_t>(), 0, PAGE_SIZE);
     freshFrameStack.push(frame);
 }
 
 extern "C" {
-    void* dlmalloc(usize);
-    void* dlmemalign(usize, usize);
-    void* dlrealloc(void*, usize);
+    void* dlmalloc(size_t);
+    void* dlmemalign(size_t, size_t);
+    void* dlrealloc(void*, size_t);
     void  dlfree(void*);
 }
 
-KernelVirtualAddress Memory::allocateVirtualArea(usize length, usize align) {
+KernelVirtualAddress Memory::allocateVirtualArea(size_t length, size_t align) {
     LockHolder lh(heapLock);
     KernelVirtualAddress result;
     if (align > 0) {
@@ -51,7 +51,7 @@ KernelVirtualAddress Memory::allocateVirtualArea(usize length, usize align) {
     return result;
 }
 
-KernelVirtualAddress Memory::resizeVirtualArea(KernelVirtualAddress address, usize length) {
+KernelVirtualAddress Memory::resizeVirtualArea(KernelVirtualAddress address, size_t length) {
     LockHolder lh(heapLock);
     return KernelVirtualAddress(dlrealloc(address.asPointer<void>(), length));
 }
@@ -66,11 +66,11 @@ Memory *Memory::instance() {
     return &CurrentSystem.memory;
 }
 
-KernelVirtualAddress Memory::resizeHeapArea(isize change) {
+KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
     Assert(change >= 0);
     Assert(change % PAGE_SIZE == 0);
 
-    for (usize index = 0; index < change / PAGE_SIZE; index++) {
+    for (size_t index = 0; index < change / PAGE_SIZE; index++) {
         MasterPageTable::map(heapEnd + index * PAGE_SIZE,
                              allocatePhysicalFrame(),
                              Permissions::WRITE);

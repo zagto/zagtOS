@@ -5,7 +5,7 @@
 Scheduler::Scheduler(Processor *processor)
 {
     idleThread = new Thread(nullptr,
-                            VirtualAddress(reinterpret_cast<usize>(&idleEntry)),
+                            VirtualAddress(reinterpret_cast<size_t>(&idleEntry)),
                             Thread::Priority::IDLE,
                             0, THREAD_STRUCT_AREA_SIZE, 0, 0);
     _currentThread = idleThread;
@@ -42,13 +42,13 @@ void Scheduler::remove(Thread *thread) {
 void Scheduler::scheduleNext() {
     Assert(_currentThread == nullptr);
 
-    for (isize prio = Thread::NUM_PRIORITIES; prio >= 0; prio--) {
+    for (ssize_t prio = Thread::NUM_PRIORITIES; prio >= 0; prio--) {
         if (!threads[prio].isEmpty()) {
             _currentThread = threads[prio].popFront();
             return;
         }
     }
 
-    Log << "Help! Where is the idle thread???" << EndLine;
+    cout << "Help! Where is the idle thread???" << endl;
     Panic();
 }

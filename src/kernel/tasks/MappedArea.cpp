@@ -32,7 +32,7 @@ bool MappedArea::handlePageFault(UserVirtualAddress address) {
 void MappedArea::mapEverything() {
     Assert(source == Source::MEMORY);
 
-    for (usize address = region.start; address < region.length; address += PAGE_SIZE) {
+    for (size_t address = region.start; address < region.length; address += PAGE_SIZE) {
         if (!task->masterPageTable->isMapped(address)) {
             task->masterPageTable->invalidateLocally(UserVirtualAddress(address));
         }
@@ -46,22 +46,22 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
         return nullptr;
     }
 
-    usize low = 0;
-    usize high = size() - 1;
+    size_t low = 0;
+    size_t high = size() - 1;
     while (low < high) {
-        usize index = low + (high - low) / 2;
+        size_t index = low + (high - low) / 2;
         if (address.isInRegion(data[index]->region)) {
-            Log << "found\n";
+            cout << "found\n";
             return data[index];
         }
         if (address.value() < data[index]->region.start) {
             if (index == low) {
                 return nullptr;
             }
-            Log << "left\n";
+            cout << "left\n";
             high = index - 1;
         } else {
-            Log << "right\n";
+            cout << "right\n";
             low = index + 1;
         }
     }
@@ -73,19 +73,19 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
     }
 }
 
-Region MappedAreaVector::findFreeRegion(usize length, bool &valid, usize &newIndex) {
+Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newIndex) {
     Assert(task->pagingLock.isLocked());
 
     valid = false;
 
     length = align(length, PAGE_SIZE, AlignDirection::UP);
 
-    usize base = task->heapStart.value();
+    size_t base = task->heapStart.value();
 
     /* if region does not fit directly at start */
     if (size() > 0 && data[0]->region.start < base + length) {
-        for (usize index = 0; index < size(); index++) {
-            usize nextStart;
+        for (size_t index = 0; index < size(); index++) {
+            size_t nextStart;
             if (index == size()) {
                 nextStart = UserSpaceRegion.end();
             } else {
@@ -95,7 +95,7 @@ Region MappedAreaVector::findFreeRegion(usize length, bool &valid, usize &newInd
                 nextStart = UserSpaceRegion.end();
             }
 
-            usize areaEnd = data[index]->region.end();
+            size_t areaEnd = data[index]->region.end();
             Assert(nextStart >= areaEnd);
 
             if (areaEnd >= UserSpaceRegion.end()) {
@@ -125,20 +125,20 @@ fail:
     return Region(0, 0);
 }
 
-MappedArea *MappedAreaVector::addNew(usize length, Permissions permissions) {
+MappedArea *MappedAreaVector::addNew(size_t length, Permissions permissions) {
     bool valid;
-    usize index;
+    size_t index;
     Region region = findFreeRegion(length, valid, index);
     if (!valid) {
         return nullptr;
     }
 
     MappedArea *ma = new MappedArea(task, region, permissions);
-    Log << "index from findFreeRegion: " << index << "\n";
-    Log << "index from findIndexFor: " << this->findIndexFor(ma) << "\n";
+    cout << "index from findFreeRegion: " << index << "\n";
+    cout << "index from findIndexFor: " << this->findIndexFor(ma) << "\n";
     Assert(index == this->findIndexFor(ma));
 
-    static_cast<Vector<MappedArea *> *>(this)->insert(ma, index);
+    static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
     return ma;
 }
 

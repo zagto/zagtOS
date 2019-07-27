@@ -36,9 +36,9 @@ private:
 public:
     MappedAreaVector(Task *task):
         task{task} {}
-    Region findFreeRegion(usize length, bool &valid, usize &index);
+    Region findFreeRegion(size_t length, bool &valid, size_t &index);
     MappedArea *findMappedArea(UserVirtualAddress address);
-    MappedArea *addNew(usize length, Permissions permissions);
+    MappedArea *addNew(size_t length, Permissions permissions);
 };
 
 #endif // MAPPEDAREA_HPP

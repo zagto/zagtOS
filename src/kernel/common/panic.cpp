@@ -6,7 +6,7 @@ __attribute__((noreturn)) void Halt() {
 }
 
 __attribute__((noreturn)) void Panic() {
-    Log << "Kernel Panic. System will Halt";
+    cout << "Kernel Panic. System will Halt";
     Halt();
 }
 
@@ -15,11 +15,11 @@ void _Assert(bool condition, const char *message) {
     if (condition) {
         return;
     } else {
-        Log << "Assertion failed";
+        cout << "Assertion failed";
         if (message) {
-            Log << ": " << message;
+            cout << ": " << message;
         }
-        Log << EndLine;
+        cout << endl;
         Panic();
     }
 }

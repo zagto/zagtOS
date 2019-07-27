@@ -3,14 +3,14 @@
 
 #include <common/common.hpp>
 
-extern "C" void basicLock(volatile usize &value);
-extern "C" void basicUnlock(volatile usize &value);
+extern "C" void basicLock(volatile size_t &value);
+extern "C" void basicUnlock(volatile size_t &value);
 
 class LockHolder;
 
 class Lock {
 private:
-    volatile usize value{0};
+    volatile size_t value{0};
 
 public:
     friend class LockHolder;
@@ -20,7 +20,7 @@ public:
     }
     void unlock() {
         if (!value) {
-            Log << "Attempt to unlock non-locked lock" << EndLine;
+            cout << "Attempt to unlock non-locked lock" << endl;
             Panic();
         }
         basicUnlock(value);

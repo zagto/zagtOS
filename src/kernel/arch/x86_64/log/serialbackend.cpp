@@ -5,7 +5,7 @@
 using namespace log;
 
 
-static const u16 SERIAL_PORT = 0x3f8;
+static const uint16_t SERIAL_PORT = 0x3f8;
 
 
 void SerialBackend::init() {
@@ -41,5 +41,5 @@ bool SerialBackend::isTransmitEmpty() {
 
 void SerialBackend::write(char character) {
     while (!isTransmitEmpty());
-    portIO::OutB(SERIAL_PORT, static_cast<u8>(character));
+    portIO::OutB(SERIAL_PORT, static_cast<uint8_t>(character));
 }

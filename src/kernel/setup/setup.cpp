@@ -1,7 +1,7 @@
 #include <common/common.hpp>
 #include <setup/BootInfo.hpp>
 #include <system/System.hpp>
-#include <lib/Vector.hpp>
+#include <lib/vector.hpp>
 #include <tasks/Task.hpp>
 #include <tasks/ELF.hpp>
 #include <tasks/Object.hpp>
@@ -19,13 +19,13 @@ extern "C" __attribute__((noreturn)) void KernelEntry(BootInfo *bootInfo) {
     // Call global constructors
     _init();
 
-    Log.init(bootInfo);
-    Log << "Hello World. Log initialized." << EndLine;
+    cout.init(bootInfo);
+    cout << "Hello World. Log initialized." << endl;
 
     new (&CurrentSystem) System(bootInfo);
-    Log << "System Object created." << EndLine;
+    cout << "System Object created." << endl;
     CurrentSystem.addBootProcessor();
-    Log << "Processor added." << EndLine;
+    cout << "Processor added." << endl;
 
     switchStack(CurrentProcessor->kernelStack, KernelEntry2, bootInfo);
 }
@@ -35,12 +35,12 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
      * master page tables */
     BootInfo bootInfo = *bootInfoOld;
 
-    Log << "Creating initial task..." << EndLine;
+    cout << "Creating initial task..." << endl;
 
-    Vector<u8> initFile(bootInfo.initDataInfo.size);
-    Slice<Vector, u8> initSlice(&initFile);
+    vector<uint8_t> initFile(bootInfo.initDataInfo.size);
+    Slice<vector, uint8_t> initSlice(&initFile);
     memcpy(&initFile[0],
-           bootInfo.initDataInfo.address.identityMapped().asPointer<u8>(),
+           bootInfo.initDataInfo.address.identityMapped().asPointer<uint8_t>(),
            bootInfo.initDataInfo.size);
     ELF initELF(initSlice);
     Object obj(INIT_MSG);
@@ -49,6 +49,6 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
     /* the ELF data is the last thing we wanted to read from loader memory */
     CurrentSystem.kernelOnlyMasterPageTable->completelyUnmapLoaderRegion();
 
-    Log << "Entering first task..." << EndLine;
+    cout << "Entering first task..." << endl;
     CurrentProcessor->interrupts.returnToUserMode();
 }

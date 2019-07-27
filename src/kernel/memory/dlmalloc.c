@@ -589,8 +589,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #endif  /* DARWIN */
 
 #ifndef LACKS_SYS_TYPES_H
-#include <common/inttypes.hpp>  /* For usize */
-typedef usize size_t;
+#include <common/inttypes.hpp>  /* For size_t */
 #endif  /* LACKS_SYS_TYPES_H */
 
 /* The maximum possible size_t value has all bits set */

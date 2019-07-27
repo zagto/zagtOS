@@ -6,17 +6,17 @@
 
 using namespace elf;
 
-ELF::ELF(Slice<Vector, u8> file) : file{file} {
+ELF::ELF(Slice<vector, uint8_t> file) : file{file} {
     valid = false;
 
     if (file.size() <= sizeof(fileHeader)) {
-        Log << "ELF: file smaller than one file header" << EndLine;
+        cout << "ELF: file smaller than one file header" << endl;
         return;
     }
 
-    static const u8 elfMagic[]{0x7f, 'E', 'L', 'F'};
+    static const uint8_t elfMagic[]{0x7f, 'E', 'L', 'F'};
     if (!arrayCompare(file, elfMagic, 4)) {
-        Log << "ELF: Invalid magic" << EndLine;
+        cout << "ELF: Invalid magic" << endl;
         return;
     }
 
@@ -24,27 +24,27 @@ ELF::ELF(Slice<Vector, u8> file) : file{file} {
 
     if (file.size() <= fileHeader.phoff + fileHeader.phnum * fileHeader.phentsize
             || fileHeader.phoff > fileHeader.phoff + fileHeader.phnum * fileHeader.phentsize) {
-        Log << "ELF: file does not fit all its program headers" << EndLine;
+        cout << "ELF: file does not fit all its program headers" << endl;
         return;
     }
     if (fileHeader.phentsize < sizeof(ProgramHeader)) {
-        Log << "ELF: too small program header entry size" << EndLine;
+        cout << "ELF: too small program header entry size" << endl;
         return;
     }
 
     static_assert(UserSpaceRegion.start == 0, "This code assumes user space starts at 0");
     if (!VirtualAddress::checkInRegion(UserSpaceRegion, fileHeader.entry)) {
-        Log << "ELF: entry not in user space" << EndLine;
+        cout << "ELF: entry not in user space" << endl;
         return;
     }
 
     _hasTLS = false;
-    for (usize index = 0; index < fileHeader.phnum; index++) {
+    for (size_t index = 0; index < fileHeader.phnum; index++) {
         ProgramHeader programHeader = segmentHeader(index);
 
         if (programHeader.type == Segment::TYPE_TLS) {
             if (_hasTLS) {
-                Log << "ELF: more than one TLS segment" << EndLine;
+                cout << "ELF: more than one TLS segment" << endl;
                 return;
             }
             _hasTLS = true;
@@ -55,25 +55,25 @@ ELF::ELF(Slice<Vector, u8> file) : file{file} {
             if (programHeader.filesz != 0 && (
                         programHeader.offset + programHeader.filesz > file.size()
                         || programHeader.offset > programHeader.offset + programHeader.filesz)) {
-                Log << "ELF: program header describes segment that does not fit in file" << EndLine;
+                cout << "ELF: program header describes segment that does not fit in file" << endl;
                 return;
             }
             if (programHeader.vaddr + programHeader.memsz < programHeader.vaddr) {
-                Log << "ELF: Integer Overflow in memsz" << EndLine;
+                cout << "ELF: Integer Overflow in memsz" << endl;
                 return;
             }
 
             static_assert(UserSpaceRegion.start == 0, "This code assumes user space starts at 0");
             if (!VirtualAddress::checkInRegion(UserSpaceRegion,
                                                programHeader.vaddr + programHeader.memsz)) {
-                Log << "ELF: segment does not fit in user space" << EndLine;
+                cout << "ELF: segment does not fit in user space" << endl;
                 return;
             }
 
             if ((programHeader.flags & Segment::FLAG_WRITEABLE)
                     && (programHeader.flags & Segment::FLAG_EXECUTABLE)) {
-                Log << "ELF: Segment is marked as writeable and executable at the same time"
-                    << EndLine;
+                cout << "ELF: Segment is marked as writeable and executable at the same time"
+                    << endl;
                 return;
             }
 
@@ -82,7 +82,7 @@ ELF::ELF(Slice<Vector, u8> file) : file{file} {
                 continue;
             }
 
-            for (usize otherIndex = index + 1; otherIndex < fileHeader.phnum; otherIndex++) {
+            for (size_t otherIndex = index + 1; otherIndex < fileHeader.phnum; otherIndex++) {
                 ProgramHeader otherHeader = segmentHeader(otherIndex);
                 if (otherHeader.type != Segment::TYPE_LOAD) {
                     continue;
@@ -95,7 +95,7 @@ ELF::ELF(Slice<Vector, u8> file) : file{file} {
                  * two-integer-ranges-for-overlap */
                 if (programHeader.vaddr < otherHeader.vaddr + otherHeader.memsz
                         && otherHeader.vaddr < programHeader.vaddr + programHeader.memsz) {
-                    Log << "ELF: Segments overlap" << programHeader.vaddr << ":" << programHeader.memsz << ", " << otherHeader.vaddr << ":" << otherHeader.memsz << EndLine;
+                    cout << "ELF: Segments overlap" << programHeader.vaddr << ":" << programHeader.memsz << ", " << otherHeader.vaddr << ":" << otherHeader.memsz << endl;
                     return;
                 }
             }
@@ -109,18 +109,18 @@ bool ELF::isValid() {
     return valid;
 }
 
-usize ELF::numSegments() {
+size_t ELF::numSegments() {
     Assert(valid);
     return fileHeader.phnum;
 }
 
-Segment ELF::segment(usize index) {
+Segment ELF::segment(size_t index) {
     Assert(valid);
     Assert(index < fileHeader.phnum);
 
     ProgramHeader programHeader = segmentHeader(index);
 
-    return Segment(Slice<Vector, u8>(&file,
+    return Segment(Slice<vector, uint8_t>(&file,
                                      programHeader.offset,
                                      programHeader.filesz),
                    programHeader);
@@ -133,7 +133,7 @@ Segment ELF::tlsSegment() {
     return segment(tlsSegmentIndex);
 }
 
-ProgramHeader ELF::segmentHeader(usize index) {
+ProgramHeader ELF::segmentHeader(size_t index) {
     return file.interpretAsObject<ProgramHeader>(fileHeader.phoff + index * fileHeader.phentsize);
 }
 
@@ -142,8 +142,8 @@ UserVirtualAddress ELF::entry() {
 }
 
 Region Segment::regionInMemory() {
-    usize alignedAddress = header.vaddr;
-    usize alignedSize = header.memsz;
+    size_t alignedAddress = header.vaddr;
+    size_t alignedSize = header.memsz;
     alignedGrow(alignedAddress, alignedSize, PAGE_SIZE);
 
     return Region(alignedAddress, alignedSize);
@@ -161,7 +161,7 @@ Permissions Segment::permissions() {
 
 void Segment::load(Task *task, UserVirtualAddress address) {
     Assert(header.type == TYPE_LOAD || header.type == TYPE_TLS);
-    Log << "Loading Segment from " << (usize)&data[0] << " to " << address.value() << ", size " << header.filesz << EndLine;
+    cout << "Loading Segment from " << (size_t)&data[0] << " to " << address.value() << ", size " << header.filesz << endl;
 
     bool valid = task->copyToUser(address.value(), &data[0], header.filesz, false);
     Assert(valid);

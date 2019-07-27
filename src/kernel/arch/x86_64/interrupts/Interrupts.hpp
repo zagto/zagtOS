@@ -9,7 +9,7 @@
 
 class Interrupts {
 public:
-    static const usize SYSCALL_INTERRUPT = 0xff;
+    static const size_t SYSCALL_INTERRUPT = 0xff;
 
 private:
     GlobalDescriptorTable globalDescriptorTable;

@@ -35,7 +35,7 @@ PhysicalAddress FrameStack::pop() {
     }
 
     if (addIndex == 0) {
-        Log << "Danger: returning old phyiscal head" << EndLine;
+        cout << "Danger: returning old phyiscal head" << endl;
         Node *oldHead = head->next;
 
         head = head->next;
@@ -44,7 +44,7 @@ PhysicalAddress FrameStack::pop() {
         addIndex = Node::NUM_ENTRIES;
 
         /* re-use old head node frame as result */
-        Log << "pop2\n";
+        cout << "pop2\n";
         return PhysicalAddress::fromIdentitdyMappedPointer(oldHead);
     } else {
         addIndex--;
