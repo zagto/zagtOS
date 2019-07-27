@@ -42,8 +42,6 @@ bool Task::accessUserSpace(u8 *buffer,
     if (accOp != MasterPageTable::AccessOpertion::VERIFY_ONLY) {
         usize pagePrefix = start - alignedStart;
 
-        Log << "aligned length: " << alignedLength << "\n";
-
         masterPageTable->accessRange(UserVirtualAddress(alignedStart),
                                      alignedLength / PAGE_SIZE,
                                      pagePrefix,

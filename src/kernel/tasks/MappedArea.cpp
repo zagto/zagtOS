@@ -49,17 +49,13 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
     usize low = 0;
     usize high = size() - 1;
     while (low < high) {
-        Log << "low: " << low << ", high: " << high << "\n";
         usize index = low + (high - low) / 2;
-        Log << "index: "<< index <<"\n";
         if (address.isInRegion(data[index]->region)) {
             Log << "found\n";
             return data[index];
         }
-        Log << "not this round\n";
         if (address.value() < data[index]->region.start) {
             if (index == low) {
-                Log << "not found\n";
                 return nullptr;
             }
             Log << "left\n";
@@ -69,7 +65,6 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
             low = index + 1;
         }
     }
-    Log << "after loop\n";
     Assert(low == high);
     if (address.isInRegion(data[low]->region)) {
         return data[low];
