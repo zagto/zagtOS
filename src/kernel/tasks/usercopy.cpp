@@ -68,14 +68,6 @@ bool Task::copyToUser(usize address, const u8 *source, usize length, bool requir
                            length,
                            MasterPageTable::AccessOpertion::WRITE,
                            requireWritePermissions);
-
-    u64 v1, v2;
-    v1 = *((u64 *)source);
-    v2 = *UserVirtualAddress(address).asPointer<u64>();
-    Assert(v1 == v2);
-    v1 = ((u64 *)source)[3];
-    v2 = UserVirtualAddress(address).asPointer<u64>()[3];
-    Assert(v1 == v2);
 }
 
 bool Task::verifyUserAccess(usize address, usize length, bool requireWritePermissions) {
