@@ -29,7 +29,7 @@ bool Thread::handleSyscall() {
             return true;
         }
 
-        Vector<u8> buffer(MAX_LOG_SIZE);
+        Vector<u8> buffer(length);
         bool valid = task->copyFromUser(&buffer[0], address, length, false);
         if (!valid) {
             Log << "SYS_LOG: invalid buffer\n";

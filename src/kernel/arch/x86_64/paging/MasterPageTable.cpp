@@ -105,12 +105,13 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
 
     usize changedLevel = MASTER_LEVEL;
 
-    while (numPages > 0) {
+    while (true) {
         PageTableEntry *entry = partialWalkEntries(address,
                                                    MissingStrategy::CREATE,
                                                    changedLevel,
                                                    walkData);
         if (!entry->present()) {
+            Log << "adding entry in accessRange for " << address.value() << "\n";
             PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
             *entry = PageTableEntry(frame, newPagesPermissions, true);
         }
@@ -142,6 +143,10 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
             changedLevel++;
         }
         numPages--;
+        if (numPages == 0) {
+            return;
+        }
+        address = address.value() + PAGE_SIZE;
     }
 }
 
@@ -152,7 +157,7 @@ void MasterPageTable::map(UserVirtualAddress from,
     PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
     Assert(!entry->present());
 
-    *entry = PageTableEntry(to, permissions, false);
+    *entry = PageTableEntry(to, permissions, true);
     if (isActive()) {
         basicInvalidate(from);
     }
