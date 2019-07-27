@@ -70,8 +70,8 @@ void MapLoaderMemory(struct EfiMemoryMapInfo *mapInfo) {
 void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo) {
     UINTN framebufferOffset = framebufferInfo->baseAddress % PAGE_SIZE;
     UINTN firstAddress = framebufferInfo->baseAddress - framebufferOffset;
-    UINTN lastAddress = framebufferInfo->baseAddress + framebufferInfo->width * framebufferInfo->bytesPerLine;
-    UINTN numPages = (lastAddress - firstAddress) / PAGE_SIZE;
+    UINTN lastAddress = framebufferInfo->baseAddress + framebufferInfo->height * framebufferInfo->bytesPerLine;
+    UINTN numPages = (lastAddress - firstAddress - 1) / PAGE_SIZE + 1;
     UINTN index;
 
     for (index = 0; index < numPages; index++) {

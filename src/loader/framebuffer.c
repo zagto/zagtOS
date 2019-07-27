@@ -2,6 +2,7 @@
 #include <efilib.h>
 #include <util.h>
 #include <framebuffer.h>
+#include <virtual-memory.h>
 
 
 static struct FramebufferInfo framebufferInfo;
@@ -29,8 +30,10 @@ static EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *getMode(EFI_GRAPHICS_OUTPUT_PROTOCO
 
 
 static UINT32 isModeUsable(EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *modeInfo) {
-    return modeInfo->PixelFormat == PixelRedGreenBlueReserved8BitPerColor
-        || modeInfo->PixelFormat == PixelBlueGreenRedReserved8BitPerColor;
+    return (modeInfo->PixelFormat == PixelRedGreenBlueReserved8BitPerColor
+            || modeInfo->PixelFormat == PixelBlueGreenRedReserved8BitPerColor)
+        && modeInfo->PixelsPerScanLine * modeInfo->VerticalResolution * 4
+            <= FramebufferRegion.end - FramebufferRegion.start + 1;
 }
 
 
