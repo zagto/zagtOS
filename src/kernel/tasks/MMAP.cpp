@@ -15,11 +15,11 @@ static const uint32_t FLAG_PRIVATE = 0x02,
 
 
 bool MMAP::addressLengthValid() {
-    return start_address
+    return start_address != 0
             && !(start_address % PAGE_SIZE)
             && UserVirtualAddress::checkInRegion(start_address)
             && start_address + length > start_address
-            && UserVirtualAddress::checkInRegion(start_address + length);
+            && length < UserSpaceRegion.end() - start_address;
 }
 
 
@@ -29,21 +29,18 @@ void MMAP::perform(Task &task) {
     result = 0;
     error = 0;
 
-    if (!length) {
+    if (length == 0) {
         error = EINVAL;
         return;
     }
 
-    if (flags & FLAG_FIXED) {
-        if (!addressLengthValid()) {
-            error = ENOMEM;
-            return;
-        }
-    } else {
-       // if (!addressLengthValid() || !addressLengthAvailable()) {
-
-       // }
+    if ((flags & ~FLAG_FIXED) != (FLAG_PRIVATE | FLAG_ANONYMOUS)) {
+        cout << "MMAP: unsupported flags: " << flags << endl;
+        error = EINVAL;
+        return;
     }
+
+    cout << "MMAP addr " << start_address << " length " << length << " flags " << flags << endl;
 
     Permissions permissions;
     if (protection == PROTECTION_READ) {
@@ -58,5 +55,29 @@ void MMAP::perform(Task &task) {
         return;
     }
 
-    cout << "TDODO: doMMAP" << static_cast<size_t>(permissions == Permissions::WRITE) << "\n";
+    Region passedRegion(start_address, length);
+    size_t insertIndex;
+    MappedArea *ma;
+
+    if (addressLengthValid() && task.mappedAreas.isRegionFree(passedRegion, insertIndex)) {
+        ma = new MappedArea(&task, passedRegion, permissions);
+        task.mappedAreas.insert2(ma, insertIndex);
+    } else {
+        /* can't use passed address/length */
+        if (flags & FLAG_FIXED) {
+            cout << "MMAP: address " << start_address << " length " << length
+                 << " not available, but FIXED flag set" << endl;
+            error = ENOMEM;
+            return;
+        }
+
+        ma = task.mappedAreas.addNew(length, permissions);
+        if (ma == nullptr) {
+            cout << "MMAP: unable to auto-choose mapped area\n";
+            error = ENOMEM;
+            return;
+        }
+    }
+
+    result = ma->region.start;
 }

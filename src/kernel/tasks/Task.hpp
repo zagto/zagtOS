@@ -12,12 +12,10 @@
 class Object;
 
 class Task {
-public:
-    const static size_t MAX_THREADS = 64;
-
 private:
     friend class MasterPageTable;
     friend class Thread;
+    friend class MMAP;
     vector<Thread *>threads;
     MappedAreaVector mappedAreas;
 

@@ -33,12 +33,18 @@ class MappedAreaVector : public SortedVector<MappedArea *, MappedArea::compare> 
 private:
     Task *task;
 
+    bool findMappedAreaIndexOrFreeLength(UserVirtualAddress address,
+                                         size_t &resultIndex,
+                                         size_t &freeLength);
+
 public:
     MappedAreaVector(Task *task):
         task{task} {}
     Region findFreeRegion(size_t length, bool &valid, size_t &index);
     MappedArea *findMappedArea(UserVirtualAddress address);
+    void insert2(MappedArea *ma, size_t index);
     MappedArea *addNew(size_t length, Permissions permissions);
+    bool isRegionFree(Region region, size_t &insertIndex);
 };
 
 #endif // MAPPEDAREA_HPP

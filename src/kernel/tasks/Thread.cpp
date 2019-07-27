@@ -49,7 +49,7 @@ bool Thread::handleSyscall() {
         return true;
 
     case SYS_MMAP: {
-        assert(task);
+        LockHolder lh(task->pagingLock);
         UserSpaceObject<MMAP, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
                                                                 task);
         if (!uso.valid) {

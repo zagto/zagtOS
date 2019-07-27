@@ -69,9 +69,6 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
         Panic();
     }
 
-    tlsArea->mapEverything();
-    mappedAreas.insert(tlsArea);
-
     UserVirtualAddress tlsBase(tlsArea->region.start + THREAD_STRUCT_AREA_SIZE);
     if (elf.hasTLS()) {
         elf.tlsSegment().load(this, tlsBase);

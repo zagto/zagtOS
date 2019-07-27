@@ -19,7 +19,6 @@ struct mmap_args {
 
 void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 {
-    size_t ret;
     if (off & PAGE_SIZE) {
 		errno = EINVAL;
 		return MAP_FAILED;
@@ -65,12 +64,12 @@ void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
         args.target = zfd->object->info.id;
     }
 
-    ret = zagtos_syscall(SYS_MMAP, &args);
+    zagtos_syscall(SYS_MMAP, &args);
     if (args.error) {
         errno = args.error;
         return MAP_FAILED;
     }
-    return (void *)ret;
+    return args.result;
 }
 
 weak_alias(__mmap, mmap);
