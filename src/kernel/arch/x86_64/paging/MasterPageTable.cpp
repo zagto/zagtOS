@@ -111,7 +111,6 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
                                                    changedLevel,
                                                    walkData);
         if (!entry->present()) {
-            cout << "adding entry in accessRange for " << address.value() << "\n";
             PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
             *entry = PageTableEntry(frame, newPagesPermissions, true);
         }

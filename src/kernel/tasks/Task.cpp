@@ -110,7 +110,6 @@ bool Task::handlePageFault(UserVirtualAddress address) {
     LockHolder lh(pagingLock);
 
     MappedArea *ma = mappedAreas.findMappedArea(address);
-    cout << "found mapped area\n";
     if (ma) {
         return ma->handlePageFault(pageAddress);
     } else {
@@ -121,41 +120,3 @@ bool Task::handlePageFault(UserVirtualAddress address) {
 void Task::removeThread(Thread *thread) {
     threads.remove(thread);
 }
-
-/*
-bool Task::changeHeapSize(isize change, UserVirtualAddress *previousEnd) {
-    LockHolder lh(&_pagingLock);
-
-    if (change < 0 && nonAlignedHeapSize < static_cast<usize>(-change)) {
-        return false;
-    }
-    if (change > 0
-            && UserStackRegion.start
-                - USER_STACK_SIZE
-                - USER_STACK_BORDER
-                - nonAlignedHeapSize
-            < static_cast<usize>(change)) {
-        return false;
-    }
-
-    *previousEnd = nonAlignedHeapEnd();
-
-    isize alignedChange = align(nonAlignedHeapSize + change,
-                                PAGE_SIZE,
-                                AlignDirection::UP) - alignedHeapSize;
-
-    while (alignedChange > 0) {
-        allocateFrame(alignedHeapEnd(), Permissions::WRITE);
-        alignedHeapSize += PAGE_SIZE;
-        alignedChange -= PAGE_SIZE;
-    }
-    while (alignedChange < 0) {
-        alignedHeapSize += PAGE_SIZE;
-        alignedChange -= PAGE_SIZE;
-        _masterPageTable->unmap(alignedHeapEnd());
-    }
-    nonAlignedHeapSize += change;
-
-    return true;
-}
-*/

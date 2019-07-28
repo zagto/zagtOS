@@ -16,10 +16,14 @@ public:
     MasterPageTable *kernelOnlyMasterPageTable;
     vector<Processor *> processors;
 
+    /* this is platform specfic and only contains meaningful data if ACPI is used */
+    PhysicalAddress ACPIRoot;
+
     System(BootInfo *bootInfo) :
         memory(bootInfo),
         kernelOnlyMasterPageTable{bootInfo->masterPageTable.identityMapped().asPointer<MasterPageTable>()},
-        processors() {}
+        processors(),
+        ACPIRoot{bootInfo->ACPIRoot} {}
 
     void addBootProcessor();
 };

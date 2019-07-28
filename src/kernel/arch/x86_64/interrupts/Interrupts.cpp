@@ -32,7 +32,6 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
 
     switch (registerState->intNr) {
     case SYSCALL_INTERRUPT:
-        cout << "Syscall " << (size_t)registerState->syscallNr() << endl;
         if (currentThread->handleSyscall()) {
             returnToUserMode();
         }
@@ -69,14 +68,12 @@ __attribute__((noreturn)) void Interrupts::returnToUserMode() {
     }
     globalDescriptorTable.resetTaskStateSegment();
     taskStateSegment.update(thread);
-    cout << "Setting FS Base to " << thread->userThreadStruct().value() << endl;
     returnFromInterrupt(&CurrentProcessor->scheduler.currentThread()->registerState,
                         thread->userThreadStruct());
 }
 
 
 __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState) {
-    cout << "Interrupt" << endl;
     assert(this == &CurrentProcessor->interrupts);
 
     if (registerState->cs == (0x18|3)) {
@@ -89,6 +86,5 @@ __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState)
 
 // called from interrupt service routine
 extern "C" __attribute__((noreturn)) void handleInterrupt(RegisterState* registerState) {
-    cout << "handleInterrupt" << '\n';
     CurrentProcessor->interrupts.handler(registerState);
 }

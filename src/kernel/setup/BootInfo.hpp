@@ -24,6 +24,7 @@ struct BootInfo {
     FrameStack usedFrameStack;
     InitialObjectsInfo initDataInfo;
     PhysicalAddress masterPageTable;
+    PhysicalAddress ACPIRoot;
 };
 
 #endif // BOOTINFO_HPP

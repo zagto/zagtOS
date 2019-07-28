@@ -29,6 +29,10 @@ bool Thread::handleSyscall() {
             return true;
         }
 
+        if (length == 0) {
+            return true;
+        }
+
         vector<uint8_t> buffer(length);
         bool valid = task->copyFromUser(&buffer[0], address, length, false);
         if (!valid) {
@@ -56,6 +60,12 @@ bool Thread::handleSyscall() {
             return false;
         }
         uso.object.perform(*task);
+        return true;
+    }
+    case SYS_GET_ACPI_ROOT: {
+        /* TODO: permissions checking */
+        cout << "returning acpi root: " << CurrentSystem.ACPIRoot.value() << endl;
+        registerState.setSyscallResult(CurrentSystem.ACPIRoot.value());
         return true;
     }
     default:
