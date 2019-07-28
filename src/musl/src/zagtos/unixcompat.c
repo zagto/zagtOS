@@ -41,6 +41,7 @@ static _Bool validate_file_descriptor(int fd) {
     if (!result) {
         errno = EBADF;
     }
+    return result;
 }
 
 int zagtos_clone_file_descriptor(int fd, int min_new, _Bool exact) {
