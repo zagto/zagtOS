@@ -5,7 +5,7 @@
 #include <paging.h>
 
 struct BootInfo *PrepareBootInfo(struct InitDataInfo *initDataInfo,
-                                 const struct FramebufferInfo *framebufferInfo) {
+                                 const struct FramebufferInfo *framebufferInfo, EFI_PHYSICAL_ADDRESS ACPIRoot) {
     struct BootInfo *bootInfo = AllocatePhysicalFrame();
     //struct MemoryFrameListInfo *memInfo = &bootInfo->memoryFrameListInfo;
 
@@ -26,6 +26,7 @@ struct BootInfo *PrepareBootInfo(struct InitDataInfo *initDataInfo,
     bootInfo->framebufferInfo = *framebufferInfo;
 
     bootInfo->masterPageTable = (EFI_PHYSICAL_ADDRESS)MasterPageTable;
+    bootInfo->ACPIRoot = ACPIRoot;
 
     return bootInfo;
 }

@@ -9,6 +9,7 @@
 #include <framebuffer.h>
 #include <bootinfo.h>
 #include <exit.h>
+#include <acpi.h>
 
 
 EFI_STATUS EFIAPI efi_main (EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE *systemTable) {
@@ -47,7 +48,13 @@ EFI_STATUS EFIAPI efi_main (EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE *systemTabl
     LogUINTN(kernelEntry);
     Log("\n");
 
-    bootInfo = PrepareBootInfo(&initDataInfo, framebufferInfo);
+    EFI_PHYSICAL_ADDRESS acpiRoot = getACPIRoot(systemTable);
+
+    Log("ACPI root is ");
+    LogUINTN(acpiRoot);
+    Log("\n");
+
+    bootInfo = PrepareBootInfo(&initDataInfo, framebufferInfo, acpiRoot);
 
     Log("Exiting to Kernel...\n");
     ExitToKernel(kernelEntry, MasterPageTable, bootInfo);

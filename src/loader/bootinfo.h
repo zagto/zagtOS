@@ -18,9 +18,11 @@ struct BootInfo {
     struct FrameStack usedFrameStack;
     struct InitDataInfo initDataInfo;
     EFI_PHYSICAL_ADDRESS masterPageTable;
+    EFI_PHYSICAL_ADDRESS ACPIRoot;
 };
 
 struct BootInfo *PrepareBootInfo(struct InitDataInfo *initDataInfo,
-                                 const struct FramebufferInfo *framebufferInfo);
+                                 const struct FramebufferInfo *framebufferInfo,
+                                 EFI_PHYSICAL_ADDRESS ACPIRoot);
 
 #endif // BOOTINFO_H
