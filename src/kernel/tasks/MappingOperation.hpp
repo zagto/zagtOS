@@ -29,11 +29,11 @@ public:
 };
 
 class MMap : public MappingOperation {
-    UUID target;
+    uint32_t flags;
     size_t offset;
+    UUID target;
     size_t result;
     uint32_t protection;
-    uint32_t flags;
 
 public:
     void perform(Task &task);
