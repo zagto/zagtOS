@@ -27,7 +27,7 @@ private:
 
 public:
     enum class AccessOperation {
-        READ, WRITE, VERIFY_ONLY, UNMAP, UNMAP_AND_FREE
+        READ, WRITE, VERIFY_ONLY
     };
 
     static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
@@ -53,6 +53,7 @@ public:
                      uint8_t *buffer,
                      AccessOperation accOp,
                      Permissions newPagesPermissions);
+    void unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames);
     void unmap(UserVirtualAddress address);
     bool isMapped(UserVirtualAddress address);
     void invalidateLocally(UserVirtualAddress address);

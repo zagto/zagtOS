@@ -20,13 +20,10 @@ void *zagtos_map_physical_area(uint64_t physical_address, size_t length) {
 }
 
 void zagtos_unmap_physical_area(void *pointer, size_t length) {
-    size_t offset = (size_t)pointer % PAGE_SIZE;
+    size_t offset = ((size_t)pointer) % PAGE_SIZE;
     length += offset;
 
-    // page-align length
-    length = length % PAGE_SIZE ? (length / PAGE_SIZE) * PAGE_SIZE + 1 : length;
-
-    munmap((char *)pointer + offset, length);
+    munmap((char *)pointer - offset, length);
 }
 
 size_t zagtos_get_physical_address(void *virtual_address) {

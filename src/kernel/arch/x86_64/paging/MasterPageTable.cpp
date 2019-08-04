@@ -24,6 +24,10 @@ PageTableEntry *MasterPageTable::partialWalkEntries(VirtualAddress address,
                 cout << "non-present entry during resolve which should not have happened\n";
                 Panic();
             case MissingStrategy::RETURN_NULLPTR:
+                while (level > 0) {
+                    data.tables[level - 1] = nullptr;
+                    level--;
+                }
                 return nullptr;
             case MissingStrategy::CREATE: {
                 PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
@@ -96,21 +100,12 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
     assert(endOffset < PAGE_SIZE);
     assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
 
-    if (accOp == AccessOperation::UNMAP || accOp == AccessOperation::UNMAP_AND_FREE) {
-        assert(startOffset == 0);
-        assert(endOffset == 0);
-        assert(buffer == nullptr);
-    }
-
     WalkData walkData(this);
     size_t indexes[NUM_LEVELS];
 
     for (size_t i = 0; i < NUM_LEVELS; i++) {
         indexes[i] = indexFor(address, i);
     }
-
-    /* TODO: in case of UNMAP operation, check for entries before the index, and unmap the table
-     * itself if there is none. Currently we may be leaking memory */
 
     size_t changedLevel = MASTER_LEVEL;
 
@@ -119,7 +114,7 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
                                                    MissingStrategy::CREATE,
                                                    changedLevel,
                                                    walkData);
-        if (!entry->present() && accOp != AccessOperation::UNMAP) {
+        if (!entry->present()) {
             PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
             *entry = PageTableEntry(frame, newPagesPermissions, true);
         }
@@ -128,25 +123,14 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
         if (numPages == 1) {
             lengthInPage -= endOffset;
         }
-        uint8_t *dataPtr = entry->addressValue().identityMapped().asPointer<uint8_t>() + startOffset;
 
+        uint8_t *dataPtr = entry->addressValue().identityMapped().asPointer<uint8_t>() + startOffset;
         switch (accOp) {
         case AccessOperation::READ:
             memcpy(buffer, dataPtr, lengthInPage);
             break;
         case AccessOperation::WRITE:
             memcpy(dataPtr, buffer, lengthInPage);
-            break;
-        case AccessOperation::UNMAP:
-            if (entry->present()) {
-                *entry = PageTableEntry();
-            }
-            break;
-        case AccessOperation::UNMAP_AND_FREE:
-            if (entry->present()) {
-                CurrentSystem.memory.freePhysicalFrame(entry->addressValue());
-                *entry = PageTableEntry();
-            }
             break;
         default:
             cout << "accessRange: invalid operation\n";
@@ -171,6 +155,53 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
         address = address.value() + PAGE_SIZE;
     }
 }
+
+
+void MasterPageTable::unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames) {
+    assert(address.isPageAligned());
+
+    WalkData walkData(this);
+    size_t indexes[NUM_LEVELS];
+
+    for (size_t i = 0; i < NUM_LEVELS; i++) {
+        indexes[i] = indexFor(address, i);
+    }
+
+    /* TODO: check for entries before the index, and unmap the table
+     * itself if there is none. Currently we may be leaking memory */
+
+    size_t changedLevel = MASTER_LEVEL;
+
+    while (true) {
+        PageTableEntry *entry = partialWalkEntries(address,
+                                                   MissingStrategy::CREATE,
+                                                   changedLevel,
+                                                   walkData);
+
+        if (entry != nullptr && entry->present()) {
+            if (freeFrames) {
+                CurrentSystem.memory.freePhysicalFrame(entry->addressValue());
+            }
+            *entry = PageTableEntry();
+            invalidateLocally(address);
+        }
+
+        /* TODO: jumps can be made in entry == nullptr case */
+        changedLevel = 0;
+        while (indexes[changedLevel] == NUM_ENTRIES) {
+            assert(changedLevel < MASTER_LEVEL);
+            indexes[changedLevel] = 0;
+            indexes[changedLevel + 1]++;
+            changedLevel++;
+        }
+        numPages--;
+        if (numPages == 0) {
+            return;
+        }
+        address = address.value() + PAGE_SIZE;
+    }
+}
+
 
 
 void MasterPageTable::map(UserVirtualAddress from,

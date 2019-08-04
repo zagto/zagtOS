@@ -21,7 +21,7 @@ MappedArea::MappedArea(Task *task,
                        permissions,
                        PhysicalAddress pyhsicalStart) :
         task{task},
-        source{Source::MEMORY},
+        source{Source::PHYSICAL_MEMORY},
         physicalStart{pyhsicalStart},
         region{region},
         permissions{permissions} {
@@ -60,22 +60,10 @@ void MappedArea::unmapRange(Region range) {
 
     switch (source) {
     case Source::MEMORY:
-        task->masterPageTable->accessRange(UserVirtualAddress(range.start),
-                                           range.length / PAGE_SIZE,
-                                           0,
-                                           0,
-                                           nullptr,
-                                           MasterPageTable::AccessOperation::UNMAP_AND_FREE,
-                                           Permissions::NONE);
+        task->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, true);
         break;
     case Source::PHYSICAL_MEMORY:
-        task->masterPageTable->accessRange(UserVirtualAddress(range.start),
-                                           range.length / PAGE_SIZE,
-                                           0,
-                                           0,
-                                           nullptr,
-                                           MasterPageTable::AccessOperation::UNMAP,
-                                           Permissions::NONE);
+        task->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, true);
         break;
     default:
         Panic();
@@ -128,6 +116,7 @@ bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress addres
         }
     }
     assert(low == high);
+    assert(data[low] != nullptr);
     if (address.isInRegion(data[low]->region)) {
         resultIndex = low;
         freeLength = 0;
@@ -330,8 +319,12 @@ size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
     }
     memmove(&data[index + numAddInstead],
             &data[endIndex],
-            numMove);
+            numMove * sizeof(MappedArea *));
     updateAllocatedSize();
+
+    for (size_t i = index; i < index + numAddInstead; i++) {
+        data[i] = nullptr;
+    }
 
     return index;
 }

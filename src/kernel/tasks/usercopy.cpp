@@ -10,6 +10,9 @@ bool Task::accessUserSpace(uint8_t *buffer,
                            bool requireWritePermissions) {
     assert(CurrentProcessor->currentTask->pagingLock.isLocked());
 
+    cout << "accessUserSpace start " << start << " length " << length << "\n";
+
+
     if (!VirtualAddress(start).isInRegion(UserSpaceRegion)) {
         return false;
     }

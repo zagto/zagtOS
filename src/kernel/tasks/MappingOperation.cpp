@@ -31,6 +31,8 @@ void MMap::perform(Task &task) {
     result = 0;
     error = 0;
 
+    cout << "MMAP addr " << start_address << " length " << length << " flags " << flags << " offset " << offset << endl;
+
     if (offset % PAGE_SIZE != 0) {
         cout << "mmap offset not page-aligned" << endl;
         error = EINVAL;
@@ -64,14 +66,18 @@ void MMap::perform(Task &task) {
         return;
     }
 
+    if ((flags & FLAG_PHYSICAL) && offset % PAGE_SIZE != 0) {
+        cout << "mmap with PHYSICAL set and non-aligned offset" << endl;
+        error = EINVAL;
+        return;
+    }
+
     if ((flags & ~FLAG_FIXED) != (FLAG_PRIVATE | FLAG_ANONYMOUS)
             && (flags & ~FLAG_FIXED) != (FLAG_SHARED | FLAG_PHYSICAL)) {
         cout << "MMAP: unsupported flags: " << flags << endl;
         error = EOPNOTSUPP;
         return;
     }
-
-    cout << "MMAP addr " << start_address << " length " << length << " flags " << flags << endl;
 
     Permissions permissions;
     if (protection == PROTECTION_READ) {
@@ -88,36 +94,56 @@ void MMap::perform(Task &task) {
 
     Region passedRegion(start_address, length);
     size_t insertIndex;
-    MappedArea *ma;
+    Region actualRegion;
+    bool slotReserved = false;
 
     if (addressLengthValid() && task.mappedAreas.isRegionFree(passedRegion, insertIndex)) {
-        ma = new MappedArea(&task, passedRegion, permissions);
-        task.mappedAreas.insert2(ma, insertIndex);
+        actualRegion = passedRegion;
     } else {
         /* can't use passed address/length */
         if (flags & FLAG_FIXED) {
-            cout << "MMAP: address " << start_address << " length " << length
-                 << " not available, but FIXED flag set" << endl;
-            /* TODO: shoud actually unmap here */
-            error = ENOMEM;
-            return;
-        }
-
-        ma = task.mappedAreas.addNew(length, permissions);
-        if (ma == nullptr) {
-            cout << "MMAP: unable to auto-choose mapped area\n";
-            error = ENOMEM;
-            return;
+            if (addressLengthValid()) {
+                insertIndex = task.mappedAreas.unmapRange(passedRegion, 1);
+                actualRegion = passedRegion;
+                slotReserved = true;
+            } else {
+                cout << "MMAP: address " << start_address << " length " << length
+                     << " invalid and FIXED flag set" << endl;
+                error = ENOMEM;
+                return;
+            }
+        } else {
+            bool valid;
+            actualRegion = task.mappedAreas.findFreeRegion(length, valid, insertIndex);
+            if (!valid) {
+                cout << "MMAP: unable to auto-choose region\n";
+                error = ENOMEM;
+                return;
+            }
         }
     }
 
+    MappedArea *ma;
+    if (flags & FLAG_ANONYMOUS) {
+        ma = new MappedArea(&task, actualRegion, permissions);
+    } else if (flags & FLAG_PHYSICAL) {
+        ma = new MappedArea(&task, actualRegion, permissions, offset);
+    } else {
+        Panic();
+    }
+
+    if (slotReserved) {
+        assert(task.mappedAreas[insertIndex] == nullptr);
+        task.mappedAreas[insertIndex] = ma;
+    } else {
+        task.mappedAreas.insert2(ma, insertIndex);
+    }
     result = ma->region.start;
 }
 
 
 void MUnmap::perform(Task &task) {
     assert(task.pagingLock.isLocked());
-    cout << "munmap !!!\n";
 
     error = 0;
 
@@ -129,7 +155,7 @@ void MUnmap::perform(Task &task) {
     }
 
     if (!addressLengthValid()) {
-        cout << "munmap with invalid address/length" << endl;
+        cout << "munmap with invalid address " << start_address << " length " << length << endl;
         error = EINVAL;
         return;
     }

@@ -17,6 +17,7 @@ Thread::~Thread() {
 }
 
 bool Thread::handleSyscall() {
+    cout << "syscall " << registerState.syscallNr() << endl;
     switch (registerState.syscallNr()) {
     case SYS_LOG: {
         LockHolder lh(task->pagingLock);

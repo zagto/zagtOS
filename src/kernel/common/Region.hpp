@@ -10,10 +10,12 @@ public:
     size_t start;
     size_t length;
 
+    constexpr Region() :
+        start{0},
+        length{0} {}
     constexpr Region(size_t start, size_t length) :
             start{start},
-            length{length} {
-    }
+            length{length} {}
     size_t end() const {
         assert(start + length >= start);
         return start + length;
