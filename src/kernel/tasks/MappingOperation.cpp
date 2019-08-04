@@ -59,6 +59,7 @@ void MMap::perform(Task &task) {
 
     /* Can't do anonymous and physical memory mapping at the same time */
     if ((flags & FLAG_ANONYMOUS) && (flags & FLAG_PHYSICAL)) {
+        cout << "mmap both ANONYMOUS and PHYSICAL flag set" << endl;
         error = EINVAL;
         return;
     }
