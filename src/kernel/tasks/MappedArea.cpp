@@ -15,28 +15,86 @@ MappedArea::MappedArea(Task *task, Region region, Permissions permissions) :
 }
 
 
+MappedArea::MappedArea(Task *task,
+                       Region region,
+                       Permissions
+                       permissions,
+                       PhysicalAddress pyhsicalStart) :
+        task{task},
+        source{Source::MEMORY},
+        physicalStart{pyhsicalStart},
+        region{region},
+        permissions{permissions} {
+    assert(UserVirtualAddress::checkInRegion(region.start));
+    assert(UserVirtualAddress::checkInRegion(region.end() - 1));
+    assert(region.isPageAligned());
+    assert(permissions != Permissions::WRITE_AND_EXECUTE);
+}
+
+
+MappedArea::~MappedArea() {
+    unmapRange(region);
+}
+
+
 bool MappedArea::handlePageFault(UserVirtualAddress address) {
-    if (source == Source::MEMORY) {
-        assert(task->pagingLock.isLocked());
-        if (task->masterPageTable->isMapped(address)) {
-            task->masterPageTable->invalidateLocally(address);
-        } else {
-            task->allocateFrame(address, permissions);
-        }
-        return true;
+    assert(task->pagingLock.isLocked());
+    if (task->masterPageTable->isMapped(address)) {
+        task->masterPageTable->invalidateLocally(address);
     } else {
+        if (source == Source::MEMORY) {
+            task->allocateFrame(address, permissions);
+        } else if (source == Source::PHYSICAL_MEMORY) {
+            task->masterPageTable->map(address,
+                                       physicalStart + (address.value() - region.start),
+                                       permissions);
+        } else {
+            Panic();
+        }
+    }
+    return true;
+}
+
+void MappedArea::unmapRange(Region range) {
+    assert(range.isPageAligned());
+
+    switch (source) {
+    case Source::MEMORY:
+        task->masterPageTable->accessRange(UserVirtualAddress(range.start),
+                                           range.length / PAGE_SIZE,
+                                           0,
+                                           0,
+                                           nullptr,
+                                           MasterPageTable::AccessOperation::UNMAP_AND_FREE,
+                                           Permissions::NONE);
+        break;
+    case Source::PHYSICAL_MEMORY:
+        task->masterPageTable->accessRange(UserVirtualAddress(range.start),
+                                           range.length / PAGE_SIZE,
+                                           0,
+                                           0,
+                                           nullptr,
+                                           MasterPageTable::AccessOperation::UNMAP,
+                                           Permissions::NONE);
+        break;
+    default:
         Panic();
     }
 }
 
-void MappedArea::mapEverything() {
-    assert(source == Source::MEMORY);
+void MappedArea::shrinkFront(size_t amount) {
+    assert(amount % PAGE_SIZE == 0);
 
-    for (size_t address = region.start; address < region.length; address += PAGE_SIZE) {
-        if (!task->masterPageTable->isMapped(address)) {
-            task->masterPageTable->invalidateLocally(UserVirtualAddress(address));
-        }
-    }
+    unmapRange(Region(region.start, amount));
+    region.start += amount;
+    region.length -= amount;
+}
+
+void MappedArea::shrinkBack(size_t amount) {
+    assert(amount % PAGE_SIZE == 0);
+
+    unmapRange(Region(region.end() - amount, amount));
+    region.length -= amount;
 }
 
 bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress address,
@@ -153,6 +211,8 @@ fail:
 }
 
 void MappedAreaVector::insert2(MappedArea *ma, size_t index) {
+    cout << "passed index " << index << endl;
+    cout << "findIndexFor: " << this->findIndexFor(ma) << endl;
     assert(index == this->findIndexFor(ma));
     static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
 }
@@ -181,4 +241,97 @@ bool MappedAreaVector::isRegionFree(Region region, size_t &insertIndex) {
     } else {
         return region.length <= freeLength;
     }
+}
+
+void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t numAddBetween) {
+    assert(index < numElements);
+    assert(removeRegion.isPageAligned());
+    /* removeRange has to be fully inside the element's region */
+    assert(removeRegion.start > data[index]->region.start);
+    assert(removeRegion.end() > data[index]->region.start);
+    assert(removeRegion.start < data[index]->region.end());
+    assert(removeRegion.end() < data[index]->region.end());
+
+    size_t numMove = numElements - index - 1;
+
+    numElements += numAddBetween + 1;
+    updateAllocatedSize();
+
+    memmove(&data[index + numAddBetween + 2],
+            &data[index + 1],
+            numMove * sizeof(MappedArea *));
+
+    MappedArea &oldElement = *data[index];
+    oldElement.unmapRange(removeRegion);
+
+    size_t newElementIndex = index + numAddBetween + 1;
+    Region newElementRegion(removeRegion.end(), oldElement.region.end() - removeRegion.end());
+    data[newElementIndex] = new MappedArea(task, newElementRegion, oldElement.permissions);
+
+    /* oldElement will still be responsible for the first part */
+    oldElement.region.length -= removeRegion.start - oldElement.region.end();
+    assert(oldElement.region.end() == removeRegion.start);
+
+    for (size_t i = index + 1; i < newElementIndex; i++) {
+        data[i] = nullptr;
+    }
+}
+
+/*
+ * Unmaps all MappedAreas that are inside range. MappedAreas crossing range boundaries will be
+ * truncated.
+ * The method will add numAddInstead of new slots for MappedAreas to the vector in place of the
+ * removed range. No MappedArea object will be created for these, they will be initialized to
+ * nullptr. The index of the first of theses slots is returned
+ */
+size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
+    size_t index;
+    if (!isRegionFree(range, index)) {
+        assert(index < numElements);
+
+        MappedArea &firstMA = *data[index];
+
+        if (firstMA.region.start < range.start) {
+            /* first area overlaps the start of range to unmap */
+            assert(firstMA.region.end() > range.start);
+
+            if (firstMA.region.end() > range.end()) {
+                /* range is fully contained in mapped area. -> split it! */
+                splitElement(index, range, numAddInstead);
+                return index + 1;
+            }
+
+            firstMA.shrinkBack(firstMA.region.end() - range.start);
+            assert(firstMA.region.end() == range.start);
+
+            /* exclude the first area from being unmapped as a whole */
+            index++;
+        }
+    }
+    size_t endIndex = index;
+
+    while (endIndex < numElements && data[endIndex]->region.end() <= range.end()) {
+        delete data[endIndex];
+        data[endIndex] = nullptr;
+
+        endIndex++;
+    }
+
+    if (endIndex < numElements && data[endIndex]->region.start < range.end()) {
+        /* MappedArea at endIndex is partially in range */
+        data[endIndex]->shrinkFront(range.end() - data[endIndex]->region.start);
+    }
+
+    size_t numMove = numElements - endIndex;
+
+    numElements = numElements - (endIndex - index) + numAddInstead;
+    if (numAddInstead > endIndex - index) {
+        updateAllocatedSize();
+    }
+    memmove(&data[index + numAddInstead],
+            &data[endIndex],
+            numMove);
+    updateAllocatedSize();
+
+    return index;
 }

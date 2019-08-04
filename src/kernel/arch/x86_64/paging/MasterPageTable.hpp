@@ -26,8 +26,8 @@ private:
     PageTableEntry *walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
 
 public:
-    enum class AccessOpertion {
-        READ, WRITE, VERIFY_ONLY
+    enum class AccessOperation {
+        READ, WRITE, VERIFY_ONLY, UNMAP, UNMAP_AND_FREE
     };
 
     static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
@@ -51,7 +51,7 @@ public:
                      size_t startOffset,
                      size_t endOffset,
                      uint8_t *buffer,
-                     AccessOpertion accOp,
+                     AccessOperation accOp,
                      Permissions newPagesPermissions);
     void unmap(UserVirtualAddress address);
     bool isMapped(UserVirtualAddress address);
@@ -60,7 +60,6 @@ public:
     bool isActive();
     void activate();
 
-    void completelyUnmapUserSpaceRegion();
     void completelyUnmapLoaderRegion();
 };
 

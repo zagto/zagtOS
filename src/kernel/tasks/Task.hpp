@@ -15,14 +15,15 @@ class Task {
 private:
     friend class MasterPageTable;
     friend class Thread;
-    friend class MMAP;
+    friend class MMap;
+    friend class MUnmap;
     vector<Thread *>threads;
     MappedAreaVector mappedAreas;
 
     bool accessUserSpace(uint8_t *buffer,
                          size_t start,
                          size_t length,
-                         MasterPageTable::AccessOpertion accOp,
+                         MasterPageTable::AccessOperation accOp,
                          bool requireWritePermissions);
 
 public:

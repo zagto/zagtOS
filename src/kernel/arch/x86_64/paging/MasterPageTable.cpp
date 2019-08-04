@@ -89,12 +89,18 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
                                   size_t startOffset,
                                   size_t endOffset,
                                   uint8_t *buffer,
-                                  AccessOpertion accOp,
+                                  AccessOperation accOp,
                                   Permissions newPagesPermissions) {
     assert(address.isPageAligned());
     assert(startOffset < PAGE_SIZE);
     assert(endOffset < PAGE_SIZE);
     assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
+
+    if (accOp == AccessOperation::UNMAP || accOp == AccessOperation::UNMAP_AND_FREE) {
+        assert(startOffset == 0);
+        assert(endOffset == 0);
+        assert(buffer == nullptr);
+    }
 
     WalkData walkData(this);
     size_t indexes[NUM_LEVELS];
@@ -103,6 +109,9 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
         indexes[i] = indexFor(address, i);
     }
 
+    /* TODO: in case of UNMAP operation, check for entries before the index, and unmap the table
+     * itself if there is none. Currently we may be leaking memory */
+
     size_t changedLevel = MASTER_LEVEL;
 
     while (true) {
@@ -110,7 +119,7 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
                                                    MissingStrategy::CREATE,
                                                    changedLevel,
                                                    walkData);
-        if (!entry->present()) {
+        if (!entry->present() && accOp != AccessOperation::UNMAP) {
             PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
             *entry = PageTableEntry(frame, newPagesPermissions, true);
         }
@@ -121,11 +130,25 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
         }
         uint8_t *dataPtr = entry->addressValue().identityMapped().asPointer<uint8_t>() + startOffset;
 
-        if (accOp == AccessOpertion::READ) {
+        switch (accOp) {
+        case AccessOperation::READ:
             memcpy(buffer, dataPtr, lengthInPage);
-        } else if (accOp == AccessOpertion::WRITE) {
+            break;
+        case AccessOperation::WRITE:
             memcpy(dataPtr, buffer, lengthInPage);
-        } else {
+            break;
+        case AccessOperation::UNMAP:
+            if (entry->present()) {
+                *entry = PageTableEntry();
+            }
+            break;
+        case AccessOperation::UNMAP_AND_FREE:
+            if (entry->present()) {
+                CurrentSystem.memory.freePhysicalFrame(entry->addressValue());
+                *entry = PageTableEntry();
+            }
+            break;
+        default:
             cout << "accessRange: invalid operation\n";
             Panic();
         }
@@ -201,7 +224,11 @@ void MasterPageTable::activate() {
     }
 }
 
-void MasterPageTable::completelyUnmapUserSpaceRegion() {
+void MasterPageTable::completelyUnmapLoaderRegion() {
+    /* this may be different on future supported platforms */
+    static_assert(LoaderRegion.start == UserSpaceRegion.start
+                  && LoaderRegion.length == UserSpaceRegion.length);
+
     for (size_t index = 0; index < KERNEL_ENTRIES_OFFSET; index++) {
         PageTableEntry &entry = entries[index];
         if (entry.present()) {
@@ -209,12 +236,4 @@ void MasterPageTable::completelyUnmapUserSpaceRegion() {
             CurrentSystem.memory.freePhysicalFrame(entry.addressValue());
         }
     }
-}
-
-void MasterPageTable::completelyUnmapLoaderRegion() {
-    /* this may be different on future supported platforms */
-    static_assert(LoaderRegion.start == UserSpaceRegion.start
-                  && LoaderRegion.length == UserSpaceRegion.length);
-
-    completelyUnmapUserSpaceRegion();
 }

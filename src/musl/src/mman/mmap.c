@@ -7,34 +7,25 @@
 #include "syscall.h"
 
 struct mmap_args {
-    ZUUID target;
     void *start_address;
-    size_t offset;
     size_t length;
+    uint32_t error;
+    uint32_t flags;
+    size_t offset;
+    ZUUID target;
     void *result;
     uint32_t protection;
-    uint32_t flags;
-    uint32_t error;
 };
 
 void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 {
-    if (off & PAGE_SIZE) {
-		errno = EINVAL;
-		return MAP_FAILED;
-	}
 	if (len >= PTRDIFF_MAX) {
 		errno = ENOMEM;
 		return MAP_FAILED;
     }
 
-    if (!(flags & (MAP_SHARED | MAP_PRIVATE)) || !len) {
-        errno = EINVAL;
-        return MAP_FAILED;
-    }
-
     ZFileDescriptor *zfd = NULL;
-    if (!(flags & MAP_ANON)) {
+    if (!(flags & MAP_ANON) && !(flags & MAP_PHYSICAL)) {
         zfd = zagtos_get_file_descriptor_object(fd);
         if (!zfd) {
             errno = EBADF;
@@ -50,8 +41,6 @@ void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
             return MAP_FAILED;
         }
     }
-
-    size_t num_pages = (len - 1) / PAGE_SIZE + 1;
 
     struct mmap_args args = {
         .start_address = start,

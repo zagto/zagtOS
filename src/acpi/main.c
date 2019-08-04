@@ -2,13 +2,18 @@
 #include <stdbool.h>
 #include <acpi.h>
 
+#include <unistd.h>
+
 int main() {
     printf("Hello from ACPI\n");
+
     if (AcpiInitializeSubsystem()) {
         printf("AcpiInitializeSubsystem failed\n");
         return 1;
     }
     printf("ACPI Subsystem initialized\n");
+
+    printf("AcpiOsGetRootPointer: %lu\n", AcpiOsGetRootPointer());
 
     if (AcpiInitializeTables(NULL, 10, true)) {
         printf("AcpiInitializeTables failed\n");
@@ -22,3 +27,4 @@ int main() {
         return 1;
     }
 }
+

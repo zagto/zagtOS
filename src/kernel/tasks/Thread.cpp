@@ -3,7 +3,7 @@
 #include <memory/UserSpaceObject.hpp>
 #include <tasks/Thread.hpp>
 #include <tasks/Task.hpp>
-#include <tasks/MMAP.hpp>
+#include <tasks/MappingOperation.hpp>
 #include <system/System.hpp>
 
 
@@ -48,18 +48,24 @@ bool Thread::handleSyscall() {
         delete this;
         return true;
     case SYS_RANDOM:
-        //registerState()->setSyscallResult(random());
         // todo: should write to memory here
         return true;
 
     case SYS_MMAP: {
         LockHolder lh(task->pagingLock);
-        UserSpaceObject<MMAP, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
+        UserSpaceObject<MMap, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
                                                                 task);
         if (!uso.valid) {
             return false;
         }
         uso.object.perform(*task);
+        return true;
+    }
+    case SYS_MUNMAP: {
+        LockHolder lh(task->pagingLock);
+        MUnmap munmap(registerState.syscallParameter(0), registerState.syscallParameter(1));
+        munmap.perform(*task);
+        registerState.setSyscallResult(munmap.error);
         return true;
     }
     case SYS_GET_ACPI_ROOT: {

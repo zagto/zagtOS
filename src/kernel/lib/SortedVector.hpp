@@ -12,11 +12,10 @@ protected:
         while (low < high) {
             size_t index = low + (high - low) / 2;
             if (Comperator(element, this->data[index])) {
-                if (index == low) {
-                    return low;
-                }
-                high = index - 1;
+                /* go left */
+                high = index;
             } else {
+                /* go right */
                 low = index + 1;
             }
         }
