@@ -37,7 +37,7 @@ void MMap::perform(Task &task) {
         return;
     }
 
-    align(length, PAGE_SIZE, AlignDirection::UP);
+    length = align(length, PAGE_SIZE, AlignDirection::UP);
     if (length == 0) {
         cout << "mmap of length 0" << endl;
         error = EINVAL;
@@ -121,7 +121,7 @@ void MUnmap::perform(Task &task) {
 
     error = 0;
 
-    align(length, PAGE_SIZE, AlignDirection::UP);
+    length = align(length, PAGE_SIZE, AlignDirection::UP);
     if (length == 0) {
         cout << "munmap of length 0" << endl;
         error = EINVAL;
