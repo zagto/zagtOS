@@ -22,9 +22,11 @@ int main() {
     printf("ACPI Tables initialized\n");
 
     ACPI_TABLE_MCFG *mcfg;
-    if (AcpiGetTable("MCFG", 1, (ACPI_TABLE_HEADER **)&mcfg)) {
-        printf("Getting MCFG table failed\n");
+    ACPI_STATUS result = AcpiGetTable(ACPI_SIG_MCFG, 0, (ACPI_TABLE_HEADER **)&mcfg);
+    if (!ACPI_SUCCESS(result)) {
+        printf("Getting MCFG table failed: %u\n", result);
         return 1;
     }
+    printf("Got MCFG Table!\n");
 }
 
