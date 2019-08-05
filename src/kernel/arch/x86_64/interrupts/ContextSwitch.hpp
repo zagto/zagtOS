@@ -16,4 +16,6 @@ extern "C" InterruptServiceRoutine InterruptServiceRoutines[NUM_INTERRUPT_SERIVI
 extern "C" __attribute__((noreturn)) void returnFromInterrupt(RegisterState *registerState,
                                                               UserVirtualAddress fsBase);
 
+extern "C" __attribute__((noreturn)) void returnFromInKernelInterrupt(RegisterState *registerState);
+
 #endif // INTERRUPTSERIVCEROUTINE_HPP

@@ -4,7 +4,7 @@
 
 void System::addBootProcessor() {
     cout << "Initializing first processor..." << endl;
-    CurrentProcessor = new Processor;
+    CurrentProcessor = new Processor(true);
     CurrentProcessor->activeMasterPageTable = CurrentSystem.kernelOnlyMasterPageTable;
     cout << "Processor object created. registering..." << endl;
     processors.push_back(CurrentProcessor);

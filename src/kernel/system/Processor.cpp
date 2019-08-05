@@ -3,8 +3,9 @@
 #include <system/System.hpp>
 
 
-Processor::Processor() :
+Processor::Processor(bool bootProcessor) :
         scheduler(this),
+        interrupts(bootProcessor),
         activeMasterPageTable{nullptr} {
     kernelStack = new KernelStack;
 }

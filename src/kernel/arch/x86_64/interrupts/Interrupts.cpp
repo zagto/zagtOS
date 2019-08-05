@@ -9,10 +9,11 @@
 InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
 
 
-Interrupts::Interrupts() :
+Interrupts::Interrupts(bool bootProcessor) :
         globalDescriptorTable(&taskStateSegment),
         globalDescriptorTableRecord(&globalDescriptorTable),
-        interruptDescriptorTableRecord(&INTERRUPT_DESCRIPTOR_TABLE) {
+        interruptDescriptorTableRecord(&INTERRUPT_DESCRIPTOR_TABLE),
+        legacyPIC(bootProcessor) {
 
     globalDescriptorTableRecord.load();
     interruptDescriptorTableRecord.load();
@@ -21,8 +22,16 @@ Interrupts::Interrupts() :
 
 
 __attribute__((noreturn)) void Interrupts::kernelHandler(RegisterState *registerState) {
-    cout << "Unhandled Interrupt occured In Kernel Mode:" << *registerState << endl;
-    Panic();
+    switch (registerState->intNr) {
+    case PIC1_SPURIOUS_IRQ:
+    case PIC2_SPURIOUS_IRQ:
+        cout << "Spurious IRQ in kernel mode!" << endl;
+        legacyPIC.handleSpuriousIRQ(registerState->intNr);
+        returnFromInKernelInterrupt(registerState);
+    default:
+        cout << "Unhandled Interrupt occured In Kernel Mode:" << *registerState << endl;
+        Panic();
+    }
 }
 
 
@@ -36,6 +45,11 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
             returnToUserMode();
         }
         break;
+    case PIC1_SPURIOUS_IRQ:
+    case PIC2_SPURIOUS_IRQ:
+        cout << "Spurious IRQ in user mode!" << endl;
+        legacyPIC.handleSpuriousIRQ(registerState->intNr);
+        returnToUserMode();
     case 0xe:
     {
         static const size_t PAGING_ERROR_FLAGS{0b11111};

@@ -16,7 +16,7 @@ class Processor {
         Task *currentTask{nullptr};
         MasterPageTable *activeMasterPageTable;
 
-        Processor();
+        Processor(bool bootProcessor);
         ~Processor();
 };
 

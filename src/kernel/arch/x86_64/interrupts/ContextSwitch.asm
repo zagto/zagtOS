@@ -2,6 +2,7 @@
 
 global InterruptServiceRoutines
 global returnFromInterrupt
+global returnFromInKernelInterrupt
 
 extern handleInterrupt
 extern kernelStackEnd
@@ -92,7 +93,7 @@ returnFromInterrupt:
     ; switch to state-save-stack passed as parameter
     mov rsp, rdi
 
-    mov ax, 0x18|3
+    mov ax, 0x20|3
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -130,4 +131,41 @@ returnFromInterrupt:
     add rsp, 2*8
 
     iretq
+
+
+returnFromInKernelInterrupt:
+    ; switch to state-save-stack passed as parameter
+    mov rsp, rdi
+
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+
+    ; rsp will be restored by iretq
+    pop rbp
+    pop rdi
+    pop rsi
+
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
+    ; pop interrupt number and error code
+    add rsp, 2*8
+
+    iretq
+
 
