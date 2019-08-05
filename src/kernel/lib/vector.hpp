@@ -56,8 +56,6 @@ public:
         }
         updateAllocatedSize();
 
-        log::cout << "inserting into vector of size " << numElements << " at " << index << endl;
-
         assert(index <= numElements);
         memmove(&data[index+1], &data[index], (numElements - index) * sizeof(ElementType));
 

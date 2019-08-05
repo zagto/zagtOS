@@ -17,7 +17,6 @@ Thread::~Thread() {
 }
 
 bool Thread::handleSyscall() {
-    cout << "syscall " << registerState.syscallNr() << endl;
     switch (registerState.syscallNr()) {
     case SYS_LOG: {
         LockHolder lh(task->pagingLock);
@@ -71,7 +70,6 @@ bool Thread::handleSyscall() {
     }
     case SYS_GET_ACPI_ROOT: {
         /* TODO: permissions checking */
-        cout << "returning acpi root: " << CurrentSystem.ACPIRoot.value() << endl;
         registerState.setSyscallResult(CurrentSystem.ACPIRoot.value());
         return true;
     }

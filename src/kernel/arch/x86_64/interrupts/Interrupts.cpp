@@ -38,7 +38,6 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
         break;
     case 0xe:
     {
-        cout << "Page Fault " << readCR2() << endl;
         static const size_t PAGING_ERROR_FLAGS{0b11111};
         static const size_t PAGING_ERROR_WRITE{0b10};
         static const size_t PAGING_ERROR_USER{0b100};
@@ -50,6 +49,7 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
                 returnToUserMode();
             }
         }
+        cout << "Unhandled Page Fault in User Mode: " << readCR2() << endl;
         break;
     }
     }

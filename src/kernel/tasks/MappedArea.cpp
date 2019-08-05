@@ -157,7 +157,6 @@ Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newI
     length = align(length, PAGE_SIZE, AlignDirection::UP);
 
     size_t base = task->heapStart.value();
-    cout << "heapStart: " << base << endl;
 
     if (size() > 0) {
         for (size_t index = 0; index < size(); index++) {
@@ -176,7 +175,6 @@ Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newI
             assert(areaEnd <= UserSpaceRegion.end());
 
             if (nextStart - areaEnd >= length) {
-                cout << "findFreeRegion: found " << areaEnd << endl;
                 found = true;
                 base = areaEnd;
                 newIndex = index + 1;
@@ -200,8 +198,6 @@ fail:
 }
 
 void MappedAreaVector::insert2(MappedArea *ma, size_t index) {
-    cout << "passed index " << index << endl;
-    cout << "findIndexFor: " << this->findIndexFor(ma) << endl;
     assert(index == this->findIndexFor(ma));
     static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
 }

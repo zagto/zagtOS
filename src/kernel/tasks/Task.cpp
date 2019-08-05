@@ -18,16 +18,10 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
     for (size_t index = 0; index < elf.numSegments(); index++) {
         elf::Segment segment = elf.segment(index);
         if (segment.type() == elf::Segment::TYPE_LOAD) {
-            cout << "A Segment Type: " << (uint64_t)segment.type() << "\n";
             Region region = segment.regionInMemory();
 
             MappedArea *ma = new MappedArea(this, region, segment.permissions());
             mappedAreas.insert(ma);
-
-            cout << "Mapped areas: \n";
-            for (size_t i = 0; i < mappedAreas.size(); i++) {
-                cout << mappedAreas[i]->region.start << ", size " << mappedAreas[i]->region.length << "\n";
-            }
 
             segment.load(this);
 

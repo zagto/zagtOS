@@ -31,7 +31,7 @@ void MMap::perform(Task &task) {
     result = 0;
     error = 0;
 
-    cout << "MMAP addr " << start_address << " length " << length << " flags " << flags << " offset " << offset << endl;
+    //cout << "MMAP addr " << start_address << " length " << length << " flags " << flags << " offset " << offset << endl;
 
     if (offset % PAGE_SIZE != 0) {
         cout << "mmap offset not page-aligned" << endl;

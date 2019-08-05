@@ -10,9 +10,6 @@ extern "C" void BasicDLMallocPanic(const char *location) {
 
 
 extern "C" void *sbrk(ssize_t increment) {
-    cout << "sbrk " << (size_t)increment << "\n";
-    cout << "old heap end: " << Memory::instance()->heapEnd.value() << "\n";
     auto res = Memory::instance()->resizeHeapArea(increment).asPointer<void>();
-    cout << "sbrk end\n";
     return  res;
 }
