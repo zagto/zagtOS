@@ -31,7 +31,7 @@ PageTableEntry *MasterPageTable::partialWalkEntries(VirtualAddress address,
                 return nullptr;
             case MissingStrategy::CREATE: {
                 PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
-                *entry = PageTableEntry(frame, Permissions::WRITE_AND_EXECUTE, true);
+                *entry = PageTableEntry(frame, Permissions::WRITE_AND_EXECUTE, true, false);
                 break;
             }
             }
@@ -62,11 +62,12 @@ MasterPageTable::MasterPageTable() {
 
 void MasterPageTable::map(KernelVirtualAddress from,
                           PhysicalAddress to,
-                          Permissions permissions) {
+                          Permissions permissions,
+                          bool disableCache) {
     PageTableEntry *entry = CurrentSystem.kernelOnlyMasterPageTable->walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
 
-    *entry = PageTableEntry(to, permissions, false);
+    *entry = PageTableEntry(to, permissions, false, disableCache);
     basicInvalidate(from);
 }
 
@@ -116,7 +117,7 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
                                                    walkData);
         if (!entry->present()) {
             PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
-            *entry = PageTableEntry(frame, newPagesPermissions, true);
+            *entry = PageTableEntry(frame, newPagesPermissions, true, false);
         }
 
         size_t lengthInPage = PAGE_SIZE - startOffset;
@@ -210,7 +211,7 @@ void MasterPageTable::map(UserVirtualAddress from,
     PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
 
-    *entry = PageTableEntry(to, permissions, true);
+    *entry = PageTableEntry(to, permissions, true, false);
     if (isActive()) {
         basicInvalidate(from);
     }

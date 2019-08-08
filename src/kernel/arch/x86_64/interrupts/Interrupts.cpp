@@ -4,6 +4,7 @@
 #include <interrupts/ContextSwitch.hpp>
 #include <interrupts/util.hpp>
 #include <tasks/Task.hpp>
+#include <common/ModelSpecificRegister.hpp>
 
 
 InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
@@ -13,7 +14,8 @@ Interrupts::Interrupts(bool bootProcessor) :
         globalDescriptorTable(&taskStateSegment),
         globalDescriptorTableRecord(&globalDescriptorTable),
         interruptDescriptorTableRecord(&INTERRUPT_DESCRIPTOR_TABLE),
-        legacyPIC(bootProcessor) {
+        legacyPIC(bootProcessor),
+        localAPIC(readModelSpecificRegister(0x001b)) {
 
     globalDescriptorTableRecord.load();
     interruptDescriptorTableRecord.load();
@@ -101,4 +103,11 @@ __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState)
 // called from interrupt service routine
 extern "C" __attribute__((noreturn)) void handleInterrupt(RegisterState* registerState) {
     CurrentProcessor->interrupts.handler(registerState);
+}
+
+
+void Interrupts::wakeSecondaryProcessor(size_t hardwareID) {
+    localAPIC.sendInit(hardwareID);
+    localAPIC.timer.delayMilliseconds(10);
+    localAPIC.sendStartup(hardwareID, PhysicalAddress(0x1000));
 }

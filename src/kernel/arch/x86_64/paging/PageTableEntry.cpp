@@ -10,7 +10,8 @@ PageTableEntry::PageTableEntry() {
 
 PageTableEntry::PageTableEntry(PhysicalAddress addressValue,
                                Permissions permissions,
-                               bool user) {
+                               bool user,
+                               bool disableCache) {
     assert(addressValue.isPageAligned());
 
     data = PRESENT_BIT | addressValue.value();
@@ -18,6 +19,10 @@ PageTableEntry::PageTableEntry(PhysicalAddress addressValue,
         data |= USER_BIT;
     } else {
         data |= GLOBAL_BIT;
+    }
+
+    if (disableCache) {
+        data |= DISABLE_CACHE_BIT;
     }
 
     switch (permissions) {

@@ -73,7 +73,8 @@ KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
     for (size_t index = 0; index < change / PAGE_SIZE; index++) {
         MasterPageTable::map(heapEnd + index * PAGE_SIZE,
                              allocatePhysicalFrame(),
-                             Permissions::WRITE);
+                             Permissions::WRITE,
+                             false);
     }
     KernelVirtualAddress oldEnd = heapEnd;
     heapEnd = heapEnd + change;

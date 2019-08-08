@@ -7,11 +7,13 @@
 #include <memory/Memory.hpp>
 #include <setup/BootInfo.hpp>
 #include <common/globalregisters.hpp>
+#include <time/Time.hpp>
 
 
 class System {
 public:
     Memory memory;
+    Time time;
     /* Memory and the MasterPageTable must be initialized before dynamic memory can be used */
     MasterPageTable *kernelOnlyMasterPageTable;
     vector<Processor *> processors;

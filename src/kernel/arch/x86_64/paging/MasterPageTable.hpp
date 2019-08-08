@@ -37,8 +37,9 @@ public:
 
     static void map(KernelVirtualAddress from,
                     PhysicalAddress to,
-                    Permissions permissions);
-    PhysicalAddress resolve(KernelVirtualAddress address);
+                    Permissions permissions,
+                    bool disableCache);
+    static PhysicalAddress resolve(KernelVirtualAddress address);
     static void unmap(KernelVirtualAddress address);
     static void invalidateLocally(KernelVirtualAddress address);
 

@@ -73,6 +73,12 @@ bool Thread::handleSyscall() {
         registerState.setSyscallResult(CurrentSystem.ACPIRoot.value());
         return true;
     }
+    case SYS_ADD_PROCESSOR: {
+        /* TODO: permissions checking */
+        size_t hardwareID = registerState.syscallParameter(0);
+        CurrentProcessor->interrupts.wakeSecondaryProcessor(hardwareID);
+        return true;
+    }
     default:
         return false;
     }

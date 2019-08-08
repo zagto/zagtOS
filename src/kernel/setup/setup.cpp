@@ -35,6 +35,9 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
      * master page tables */
     BootInfo bootInfo = *bootInfoOld;
 
+    cout << "Setting up time..." << endl;
+    CurrentSystem.time.initialize();
+
     cout << "Creating initial task..." << endl;
 
     vector<uint8_t> initFile(bootInfo.initDataInfo.size);
