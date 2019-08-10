@@ -7,7 +7,8 @@
 #define FRAMEBUFFER_FORMAT_BGR 2
 
 struct FramebufferInfo {
-    UINTN baseAddress;
+    UINTN frontBuffer;
+    UINTN backBuffer;
     UINT32 width;
     UINT32 height;
     UINT32 bytesPerPixel;

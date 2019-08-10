@@ -33,7 +33,7 @@ static UINT32 isModeUsable(EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *modeInfo) {
     return (modeInfo->PixelFormat == PixelRedGreenBlueReserved8BitPerColor
             || modeInfo->PixelFormat == PixelBlueGreenRedReserved8BitPerColor)
         && modeInfo->PixelsPerScanLine * modeInfo->VerticalResolution * 4
-            <= FramebufferRegion.end - FramebufferRegion.start + 1;
+            <= (FramebufferRegion.end - FramebufferRegion.start + 1) / 2;
 }
 
 
@@ -88,7 +88,7 @@ static void setBestMode(EFI_GRAPHICS_OUTPUT_PROTOCOL *graphicsOutput) {
 
 void generateFramebufferInfo(EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode) {
     framebufferInfo = (struct FramebufferInfo) {
-        .baseAddress = (UINTN)mode->FrameBufferBase,
+        .frontBuffer = (UINTN)mode->FrameBufferBase,
         .width = mode->Info->HorizontalResolution,
         .height = mode->Info->VerticalResolution,
         .bytesPerPixel = 4,

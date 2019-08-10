@@ -6,7 +6,8 @@
 
 struct BootInfo {
     struct FramebufferInfo {
-        size_t baseAddress;
+        uint8_t *frontBuffer;
+        uint8_t *backBuffer;
         uint32_t width;
         uint32_t height;
         uint32_t bytesPerPixel;

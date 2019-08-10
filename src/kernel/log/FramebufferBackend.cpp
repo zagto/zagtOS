@@ -3,7 +3,7 @@
 
 
 void FramebufferBackend::writePixel(uint32_t x, uint32_t y, Color color) {
-    volatile uint8_t *pixel = &framebuffer[y * bytesPerLine + x * bytesPerPixel];
+    volatile uint8_t *pixel = &backBuffer[y * bytesPerLine + x * bytesPerPixel];
     switch (format) {
     case FramebufferFormat::RGB:
         pixel[0] = color.red;
@@ -20,21 +20,27 @@ void FramebufferBackend::writePixel(uint32_t x, uint32_t y, Color color) {
 }
 
 
-void FramebufferBackend::clear(bool fuzzy) {
+void FramebufferBackend::clear() {
     for (uint32_t y = 0; y < height; y++) {
         for (uint32_t x = 0; x < width; x++) {
-            if (!fuzzy) {
-                writePixel(x, y, backgroundColor);
-            } else if ((x % 2 + y) % 2) {
-                writePixel(x, y, fuzzyColor);
-            }
+            writePixel(x, y, backgroundColor);
+        }
+    }
+}
+
+
+void FramebufferBackend::clearLine(uint32_t line) {
+    for (uint32_t y = line * Font::characterHeight; y < (line + 1) * Font::characterHeight; y++) {
+        for (uint32_t x = 0; x < width; x++) {
+            writePixel(x, y, backgroundColor);
         }
     }
 }
 
 
 void FramebufferBackend::init(const BootInfo::FramebufferInfo *framebufferInfo) {
-    framebuffer = reinterpret_cast<uint8_t *>(framebufferInfo->baseAddress);
+    frontBuffer = framebufferInfo->frontBuffer;
+    backBuffer = framebufferInfo->backBuffer;
     width = framebufferInfo->width;
     height = framebufferInfo->height;
     bytesPerLine = framebufferInfo->bytesPerLine;
@@ -51,14 +57,15 @@ void FramebufferBackend::init(const BootInfo::FramebufferInfo *framebufferInfo) 
 
 
 void FramebufferBackend::newLine() {
-    // TODO: check for end of screen
     currentColumn = 0;
     currentLine++;
 
     if (currentLine >= numLines) {
         currentLine = 0;
-        clear(true);
     }
+
+    clearLine(currentLine);
+    flip();
 }
 
 
@@ -84,4 +91,13 @@ void FramebufferBackend::write(char character) {
         }
     }
     increasePosition();
+}
+
+void FramebufferBackend::flip() {
+    for (uint32_t y = 0; y < height; y++) {
+        uint32_t srcY = (y + (currentLine * Font::characterHeight)) % height;
+        for (uint32_t x = 0; x < width * bytesPerPixel; x++) {
+            frontBuffer[y * bytesPerLine + x] = backBuffer[srcY * bytesPerLine + x];
+        }
+    }
 }

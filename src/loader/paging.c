@@ -69,9 +69,9 @@ void MapLoaderMemory(struct EfiMemoryMapInfo *mapInfo) {
 
 
 void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo) {
-    UINTN framebufferOffset = framebufferInfo->baseAddress % PAGE_SIZE;
-    UINTN firstAddress = framebufferInfo->baseAddress - framebufferOffset;
-    UINTN lastAddress = framebufferInfo->baseAddress + framebufferInfo->height * framebufferInfo->bytesPerLine;
+    UINTN framebufferOffset = framebufferInfo->frontBuffer % PAGE_SIZE;
+    UINTN firstAddress = framebufferInfo->frontBuffer - framebufferOffset;
+    UINTN lastAddress = framebufferInfo->frontBuffer + framebufferInfo->height * framebufferInfo->bytesPerLine;
     UINTN numPages = (lastAddress - firstAddress - 1) / PAGE_SIZE + 1;
     UINTN index;
 
@@ -84,9 +84,19 @@ void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo) {
                    TRUE);
     }
 
+    for (index = numPages; index < numPages * 2; index++) {
+        MapAddress(FramebufferRegion.start + index * PAGE_SIZE,
+                   (EFI_PHYSICAL_ADDRESS)AllocatePhysicalFrame(),
+                   TRUE,
+                   FALSE,
+                   FALSE,
+                   FALSE);
+    }
+
     /* update framebuffer info to contain the "new" address, as this structure will be passed to the
      * kernel later on */
-    framebufferInfo->baseAddress = FramebufferRegion.start + framebufferOffset;
+    framebufferInfo->frontBuffer = FramebufferRegion.start + framebufferOffset;
+    framebufferInfo->backBuffer = framebufferInfo->frontBuffer + numPages * PAGE_SIZE;
 }
 
 

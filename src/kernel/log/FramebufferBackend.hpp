@@ -16,11 +16,11 @@ struct Color {
 
 class FramebufferBackend {
 private:
-    constexpr static const Color backgroundColor{0x24, 0xb6, 0xb6};
-    constexpr static const Color foregroundColor{0xff, 0xcc, 0x00};
-    constexpr static const Color fuzzyColor{0x88, 0x00, 0x00};
+    constexpr static const Color backgroundColor{0xff, 0xff, 0xff};
+    constexpr static const Color foregroundColor{0x33, 0x33, 0x66};
 
-    volatile uint8_t *framebuffer;
+    volatile uint8_t *frontBuffer;
+    uint8_t *backBuffer;
     uint32_t width;
     uint32_t height;
     uint32_t bytesPerLine;
@@ -31,10 +31,12 @@ private:
     uint32_t currentColumn;
     uint32_t currentLine;
 
-    void clear(bool fuzzy = false);
+    void clear();
+    void clearLine(uint32_t line);
     void writePixel(uint32_t x, uint32_t y, Color color);
     void newLine();
     void increasePosition();
+    void flip();
 
 public:
     void init(const BootInfo::FramebufferInfo *framebufferInfo);
