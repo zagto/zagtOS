@@ -13,8 +13,6 @@ private:
     volatile size_t value{0};
 
 public:
-    friend class LockHolder;
-public:
     void lock() {
         basicLock(value);
     }
@@ -25,8 +23,6 @@ public:
         }
         basicUnlock(value);
     }
-
-public:
     bool isLocked() {
         return value;
     }

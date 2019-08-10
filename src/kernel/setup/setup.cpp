@@ -13,9 +13,12 @@ extern "C" __attribute__((noreturn)) void switchStack(KernelStack *newStack,
                                                       BootInfo *nextCodeArg);
 
 void KernelEntry2(BootInfo *bootInfo);
+void KernelEntrySecondaryProcessor2(BootInfo *);
 
 
 extern "C" __attribute__((noreturn)) void KernelEntry(BootInfo *bootInfo) {
+    CurrentProcessor = nullptr;
+
     // Call global constructors
     _init();
 
@@ -55,3 +58,21 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
     cout << "Entering first task..." << endl;
     CurrentProcessor->interrupts.returnToUserMode();
 }
+
+extern "C" __attribute__((noreturn)) void KernelEntrySecondaryProcessor() {
+    assert(CurrentSystem.processorsLock.isLocked());
+
+    CurrentProcessor = new Processor(false);
+    CurrentSystem.processors.push_back(CurrentProcessor);
+
+    switchStack(CurrentProcessor->kernelStack, KernelEntrySecondaryProcessor2, nullptr);
+}
+
+__attribute__((noreturn)) void KernelEntrySecondaryProcessor2(BootInfo *) {
+    /* we now use our own stack, free to add more processors */
+    CurrentSystem.processorsLock.unlock();
+
+    cout << "started processor " << (CurrentSystem.processors.size() - 1) << endl;
+    CurrentProcessor->interrupts.returnToUserMode();
+}
+

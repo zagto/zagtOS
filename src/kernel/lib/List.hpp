@@ -3,7 +3,7 @@
 
 #include <common/panic.hpp>
 #include <common/inttypes.hpp>
-#include <log/logger.hpp>
+#include <log/Logger.hpp>
 
 namespace list {
     template<class T> class List;
@@ -58,7 +58,7 @@ namespace list {
                 node = node->nextNode;
             }
             if (!node) {
-                log::cout << "Tried to remove Element that is not in list" << log::endl;
+                cout << "Tried to remove Element that is not in list" << endl;
                 Panic();
             }
 

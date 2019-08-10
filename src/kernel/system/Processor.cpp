@@ -4,6 +4,7 @@
 
 
 Processor::Processor(bool bootProcessor) :
+        logBufferIndex{0},
         scheduler(this),
         interrupts(bootProcessor),
         activePagingContext{nullptr} {

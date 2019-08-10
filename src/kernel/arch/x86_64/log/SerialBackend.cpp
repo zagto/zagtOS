@@ -1,8 +1,6 @@
 #include <common/common.hpp>
-#include <log/serialbackend.hpp>
+#include <log/SerialBackend.hpp>
 #include <portio.hpp>
-
-using namespace log;
 
 
 static const uint16_t SERIAL_PORT = 0x3f8;

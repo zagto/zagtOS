@@ -6,9 +6,6 @@
 #include <common/panic.hpp>
 #include <common/utils.hpp>
 #include <common/random.hpp>
-#include <log/logger.hpp>
-
-using log::cout;
-using log::endl;
+#include <log/Logger.hpp>
 
 #endif // COMMON_HPP

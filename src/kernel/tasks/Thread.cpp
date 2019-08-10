@@ -40,7 +40,7 @@ bool Thread::handleSyscall() {
             return false;
         }
         for (size_t index = 0; index < buffer.size(); index++) {
-            log::cout << static_cast<char>(buffer[index]);
+            cout << static_cast<char>(buffer[index]);
         }
         return true;
     }

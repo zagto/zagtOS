@@ -18,6 +18,7 @@ public:
     /* Memory and the MasterPageTable must be initialized before dynamic memory can be used */
     PagingContext kernelOnlyPagingContext;
     vector<Processor *> processors;
+    Lock processorsLock;
 
     CommonSystem(BootInfo *bootInfo) :
         memory(bootInfo),

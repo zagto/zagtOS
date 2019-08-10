@@ -3,7 +3,7 @@
 
 #include <common/common.hpp>
 #include <memory/Memory.hpp>
-#include <log/logger.hpp>
+#include <log/Logger.hpp>
 
 template<typename ElementType> class vector {
 protected:
@@ -72,7 +72,7 @@ public:
         }
 
         if (index == numElements) {
-            log::cout << "Tried to remove Element that is not in vector" << log::endl;
+            cout << "Tried to remove Element that is not in vector" << endl;
             Panic();
         }
 

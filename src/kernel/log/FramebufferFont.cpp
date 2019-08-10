@@ -1,8 +1,6 @@
 #include <common/common.hpp>
-#include <log/framebufferfont.hpp>
-#include <log/beautifulfont.xbm>
-
-using namespace log::framebufferbackend;
+#include <log/FramebufferFont.hpp>
+#include <log/BeautifulFont.xbm>
 
 
 bool Font::getPixel(char character, uint32_t x, uint32_t y) {

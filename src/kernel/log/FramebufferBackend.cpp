@@ -1,8 +1,5 @@
-#include <log/framebufferbackend.hpp>
-#include <log/framebufferfont.hpp>
-
-using namespace log;
-using namespace framebufferbackend;
+#include <log/FramebufferBackend.hpp>
+#include <log/FramebufferFont.hpp>
 
 
 void FramebufferBackend::writePixel(uint32_t x, uint32_t y, Color color) {

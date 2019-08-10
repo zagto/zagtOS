@@ -1,15 +1,16 @@
 #include <common/common.hpp>
 #include <setup/BootInfo.hpp>
-#include <log/serialbackend.hpp>
-#include <log/framebufferbackend.hpp>
+#include <log/SerialBackend.hpp>
+#include <log/FramebufferBackend.hpp>
+#include <system/System.hpp>
 
-using namespace log;
 
-
-Logger log::cout;
+Logger cout;
 
 static SerialBackend serialBackend;
 static FramebufferBackend framebufferBackend;
+
+static Lock logLock;
 
 
 void Logger::init(const BootInfo *bootInfo) {
@@ -18,9 +19,34 @@ void Logger::init(const BootInfo *bootInfo) {
 }
 
 
+void Logger::flush() {
+    LockHolder lh(logLock);
+
+    char *buffer = CurrentProcessor->logBuffer;
+    for (size_t i = 0; i < CurrentProcessor->logBufferIndex; i++) {
+        serialBackend.write(buffer[i]);
+        framebufferBackend.write(buffer[i]);
+    }
+    CurrentProcessor->logBufferIndex = 0;
+}
+
+
 Logger Logger::operator<<(char character) {
-    serialBackend.write(character);
-    framebufferBackend.write(character);
+    /* On early boot there is no Processor object, write unbuffered in this case */
+    //if (CurrentProcessor == nullptr) {
+        serialBackend.write(character);
+        framebufferBackend.write(character);
+    /*} else {
+        char *buffer = CurrentProcessor->logBuffer;
+        size_t &index = CurrentProcessor->logBufferIndex;
+
+        buffer[index] = character;
+        index++;
+
+        if (character == '\n' || CurrentProcessor->logBufferIndex == Processor::LOG_BUFFER_SIZE) {
+            flush();
+        }
+    }*/
     return *this;
 }
 

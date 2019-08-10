@@ -2,6 +2,8 @@ global SecondaryProcessorEntryCode
 global SecondaryProcessorEntryCodeEnd
 global SecondaryProcessorEntryMasterPageTable
 
+extern KernelEntrySecondaryProcessor
+
 ; Yes, this code is in the data section.
 ; It should not be executed directly, but rather copied into a yery low memory location, so the
 ; processor can access it when staring in real mode
@@ -86,12 +88,6 @@ flushCS:
     mov dword [bp+2], eax
     lgdt [bp]
 
-reached:
-        mov dx, 0x3f8
-        mov al, 'A'
-        out dx, al
-        ;jmp reached
-
 
 longModeJump:
     jmp 0x08:0x1234
@@ -111,10 +107,15 @@ gdtr:
 
 [bits 64]
 longMode:
-    mov dx, 0x3f8
-    mov al, 'A'
-theloop:
-    out dx, al
-    jmp theloop
+    mov ax, 0x10
+    mov ds, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+
+    mov rsp, rbx
+    add rsp, 0x1000
+    mov rax, KernelEntrySecondaryProcessor
+    call rax
 
 SecondaryProcessorEntryCodeEnd:
