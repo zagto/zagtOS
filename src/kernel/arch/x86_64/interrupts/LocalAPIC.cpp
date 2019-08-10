@@ -27,12 +27,10 @@ void LocalAPIC::setupMap(PhysicalAddress base) {
     PagingContext::map(mapAddress, apicFrame, Permissions::WRITE, true);
     PagingContext::invalidateLocally(mapAddress);
     map = mapAddress.asPointer<uint8_t>();
-    cout << "mapped local APIC" << endl;
 }
 
 LocalAPIC::LocalAPIC(PhysicalAddress base) :
         timer(this) {
-    cout << "local APIC is at: " << base.value() << endl;
 
     setupMap(base);
 
