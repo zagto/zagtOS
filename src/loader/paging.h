@@ -10,7 +10,7 @@ typedef UINT64 PageTableEntry;
 #define ENTRIES_PER_PAGE_TABLE (PAGE_SIZE / sizeof(PageTableEntry))
 typedef PageTableEntry PageTable[ENTRIES_PER_PAGE_TABLE];
 
-extern PageTable *MasterPageTable;
+extern PageTable *PagingContext;
 
 void InitPaging(void);
 void MapLoaderMemory(struct EfiMemoryMapInfo *mapInfo);

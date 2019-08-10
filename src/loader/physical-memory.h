@@ -9,6 +9,8 @@
 extern struct FrameStack DirtyFrameStack;
 extern struct FrameStack CleanFrameStack;
 
+extern EFI_PHYSICAL_ADDRESS SecondaryProcessorEntry;
+
 EFI_PHYSICAL_ADDRESS InitPhysicalFrameManagement(struct EfiMemoryMapInfo *mapInfo,
                                                  struct InitDataInfo *initDataInfo);
 void *AllocatePhysicalFrame(void);

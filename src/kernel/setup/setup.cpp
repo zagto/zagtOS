@@ -50,7 +50,7 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
     new Task(initELF, Thread::Priority::FOREGROUND, &obj);
 
     /* the ELF data is the last thing we wanted to read from loader memory */
-    CurrentSystem.kernelOnlyMasterPageTable->completelyUnmapLoaderRegion();
+    //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();
 
     cout << "Entering first task..." << endl;
     CurrentProcessor->interrupts.returnToUserMode();

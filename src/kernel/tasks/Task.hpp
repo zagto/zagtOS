@@ -3,7 +3,7 @@
 
 #include <lib/List.hpp>
 #include <lib/Lock.hpp>
-#include <paging/MasterPageTable.hpp>
+#include <paging/PagingContext.hpp>
 #include <tasks/ELF.hpp>
 #include <tasks/Thread.hpp>
 #include <tasks/MappedArea.hpp>
@@ -13,7 +13,7 @@ class Object;
 
 class Task {
 private:
-    friend class MasterPageTable;
+    friend class PagingContext;
     friend class Thread;
     friend class MMap;
     friend class MUnmap;
@@ -23,13 +23,13 @@ private:
     bool accessUserSpace(uint8_t *buffer,
                          size_t start,
                          size_t length,
-                         MasterPageTable::AccessOperation accOp,
+                         PagingContext::AccessOperation accOp,
                          bool requireWritePermissions);
 
 public:
     Lock pagingLock;
     Lock threadsLock;
-    MasterPageTable *masterPageTable;
+    PagingContext *masterPageTable;
     UserVirtualAddress heapStart;
 
     Task(ELF elf, Thread::Priority initialPrioriy, Object *message);

@@ -107,7 +107,12 @@ extern "C" __attribute__((noreturn)) void handleInterrupt(RegisterState* registe
 
 
 void Interrupts::wakeSecondaryProcessor(size_t hardwareID) {
-    localAPIC.sendInit(hardwareID);
+    static Lock lock;
+    LockHolder lh(lock);
+    localAPIC.sendInit(static_cast<uint32_t>(hardwareID));
     localAPIC.timer.delayMilliseconds(10);
-    localAPIC.sendStartup(hardwareID, PhysicalAddress(0x1000));
+    localAPIC.sendStartup(static_cast<uint32_t>(hardwareID), PhysicalAddress(CurrentSystem.secondaryProcessorEntry));
+    CurrentSystem.kernelOnlyPagingContext.activate();
+    cout << "running with kernel page table" << endl;
+    Halt();
 }

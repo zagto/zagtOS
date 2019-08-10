@@ -1,4 +1,4 @@
-#include <system/System.hpp>
+#include <system/CommonSystem.hpp>
 #include <tasks/MappedArea.hpp>
 #include <tasks/Task.hpp>
 
@@ -6,9 +6,9 @@
 bool Task::accessUserSpace(uint8_t *buffer,
                            size_t start,
                            size_t length,
-                           MasterPageTable::AccessOperation accOp,
+                           PagingContext::AccessOperation accOp,
                            bool requireWritePermissions) {
-    assert(CurrentProcessor->currentTask->pagingLock.isLocked());
+    assert(pagingLock.isLocked());
 
     if (!VirtualAddress(start).isInRegion(UserSpaceRegion)) {
         return false;
@@ -39,7 +39,7 @@ bool Task::accessUserSpace(uint8_t *buffer,
         return false;
     }
 
-    if (accOp != MasterPageTable::AccessOperation::VERIFY_ONLY) {
+    if (accOp != PagingContext::AccessOperation::VERIFY_ONLY) {
         size_t pagePrefix = start - alignedStart;
 
         masterPageTable->accessRange(UserVirtualAddress(alignedStart),
@@ -58,7 +58,7 @@ bool Task::copyFromUser(uint8_t *destination, size_t address, size_t length, boo
     return accessUserSpace(destination,
                            address,
                            length,
-                           MasterPageTable::AccessOperation::READ,
+                           PagingContext::AccessOperation::READ,
                            requireWritePermissions);
 }
 
@@ -66,7 +66,7 @@ bool Task::copyToUser(size_t address, const uint8_t *source, size_t length, bool
     return accessUserSpace(const_cast<uint8_t *>(source),
                            address,
                            length,
-                           MasterPageTable::AccessOperation::WRITE,
+                           PagingContext::AccessOperation::WRITE,
                            requireWritePermissions);
 }
 
@@ -74,6 +74,6 @@ bool Task::verifyUserAccess(size_t address, size_t length, bool requireWritePerm
     return accessUserSpace(nullptr,
                            address,
                            length,
-                           MasterPageTable::AccessOperation::VERIFY_ONLY,
+                           PagingContext::AccessOperation::VERIFY_ONLY,
                            requireWritePermissions);
 }

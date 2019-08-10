@@ -1,6 +1,6 @@
 #include <tasks/Task.hpp>
 #include <tasks/ELF.hpp>
-#include <system/System.hpp>
+#include <system/CommonSystem.hpp>
 #include <lib/Slice.hpp>
 #include <memory/UserSpaceObject.hpp>
 

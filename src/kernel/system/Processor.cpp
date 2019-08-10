@@ -1,12 +1,12 @@
 #include <system/Processor.hpp>
-#include <paging/MasterPageTable.hpp>
-#include <system/System.hpp>
+#include <paging/PagingContext.hpp>
+#include <system/CommonSystem.hpp>
 
 
 Processor::Processor(bool bootProcessor) :
         scheduler(this),
         interrupts(bootProcessor),
-        activeMasterPageTable{nullptr} {
+        activePagingContext{nullptr} {
     kernelStack = new KernelStack;
 }
 

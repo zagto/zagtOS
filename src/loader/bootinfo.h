@@ -19,6 +19,7 @@ struct BootInfo {
     struct InitDataInfo initDataInfo;
     EFI_PHYSICAL_ADDRESS masterPageTable;
     EFI_PHYSICAL_ADDRESS ACPIRoot;
+    EFI_PHYSICAL_ADDRESS secondaryProcessorEntry;
 };
 
 struct BootInfo *PrepareBootInfo(struct InitDataInfo *initDataInfo,

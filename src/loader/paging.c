@@ -5,7 +5,7 @@
 #include <paging.h>
 
 
-PageTable *MasterPageTable = NULL;
+PageTable *PagingContext = NULL;
 
 #define PAGE_PRESENT        0x0000000000000001
 #define PAGE_WRITEABLE      0x0000000000000002
@@ -34,17 +34,17 @@ static void createGlobalMasterPageTableEntries(void) {
     for (index = ENTRIES_PER_PAGE_TABLE; index < ENTRIES_PER_PAGE_TABLE; index++) {
         newPageTable = (PageTable *)AllocatePhysicalFrame();
         clearPageTable(newPageTable);
-        (*MasterPageTable)[index] = (UINTN)newPageTable | PAGE_PRESENT | PAGE_WRITEABLE;
+        (*PagingContext)[index] = (UINTN)newPageTable | PAGE_PRESENT | PAGE_WRITEABLE;
     }
 }
 
 
 void InitPaging(void) {
-    MasterPageTable = (PageTable *)AllocatePhysicalFrame();
+    PagingContext = (PageTable *)AllocatePhysicalFrame();
     Log("Creating Master Page Table at: ");
-    LogUINTN((UINTN)MasterPageTable);
+    LogUINTN((UINTN)PagingContext);
     Log("\n");
-    clearPageTable(MasterPageTable);
+    clearPageTable(PagingContext);
     createGlobalMasterPageTableEntries();
 }
 
@@ -112,7 +112,7 @@ void MapAddress(EFI_PHYSICAL_ADDRESS physicalAddress,
                 BOOLEAN executable,
                 BOOLEAN large) {
     UINTN level = NUM_PAGE_TABLE_LEVELS - 1;
-    PageTable *pageTable = MasterPageTable;
+    PageTable *pageTable = PagingContext;
     PageTableEntry *entry;
     PageTable *newPageTable;
 

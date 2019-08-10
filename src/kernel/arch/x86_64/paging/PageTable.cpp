@@ -1,11 +1,12 @@
 #include <common/common.hpp>
 #include <paging/PageTable.hpp>
-#include <system/System.hpp>
+#include <paging/PagingContext.hpp>
+#include <system/CommonSystem.hpp>
 
 
 size_t PageTable::indexFor(VirtualAddress address, size_t level) {
     assert(address.isPageAligned());
-    assert(level <= MASTER_LEVEL);
+    assert(level <= PagingContext::MASTER_LEVEL);
 
     static const size_t ADDRESS_BITS = (size_t(1) << 48) - 1;
     static const size_t INDEX_MASK = ((size_t(1)) << TABLE_LEVEL_SHIFT) - 1;

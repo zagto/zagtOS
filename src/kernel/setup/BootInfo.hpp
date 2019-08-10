@@ -25,6 +25,7 @@ struct BootInfo {
     InitialObjectsInfo initDataInfo;
     PhysicalAddress masterPageTable;
     PhysicalAddress ACPIRoot;
+    PhysicalAddress secondaryProcessorEntry;
 };
 
 #endif // BOOTINFO_HPP

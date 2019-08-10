@@ -1,5 +1,5 @@
 #include <common/common.hpp>
-#include <paging/MasterPageTable.hpp>
+#include <paging/PagingContext.hpp>
 #include <memory/PlatformRegions.hpp>
 
 

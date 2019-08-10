@@ -1,4 +1,4 @@
-#include <paging/MasterPageTable.hpp>
+#include <paging/PagingContext.hpp>
 #include <system/System.hpp>
 #include <memory/PlatformRegions.hpp>
 #include <tasks/Task.hpp>
@@ -10,8 +10,7 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
         mappedAreas(this) {
     LockHolder lh(pagingLock);
 
-    masterPageTable = new MasterPageTable();
-    activate();
+    masterPageTable = new PagingContext(this);
 
     UserVirtualAddress maxEndAddress = 0;
 

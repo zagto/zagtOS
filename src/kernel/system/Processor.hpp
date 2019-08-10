@@ -6,7 +6,7 @@
 #include <system/KernelStack.hpp>
 
 class Task;
-class MasterPageTable;
+class PagingContext;
 
 class Processor {
     public:
@@ -14,7 +14,7 @@ class Processor {
         Scheduler scheduler;
         Interrupts interrupts;
         Task *currentTask{nullptr};
-        MasterPageTable *activeMasterPageTable;
+        PagingContext *activePagingContext;
 
         Processor(bool bootProcessor);
         ~Processor();

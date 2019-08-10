@@ -1,6 +1,6 @@
-#include <system/System.hpp>
+#include <system/CommonSystem.hpp>
 #include <memory/FrameStack.hpp>
-#include <paging/MasterPageTable.hpp>
+#include <paging/PagingContext.hpp>
 
 
 bool FrameStack::isEmpty() {
@@ -28,7 +28,7 @@ PhysicalAddress FrameStack::pop() {
     LockHolder lh(lock);
 
     // other CPUs might have remapped the head page
-    MasterPageTable::invalidateLocally(KernelVirtualAddress(head));
+    PagingContext::invalidateLocally(KernelVirtualAddress(head));
 
     if (isEmpty()) {
         Panic();

@@ -25,8 +25,9 @@ struct BootInfo *PrepareBootInfo(struct InitDataInfo *initDataInfo,
     // copy framebuffer info
     bootInfo->framebufferInfo = *framebufferInfo;
 
-    bootInfo->masterPageTable = (EFI_PHYSICAL_ADDRESS)MasterPageTable;
+    bootInfo->masterPageTable = (EFI_PHYSICAL_ADDRESS)PagingContext;
     bootInfo->ACPIRoot = ACPIRoot;
+    bootInfo->secondaryProcessorEntry = SecondaryProcessorEntry;
 
     return bootInfo;
 }

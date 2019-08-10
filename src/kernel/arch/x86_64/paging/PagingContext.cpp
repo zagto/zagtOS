@@ -1,6 +1,6 @@
 #include <common/common.hpp>
-#include <system/System.hpp>
-#include <paging/MasterPageTable.hpp>
+#include <system/CommonSystem.hpp>
+#include <paging/PagingContext.hpp>
 #include <system/System.hpp>
 #include <tasks/Task.hpp>
 
@@ -9,7 +9,7 @@
 extern "C" void basicInvalidate(VirtualAddress address);
 
 
-PageTableEntry *MasterPageTable::partialWalkEntries(VirtualAddress address,
+PageTableEntry *PagingContext::partialWalkEntries(VirtualAddress address,
                                                     MissingStrategy missingStrategy,
                                                     size_t startLevel,
                                                     WalkData &data) {
@@ -43,28 +43,37 @@ PageTableEntry *MasterPageTable::partialWalkEntries(VirtualAddress address,
 }
 
 
-PageTableEntry *MasterPageTable::walkEntries(VirtualAddress address, MissingStrategy ms) {
-    WalkData walkData(this);
+PageTableEntry *PagingContext::walkEntries(VirtualAddress address, MissingStrategy ms) {
+    WalkData walkData(masterPageTable);
     return partialWalkEntries(address, ms, MASTER_LEVEL, walkData);
 }
 
 
-MasterPageTable::MasterPageTable() {
-    assert(this != CurrentProcessor->activeMasterPageTable);
+PagingContext::PagingContext(Task *task) :
+        PagingContext(task, CurrentSystem.memory.allocatePhysicalFrame()) {
+
+    assert(this != CurrentProcessor->activePagingContext);
 
     for (size_t index = KERNEL_ENTRIES_OFFSET;
-         index < NUM_ENTRIES - 1;
+         index < PageTable::NUM_ENTRIES - 1;
          index++) {
-         entries[index] = CurrentProcessor->activeMasterPageTable->entries[index];
+         masterPageTable->entries[index] = CurrentSystem.kernelOnlyPagingContext.masterPageTable->entries[index];
     }
 }
 
 
-void MasterPageTable::map(KernelVirtualAddress from,
+PagingContext::PagingContext(Task *task, PhysicalAddress masterPageTableAddress) :
+        task{task},
+        masterPageTableAddress{masterPageTableAddress},
+        masterPageTable{masterPageTableAddress.identityMapped().asPointer<PageTable>()} {
+}
+
+
+void PagingContext::map(KernelVirtualAddress from,
                           PhysicalAddress to,
                           Permissions permissions,
                           bool disableCache) {
-    PageTableEntry *entry = CurrentSystem.kernelOnlyMasterPageTable->walkEntries(from, MissingStrategy::CREATE);
+    PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
 
     *entry = PageTableEntry(to, permissions, false, disableCache);
@@ -72,40 +81,41 @@ void MasterPageTable::map(KernelVirtualAddress from,
 }
 
 
-PhysicalAddress MasterPageTable::resolve(KernelVirtualAddress address) {
-    return CurrentSystem.kernelOnlyMasterPageTable->walkEntries(address,
+PhysicalAddress PagingContext::resolve(KernelVirtualAddress address) {
+    return CurrentSystem.kernelOnlyPagingContext.walkEntries(address,
                                                                 MissingStrategy::NONE)->addressValue();
 }
 
 
-void MasterPageTable::unmap(KernelVirtualAddress address) {
-    PageTableEntry *entry = CurrentSystem.kernelOnlyMasterPageTable->walkEntries(address, MissingStrategy::NONE);
+void PagingContext::unmap(KernelVirtualAddress address) {
+    PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(address, MissingStrategy::NONE);
     *entry = PageTableEntry();
 }
 
 
-PhysicalAddress MasterPageTable::resolve(UserVirtualAddress address) {
+PhysicalAddress PagingContext::resolve(UserVirtualAddress address) {
     return walkEntries(address, MissingStrategy::NONE)->addressValue();
 }
 
 
-void MasterPageTable::accessRange(UserVirtualAddress address,
+void PagingContext::accessRange(UserVirtualAddress address,
                                   size_t numPages,
                                   size_t startOffset,
                                   size_t endOffset,
                                   uint8_t *buffer,
                                   AccessOperation accOp,
                                   Permissions newPagesPermissions) {
+    assert(task == nullptr || task->pagingLock.isLocked());
     assert(address.isPageAligned());
     assert(startOffset < PAGE_SIZE);
     assert(endOffset < PAGE_SIZE);
     assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
 
-    WalkData walkData(this);
+    WalkData walkData(masterPageTable);
     size_t indexes[NUM_LEVELS];
 
     for (size_t i = 0; i < NUM_LEVELS; i++) {
-        indexes[i] = indexFor(address, i);
+        indexes[i] = PageTable::indexFor(address, i);
     }
 
     size_t changedLevel = MASTER_LEVEL;
@@ -143,7 +153,7 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
         buffer += lengthInPage;
 
         changedLevel = 0;
-        while (indexes[changedLevel] == NUM_ENTRIES) {
+        while (indexes[changedLevel] == PageTable::NUM_ENTRIES) {
             assert(changedLevel < MASTER_LEVEL);
             indexes[changedLevel] = 0;
             indexes[changedLevel + 1]++;
@@ -158,14 +168,15 @@ void MasterPageTable::accessRange(UserVirtualAddress address,
 }
 
 
-void MasterPageTable::unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames) {
+void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames) {
+    assert(task == nullptr || task->pagingLock.isLocked());
     assert(address.isPageAligned());
 
-    WalkData walkData(this);
+    WalkData walkData(masterPageTable);
     size_t indexes[NUM_LEVELS];
 
     for (size_t i = 0; i < NUM_LEVELS; i++) {
-        indexes[i] = indexFor(address, i);
+        indexes[i] = PageTable::indexFor(address, i);
     }
 
     /* TODO: check for entries before the index, and unmap the table
@@ -189,7 +200,7 @@ void MasterPageTable::unmapRange(UserVirtualAddress address, size_t numPages, bo
 
         /* TODO: jumps can be made in entry == nullptr case */
         changedLevel = 0;
-        while (indexes[changedLevel] == NUM_ENTRIES) {
+        while (indexes[changedLevel] == PageTable::NUM_ENTRIES) {
             assert(changedLevel < MASTER_LEVEL);
             indexes[changedLevel] = 0;
             indexes[changedLevel + 1]++;
@@ -205,9 +216,11 @@ void MasterPageTable::unmapRange(UserVirtualAddress address, size_t numPages, bo
 
 
 
-void MasterPageTable::map(UserVirtualAddress from,
-                          PhysicalAddress to,
-                          Permissions permissions) {
+void PagingContext::map(UserVirtualAddress from,
+                        PhysicalAddress to,
+                        Permissions permissions) {
+    assert(task == nullptr || task->pagingLock.isLocked());
+
     PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
 
@@ -218,51 +231,53 @@ void MasterPageTable::map(UserVirtualAddress from,
 }
 
 
-void MasterPageTable::unmap(UserVirtualAddress address) {
+void PagingContext::unmap(UserVirtualAddress address) {
+    assert(task == nullptr || task->pagingLock.isLocked());
+
     PageTableEntry *entry = walkEntries(address, MissingStrategy::NONE);
     *entry = PageTableEntry();
 }
 
 
-bool MasterPageTable::isMapped(UserVirtualAddress address) {
+bool PagingContext::isMapped(UserVirtualAddress address) {
+    assert(task == nullptr || task->pagingLock.isLocked());
+
     PageTableEntry *entry = walkEntries(address, MissingStrategy::RETURN_NULLPTR);
     return entry != nullptr && entry->present();
 }
 
 
-void MasterPageTable::invalidateLocally(KernelVirtualAddress address) {
+void PagingContext::invalidateLocally(KernelVirtualAddress address) {
     basicInvalidate(address);
 }
 
-void MasterPageTable::invalidateLocally(UserVirtualAddress address) {
+void PagingContext::invalidateLocally(UserVirtualAddress address) {
     assert(isActive());
-    assert(this == CurrentProcessor->currentTask->masterPageTable);
-    assert(CurrentProcessor->currentTask->pagingLock.isLocked());
+    assert(task == nullptr || task->pagingLock.isLocked());
 
     basicInvalidate(address);
 }
 
-bool MasterPageTable::isActive() {
-    return CurrentProcessor->activeMasterPageTable == this;
+bool PagingContext::isActive() {
+    return CurrentProcessor->activePagingContext == this;
 }
 
 extern "C" void basicSwitchMasterPageTable(PhysicalAddress address);
 
-void MasterPageTable::activate() {
+void PagingContext::activate() {
     if (!isActive()) {
-        CurrentProcessor->activeMasterPageTable = this;
-        cout << (size_t)this << "\n";
-        basicSwitchMasterPageTable(MasterPageTable::resolve(KernelVirtualAddress(this)));
+        CurrentProcessor->activePagingContext = this;
+        basicSwitchMasterPageTable(masterPageTableAddress);
     }
 }
 
-void MasterPageTable::completelyUnmapLoaderRegion() {
+void PagingContext::completelyUnmapLoaderRegion() {
     /* this may be different on future supported platforms */
     static_assert(LoaderRegion.start == UserSpaceRegion.start
                   && LoaderRegion.length == UserSpaceRegion.length);
 
     for (size_t index = 0; index < KERNEL_ENTRIES_OFFSET; index++) {
-        PageTableEntry &entry = entries[index];
+        PageTableEntry &entry = masterPageTable->entries[index];
         if (entry.present()) {
             entry.addressValue().identityMapped().asPointer<PageTable>()->unmapEverything(MASTER_LEVEL - 1);
             CurrentSystem.memory.freePhysicalFrame(entry.addressValue());

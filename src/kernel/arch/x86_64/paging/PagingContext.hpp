@@ -1,10 +1,15 @@
-#ifndef MASTERPAGETABLE_HPP
-#define MASTERPAGETABLE_HPP
+#ifndef PAGINGCONTEXT_HPP
+#define PAGINGCONTEXT_HPP
 
 #include <paging/PageTable.hpp>
 
+class Task;
 
-class alignas(PAGE_SIZE) MasterPageTable : public PageTable {
+class PagingContext {
+public:
+    static const size_t NUM_LEVELS{4};
+    static const size_t MASTER_LEVEL{NUM_LEVELS - 1};
+
 private:
     enum class MissingStrategy {
         NONE, RETURN_NULLPTR, CREATE
@@ -12,10 +17,16 @@ private:
     struct WalkData {
         PageTable *tables[NUM_LEVELS];
 
-        WalkData(MasterPageTable *mpt) {
+        WalkData(PageTable *mpt) {
             tables[MASTER_LEVEL] = mpt;
         }
     };
+
+    Task *task;
+
+    /* physical and virtual address of the same thing */
+    PhysicalAddress masterPageTableAddress;
+    PageTable *masterPageTable;
 
     /* The partial version of this method exposes the path taken by the page walk via the walkData
      * parameter, which can be used to skip parts of the page walk on subsequent calls */
@@ -33,7 +44,8 @@ public:
     static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
     static const size_t NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
 
-    MasterPageTable();
+    PagingContext(Task *task);
+    PagingContext(Task *task, PhysicalAddress masterPageTableAddress);
 
     static void map(KernelVirtualAddress from,
                     PhysicalAddress to,
@@ -65,4 +77,4 @@ public:
     void completelyUnmapLoaderRegion();
 };
 
-#endif // MASTERPAGETABLE_HPP
+#endif // PAGINGCONTEXT_HPP

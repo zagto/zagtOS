@@ -4,13 +4,13 @@
 #include <common/common.hpp>
 #include <paging/PageTableEntry.hpp>
 
-class PageTable {
+class alignas(PAGE_SIZE) PageTable {
 public:
-    static const size_t NUM_LEVELS{4};
-    static const size_t MASTER_LEVEL{NUM_LEVELS - 1};
     static const size_t NUM_ENTRIES{PAGE_SIZE / sizeof(PageTableEntry)};
 
 protected:
+    friend class PagingContext;
+
     static const size_t TABLE_LEVEL_SHIFT = 9;
     PageTableEntry entries[NUM_ENTRIES];
 

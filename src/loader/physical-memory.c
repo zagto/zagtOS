@@ -15,6 +15,9 @@ struct FrameStack CleanFrameStack = {
     .addIndex = 0,
 };
 
+EFI_PHYSICAL_ADDRESS SecondaryProcessorEntry = 0;
+static BOOLEAN secondaryProcessorEntryFound = FALSE;
+
 EFI_PHYSICAL_ADDRESS InitPhysicalFrameManagement(struct EfiMemoryMapInfo *mapInfo,
                                                  struct InitDataInfo *initDataInfo) {
     EFI_MEMORY_DESCRIPTOR *descriptor;
@@ -44,6 +47,11 @@ EFI_PHYSICAL_ADDRESS InitPhysicalFrameManagement(struct EfiMemoryMapInfo *mapInf
         while (frameIndex < descriptor->NumberOfPages) {
             UINTN address = descriptor->PhysicalStart + frameIndex * PAGE_SIZE;
 
+            if (!secondaryProcessorEntryFound && address < 0x10000) {
+                SecondaryProcessorEntry = address;
+                secondaryProcessorEntryFound = TRUE;
+            }
+
             if (address < initDataInfo->address
              || address >= initDataInfo->address + initDataInfo->size) {
                 FrameStackPush(&DirtyFrameStack, address);
@@ -55,6 +63,11 @@ EFI_PHYSICAL_ADDRESS InitPhysicalFrameManagement(struct EfiMemoryMapInfo *mapInf
         // prepare for next round
         descriptor = EfiMemoryMapGetNextAvailableEntry(mapInfo);
         frameIndex = 0;
+    }
+
+    if (!secondaryProcessorEntryFound) {
+        Log("Unable to find frame for secondary processor entry code\n");
+        Halt();
     }
 
     CleanFrameStack.head = (struct FrameStackNode *)AllocatePhysicalFrame();

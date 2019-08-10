@@ -1,5 +1,5 @@
 #include <memory/Memory.hpp>
-#include <paging/MasterPageTable.hpp>
+#include <paging/PagingContext.hpp>
 #include <system/System.hpp>
 
 
@@ -71,7 +71,7 @@ KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
     assert(change % PAGE_SIZE == 0);
 
     for (size_t index = 0; index < change / PAGE_SIZE; index++) {
-        MasterPageTable::map(heapEnd + index * PAGE_SIZE,
+        PagingContext::map(heapEnd + index * PAGE_SIZE,
                              allocatePhysicalFrame(),
                              Permissions::WRITE,
                              false);

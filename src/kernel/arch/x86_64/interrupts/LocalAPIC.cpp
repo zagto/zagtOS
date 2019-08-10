@@ -1,7 +1,7 @@
 #include <interrupts/LocalAPIC.hpp>
 #include <memory/Memory.hpp>
 #include <system/System.hpp>
-#include <paging/MasterPageTable.hpp>
+#include <paging/PagingContext.hpp>
 
 void LocalAPIC::writeRegister(Register reg, uint32_t value) {
     *reinterpret_cast<volatile uint32_t *>(map + static_cast<size_t>(reg)) = value;
@@ -21,11 +21,11 @@ void LocalAPIC::setupMap(PhysicalAddress base) {
 
     KernelVirtualAddress mapAddress = CurrentSystem.memory.allocateVirtualArea(PAGE_SIZE,
                                                     PAGE_SIZE);
-    PhysicalAddress physical = MasterPageTable::resolve(mapAddress);
-    MasterPageTable::unmap(mapAddress);
+    PhysicalAddress physical = PagingContext::resolve(mapAddress);
+    PagingContext::unmap(mapAddress);
     CurrentSystem.memory.freePhysicalFrame(physical);
-    MasterPageTable::map(mapAddress, apicFrame, Permissions::WRITE, true);
-    MasterPageTable::invalidateLocally(mapAddress);
+    PagingContext::map(mapAddress, apicFrame, Permissions::WRITE, true);
+    PagingContext::invalidateLocally(mapAddress);
     map = mapAddress.asPointer<uint8_t>();
     cout << "mapped local APIC" << endl;
 }

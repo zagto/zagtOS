@@ -48,7 +48,7 @@ ExitFinalize:
     or rax, CR0_COPROCESSOR_MONITORING
     mov cr0, rax
     mov rax, cr4
-    or ax, CR4_OSFXSR | CR4_OSXMMEXCPT
+    or rax, CR4_OSFXSR | CR4_OSXMMEXCPT
     mov cr4, rax
 
     ; set NXE bit in EFER MSR to enable Non-Execute feature
