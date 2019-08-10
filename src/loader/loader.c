@@ -57,5 +57,5 @@ EFI_STATUS EFIAPI efi_main (EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE *systemTabl
     bootInfo = PrepareBootInfo(&initDataInfo, framebufferInfo, acpiRoot);
 
     Log("Exiting to Kernel...\n");
-    ExitToKernel(kernelEntry, PagingContext, bootInfo);
+    ExitToKernel(kernelEntry, MasterPageTable, bootInfo);
 }
