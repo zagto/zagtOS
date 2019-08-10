@@ -10,29 +10,17 @@ section .text
 
 
 basicLock:
-.retry:
-    lock bts qword [rdi],0
-    jc .retry
-    ret
-
-
-basicUnlock:
-    lock btr qword [rdi],0
-    ret
-
-
-;basicLock:
-    lock bts dword [rdi], 0
+    lock bts qword [rdi], 0
     jc .spin
     ret
 
 .spin:
     pause
-    test dword [rdi], 1
+    test qword [rdi], 1
     jnz .spin
     jmp basicLock
 
 
-;basicUnlock:
-    mov dword [rdi], 0
+basicUnlock:
+    mov qword [rdi], 0
     ret
