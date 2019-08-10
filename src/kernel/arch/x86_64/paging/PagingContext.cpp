@@ -259,7 +259,13 @@ void PagingContext::invalidateLocally(UserVirtualAddress address) {
 }
 
 bool PagingContext::isActive() {
-    return CurrentProcessor->activePagingContext == this;
+    /* Before the Procssor Object is created, there is only the "kernel-only" paging context that
+     * was actually created by the bootloader */
+    if (__builtin_expect(CurrentProcessor == nullptr, false)) {
+        return this == &CurrentSystem.kernelOnlyPagingContext;
+    } else {
+        return CurrentProcessor->activePagingContext == this;
+    }
 }
 
 extern "C" void basicSwitchMasterPageTable(PhysicalAddress address);
