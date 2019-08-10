@@ -19,13 +19,16 @@ void LocalAPIC::setupMap(PhysicalAddress base) {
     assert(base.value() / PAGE_SIZE == (base.value() + static_cast<size_t>(Register::END) - 1) / PAGE_SIZE);
     PhysicalAddress apicFrame{align(base.value(), PAGE_SIZE, AlignDirection::DOWN)};
 
-    KernelVirtualAddress mapAddress = CurrentSystem.memory.allocateVirtualArea(PAGE_SIZE,
-                                                    PAGE_SIZE);
-    PhysicalAddress physical = PagingContext::resolve(mapAddress);
-    PagingContext::unmap(mapAddress);
-    CurrentSystem.memory.freePhysicalFrame(physical);
-    PagingContext::map(mapAddress, apicFrame, Permissions::WRITE, true);
-    PagingContext::invalidateLocally(mapAddress);
+    KernelVirtualAddress mapAddress = CurrentSystem.memory.allocateVirtualArea(PAGE_SIZE, PAGE_SIZE);
+    {
+        LockHolder lh(CurrentSystem.memory.kernelPagingLock);
+
+        PhysicalAddress physical = PagingContext::resolve(mapAddress);
+        PagingContext::unmap(mapAddress);
+        CurrentSystem.memory.freePhysicalFrame(physical);
+        PagingContext::map(mapAddress, apicFrame, Permissions::WRITE, true);
+        PagingContext::invalidateLocally(mapAddress);
+    }
     map = mapAddress.asPointer<uint8_t>();
 }
 

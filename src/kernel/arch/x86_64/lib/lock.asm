@@ -8,7 +8,20 @@ global basicUnlock
 
 section .text
 
+
 basicLock:
+.retry:
+    lock bts qword [rdi],0
+    jc .retry
+    ret
+
+
+basicUnlock:
+    lock btr qword [rdi],0
+    ret
+
+
+;basicLock:
     lock bts dword [rdi], 0
     jc .spin
     ret
@@ -20,6 +33,6 @@ basicLock:
     jmp basicLock
 
 
-basicUnlock:
+;basicUnlock:
     mov dword [rdi], 0
     ret

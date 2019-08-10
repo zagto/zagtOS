@@ -27,6 +27,7 @@ extern "C" __attribute__((noreturn)) void KernelEntry(BootInfo *bootInfo) {
 
     new (&CurrentSystem) System(bootInfo);
     cout << "System Object created." << endl;
+
     CurrentSystem.addBootProcessor();
     cout << "Processor added." << endl;
 

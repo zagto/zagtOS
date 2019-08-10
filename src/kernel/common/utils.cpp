@@ -76,8 +76,8 @@ namespace std {
 
 void *operator new(size_t size, std::align_val_t align) {
     // HACK
-    size_t *align_ptr = reinterpret_cast<size_t *>(&align);
-    return CurrentSystem.memory.allocateVirtualArea(size, *align_ptr).asPointer<void>();
+    //size_t *align_ptr = reinterpret_cast<size_t *>(&align);
+    return CurrentSystem.memory.allocateVirtualArea(size, static_cast<size_t>(align)).asPointer<void>();
 }
 
 

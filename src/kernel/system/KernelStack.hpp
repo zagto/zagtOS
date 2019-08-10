@@ -2,7 +2,7 @@
 #define KERNELSTACK_HPP
 
 
-class KernelStack
+class alignas(PAGE_SIZE) KernelStack
 {
     uint8_t data[PAGE_SIZE];
 };

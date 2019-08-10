@@ -16,6 +16,7 @@ Thread::~Thread() {
     task->removeThread(this);
 }
 
+
 bool Thread::handleSyscall() {
     switch (registerState.syscallNr()) {
     case SYS_LOG: {

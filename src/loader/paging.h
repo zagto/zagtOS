@@ -17,10 +17,11 @@ void MapLoaderMemory(struct EfiMemoryMapInfo *mapInfo);
 void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo);
 void CreateIdentityMap(EFI_PHYSICAL_ADDRESS maxPhysicalAddress);
 
-void MapAddress(EFI_PHYSICAL_ADDRESS physicalAddress,
-                EFI_VIRTUAL_ADDRESS virtualAddress,
+void MapAddress(EFI_VIRTUAL_ADDRESS virtualAddress,
+                EFI_PHYSICAL_ADDRESS physicalAddress,
                 BOOLEAN writeable,
                 BOOLEAN executable,
-                BOOLEAN large);
+                BOOLEAN large,
+                BOOLEAN cacheDisable);
 
 #endif // VIRTUAL_MEMORY_H

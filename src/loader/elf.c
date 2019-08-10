@@ -68,10 +68,11 @@ UINTN LoadElfKernel(const struct ElfFileHeader *file) {
                     Halt();
                 }
 
-                MapAddress((EFI_PHYSICAL_ADDRESS)frame,
-                           segmentBase + pageIndex * PAGE_SIZE,
+                MapAddress(segmentBase + pageIndex * PAGE_SIZE,
+                           (EFI_PHYSICAL_ADDRESS)frame,
                            entry->flags & ELF_WRITEABLE,
                            entry->flags & ELF_EXECUTABLE,
+                           FALSE,
                            FALSE);
             }
         }

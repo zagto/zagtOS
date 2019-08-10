@@ -12,6 +12,7 @@ Memory::Memory(BootInfo *bootInfo) :
 }
 
 PhysicalAddress Memory::allocatePhysicalFrame() {
+    LockHolder lh(frameManagementLock);
     if (freshFrameStack.isEmpty()) {
         //Log << "Warning: fresh physical frame stack empty on alloc, trying recycle" << EndLine;
         recyclePhysicalFrame();
@@ -20,6 +21,7 @@ PhysicalAddress Memory::allocatePhysicalFrame() {
 }
 
 void Memory::freePhysicalFrame(PhysicalAddress address) {
+    LockHolder lh(frameManagementLock);
     usedFrameStack.push(address);
 }
 
@@ -69,8 +71,10 @@ Memory *Memory::instance() {
 KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
     assert(change >= 0);
     assert(change % PAGE_SIZE == 0);
+    assert(heapLock.isLocked());
 
     for (size_t index = 0; index < change / PAGE_SIZE; index++) {
+        LockHolder lh(kernelPagingLock);
         PagingContext::map(heapEnd + index * PAGE_SIZE,
                              allocatePhysicalFrame(),
                              Permissions::WRITE,

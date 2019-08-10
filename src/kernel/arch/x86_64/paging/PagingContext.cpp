@@ -73,6 +73,8 @@ void PagingContext::map(KernelVirtualAddress from,
                           PhysicalAddress to,
                           Permissions permissions,
                           bool disableCache) {
+    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
+
     PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
 
@@ -82,18 +84,24 @@ void PagingContext::map(KernelVirtualAddress from,
 
 
 PhysicalAddress PagingContext::resolve(KernelVirtualAddress address) {
+    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
+
     return CurrentSystem.kernelOnlyPagingContext.walkEntries(address,
                                                                 MissingStrategy::NONE)->addressValue();
 }
 
 
 void PagingContext::unmap(KernelVirtualAddress address) {
+    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
+
     PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(address, MissingStrategy::NONE);
     *entry = PageTableEntry();
 }
 
 
 PhysicalAddress PagingContext::resolve(UserVirtualAddress address) {
+    assert(task == nullptr || task->pagingLock.isLocked());
+
     return walkEntries(address, MissingStrategy::NONE)->addressValue();
 }
 

@@ -1,14 +1,16 @@
-#include <system/CommonSystem.hpp>
+#include <system/System.hpp>
 #include <memory/FrameStack.hpp>
 #include <paging/PagingContext.hpp>
 
 
 bool FrameStack::isEmpty() {
+    assert(CurrentSystem.memory.frameManagementLock.isLocked());
     return head->next == nullptr && addIndex == 0;
 }
 
 
 void FrameStack::push(PhysicalAddress address) {
+    assert(CurrentSystem.memory.frameManagementLock.isLocked());
     LockHolder lh(lock);
 
     if (addIndex == Node::NUM_ENTRIES) {
@@ -25,6 +27,7 @@ void FrameStack::push(PhysicalAddress address) {
 
 
 PhysicalAddress FrameStack::pop() {
+    assert(CurrentSystem.memory.frameManagementLock.isLocked());
     LockHolder lh(lock);
 
     // other CPUs might have remapped the head page

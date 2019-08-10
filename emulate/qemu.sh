@@ -7,8 +7,8 @@ qemu-system-x86_64 \
     -net none \
     -hda out/disk.img \
     -serial stdio \
-    -smp 2 \
+    -smp 16 \
     -no-reboot \
- -no-reboot -no-shutdown   -d guest_errors,cpu_reset,int \
+ -no-reboot -no-shutdown   -d guest_errors,cpu_reset \
     -s
 

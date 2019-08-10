@@ -14,13 +14,16 @@ public: /* TODO: make private */
     KernelVirtualAddress heapEnd{KernelHeapRegion.start};
     KernelVirtualAddress halfwayDeallocatedHeapEnd{KernelHeapRegion.start};
     Lock heapLock;
+    Lock frameManagementLock;
+    Lock kernelPagingLock;
+
+    void recyclePhysicalFrame();
 
 public:
     Memory(BootInfo *bootInfo);
 
     PhysicalAddress allocatePhysicalFrame();
     void freePhysicalFrame(PhysicalAddress address);
-    void recyclePhysicalFrame();
 
     KernelVirtualAddress allocateVirtualArea(size_t length, size_t align = 0);
     KernelVirtualAddress resizeVirtualArea(KernelVirtualAddress address, size_t length);

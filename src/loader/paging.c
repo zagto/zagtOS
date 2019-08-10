@@ -10,6 +10,7 @@ PageTable *MasterPageTable = NULL;
 #define PAGE_PRESENT        0x0000000000000001
 #define PAGE_WRITEABLE      0x0000000000000002
 #define PAGE_USER           0x0000000000000004
+#define PAGE_CAHCE_DISABLE  0x0000000000000010
 #define PAGE_LARGE_2MIB     0x0000000000000080
 #define PAGE_GLOBAL         0x0000000000000100
 #define PAGE_NON_EXECUTABLE 0x8000000000000000
@@ -60,6 +61,7 @@ void MapLoaderMemory(struct EfiMemoryMapInfo *mapInfo) {
                        descriptor->PhysicalStart + frameIndex * PAGE_SIZE,
                        TRUE,
                        TRUE,
+                       FALSE,
                        FALSE);
         }
     }
@@ -74,11 +76,12 @@ void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo) {
     UINTN index;
 
     for (index = 0; index < numPages; index++) {
-        MapAddress(firstAddress + index * PAGE_SIZE,
-                   FramebufferRegion.start + index * PAGE_SIZE,
+        MapAddress(FramebufferRegion.start + index * PAGE_SIZE,
+                   firstAddress + index * PAGE_SIZE,
                    TRUE,
                    FALSE,
-                   FALSE);
+                   FALSE,
+                   TRUE);
     }
 
     /* update framebuffer info to contain the "new" address, as this structure will be passed to the
@@ -90,7 +93,7 @@ void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo) {
 void CreateIdentityMap(EFI_PHYSICAL_ADDRESS maxPhysicalAddress) {
     EFI_PHYSICAL_ADDRESS addr;
     for (addr = 0; addr < maxPhysicalAddress; addr += 2 * 1024 * 1024) { /* 2MiB */
-        MapAddress(addr, addr + IDENTITY_MAPPING_BASE, TRUE, FALSE, TRUE);
+        MapAddress(addr + IDENTITY_MAPPING_BASE, addr, TRUE, FALSE, TRUE, FALSE);
     }
 }
 
@@ -105,11 +108,12 @@ static PageTableEntry *getPageTableEntry(PageTable *pageTable, UINTN virtualAddr
 }
 
 
-void MapAddress(EFI_PHYSICAL_ADDRESS physicalAddress,
-                EFI_VIRTUAL_ADDRESS virtualAddress,
+void MapAddress(EFI_VIRTUAL_ADDRESS virtualAddress,
+                EFI_PHYSICAL_ADDRESS physicalAddress,
                 BOOLEAN writeable,
                 BOOLEAN executable,
-                BOOLEAN large) {
+                BOOLEAN large,
+                BOOLEAN cacheDisable) {
     UINTN level = NUM_PAGE_TABLE_LEVELS - 1;
     PageTable *pageTable = MasterPageTable;
     PageTableEntry *entry;
@@ -153,5 +157,8 @@ void MapAddress(EFI_PHYSICAL_ADDRESS physicalAddress,
     }
     if (large) {
         *entry |= PAGE_LARGE_2MIB;
+    }
+    if (cacheDisable) {
+        *entry |= PAGE_CAHCE_DISABLE;
     }
 }

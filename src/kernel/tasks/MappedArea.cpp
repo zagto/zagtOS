@@ -63,7 +63,7 @@ void MappedArea::unmapRange(Region range) {
         task->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, true);
         break;
     case Source::PHYSICAL_MEMORY:
-        task->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, true);
+        task->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, false);
         break;
     default:
         Panic();
