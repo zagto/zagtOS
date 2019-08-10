@@ -40,8 +40,7 @@ static void createGlobalMasterPageTableEntries(void) {
 
 
 void InitPaging(void) {
-    MasterPageTable = (PageTable *)AllocatePhysicalFrame();
-    Log("Creating Master Page Table at: ");
+    Log("Master Page Table is at: ");
     LogUINTN((UINTN)MasterPageTable);
     Log("\n");
     clearPageTable(MasterPageTable);

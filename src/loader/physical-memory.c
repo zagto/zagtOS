@@ -3,6 +3,7 @@
 #include <efi-memory-map.h>
 #include <framestack.h>
 #include <physical-memory.h>
+#include <paging.h>
 
 
 struct FrameStack DirtyFrameStack = {
@@ -17,6 +18,10 @@ struct FrameStack CleanFrameStack = {
 
 EFI_PHYSICAL_ADDRESS SecondaryProcessorEntry = 0;
 static BOOLEAN secondaryProcessorEntryFound = FALSE;
+static BOOLEAN masterPageTableFound = FALSE;
+
+#define PROCESSOR_ENTRY_MAX (1ul << 16)
+#define MASTER_PAGE_TABLE_MAX_MAX (1ul << 32)
 
 EFI_PHYSICAL_ADDRESS InitPhysicalFrameManagement(struct EfiMemoryMapInfo *mapInfo,
                                                  struct InitDataInfo *initDataInfo) {
@@ -47,14 +52,22 @@ EFI_PHYSICAL_ADDRESS InitPhysicalFrameManagement(struct EfiMemoryMapInfo *mapInf
         while (frameIndex < descriptor->NumberOfPages) {
             UINTN address = descriptor->PhysicalStart + frameIndex * PAGE_SIZE;
 
-            if (!secondaryProcessorEntryFound && address < 0x10000) {
-                SecondaryProcessorEntry = address;
-                secondaryProcessorEntryFound = TRUE;
-            }
-
+            /* avoid re-using initdata memory for other stuff */
             if (address < initDataInfo->address
-             || address >= initDataInfo->address + initDataInfo->size) {
-                FrameStackPush(&DirtyFrameStack, address);
+                    || address >= initDataInfo->address + initDataInfo->size) {
+
+                /* MasterPageTable and SecondaryProcessorEntry have special physical location
+                 * requirements to be usable in the real mode entry code.
+                 * Reserve suitable frames for these */
+                if (!secondaryProcessorEntryFound && address < PROCESSOR_ENTRY_MAX) {
+                    SecondaryProcessorEntry = address;
+                    secondaryProcessorEntryFound = TRUE;
+                } else if (!masterPageTableFound && address < MASTER_PAGE_TABLE_MAX_MAX) {
+                    MasterPageTable = (PageTable *)address;
+                    masterPageTableFound = TRUE;
+                } else {
+                    FrameStackPush(&DirtyFrameStack, address);
+                }
             }
 
             frameIndex++;
