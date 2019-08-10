@@ -33,10 +33,10 @@ void Logger::flush() {
 
 Logger Logger::operator<<(char character) {
     /* On early boot there is no Processor object, write unbuffered in this case */
-    //if (CurrentProcessor == nullptr) {
+    if (CurrentProcessor == nullptr) {
         serialBackend.write(character);
         framebufferBackend.write(character);
-    /*} else {
+    } else {
         char *buffer = CurrentProcessor->logBuffer;
         size_t &index = CurrentProcessor->logBufferIndex;
 
@@ -46,7 +46,7 @@ Logger Logger::operator<<(char character) {
         if (character == '\n' || CurrentProcessor->logBufferIndex == Processor::LOG_BUFFER_SIZE) {
             flush();
         }
-    }*/
+    }
     return *this;
 }
 
