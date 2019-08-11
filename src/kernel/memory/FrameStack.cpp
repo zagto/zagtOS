@@ -39,17 +39,13 @@ PhysicalAddress FrameStack::pop() {
 
     if (addIndex == 0) {
         Node *oldHead = head;
-        cout << "Danger: returning old phyiscal head " << oldHead << endl;
-
         head = head->next;
-        cout << "New head " << head << endl;
 
         /* zero next pointer so the result page is fully zeroed in case of clean frame stack pop */
         oldHead->next = nullptr;
         addIndex = Node::NUM_ENTRIES;
 
         /* re-use old head node frame as result */
-        cout << "pop2\n";
         return PhysicalAddress::fromIdentitdyMappedPointer(oldHead);
     } else {
         addIndex--;
