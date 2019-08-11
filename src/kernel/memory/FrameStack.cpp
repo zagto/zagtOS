@@ -11,7 +11,6 @@ bool FrameStack::isEmpty() {
 
 void FrameStack::push(PhysicalAddress address) {
     assert(CurrentSystem.memory.frameManagementLock.isLocked());
-    LockHolder lh(lock);
 
     if (addIndex == Node::NUM_ENTRIES) {
         Node *oldHead = head;
@@ -28,7 +27,6 @@ void FrameStack::push(PhysicalAddress address) {
 
 PhysicalAddress FrameStack::pop() {
     assert(CurrentSystem.memory.frameManagementLock.isLocked());
-    LockHolder lh(lock);
 
     // other CPUs might have remapped the head page
     PagingContext::invalidateLocally(KernelVirtualAddress(head));

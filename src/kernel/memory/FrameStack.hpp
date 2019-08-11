@@ -18,7 +18,6 @@ namespace frameStack {
     private:
         Node *head;
         size_t addIndex;
-        Lock lock;
 
     public:
         ~FrameStack() {

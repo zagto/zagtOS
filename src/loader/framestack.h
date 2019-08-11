@@ -14,7 +14,6 @@ struct FrameStackNode {
 struct FrameStack {
     struct FrameStackNode *head;
     UINTN addIndex;
-    UINTN lock; // not used in bootloader
 };
 
 // random non-canonical address, as NULL = 0 may be a valid physical address of a node
