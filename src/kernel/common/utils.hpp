@@ -17,7 +17,7 @@ enum class Permissions {
 // used by dlmalloc
 extern "C" {
 #endif
-    void memset(void *pointer, char value, size_t len);
+    void *memset(void *pointer, int value, size_t len);
     void memcpy(void *dest, const void *src, size_t len);
     void memmove(void *dest, const void *src, size_t len);
 #ifdef __cplusplus
