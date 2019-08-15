@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+# libstdc++ has to be built in the gcc build directory, otherwise it would
+# re-build the whole compiler
+
+GCC_BUILD_DIR="$SHBUILD_ROOT/build/toolchain/system-${ARCH}/gcc"
+cd "${GCC_BUILD_DIR}"
+pwd
+make -j "$PARALLEL_JOBS" all-target-libstdc++-v3
+make install-target-libstdc++-v3
+
