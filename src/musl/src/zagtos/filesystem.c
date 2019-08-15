@@ -41,3 +41,15 @@ void zagtos_put_directory(ZDirectory *dir) {
     zagtos_put_object(dir);
     free(dir);
 }
+
+
+ZObject *zagtos_get_object_by_path(const char *path, ZDirectory *startDir) {
+    /* TODO: implement */
+    assert(0);
+}
+
+
+_Bool zagtos_add_object_to_directory(ZObjectInfo *objInfo, ZDirectory *dir, const char *name) {
+    /* TODO: implement */
+    assert(0);
+}
