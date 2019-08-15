@@ -15,7 +15,7 @@ C_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(C_SOURCES:.c=.o))
 ASM_SOURCES = $(shell find arch/$(ARCH) -type f -name '*.asm')
 ASM_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(ASM_SOURCES:.asm=.o))
 
-TARGET = $(SHBUILD_BUILD_DIR)/init
+TARGET = $(SHBUILD_BUILD_DIR)/SystemEnvironment
 
 
 COMMON_FLAGS = -O2 -fsanitize=undefined -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
