@@ -296,6 +296,12 @@ case "${host}" in
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_MATH_SUPPORT
     GLIBCXX_CHECK_STDLIB_SUPPORT
+    GCC_CHECK_TLS
+    AC_DEFINE(_GLIBCXX_USE_RANDOM_TR1)
+    AC_CHECK_FUNCS(aligned_alloc posix_memalign memalign)
+    #AC_DEFINE(_GLIBCXX_HAVE_ALIGNED_ALLOC, 1)
+    #AC_DEFINE(_GLIBCXX_HAVE_POSIX_MEMALIGN, 1)
+    #AC_DEFINE(_GLIBCXX_HAVE_MEMALIGN, 1)
     ;;
   *)
     AC_MSG_ERROR([No support for this host/target combination.])
