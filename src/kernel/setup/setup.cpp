@@ -39,27 +39,31 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
      * master page tables */
     BootInfo bootInfo = *bootInfoOld;
 
-    cout << "Setting up time..." << endl;
-    CurrentSystem.time.initialize();
+    {
+        cout << "Setting up time..." << endl;
+        CurrentSystem.time.initialize();
 
-    cout << "Creating initial task..." << endl;
+        cout << "Creating initial task..." << endl;
 
-    vector<uint8_t> initFile(bootInfo.initDataInfo.size);
-    Slice<vector, uint8_t> initSlice(&initFile);
-    memcpy(&initFile[0],
-           bootInfo.initDataInfo.address.identityMapped().asPointer<uint8_t>(),
-           bootInfo.initDataInfo.size);
-    ELF initELF(initSlice);
-    Object obj(INIT_MSG);
-    Task *newTask = new Task(initELF, Thread::Priority::FOREGROUND, obj.sizeInMemory());
-    newTask->copyToUser(newTask->runMessageAddress.value(),
-                        reinterpret_cast<uint8_t *>(&obj),
-                        obj.sizeInMemory(), true);
+        vector<uint8_t> initFile(bootInfo.initDataInfo.size);
+        Slice<vector, uint8_t> initSlice(&initFile);
+        memcpy(&initFile[0],
+               bootInfo.initDataInfo.address.identityMapped().asPointer<uint8_t>(),
+               bootInfo.initDataInfo.size);
+        ELF initELF(initSlice);
+        Object obj(INIT_MSG);
 
-    /* the ELF data is the last thing we wanted to read from loader memory */
-    //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();
+        Task *newTask = new Task(initELF, Thread::Priority::FOREGROUND, obj.sizeInMemory());
+        LockHolder lh(newTask->pagingLock);
+        newTask->copyToUser(newTask->runMessageAddress.value(),
+                            reinterpret_cast<uint8_t *>(&obj),
+                            obj.sizeInMemory(), true);
 
-    cout << "Entering first task..." << endl;
+        /* the ELF data is the last thing we wanted to read from loader memory */
+        //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();
+
+        cout << "Entering first task..." << endl;
+    }
     CurrentProcessor->interrupts.returnToUserMode();
 }
 

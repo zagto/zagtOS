@@ -19,10 +19,8 @@ void System::setupSecondaryProcessorEntry(BootInfo *bootInfo) {
     memcpy(destination, &SecondaryProcessorEntryCode, length);
 
     /* put the address the entry code is loaded to at offset 2 (immediate operand of mov) */
-    *reinterpret_cast<uint32_t *>(destination + 2) =
-            static_cast<uint32_t>(reinterpret_cast<size_t>(secondaryProcessorEntry.value()));
-
-    *reinterpret_cast<uint32_t *>(destination + mptOffset) = static_cast<uint32_t>(mptAddress);
+    memcpy(destination + 2, &mptAddress, sizeof(uint32_t));
+    memcpy(destination + mptOffset, &mptAddress, sizeof(uint32_t));
 
     /* identity-map the entry code so it continues to work when it enables paging */
     CurrentSystem.kernelOnlyPagingContext.map(UserVirtualAddress(secondaryProcessorEntry.value()),

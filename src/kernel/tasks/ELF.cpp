@@ -161,10 +161,11 @@ Permissions Segment::permissions() {
 
 void Segment::load(Task *task, UserVirtualAddress address) {
     assert(header.type == TYPE_LOAD || header.type == TYPE_TLS);
-    cout << "Loading Segment from " << (size_t)&data[0] << " to " << address.value() << ", size " << header.filesz << endl;
 
-    bool valid = task->copyToUser(address.value(), &data[0], header.filesz, false);
-    assert(valid);
+    if (header.filesz > 0) {
+        bool valid = task->copyToUser(address.value(), &data[0], header.filesz, false);
+        assert(valid);
+    }
 }
 
 UserVirtualAddress Segment::endAddress() {
