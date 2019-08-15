@@ -50,6 +50,8 @@ static const uint32_t SYS_LOG = 1,
                       SYS_GET_PHYSICAL_ADDRESS = 43,
                       SYS_IO_PORT_READ = 44,
                       SYS_IO_PORT_WRITE = 45,
-                      SYS_ADD_PROCESSOR = 46;
+                      SYS_ADD_PROCESSOR = 46,
+
+                      SYS_SPAWN_PROCESS = 50;
 
 #endif
