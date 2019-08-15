@@ -80,6 +80,51 @@ bool Thread::handleSyscall() {
         CurrentProcessor->interrupts.wakeSecondaryProcessor(hardwareID);
         return true;
     }
+    case SYS_SPAWN_PROCESS: {
+        /* TODO: permissions checking */
+        LockHolder lh(task->pagingLock);
+        size_t address = registerState.syscallParameter(0);
+        size_t length = registerState.syscallParameter(1);
+        size_t priority = registerState.syscallParameter(2);
+        size_t messageAddress = registerState.syscallParameter(3);
+
+        if (priority >= NUM_PRIORITIES) {
+            cout << "SYS_SPAWN_PROCESS: invalid priority\n";
+            return false;
+        }
+
+        vector<uint8_t> buffer(length);
+        bool valid = task->copyFromUser(&buffer[0], address, length, false);
+        if (!valid) {
+            cout << "SYS_SPAWN_PROCESS: invalid buffer\n";
+            return false;
+        }
+
+        ELF elf{Slice<vector, uint8_t>(&buffer)};
+        if (!valid) {
+            return false;
+        }
+
+        UserSpaceObject<Object, USOOperation::READ> messageHeader(messageAddress, task);
+        if (!messageHeader.valid) {
+            cout << "SYS_SPAWN_PROCESS: could not access message header\n";
+            return false;
+        }
+
+        size_t messageLength = messageHeader.object.sizeInMemory();
+        valid = task->verifyUserAccess(messageAddress, messageLength, false);
+        if (!messageHeader.valid) {
+            cout << "SYS_SPAWN_PROCESS: invalid message\n";
+            return false;
+        }
+
+        Task *newTask = new Task(elf, static_cast<Thread::Priority>(priority), messageLength);
+        newTask->copyFromOhterUserSpace(newTask->runMessageAddress.value(),
+                                        task,
+                                        messageAddress,
+                                        messageLength);
+        return true;
+    }
     default:
         return false;
     }

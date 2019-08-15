@@ -51,7 +51,10 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
            bootInfo.initDataInfo.size);
     ELF initELF(initSlice);
     Object obj(INIT_MSG);
-    new Task(initELF, Thread::Priority::FOREGROUND, &obj);
+    Task *newTask = new Task(initELF, Thread::Priority::FOREGROUND, obj.sizeInMemory());
+    newTask->copyToUser(newTask->runMessageAddress.value(),
+                        reinterpret_cast<uint8_t *>(&obj),
+                        obj.sizeInMemory(), true);
 
     /* the ELF data is the last thing we wanted to read from loader memory */
     //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();

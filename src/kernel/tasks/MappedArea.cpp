@@ -156,7 +156,8 @@ Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newI
 
     length = align(length, PAGE_SIZE, AlignDirection::UP);
 
-    size_t base = task->heapStart.value();
+    /* do not use first page to make it easiert to find null pointer dereferences */
+    size_t base = PAGE_SIZE;
 
     if (size() > 0) {
         for (size_t index = 0; index < size(); index++) {

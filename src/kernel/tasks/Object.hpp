@@ -21,6 +21,7 @@ class UUID {
 };
 
 static const UUID INIT_MSG{0x0ad8be825784530, 0x835ab01bf8435fd2};
+static const UUID DUMMY{0x22ab561ae5c44fdd, 0x9507d001c2008880};
 
 
 class ObjectInfo {
@@ -49,6 +50,8 @@ class Object {
     public:
         Object(UUID type) :
             info(random<UUID>(), type, 0) {}
+        Object() :
+            Object(DUMMY) {}
 
         size_t sizeInMemory();
 };

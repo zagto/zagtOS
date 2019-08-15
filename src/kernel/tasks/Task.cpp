@@ -6,7 +6,7 @@
 #include <tasks/Object.hpp>
 
 
-Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
+Task::Task(ELF elf, Thread::Priority initialPrioriy, size_t runMessageSize):
         mappedAreas(this) {
     LockHolder lh(pagingLock);
 
@@ -30,24 +30,15 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
         }
     }
 
-    // for now just start the heap after one empty page
-    heapStart = UserVirtualAddress(align(maxEndAddress.value(),
-                                         PAGE_SIZE,
-                                         AlignDirection::UP) + PAGE_SIZE);
-
     mappedAreas.insert(new MappedArea(this, UserStackRegion, Permissions::WRITE));
 
-    size_t objSize = runMessage->sizeInMemory();
-    assert(UserStackRegion.end() > objSize);
-    size_t objAddr = UserStackRegion.end() - objSize;
-    while (objAddr % 16) {
-        objAddr--;
+    assert(UserStackRegion.end() > runMessageSize);
+    size_t msgAddr = UserStackRegion.end() - runMessageSize;
+    while (msgAddr % 16) {
+        msgAddr--;
     }
-    assert(objAddr > UserStackRegion.start);
-
-    for (size_t address = objAddr; address + PAGE_SIZE < objAddr + objSize; address+=PAGE_SIZE) {
-        handlePageFault(UserVirtualAddress(address));
-    }
+    assert(msgAddr > UserStackRegion.start);
+    runMessageAddress = msgAddr;
 
     UserVirtualAddress masterTLSBase{0};
     size_t tlsSize{0};
@@ -70,7 +61,7 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, Object *runMessage):
     Thread *mainThread = new Thread(this,
                                     elf.entry(),
                                     initialPrioriy,
-                                    objAddr,
+                                    msgAddr,
                                     tlsBase,
                                     masterTLSBase,
                                     tlsSize);

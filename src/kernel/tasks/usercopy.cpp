@@ -77,3 +77,20 @@ bool Task::verifyUserAccess(size_t address, size_t length, bool requireWritePerm
                            PagingContext::AccessOperation::VERIFY_ONLY,
                            requireWritePermissions);
 }
+
+bool Task::copyFromOhterUserSpace(size_t destinationAddress,
+                                  Task *sourceTask,
+                                  size_t sourceAddress,
+                                  size_t length) {
+    /* TODO: implement this without immideate buffer */
+    vector<uint8_t> buffer(length);
+    bool valid;
+
+    valid = sourceTask->copyFromUser(&buffer[0], sourceAddress, length, false);
+    if (!valid) {
+        return false;
+    }
+
+    valid = copyToUser(destinationAddress, &buffer[0], length, true);
+    return valid;
+}

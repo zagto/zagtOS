@@ -30,9 +30,9 @@ public:
     Lock pagingLock;
     Lock threadsLock;
     PagingContext *masterPageTable;
-    UserVirtualAddress heapStart;
+    UserVirtualAddress runMessageAddress;
 
-    Task(ELF elf, Thread::Priority initialPrioriy, Object *message);
+    Task(ELF elf, Thread::Priority initialPrioriy, size_t messageSize);
     void activate();
     PhysicalAddress allocateFrame(UserVirtualAddress address,
                                   Permissions permissions);
@@ -40,6 +40,10 @@ public:
     bool handlePageFault(UserVirtualAddress address);
     void removeThread(Thread *thread);
 
+    bool copyFromOhterUserSpace(size_t destinationAddress,
+                                Task *sourceTask,
+                                size_t sourceAddress,
+                                size_t length);
     bool copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions);
     bool copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
     bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
