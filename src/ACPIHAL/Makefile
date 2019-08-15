@@ -9,7 +9,7 @@ C_HEADERS = $(shell find -L . -type f -name '*.h' -not -path './acpica/*')
 C_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(C_SOURCES:.c=.o))
 
 
-TARGET = $(SHBUILD_BUILD_DIR)/acpi
+TARGET = $(SHBUILD_BUILD_DIR)/ACPIHAL
 
 
 COMMON_FLAGS = -O2 -Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter -Wno-error=format-truncation -Wno-error=format -I$(PWD) -I$(PWD)/selection/include
