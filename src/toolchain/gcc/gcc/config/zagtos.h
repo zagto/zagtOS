@@ -33,3 +33,7 @@
 
 #undef LINK_SPEC
 #define LINK_SPEC "-z max-page-size=0x1000"
+
+#undef NO_IMPLICIT_EXTERN_C
+#define NO_IMPLICIT_EXTERN_C 1
+
