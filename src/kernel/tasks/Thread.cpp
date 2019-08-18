@@ -50,6 +50,8 @@ bool Thread::handleSyscall() {
         return true;
     case SYS_RANDOM:
         // todo: should write to memory here
+        // 0 = pointer,
+        // 1 = length
         return true;
 
     case SYS_MMAP: {
@@ -88,41 +90,49 @@ bool Thread::handleSyscall() {
         size_t priority = registerState.syscallParameter(2);
         size_t messageAddress = registerState.syscallParameter(3);
 
+        /* make all the returns in the error handlers return 0 */
+        registerState.setSyscallResult(0);
+
         if (priority >= NUM_PRIORITIES) {
             cout << "SYS_SPAWN_PROCESS: invalid priority\n";
-            return false;
+            return true;
         }
 
         vector<uint8_t> buffer(length);
         bool valid = task->copyFromUser(&buffer[0], address, length, false);
         if (!valid) {
             cout << "SYS_SPAWN_PROCESS: invalid buffer\n";
-            return false;
+            return true;
         }
 
         ELF elf{Slice<vector, uint8_t>(&buffer)};
         if (!valid) {
-            return false;
+            return true;
         }
 
         UserSpaceObject<Object, USOOperation::READ> messageHeader(messageAddress, task);
         if (!messageHeader.valid) {
             cout << "SYS_SPAWN_PROCESS: could not access message header\n";
-            return false;
+            return true;
         }
 
         size_t messageLength = messageHeader.object.sizeInMemory();
         valid = task->verifyUserAccess(messageAddress, messageLength, false);
-        if (!messageHeader.valid) {
+        if (!valid) {
             cout << "SYS_SPAWN_PROCESS: invalid message\n";
-            return false;
+            return true;
         }
 
         Task *newTask = new Task(elf, static_cast<Thread::Priority>(priority), messageLength);
-        newTask->copyFromOhterUserSpace(newTask->runMessageAddress.value(),
-                                        task,
-                                        messageAddress,
-                                        messageLength);
+        LockHolder lh2(newTask->pagingLock);
+        valid = newTask->copyFromOhterUserSpace(newTask->runMessageAddress.value(),
+                                               task,
+                                               messageAddress,
+                                               messageLength);
+        /* the checks before should have caught everything */
+        assert(valid);
+
+        registerState.setSyscallResult(1);
         return true;
     }
     default:
