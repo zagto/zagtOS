@@ -4,7 +4,6 @@
 #include <lib/vector.hpp>
 #include <tasks/Task.hpp>
 #include <tasks/ELF.hpp>
-#include <tasks/Object.hpp>
 
 
 extern "C" void _init();

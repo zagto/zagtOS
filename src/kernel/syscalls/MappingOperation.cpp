@@ -1,7 +1,6 @@
-#include <tasks/Object.hpp>
 #include <tasks/Task.hpp>
-#include <tasks/MappingOperation.hpp>
-#include <tasks/ErrorCodes.hpp>
+#include <syscalls/MappingOperation.hpp>
+#include <syscalls/ErrorCodes.hpp>
 
 
 static const int32_t PROTECTION_READ = 1,

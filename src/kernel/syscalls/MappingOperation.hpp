@@ -2,7 +2,7 @@
 #define MAPPINGOPERATION_HPP
 
 #include <common/common.hpp>
-#include <tasks/Object.hpp>
+#include <tasks/UUID.hpp>
 
 class Task;
 
