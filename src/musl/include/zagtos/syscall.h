@@ -4,27 +4,26 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 size_t zagtos_syscall();
-#define zagtos_uuid_syscall_1_0(call, uuid) zagtos_syscall(call, \
-    uuid.data[0] >> 32, \
-    uuid.data[0] & 0xffffffff, \
-    uuid.data[1] >> 32, \
-    uuid.data[1] & 0xffffffff)
 
-#define zagtos_uuid_syscall_1_1(call, uuid, p1) zagtos_syscall(call, \
-    uuid.data[0] >> 32, \
-    uuid.data[0] & 0xffffffff, \
-    uuid.data[1] >> 32, \
-    uuid.data[1] & 0xffffffff, \
-    p1 )
-
+size_t zagtos_syscall0(size_t call);
+size_t zagtos_syscall1(size_t call, size_t a);
+size_t zagtos_syscall2(size_t call, size_t a, size_t b);
+size_t zagtos_syscall3(size_t call, size_t a, size_t b, size_t c);
+size_t zagtos_syscall4(size_t call, size_t a, size_t b, size_t c, size_t d);
+size_t zagtos_syscall5(size_t call, size_t a, size_t b, size_t c, size_t d, size_t e);
 
 static const uint32_t SYS_LOG = 1,
                       SYS_EXIT = 2,
                       SYS_SEND_MESSAGE = 3,
                       SYS_WAIT_MESSAGE = 4,
                       SYS_CREATE_PORT = 5,
-                      SYS_RANDOM = 6,
+                      SYS_DESTROY_PORT = 6,
+                      SYS_RANDOM = 7,
 
                       SYS_MPROTECT = 10,
                       SYS_MMAP = 11,
@@ -53,5 +52,9 @@ static const uint32_t SYS_LOG = 1,
                       SYS_ADD_PROCESSOR = 46,
 
                       SYS_SPAWN_PROCESS = 50;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

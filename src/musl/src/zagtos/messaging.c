@@ -2,7 +2,7 @@
 #include <zagtos/syscall.h>
 
 _Bool zagtos_send_message(ZUUID target_port, void *obj) {
-    return zagtos_uuid_syscall_1_1(SYS_SEND_MESSAGE, target_port, obj);
+    return zagtos_syscall(SYS_SEND_MESSAGE, target_port, obj);
 }
 
 ZMessagePort zagtos_create_port(ZUUID allowed_type, ZUUID allowed_sender_tag) {
@@ -19,4 +19,8 @@ ZMessagePort zagtos_create_port(ZUUID allowed_type, ZUUID allowed_sender_tag) {
     call_data.result = &msg_port.uuid;
     zagtos_syscall(SYS_CREATE_PORT, &call_data);
     return msg_port;
+}
+
+_Bool zagtos_spawn_process(void *image, size_t image_size, ZObject *run_message) {
+    return zagtos_syscall(SYS_SPAWN_PROCESS, image, image_size, run_message);
 }

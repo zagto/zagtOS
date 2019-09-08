@@ -7,7 +7,7 @@ uintptr_t __stack_chk_guard;
 
 void __init_ssp(void)
 {
-    zagtos_syscall(SYS_RANDOM, sizeof(uintptr_t), &__stack_chk_guard);
+    zagtos_syscall(SYS_RANDOM, &__stack_chk_guard, sizeof(uintptr_t));
     pthread_self()->CANARY = __stack_chk_guard;
 }
 

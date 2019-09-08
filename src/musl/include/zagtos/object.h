@@ -1,7 +1,14 @@
 #ifndef __ZAGTOS_OBJECT_H
 #define __ZAGTOS_OBJECT_H
 
+
 #include <zagtos/uuid.h>
+
+#ifdef __cplusplus
+extern "C" {
+#define _Bool bool
+#endif
+
 
 typedef struct {
     ZUUID id;
@@ -29,8 +36,14 @@ void zagtos_put_object_info(ZObjectInfo *objectInfo);
 _Bool zagtos_is_object_writeable(ZObject *obj);
 
 static const ZUUID TYPE_UNSPECIFIED = {0x325e9ab697554342, 0xbb66d89312760893};
+static const ZUUID LOCAL_ENVIRONMENT = {0x285369eae4c54140, 0xba71a0892ae054d2};
 
 static const ZUUID UNREFERENCE_OBJECT_MSG = {0x2450a77820074f68, 0xaee088284f01857c};
 
+
+#ifdef __cplusplus
+#undef _Bool
+}
+#endif
 
 #endif // OBJECT_H

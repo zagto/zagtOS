@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+/* TODO: this file should be deleted and uuid/uuid.h should be used */
+
 typedef struct {
     uint64_t data[2];
 } ZUUID;
