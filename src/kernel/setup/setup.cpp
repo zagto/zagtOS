@@ -82,4 +82,3 @@ __attribute__((noreturn)) void KernelEntrySecondaryProcessor2(BootInfo *) {
     cout << "started processor " << (CurrentSystem.processors.size() - 1) << endl;
     CurrentProcessor->interrupts.returnToUserMode();
 }
-

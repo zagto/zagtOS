@@ -3,10 +3,9 @@
 #include <memory/PlatformRegions.hpp>
 #include <tasks/Task.hpp>
 #include <tasks/MappedArea.hpp>
-#include <tasks/Object.hpp>
 
 
-Task::Task(ELF elf, Thread::Priority initialPrioriy, size_t runMessageSize):
+Task::Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t runMessageSize):
         mappedAreas(this) {
     LockHolder lh(pagingLock);
 
@@ -103,4 +102,15 @@ bool Task::handlePageFault(UserVirtualAddress address) {
 
 void Task::removeThread(Thread *thread) {
     threads.remove(thread);
+}
+
+bool Task::receiveMessage(void *data, size_t size) {
+    assert(pagingLock.isLocked());
+
+    bool valid;
+    size_t index;
+    Region region = mappedAreas.findFreeRegion(size, valid, index);
+    if (!valid) {
+        return false;
+    }
 }

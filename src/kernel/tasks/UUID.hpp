@@ -8,6 +8,7 @@ private:
     uint8_t data[16];
 
 public:
+    UUID(uint8_t id[]);
     UUID();
 };
 

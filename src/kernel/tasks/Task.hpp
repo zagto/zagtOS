@@ -8,8 +8,7 @@
 #include <tasks/Thread.hpp>
 #include <tasks/MappedArea.hpp>
 #include <paging/PageTableEntry.hpp>
-
-class Object;
+#include <tasks/UUID.hpp>
 
 class Task {
 private:
@@ -32,7 +31,7 @@ public:
     PagingContext *masterPageTable;
     UserVirtualAddress runMessageAddress;
 
-    Task(ELF elf, Thread::Priority initialPrioriy, size_t messageSize);
+    Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t messageSiz);
     void activate();
     PhysicalAddress allocateFrame(UserVirtualAddress address,
                                   Permissions permissions);
@@ -47,6 +46,7 @@ public:
     bool copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions);
     bool copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
     bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
+    void receiveMessage(void *data, size_t size);
 };
 
 #endif // TASK_HPP

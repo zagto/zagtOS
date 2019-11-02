@@ -17,7 +17,7 @@ struct SpawnProcessArgs {
 
     MessageType messageType;
     size_t messageSize;
-    const unsigned char *messageData;
+    const unsigned char *messageAddress;
 
     uuid_t result;
 };

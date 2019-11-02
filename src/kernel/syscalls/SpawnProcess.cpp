@@ -15,6 +15,7 @@ bool SpawnProcess::perform(Task &task) {
         return true;
     }
 
+    /* TODO: handle out of memory */
     vector<uint8_t> buffer(length);
     bool valid = task.copyFromUser(&buffer[0], address, length, false);
     if (!valid) {
@@ -24,12 +25,6 @@ bool SpawnProcess::perform(Task &task) {
 
     ELF elf{Slice<vector, uint8_t>(&buffer)};
     if (!valid) {
-        return true;
-    }
-
-    UserSpaceObject<Object, USOOperation::READ> messageHeader(messageAddress, task);
-    if (!messageHeader.valid) {
-        cout << "SYS_SPAWN_PROCESS: could not access message header\n";
         return true;
     }
 
