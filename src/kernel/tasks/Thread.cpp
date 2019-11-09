@@ -9,5 +9,6 @@ Thread::~Thread() {
     assert(task);
 
     CurrentProcessor->scheduler.remove(this);
+    cout << "removed from scheduler" << endl;
     task->removeThread(this);
 }

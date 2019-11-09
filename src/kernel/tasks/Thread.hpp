@@ -6,6 +6,7 @@
 class Processor;
 class Scheduler;
 class Task;
+class Port;
 
 static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
 
@@ -18,9 +19,9 @@ protected:
 
 public:
     enum Priority {
-        IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_BACKGROUND, INTERACTIVE_FOREGROUND
+        IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND
     };
-    static const size_t NUM_PRIORITIES = 5;
+    static const size_t NUM_PRIORITIES = 4;
 
 public:
     RegisterState registerState;

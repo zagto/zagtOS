@@ -9,6 +9,7 @@
 #include <tasks/MappedArea.hpp>
 #include <paging/PageTableEntry.hpp>
 #include <tasks/UUID.hpp>
+#include <tasks/Message.hpp>
 
 class Task {
 private:
@@ -17,7 +18,11 @@ private:
     friend class MMap;
     friend class MUnmap;
     vector<Thread *>threads;
+    vector<Port *>ports;
     MappedAreaVector mappedAreas;
+
+    vector<uint32_t> canUseTags;
+    vector<uint32_t> ownTags;
 
     bool accessUserSpace(uint8_t *buffer,
                          size_t start,
@@ -28,10 +33,11 @@ private:
 public:
     Lock pagingLock;
     Lock threadsLock;
+    Lock portsLock;
     PagingContext *masterPageTable;
-    UserVirtualAddress runMessageAddress;
+    Region runMessageRegion;
 
-    Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t messageSiz);
+    Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t messageSize);
     void activate();
     PhysicalAddress allocateFrame(UserVirtualAddress address,
                                   Permissions permissions);
@@ -42,11 +48,14 @@ public:
     bool copyFromOhterUserSpace(size_t destinationAddress,
                                 Task *sourceTask,
                                 size_t sourceAddress,
-                                size_t length);
+                                size_t length,
+                                bool requireWriteAccessToDestination);
     bool copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions);
     bool copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
     bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
-    void receiveMessage(void *data, size_t size);
+
+    //void receiveMessage(Message *msg);
+    size_t runMessageAddress();
 };
 
 #endif // TASK_HPP

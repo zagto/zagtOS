@@ -12,12 +12,8 @@ private:
     size_t length;
     size_t priority;
 
-    const UUID *canUse;
+    const uint32_t *canUse;
     size_t numCanUse;
-    const UUID *askUse;
-    size_t numAskUse;
-    const UUID *canProvide;
-    size_t numCanProvide;
 
     UUID messageType;
     size_t messageSize;

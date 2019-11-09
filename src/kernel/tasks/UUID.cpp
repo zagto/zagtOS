@@ -1,7 +1,7 @@
 #include <common/common.hpp>
 #include <tasks/UUID.hpp>
 
-UUID::UUID(uint8_t id[16]) {
+UUID::UUID(const uint8_t id[16]) {
     memcpy(data, id, 16);
 }
 

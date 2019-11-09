@@ -1,4 +1,5 @@
 #include <tasks/Scheduler.hpp>
+#include <system/System.hpp>
 #include <interrupts/util.hpp>
 
 
@@ -33,6 +34,7 @@ void Scheduler::add(Thread *thread) {
 void Scheduler::remove(Thread *thread) {
     if (thread == _currentThread) {
         _currentThread = nullptr;
+        thread->currentProcessor = nullptr;
         scheduleNext();
     } else {
         threads[thread->currentPriority].remove(thread);
@@ -45,6 +47,7 @@ void Scheduler::scheduleNext() {
     for (ssize_t prio = Thread::NUM_PRIORITIES; prio >= 0; prio--) {
         if (!threads[prio].isEmpty()) {
             _currentThread = threads[prio].popFront();
+            _currentThread->currentProcessor = CurrentProcessor;
             return;
         }
     }

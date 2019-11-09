@@ -3,6 +3,7 @@
 #include <memory/UserSpaceObject.hpp>
 #include <system/System.hpp>
 #include <tasks/Thread.hpp>
+#include <tasks/Port.hpp>
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <syscalls/SyscallNumbers.hpp>
@@ -37,8 +38,49 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_EXIT:
+        cout << "Thread Exit" << endl;
         delete this;
         return true;
+    case SYS_CREATE_PORT: {
+        LockHolder lh(task->pagingLock);
+        LockHolder lh2(task->portsLock);
+        size_t tagsAddress = registerState.syscallParameter(0);
+        size_t numTags = registerState.syscallParameter(1);
+
+        vector<uint32_t> acceptedTags(numTags);
+        if (numTags > 0) {
+            bool valid = task->copyFromUser(reinterpret_cast<uint8_t *>(acceptedTags.data()),
+                                            tagsAddress,
+                                            numTags * sizeof(uint32_t),
+                                            false);
+            if (!valid) {
+                return false;
+            }
+        }
+
+        task->ports.push_back(new Port(acceptedTags));
+        registerState.setSyscallResult(task->ports[task->ports.size() - 1]->id());
+        cout << "created port " << task->ports[task->ports.size() - 1]->id() << endl;
+        return true;
+    }
+    case SYS_DESTROY_PORT: {
+        LockHolder lh(task->portsLock);
+        uint32_t id = static_cast<uint32_t>(registerState.syscallParameter(0));
+
+        cout << "deleting port " << id << endl;
+
+        for (size_t i = 0; i < task->ports.size(); i++) {
+            Port *port = task->ports[i];
+            if (port->id() == id) {
+                task->ports.remove(port);
+                cout << "success" << endl;
+                delete port;
+                return true;
+            }
+        }
+        cout << "not found" << endl;
+        return false;
+    }
     case SYS_RANDOM:
         // todo: should write to memory here
         // 0 = pointer,

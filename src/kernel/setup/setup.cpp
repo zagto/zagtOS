@@ -50,13 +50,13 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
                bootInfo.initDataInfo.address.identityMapped().asPointer<uint8_t>(),
                bootInfo.initDataInfo.size);
         ELF initELF(initSlice);
-        Object obj(INIT_MSG);
 
-        Task *newTask = new Task(initELF, Thread::Priority::FOREGROUND, obj.sizeInMemory());
+        const uint8_t uuidData[] = {0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
+                                           0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55};
+        const UUID beInitMessage(uuidData);
+
+        Task *newTask = new Task(initELF, Thread::Priority::FOREGROUND, beInitMessage, 0);
         LockHolder lh(newTask->pagingLock);
-        newTask->copyToUser(newTask->runMessageAddress.value(),
-                            reinterpret_cast<uint8_t *>(&obj),
-                            obj.sizeInMemory(), true);
 
         /* the ELF data is the last thing we wanted to read from loader memory */
         //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();

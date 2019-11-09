@@ -15,6 +15,7 @@ int main() {
     std::cout << "Starting HAL..." << std::endl;
 
     Port port;
-    environmentSpawn(ACPIHAL, {port.selfProtocol()}, {}, {}, StartHALMessage, zbon::encode(std::make_tuple(port.selfProtocol())));
+    //environmentSpawn(ACPIHAL, {port.selfTag()}, StartHALMessage, zbon::encode(std::make_tuple(port.selfTag())));
+    environmentSpawn(ACPIHAL, Priority::BACKGROUND, {port.selfTag()}, StartHALMessage, zbon::encode(port.selfTag()));
     //StartHALResponse response = port.receiveMessage(msg);
 }

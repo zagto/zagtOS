@@ -25,6 +25,7 @@ bool SpawnProcess::perform(Task &task) {
 
     ELF elf{Slice<vector, uint8_t>(&buffer)};
     if (!valid) {
+        cout << "SYS_SPAWN_PROCESS: invalid ELF\n";
         return true;
     }
 
@@ -34,12 +35,16 @@ bool SpawnProcess::perform(Task &task) {
         return true;
     }
 
-    Task *newTask = new Task(elf, static_cast<Thread::Priority>(priority), messageSize);
+    Task *newTask = new Task(elf,
+                             static_cast<Thread::Priority>(priority),
+                             messageType,
+                             messageSize);
     LockHolder lh2(newTask->pagingLock);
-    valid = newTask->copyFromOhterUserSpace(newTask->runMessageAddress.value(),
-                                           &task,
-                                           messageAddress,
-                                           messageSize);
+    valid = newTask->copyFromOhterUserSpace(newTask->runMessageAddress(),
+                                            &task,
+                                            messageAddress,
+                                            messageSize,
+                                            false);
     /* the checks before should have caught everything */
     assert(valid);
 

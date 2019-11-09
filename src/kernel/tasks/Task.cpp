@@ -31,14 +31,6 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t ru
 
     mappedAreas.insert(new MappedArea(this, UserStackRegion, Permissions::WRITE));
 
-    assert(UserStackRegion.end() > runMessageSize);
-    size_t msgAddr = UserStackRegion.end() - runMessageSize;
-    while (msgAddr % 16) {
-        msgAddr--;
-    }
-    assert(msgAddr > UserStackRegion.start);
-    runMessageAddress = msgAddr;
-
     UserVirtualAddress masterTLSBase{0};
     size_t tlsSize{0};
     if (elf.hasTLS()) {
@@ -57,10 +49,26 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t ru
         elf.tlsSegment().load(this, tlsBase);
     }
 
+    /* The run message type UUID needs to be passed along with the run message, so for our purposes
+     * the required size is the combined size of both. */
+    runMessageSize += sizeof(UUID);
+
+    MappedArea *runMessageArea = mappedAreas.addNew(runMessageSize, Permissions::NONE);
+    if (runMessageArea == nullptr) {
+        cout << "TODO: decide what should happen here (huge run message -> kill task?)" << endl;
+        Panic();
+    }
+
+    runMessageRegion = runMessageArea->region;
+    copyToUser(runMessageRegion.start,
+               reinterpret_cast<uint8_t *>(&messageType),
+               sizeof(UUID),
+               false);
+
     Thread *mainThread = new Thread(this,
                                     elf.entry(),
                                     initialPrioriy,
-                                    msgAddr,
+                                    runMessageRegion.start,
                                     tlsBase,
                                     masterTLSBase,
                                     tlsSize);
@@ -101,10 +109,12 @@ bool Task::handlePageFault(UserVirtualAddress address) {
 }
 
 void Task::removeThread(Thread *thread) {
+    cout << "removing thread from task" << endl;
     threads.remove(thread);
+    cout << "done" << endl;
 }
 
-bool Task::receiveMessage(void *data, size_t size) {
+/*bool Task::receiveMessage(Message *msg) {
     assert(pagingLock.isLocked());
 
     bool valid;
@@ -113,4 +123,8 @@ bool Task::receiveMessage(void *data, size_t size) {
     if (!valid) {
         return false;
     }
+}*/
+
+size_t Task::runMessageAddress() {
+    return runMessageRegion.start + sizeof(UUID);
 }

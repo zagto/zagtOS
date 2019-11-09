@@ -9,6 +9,7 @@
 #include <common/globalregisters.hpp>
 #include <time/Time.hpp>
 #include <paging/PagingContext.hpp>
+#include <tasks/TagManager.hpp>
 
 
 class CommonSystem {
@@ -19,6 +20,7 @@ public:
     PagingContext kernelOnlyPagingContext;
     vector<Processor *> processors;
     Lock processorsLock;
+    TagManager tagManager;
 
     CommonSystem(BootInfo *bootInfo) :
         memory(bootInfo),
