@@ -7,12 +7,12 @@
 
 template<typename ElementType> class vector {
 protected:
-    ElementType *data{nullptr};
+    ElementType *_data{nullptr};
     size_t numElements;
     size_t numAllocated;
 
     void updateAllocatedSize() {
-        data = Memory::instance()->resizeVirtualArea(KernelVirtualAddress(data),
+        _data = Memory::instance()->resizeVirtualArea(KernelVirtualAddress(_data),
                                                      numAllocated * sizeof(ElementType)).asPointer<ElementType>();
     }
 
@@ -21,19 +21,19 @@ public:
             numElements{numElements},
             numAllocated{numElements}  {
 
-        data = Memory::instance()->allocateVirtualArea(
+        _data = Memory::instance()->allocateVirtualArea(
                     sizeof(ElementType) * numAllocated).asPointer<ElementType>();
     }
 
     ~vector() {
         for (size_t i = 0; i < numElements; i++) {
-            data[i].~ElementType();
+            _data[i].~ElementType();
         }
     }
 
     ElementType &operator[](size_t index) {
         assert(index < numElements);
-        return data[index];
+        return _data[index];
     }
 
     size_t size() {
@@ -46,7 +46,7 @@ public:
         }
         updateAllocatedSize();
 
-        data[numElements] = element;
+        _data[numElements] = element;
         numElements++;
     }
 
@@ -57,16 +57,16 @@ public:
         updateAllocatedSize();
 
         assert(index <= numElements);
-        memmove(&data[index+1], &data[index], (numElements - index) * sizeof(ElementType));
+        memmove(&_data[index+1], &_data[index], (numElements - index) * sizeof(ElementType));
 
-        data[index] = element;
+        _data[index] = element;
         numElements++;
     }
 
     void remove(ElementType element) {
         size_t index;
         for (index = 0; index < numElements; index++) {
-            if (data[index] == element) {
+            if (_data[index] == element) {
                 break;
             }
         }
@@ -77,7 +77,11 @@ public:
         }
 
         numElements--;
-        memmove(&data[index], &data[index+1], (numElements - index) * sizeof(ElementType));
+        memmove(&_data[index], &_data[index+1], (numElements - index) * sizeof(ElementType));
+    }
+
+    ElementType *data() {
+        return _data;
     }
 };
 

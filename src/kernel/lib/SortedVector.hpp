@@ -11,7 +11,7 @@ protected:
         size_t high = this->numElements;
         while (low < high) {
             size_t index = low + (high - low) / 2;
-            if (Comperator(element, this->data[index])) {
+            if (Comperator(element, this->_data[index])) {
                 /* go left */
                 high = index;
             } else {

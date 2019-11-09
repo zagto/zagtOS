@@ -99,15 +99,15 @@ bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress addres
     size_t high = size() - 1;
     while (low < high) {
         size_t index = low + (high - low) / 2;
-        if (address.isInRegion(data[index]->region)) {
+        if (address.isInRegion(_data[index]->region)) {
             resultIndex = index;
             freeLength = 0;
             return true;
         }
-        if (address.value() < data[index]->region.start) {
+        if (address.value() < _data[index]->region.start) {
             if (index == low) {
                 resultIndex = index;
-                freeLength = data[index]->region.start - address.value();
+                freeLength = _data[index]->region.start - address.value();
                 return false;
             }
             high = index - 1;
@@ -116,21 +116,21 @@ bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress addres
         }
     }
     assert(low == high);
-    assert(data[low] != nullptr);
-    if (address.isInRegion(data[low]->region)) {
+    assert(_data[low] != nullptr);
+    if (address.isInRegion(_data[low]->region)) {
         resultIndex = low;
         freeLength = 0;
         return true;
     } else {
-        if (address.value() < data[low]->region.start) {
+        if (address.value() < _data[low]->region.start) {
             resultIndex = low;
-            freeLength = data[low]->region.start - address.value();
+            freeLength = _data[low]->region.start - address.value();
         } else {
             resultIndex = low + 1;
             if (low == size() - 1) {
                 freeLength = UserSpaceRegion.end() - address.value();
             } else {
-                freeLength = data[low+1]->region.start - address.value();
+                freeLength = _data[low+1]->region.start - address.value();
             }
         }
         return false;
@@ -142,7 +142,7 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
     bool mapped = findMappedAreaIndexOrFreeLength(address, index, unused);
 
     if (mapped) {
-        return data[index];
+        return _data[index];
     } else {
         return nullptr;
     }
@@ -165,13 +165,13 @@ Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newI
             if (index == size()) {
                 nextStart = UserSpaceRegion.end();
             } else {
-                nextStart = data[index + 1]->region.start;
+                nextStart = _data[index + 1]->region.start;
             }
             if (nextStart > UserSpaceRegion.end()) {
                 nextStart = UserSpaceRegion.end();
             }
 
-            size_t areaEnd = data[index]->region.end();
+            size_t areaEnd = _data[index]->region.end();
             assert(nextStart >= areaEnd);
             assert(areaEnd <= UserSpaceRegion.end());
 
@@ -233,33 +233,33 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
     assert(index < numElements);
     assert(removeRegion.isPageAligned());
     /* removeRange has to be fully inside the element's region */
-    assert(removeRegion.start > data[index]->region.start);
-    assert(removeRegion.end() > data[index]->region.start);
-    assert(removeRegion.start < data[index]->region.end());
-    assert(removeRegion.end() < data[index]->region.end());
+    assert(removeRegion.start > _data[index]->region.start);
+    assert(removeRegion.end() > _data[index]->region.start);
+    assert(removeRegion.start < _data[index]->region.end());
+    assert(removeRegion.end() < _data[index]->region.end());
 
     size_t numMove = numElements - index - 1;
 
     numElements += numAddBetween + 1;
     updateAllocatedSize();
 
-    memmove(&data[index + numAddBetween + 2],
-            &data[index + 1],
+    memmove(&_data[index + numAddBetween + 2],
+            &_data[index + 1],
             numMove * sizeof(MappedArea *));
 
-    MappedArea &oldElement = *data[index];
+    MappedArea &oldElement = *_data[index];
     oldElement.unmapRange(removeRegion);
 
     size_t newElementIndex = index + numAddBetween + 1;
     Region newElementRegion(removeRegion.end(), oldElement.region.end() - removeRegion.end());
-    data[newElementIndex] = new MappedArea(task, newElementRegion, oldElement.permissions);
+    _data[newElementIndex] = new MappedArea(task, newElementRegion, oldElement.permissions);
 
     /* oldElement will still be responsible for the first part */
     oldElement.region.length -= removeRegion.start - oldElement.region.end();
     assert(oldElement.region.end() == removeRegion.start);
 
     for (size_t i = index + 1; i < newElementIndex; i++) {
-        data[i] = nullptr;
+        _data[i] = nullptr;
     }
 }
 
@@ -275,7 +275,7 @@ size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
     if (!isRegionFree(range, index)) {
         assert(index < numElements);
 
-        MappedArea &firstMA = *data[index];
+        MappedArea &firstMA = *_data[index];
 
         if (firstMA.region.start < range.start) {
             /* first area overlaps the start of range to unmap */
@@ -296,16 +296,16 @@ size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
     }
     size_t endIndex = index;
 
-    while (endIndex < numElements && data[endIndex]->region.end() <= range.end()) {
-        delete data[endIndex];
-        data[endIndex] = nullptr;
+    while (endIndex < numElements && _data[endIndex]->region.end() <= range.end()) {
+        delete _data[endIndex];
+        _data[endIndex] = nullptr;
 
         endIndex++;
     }
 
-    if (endIndex < numElements && data[endIndex]->region.start < range.end()) {
+    if (endIndex < numElements && _data[endIndex]->region.start < range.end()) {
         /* MappedArea at endIndex is partially in range */
-        data[endIndex]->shrinkFront(range.end() - data[endIndex]->region.start);
+        _data[endIndex]->shrinkFront(range.end() - _data[endIndex]->region.start);
     }
 
     size_t numMove = numElements - endIndex;
@@ -314,13 +314,13 @@ size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
     if (numAddInstead > endIndex - index) {
         updateAllocatedSize();
     }
-    memmove(&data[index + numAddInstead],
-            &data[endIndex],
+    memmove(&_data[index + numAddInstead],
+            &_data[endIndex],
             numMove * sizeof(MappedArea *));
     updateAllocatedSize();
 
     for (size_t i = index; i < index + numAddInstead; i++) {
-        data[i] = nullptr;
+        _data[i] = nullptr;
     }
 
     return index;
