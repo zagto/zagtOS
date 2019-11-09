@@ -14,7 +14,7 @@ namespace list {
         Node *previousNode{nullptr};
         ElementType *element;
 
-        Node(ElementType *element) : element{element} {};
+        Node(ElementType *element) : element{element} {}
     };
 
 
