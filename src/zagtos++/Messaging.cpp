@@ -27,35 +27,33 @@ void UUIDObject::ZBONEncode(zbon::Encoder &encoder) const {
     encoder.encodeValue(_id);
 }
 
-Port::Port():
-        UUIDObject(),
+Port::Port() :
         valid{true} {
-    zagtos_syscall3(SYS_CREATE_PORT, 0, 0, reinterpret_cast<size_t>(&_id));
-    valid = true;
+    id = static_cast<uint32_t>(zagtos_syscall2(SYS_CREATE_PORT, 0, 0));
 }
 
-Port::Port(const std::vector<uuid_t> &protocols):
+Port::Port(const std::vector<uint32_t> &acceptedTags):
         valid{true} {
-    zagtos_syscall3(SYS_CREATE_PORT,
-                    reinterpret_cast<size_t>(protocols.data()),
-                    protocols.size(),
-                    reinterpret_cast<size_t>(&_id));
+    id = static_cast<uint32_t>(zagtos_syscall2(SYS_CREATE_PORT,
+                               reinterpret_cast<size_t>(acceptedTags.data()),
+                               acceptedTags.size()));
 }
 
 Port::Port(Port &&other):
-        UUIDObject(other._id),
+        id{other.id},
         valid{other.valid} {
-    uuid_clear(other._id);
+    other.id = 0;
+    other.valid = 0;
 }
 
 Port::~Port() {
     if (valid) {
-        zagtos_syscall1(SYS_DESTROY_PORT, reinterpret_cast<size_t>(this));
+        zagtos_syscall1(SYS_DESTROY_PORT, id);
     }
 }
 
-Protocol Port::selfProtocol() const {
-    return Protocol(_id);
+uint32_t Port::selfTag() const {
+    return id;
 }
 
 void zagtos::sendMessage(const RemotePort &target, uuid_t messageTypeID, zbon::EncodedData message) {

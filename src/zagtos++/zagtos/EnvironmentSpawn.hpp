@@ -7,10 +7,13 @@
 #include <zagtos/ExternalBinary.hpp>
 
 namespace zagtos {
+    enum Priority {
+        IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND
+    };
+
     void environmentSpawn(const ExternalBinary &binary,
-                          std::vector<Protocol> canUseProtocols,
-                          std::vector<Protocol> askUseProtocols,
-                          std::vector<Protocol> canProvideProtocols,
+                          Priority priority,
+                          std::vector<uint32_t> canUseTags,
                           const MessageType &messageType,
                           zbon::EncodedData runMessage);
 }

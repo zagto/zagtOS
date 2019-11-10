@@ -4,6 +4,7 @@
 #include <vector>
 #include <uuid/uuid.h>
 #include <zagtos/zbon.hpp>
+#include <cstdint>
 
 namespace zagtos {
     class ExternalBinary;
@@ -25,17 +26,18 @@ namespace zagtos {
     class RemotePort : public UUIDObject { using UUIDObject::UUIDObject; };
     class MessageType : public UUIDObject { using UUIDObject::UUIDObject; };
 
-    class Port : public UUIDObject {
+    class Port {
     private:
+        uint32_t id;
         bool valid;
 
     public:
         Port();
-        Port(const std::vector<uuid_t> &allowedTags);
+        Port(const std::vector<uint32_t> &acceptedTags);
         Port(Port &) = delete;
         Port(Port &&ohter);
         ~Port();
-        Protocol selfProtocol() const;
+        uint32_t selfTag() const;
     };
 
     void sendMessage(const RemotePort &target,
