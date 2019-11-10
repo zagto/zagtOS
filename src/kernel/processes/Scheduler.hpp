@@ -3,7 +3,7 @@
 
 #include <lib/List.hpp>
 
-#include <tasks/Thread.hpp>
+#include <processes/Thread.hpp>
 #include <interrupts/RegisterState.hpp>
 
 class Scheduler

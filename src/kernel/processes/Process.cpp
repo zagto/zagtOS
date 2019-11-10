@@ -1,11 +1,11 @@
 #include <paging/PagingContext.hpp>
 #include <system/System.hpp>
 #include <memory/PlatformRegions.hpp>
-#include <tasks/Task.hpp>
-#include <tasks/MappedArea.hpp>
+#include <processes/Process.hpp>
+#include <processes/MappedArea.hpp>
 
 
-Task::Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t runMessageSize):
+Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t runMessageSize):
         mappedAreas(this) {
     LockHolder lh(pagingLock);
 
@@ -55,7 +55,7 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t ru
 
     MappedArea *runMessageArea = mappedAreas.addNew(runMessageSize, Permissions::NONE);
     if (runMessageArea == nullptr) {
-        cout << "TODO: decide what should happen here (huge run message -> kill task?)" << endl;
+        cout << "TODO: decide what should happen here (huge run message -> kill process?)" << endl;
         Panic();
     }
 
@@ -77,15 +77,15 @@ Task::Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t ru
     CurrentProcessor->scheduler.add(mainThread);
 }
 
-void Task::activate() {
-    if (CurrentProcessor->currentTask == this) {
+void Process::activate() {
+    if (CurrentProcessor->currentProcess == this) {
         return;
     }
     masterPageTable->activate();
-    CurrentProcessor->currentTask = this;
+    CurrentProcessor->currentProcess = this;
 }
 
-PhysicalAddress Task::allocateFrame(UserVirtualAddress address,
+PhysicalAddress Process::allocateFrame(UserVirtualAddress address,
                                     Permissions permissions) {
     assert(permissions == Permissions::WRITE
            || permissions == Permissions::EXECUTE
@@ -96,7 +96,7 @@ PhysicalAddress Task::allocateFrame(UserVirtualAddress address,
     return physical;
 }
 
-bool Task::handlePageFault(UserVirtualAddress address) {
+bool Process::handlePageFault(UserVirtualAddress address) {
     UserVirtualAddress pageAddress{align(address.value(), PAGE_SIZE, AlignDirection::DOWN)};
     LockHolder lh(pagingLock);
 
@@ -108,13 +108,13 @@ bool Task::handlePageFault(UserVirtualAddress address) {
     }
 }
 
-void Task::removeThread(Thread *thread) {
-    cout << "removing thread from task" << endl;
+void Process::removeThread(Thread *thread) {
+    cout << "removing thread from process" << endl;
     threads.remove(thread);
     cout << "done" << endl;
 }
 
-/*bool Task::receiveMessage(Message *msg) {
+/*bool Process::receiveMessage(Message *msg) {
     assert(pagingLock.isLocked());
 
     bool valid;
@@ -125,6 +125,6 @@ void Task::removeThread(Thread *thread) {
     }
 }*/
 
-size_t Task::runMessageAddress() {
+size_t Process::runMessageAddress() {
     return runMessageRegion.start + sizeof(UUID);
 }

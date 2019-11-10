@@ -2,14 +2,14 @@
 #define MESSAGE_HPP
 
 #include <lib/vector.hpp>
-#include <tasks/UUID.hpp>
+#include <processes/UUID.hpp>
 
-class Task;
+class Process;
 
 class Message {
 private:
-    Task *from;
-    Task *to;
+    Process *from;
+    Process *to;
     UUID messageType;
     vector<uint8_t> data;
 

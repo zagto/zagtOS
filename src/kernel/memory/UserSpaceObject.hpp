@@ -2,7 +2,7 @@
 #define USERSPACEOBJECT_HPP
 
 #include <common/common.hpp>
-#include <tasks/Task.hpp>
+#include <processes/Process.hpp>
 
 enum class USOOperation {
     READ, WRITE, READ_AND_WRITE
@@ -12,16 +12,16 @@ template <typename T, USOOperation op> class UserSpaceObject {
 public:
     T object;
     size_t address;
-    Task *task;
+    Process *process;
     bool valid;
 
-    UserSpaceObject(size_t address, Task *task) :
+    UserSpaceObject(size_t address, Process *process) :
             address{address},
-            task{task} {
+            process{process} {
         if (op == USOOperation::WRITE) {
-            valid = task->verifyUserAccess(address, sizeof(T), true);
+            valid = process->verifyUserAccess(address, sizeof(T), true);
         } else {
-            valid = task->copyFromUser(reinterpret_cast<uint8_t *>(&object),
+            valid = process->copyFromUser(reinterpret_cast<uint8_t *>(&object),
                                        address,
                                        sizeof(T),
                                        /* already check for write permissions if we need them
@@ -31,7 +31,7 @@ public:
     }
     ~UserSpaceObject() {
         if (op != USOOperation::READ) {
-            bool result = task->copyToUser(address, reinterpret_cast<uint8_t *>(&object), sizeof(T), true);
+            bool result = process->copyToUser(address, reinterpret_cast<uint8_t *>(&object), sizeof(T), true);
             assert(result);
         }
     }

@@ -2,9 +2,9 @@
 #define MAPPINGOPERATION_HPP
 
 #include <common/common.hpp>
-#include <tasks/UUID.hpp>
+#include <processes/UUID.hpp>
 
-class Task;
+class Process;
 
 class MappingOperation {
 protected:
@@ -23,7 +23,7 @@ public:
 
 class MUnmap : public MappingOperation {
 public:
-    void perform(Task &task);
+    void perform(Process &process);
     MUnmap(size_t start_address, size_t length) :
         MappingOperation(start_address, length) {}
 };
@@ -36,7 +36,7 @@ class MMap : public MappingOperation {
     uint32_t protection;
 
 public:
-    void perform(Task &task);
+    void perform(Process &process);
     /* only called before USO is loaded, does nothing */
     MMap() {}
 };

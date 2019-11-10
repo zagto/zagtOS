@@ -1,5 +1,5 @@
-#include <tasks/Task.hpp>
-#include <tasks/ELF.hpp>
+#include <processes/Process.hpp>
+#include <processes/ELF.hpp>
 #include <system/CommonSystem.hpp>
 #include <lib/Slice.hpp>
 #include <memory/UserSpaceObject.hpp>
@@ -159,11 +159,11 @@ Permissions Segment::permissions() {
     }
 }
 
-void Segment::load(Task *task, UserVirtualAddress address) {
+void Segment::load(Process *process, UserVirtualAddress address) {
     assert(header.type == TYPE_LOAD || header.type == TYPE_TLS);
 
     if (header.filesz > 0) {
-        bool valid = task->copyToUser(address.value(), &data[0], header.filesz, false);
+        bool valid = process->copyToUser(address.value(), &data[0], header.filesz, false);
         assert(valid);
     }
 }

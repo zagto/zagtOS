@@ -1,9 +1,9 @@
 #include <system/CommonSystem.hpp>
-#include <tasks/MappedArea.hpp>
-#include <tasks/Task.hpp>
+#include <processes/MappedArea.hpp>
+#include <processes/Process.hpp>
 
 
-bool Task::accessUserSpace(uint8_t *buffer,
+bool Process::accessUserSpace(uint8_t *buffer,
                            size_t start,
                            size_t length,
                            PagingContext::AccessOperation accOp,
@@ -54,7 +54,7 @@ bool Task::accessUserSpace(uint8_t *buffer,
     return true;
 }
 
-bool Task::copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions) {
+bool Process::copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions) {
     return accessUserSpace(destination,
                            address,
                            length,
@@ -62,7 +62,7 @@ bool Task::copyFromUser(uint8_t *destination, size_t address, size_t length, boo
                            requireWritePermissions);
 }
 
-bool Task::copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions) {
+bool Process::copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions) {
     return accessUserSpace(const_cast<uint8_t *>(source),
                            address,
                            length,
@@ -70,7 +70,7 @@ bool Task::copyToUser(size_t address, const uint8_t *source, size_t length, bool
                            requireWritePermissions);
 }
 
-bool Task::verifyUserAccess(size_t address, size_t length, bool requireWritePermissions) {
+bool Process::verifyUserAccess(size_t address, size_t length, bool requireWritePermissions) {
     return accessUserSpace(nullptr,
                            address,
                            length,
@@ -78,8 +78,8 @@ bool Task::verifyUserAccess(size_t address, size_t length, bool requireWritePerm
                            requireWritePermissions);
 }
 
-bool Task::copyFromOhterUserSpace(size_t destinationAddress,
-                                  Task *sourceTask,
+bool Process::copyFromOhterUserSpace(size_t destinationAddress,
+                                  Process *sourceProcess,
                                   size_t sourceAddress,
                                   size_t length,
                                   bool requireWriteAccessToDestination) {
@@ -87,7 +87,7 @@ bool Task::copyFromOhterUserSpace(size_t destinationAddress,
     vector<uint8_t> buffer(length);
     bool valid;
 
-    valid = sourceTask->copyFromUser(&buffer[0], sourceAddress, length, false);
+    valid = sourceProcess->copyFromUser(&buffer[0], sourceAddress, length, false);
     if (!valid) {
         return false;
     }

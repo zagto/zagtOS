@@ -1,10 +1,10 @@
 #include <common/common.hpp>
-#include <tasks/MappedArea.hpp>
-#include <tasks/Task.hpp>
+#include <processes/MappedArea.hpp>
+#include <processes/Process.hpp>
 
 
-MappedArea::MappedArea(Task *task, Region region, Permissions permissions) :
-        task{task},
+MappedArea::MappedArea(Process *process, Region region, Permissions permissions) :
+        process{process},
         source{Source::MEMORY},
         region{region},
         permissions{permissions} {
@@ -15,12 +15,12 @@ MappedArea::MappedArea(Task *task, Region region, Permissions permissions) :
 }
 
 
-MappedArea::MappedArea(Task *task,
+MappedArea::MappedArea(Process *process,
                        Region region,
                        Permissions
                        permissions,
                        PhysicalAddress pyhsicalStart) :
-        task{task},
+        process{process},
         source{Source::PHYSICAL_MEMORY},
         physicalStart{pyhsicalStart},
         region{region},
@@ -38,14 +38,14 @@ MappedArea::~MappedArea() {
 
 
 bool MappedArea::handlePageFault(UserVirtualAddress address) {
-    assert(task->pagingLock.isLocked());
-    if (task->masterPageTable->isMapped(address)) {
-        task->masterPageTable->invalidateLocally(address);
+    assert(process->pagingLock.isLocked());
+    if (process->masterPageTable->isMapped(address)) {
+        process->masterPageTable->invalidateLocally(address);
     } else {
         if (source == Source::MEMORY) {
-            task->allocateFrame(address, permissions);
+            process->allocateFrame(address, permissions);
         } else if (source == Source::PHYSICAL_MEMORY) {
-            task->masterPageTable->map(address,
+            process->masterPageTable->map(address,
                                        physicalStart + (address.value() - region.start),
                                        permissions);
         } else {
@@ -60,10 +60,10 @@ void MappedArea::unmapRange(Region range) {
 
     switch (source) {
     case Source::MEMORY:
-        task->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, true);
+        process->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, true);
         break;
     case Source::PHYSICAL_MEMORY:
-        task->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, false);
+        process->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, false);
         break;
     default:
         Panic();
@@ -88,7 +88,7 @@ void MappedArea::shrinkBack(size_t amount) {
 bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress address,
                                                        size_t &resultIndex,
                                                        size_t &freeLength) {
-    assert(task->pagingLock.isLocked());
+    assert(process->pagingLock.isLocked());
 
     if (size() == 0) {
         resultIndex = UserSpaceRegion.end() - address.value();
@@ -149,7 +149,7 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
 }
 
 Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newIndex) {
-    assert(task->pagingLock.isLocked());
+    assert(process->pagingLock.isLocked());
 
     valid = false;
     bool found = false;
@@ -211,7 +211,7 @@ MappedArea *MappedAreaVector::addNew(size_t length, Permissions permissions) {
         return nullptr;
     }
 
-    MappedArea *ma = new MappedArea(task, region, permissions);
+    MappedArea *ma = new MappedArea(process, region, permissions);
     insert2(ma, index);
     return ma;
 }
@@ -252,7 +252,7 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
 
     size_t newElementIndex = index + numAddBetween + 1;
     Region newElementRegion(removeRegion.end(), oldElement.region.end() - removeRegion.end());
-    _data[newElementIndex] = new MappedArea(task, newElementRegion, oldElement.permissions);
+    _data[newElementIndex] = new MappedArea(process, newElementRegion, oldElement.permissions);
 
     /* oldElement will still be responsible for the first part */
     oldElement.region.length -= removeRegion.start - oldElement.region.end();

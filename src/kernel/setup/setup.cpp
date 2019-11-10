@@ -2,8 +2,8 @@
 #include <setup/BootInfo.hpp>
 #include <system/System.hpp>
 #include <lib/vector.hpp>
-#include <tasks/Task.hpp>
-#include <tasks/ELF.hpp>
+#include <processes/Process.hpp>
+#include <processes/ELF.hpp>
 
 
 extern "C" void _init();
@@ -42,7 +42,7 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
         cout << "Setting up time..." << endl;
         CurrentSystem.time.initialize();
 
-        cout << "Creating initial task..." << endl;
+        cout << "Creating initial process..." << endl;
 
         vector<uint8_t> initFile(bootInfo.initDataInfo.size);
         Slice<vector, uint8_t> initSlice(&initFile);
@@ -55,13 +55,13 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
                                            0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55};
         const UUID beInitMessage(uuidData);
 
-        Task *newTask = new Task(initELF, Thread::Priority::FOREGROUND, beInitMessage, 0);
-        LockHolder lh(newTask->pagingLock);
+        Process *newProcess = new Process(initELF, Thread::Priority::FOREGROUND, beInitMessage, 0);
+        LockHolder lh(newProcess->pagingLock);
 
         /* the ELF data is the last thing we wanted to read from loader memory */
         //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();
 
-        cout << "Entering first task..." << endl;
+        cout << "Entering first process..." << endl;
     }
     CurrentProcessor->interrupts.returnToUserMode();
 }

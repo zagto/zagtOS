@@ -2,7 +2,7 @@
 #include <system/CommonSystem.hpp>
 #include <paging/PagingContext.hpp>
 #include <system/System.hpp>
-#include <tasks/Task.hpp>
+#include <processes/Process.hpp>
 
 
 
@@ -49,8 +49,8 @@ PageTableEntry *PagingContext::walkEntries(VirtualAddress address, MissingStrate
 }
 
 
-PagingContext::PagingContext(Task *task) :
-        PagingContext(task, CurrentSystem.memory.allocatePhysicalFrame()) {
+PagingContext::PagingContext(Process *process) :
+        PagingContext(process, CurrentSystem.memory.allocatePhysicalFrame()) {
 
     assert(this != CurrentProcessor->activePagingContext);
 
@@ -62,8 +62,8 @@ PagingContext::PagingContext(Task *task) :
 }
 
 
-PagingContext::PagingContext(Task *task, PhysicalAddress masterPageTableAddress) :
-        task{task},
+PagingContext::PagingContext(Process *process, PhysicalAddress masterPageTableAddress) :
+        process{process},
         masterPageTableAddress{masterPageTableAddress},
         masterPageTable{masterPageTableAddress.identityMapped().asPointer<PageTable>()} {
 }
@@ -100,7 +100,7 @@ void PagingContext::unmap(KernelVirtualAddress address) {
 
 
 PhysicalAddress PagingContext::resolve(UserVirtualAddress address) {
-    assert(task == nullptr || task->pagingLock.isLocked());
+    assert(process == nullptr || process->pagingLock.isLocked());
 
     return walkEntries(address, MissingStrategy::NONE)->addressValue();
 }
@@ -113,7 +113,7 @@ void PagingContext::accessRange(UserVirtualAddress address,
                                   uint8_t *buffer,
                                   AccessOperation accOp,
                                   Permissions newPagesPermissions) {
-    assert(task == nullptr || task->pagingLock.isLocked());
+    assert(process == nullptr || process->pagingLock.isLocked());
     assert(address.isPageAligned());
     assert(startOffset < PAGE_SIZE);
     assert(endOffset < PAGE_SIZE);
@@ -177,7 +177,7 @@ void PagingContext::accessRange(UserVirtualAddress address,
 
 
 void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames) {
-    assert(task == nullptr || task->pagingLock.isLocked());
+    assert(process == nullptr || process->pagingLock.isLocked());
     assert(address.isPageAligned());
 
     WalkData walkData(masterPageTable);
@@ -227,7 +227,7 @@ void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool
 void PagingContext::map(UserVirtualAddress from,
                         PhysicalAddress to,
                         Permissions permissions) {
-    assert(task == nullptr || task->pagingLock.isLocked());
+    assert(process == nullptr || process->pagingLock.isLocked());
 
     PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
@@ -240,7 +240,7 @@ void PagingContext::map(UserVirtualAddress from,
 
 
 void PagingContext::unmap(UserVirtualAddress address) {
-    assert(task == nullptr || task->pagingLock.isLocked());
+    assert(process == nullptr || process->pagingLock.isLocked());
 
     PageTableEntry *entry = walkEntries(address, MissingStrategy::NONE);
     *entry = PageTableEntry();
@@ -248,7 +248,7 @@ void PagingContext::unmap(UserVirtualAddress address) {
 
 
 bool PagingContext::isMapped(UserVirtualAddress address) {
-    assert(task == nullptr || task->pagingLock.isLocked());
+    assert(process == nullptr || process->pagingLock.isLocked());
 
     PageTableEntry *entry = walkEntries(address, MissingStrategy::RETURN_NULLPTR);
     return entry != nullptr && entry->present();
@@ -261,7 +261,7 @@ void PagingContext::invalidateLocally(KernelVirtualAddress address) {
 
 void PagingContext::invalidateLocally(UserVirtualAddress address) {
     assert(isActive());
-    assert(task == nullptr || task->pagingLock.isLocked());
+    assert(process == nullptr || process->pagingLock.isLocked());
 
     basicInvalidate(address);
 }

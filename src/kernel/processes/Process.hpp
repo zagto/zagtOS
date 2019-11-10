@@ -1,17 +1,17 @@
-#ifndef TASK_HPP
-#define TASK_HPP
+#ifndef PROCESS_HPP
+#define PROCESS_HPP
 
 #include <lib/List.hpp>
 #include <lib/Lock.hpp>
 #include <paging/PagingContext.hpp>
-#include <tasks/ELF.hpp>
-#include <tasks/Thread.hpp>
-#include <tasks/MappedArea.hpp>
+#include <processes/ELF.hpp>
+#include <processes/Thread.hpp>
+#include <processes/MappedArea.hpp>
 #include <paging/PageTableEntry.hpp>
-#include <tasks/UUID.hpp>
-#include <tasks/Message.hpp>
+#include <processes/UUID.hpp>
+#include <processes/Message.hpp>
 
-class Task {
+class Process {
 private:
     friend class PagingContext;
     friend class Thread;
@@ -37,7 +37,7 @@ public:
     PagingContext *masterPageTable;
     Region runMessageRegion;
 
-    Task(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t messageSize);
+    Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t messageSize);
     void activate();
     PhysicalAddress allocateFrame(UserVirtualAddress address,
                                   Permissions permissions);
@@ -46,7 +46,7 @@ public:
     void removeThread(Thread *thread);
 
     bool copyFromOhterUserSpace(size_t destinationAddress,
-                                Task *sourceTask,
+                                Process *sourceProcess,
                                 size_t sourceAddress,
                                 size_t length,
                                 bool requireWriteAccessToDestination);
@@ -58,4 +58,4 @@ public:
     size_t runMessageAddress();
 };
 
-#endif // TASK_HPP
+#endif // PROCESS_HPP

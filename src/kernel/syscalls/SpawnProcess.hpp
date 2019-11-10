@@ -2,9 +2,9 @@
 #define SPAWNPROCESS_HPP
 
 #include <common/inttypes.hpp>
-#include <tasks/UUID.hpp>
+#include <processes/UUID.hpp>
 
-class Task;
+class Process;
 
 class SpawnProcess {
 private:
@@ -22,7 +22,7 @@ private:
     size_t result;
 public:
 
-    bool perform(Task &task);
+    bool perform(Process &process);
 };
 
 #endif // SPAWNPROCESS_HPP

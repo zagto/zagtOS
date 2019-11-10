@@ -9,7 +9,7 @@
 #include <common/globalregisters.hpp>
 #include <time/Time.hpp>
 #include <paging/PagingContext.hpp>
-#include <tasks/TagManager.hpp>
+#include <processes/TagManager.hpp>
 
 
 class CommonSystem {

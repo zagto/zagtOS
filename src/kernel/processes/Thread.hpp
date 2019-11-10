@@ -5,7 +5,7 @@
 
 class Processor;
 class Scheduler;
-class Task;
+class Process;
 class Port;
 
 static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
@@ -25,12 +25,12 @@ public:
 
 public:
     RegisterState registerState;
-    Task *task;
+    Process *process;
     UserVirtualAddress tlsBase;
     Priority ownPriority;
     Priority currentPriority;
 
-    Thread(Task *task,
+    Thread(Process *process,
            VirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,
@@ -38,7 +38,7 @@ public:
            UserVirtualAddress masterTLSBase,
            size_t tlsSize) :
         registerState(entry, stackPointer, tlsBase, masterTLSBase, tlsSize),
-        task{task},
+        process{process},
         tlsBase{tlsBase},
         ownPriority{priority},
         currentPriority{priority} {}

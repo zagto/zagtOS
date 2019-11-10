@@ -3,7 +3,7 @@
 
 #include <paging/PageTable.hpp>
 
-class Task;
+class Process;
 
 class PagingContext {
 public:
@@ -22,7 +22,7 @@ private:
         }
     };
 
-    Task *task;
+    Process *process;
 
     /* physical and virtual address of the same thing */
     PhysicalAddress masterPageTableAddress;
@@ -44,8 +44,8 @@ public:
     static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
     static const size_t NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
 
-    PagingContext(Task *task);
-    PagingContext(Task *task, PhysicalAddress masterPageTableAddress);
+    PagingContext(Process *process);
+    PagingContext(Process *process, PhysicalAddress masterPageTableAddress);
 
     static void map(KernelVirtualAddress from,
                     PhysicalAddress to,

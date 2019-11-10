@@ -5,14 +5,14 @@
 #include <common/Region.hpp>
 #include <lib/SortedVector.hpp>
 
-class Task;
+class Process;
 
 class MappedArea {
 private:
     enum class Source {
         MEMORY = 1, PHYSICAL_MEMORY = 2,
     };
-    Task *task;
+    Process *process;
     Source source;
     PhysicalAddress physicalStart;
 
@@ -20,8 +20,8 @@ public:
     Region region;
     Permissions permissions;
 
-    MappedArea(Task *task, Region region, Permissions permissions);
-    MappedArea(Task *task, Region region, Permissions permissions, PhysicalAddress physicalStart);
+    MappedArea(Process *process, Region region, Permissions permissions);
+    MappedArea(Process *process, Region region, Permissions permissions, PhysicalAddress physicalStart);
     ~MappedArea();
 
     bool handlePageFault(UserVirtualAddress address);
@@ -36,15 +36,15 @@ public:
 
 class MappedAreaVector : public SortedVector<MappedArea *, MappedArea::compare> {
 private:
-    Task *task;
+    Process *process;
 
     bool findMappedAreaIndexOrFreeLength(UserVirtualAddress address,
                                          size_t &resultIndex,
                                          size_t &freeLength);
 
 public:
-    MappedAreaVector(Task *task):
-        task{task} {}
+    MappedAreaVector(Process *process):
+        process{process} {}
     Region findFreeRegion(size_t length, bool &valid, size_t &index);
     MappedArea *findMappedArea(UserVirtualAddress address);
     void insert2(MappedArea *ma, size_t index);

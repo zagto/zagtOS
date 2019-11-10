@@ -1,7 +1,7 @@
 #include <interrupts/RegisterState.hpp>
 #include <interrupts/util.hpp>
 #include <interrupts/TaskStateSegment.hpp>
-#include <tasks/Thread.hpp>
+#include <processes/Thread.hpp>
 
 
 void TaskStateSegment::update(Thread *thread)

@@ -5,7 +5,7 @@
 #include <lib/vector.hpp>
 #include <lib/Slice.hpp>
 
-class Task;
+class Process;
 
 namespace elf {
     struct FileHeader32 {
@@ -82,9 +82,9 @@ namespace elf {
         Segment(Slice<vector, uint8_t> data, ProgramHeader header) :
             data{data}, header{header} {}
 
-        void load(Task *task, UserVirtualAddress address);
-        void load(Task *task) {
-            load(task, header.vaddr);
+        void load(Process *process, UserVirtualAddress address);
+        void load(Process *process) {
+            load(process, header.vaddr);
         }
 
         UserVirtualAddress endAddress();

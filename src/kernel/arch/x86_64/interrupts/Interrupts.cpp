@@ -3,7 +3,7 @@
 #include <interrupts/Interrupts.hpp>
 #include <interrupts/ContextSwitch.hpp>
 #include <interrupts/util.hpp>
-#include <tasks/Task.hpp>
+#include <processes/Process.hpp>
 #include <common/ModelSpecificRegister.hpp>
 
 
@@ -61,7 +61,7 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
         size_t errorFlags{registerState->errorCode & PAGING_ERROR_FLAGS};
         if (errorFlags == PAGING_ERROR_USER
                 || errorFlags == (PAGING_ERROR_USER | PAGING_ERROR_WRITE)) {
-            if (currentThread->task->handlePageFault(UserVirtualAddress(readCR2()))) {
+            if (currentThread->process->handlePageFault(UserVirtualAddress(readCR2()))) {
                 returnToUserMode();
             }
         }
@@ -78,9 +78,9 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
 
 __attribute__((noreturn)) void Interrupts::returnToUserMode() {
     Thread *thread = CurrentProcessor->scheduler.currentThread();
-    // Idle thread does not have a task
-    if (thread->task) {
-        thread->task->activate();
+    // Idle thread does not have a process
+    if (thread->process) {
+        thread->process->activate();
     }
     globalDescriptorTable.resetTaskStateSegment();
     taskStateSegment.update(thread);

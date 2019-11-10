@@ -6020,7 +6020,7 @@ int mspace_mallopt(int param_number, int value) {
     {
       if (size < MINIMUM_MORECORE_SIZE)
          size = MINIMUM_MORECORE_SIZE;
-      if (CurrentExecutionLevel() == kTaskLevel)
+      if (CurrentExecutionLevel() == kProcessLevel)
          ptr = PoolAllocateResident(size + RM_PAGE_SIZE, 0);
       if (ptr == 0)
       {

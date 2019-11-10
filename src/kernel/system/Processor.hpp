@@ -1,11 +1,11 @@
 #ifndef PROCESSOR_HPP
 #define PROCESSOR_HPP
 
-#include <tasks/Scheduler.hpp>
+#include <processes/Scheduler.hpp>
 #include <interrupts/Interrupts.hpp>
 #include <system/KernelStack.hpp>
 
-class Task;
+class Process;
 class PagingContext;
 
 class Processor {
@@ -23,7 +23,7 @@ protected:
 public:
     Scheduler scheduler;
     Interrupts interrupts;
-    Task *currentTask{nullptr};
+    Process *currentProcess{nullptr};
     PagingContext *activePagingContext;
 
     Processor(bool bootProcessor);

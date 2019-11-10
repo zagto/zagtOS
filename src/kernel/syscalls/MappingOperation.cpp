@@ -1,4 +1,4 @@
-#include <tasks/Task.hpp>
+#include <processes/Process.hpp>
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/ErrorCodes.hpp>
 
@@ -24,8 +24,8 @@ bool MappingOperation::addressLengthValid() {
 }
 
 
-void MMap::perform(Task &task) {
-    assert(task.pagingLock.isLocked());
+void MMap::perform(Process &process) {
+    assert(process.pagingLock.isLocked());
 
     result = 0;
     error = 0;
@@ -96,13 +96,13 @@ void MMap::perform(Task &task) {
     Region actualRegion;
     bool slotReserved = false;
 
-    if (addressLengthValid() && task.mappedAreas.isRegionFree(passedRegion, insertIndex)) {
+    if (addressLengthValid() && process.mappedAreas.isRegionFree(passedRegion, insertIndex)) {
         actualRegion = passedRegion;
     } else {
         /* can't use passed address/length */
         if (flags & FLAG_FIXED) {
             if (addressLengthValid()) {
-                insertIndex = task.mappedAreas.unmapRange(passedRegion, 1);
+                insertIndex = process.mappedAreas.unmapRange(passedRegion, 1);
                 actualRegion = passedRegion;
                 slotReserved = true;
             } else {
@@ -113,7 +113,7 @@ void MMap::perform(Task &task) {
             }
         } else {
             bool valid;
-            actualRegion = task.mappedAreas.findFreeRegion(length, valid, insertIndex);
+            actualRegion = process.mappedAreas.findFreeRegion(length, valid, insertIndex);
             if (!valid) {
                 cout << "MMAP: unable to auto-choose region\n";
                 error = ENOMEM;
@@ -124,25 +124,25 @@ void MMap::perform(Task &task) {
 
     MappedArea *ma;
     if (flags & FLAG_ANONYMOUS) {
-        ma = new MappedArea(&task, actualRegion, permissions);
+        ma = new MappedArea(&process, actualRegion, permissions);
     } else if (flags & FLAG_PHYSICAL) {
-        ma = new MappedArea(&task, actualRegion, permissions, offset);
+        ma = new MappedArea(&process, actualRegion, permissions, offset);
     } else {
         Panic();
     }
 
     if (slotReserved) {
-        assert(task.mappedAreas[insertIndex] == nullptr);
-        task.mappedAreas[insertIndex] = ma;
+        assert(process.mappedAreas[insertIndex] == nullptr);
+        process.mappedAreas[insertIndex] = ma;
     } else {
-        task.mappedAreas.insert2(ma, insertIndex);
+        process.mappedAreas.insert2(ma, insertIndex);
     }
     result = ma->region.start;
 }
 
 
-void MUnmap::perform(Task &task) {
-    assert(task.pagingLock.isLocked());
+void MUnmap::perform(Process &process) {
+    assert(process.pagingLock.isLocked());
 
     error = 0;
 
@@ -159,5 +159,5 @@ void MUnmap::perform(Task &task) {
         return;
     }
 
-    task.mappedAreas.unmapRange(Region(start_address, length));
+    process.mappedAreas.unmapRange(Region(start_address, length));
 }
