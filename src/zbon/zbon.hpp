@@ -262,12 +262,12 @@ namespace zbon {
             return 0;
         } else {
             const auto &element = std::get<position>(tuple);
-            return sizeFor(element) + sizeForTupleElements<position + 1>(tuple);
+            return TYPE_SIZE + sizeFor(element) + sizeForTupleElements<position + 1>(tuple);
         }
     }
     template<typename ...Types>
     static size_t sizeFor(const std::tuple<Types...> &tuple) {
-        return sizeForTupleElements<0, Types...>(tuple);
+        return sizeForTupleElements<0, Types...>(tuple) + COUNT_SIZE * 2;
     }
 
 
