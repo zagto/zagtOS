@@ -61,6 +61,12 @@ namespace zbon {
             return T::ZBONType();
         }
     };
+    template<> class typeFor<bool> {
+    public:
+        static constexpr Type type() {
+            return Type::BOOLEAN;
+        }
+    };
     template<> class typeFor<uint8_t> {
     public:
         static constexpr Type type() {
