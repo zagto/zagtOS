@@ -4,14 +4,14 @@
 #include <lib/vector.hpp>
 #include <processes/UUID.hpp>
 
-class Process;
+class Port;
 
 class Message {
 private:
-    Process *from;
-    Process *to;
+    Port *from;
+    Port *to;
     UUID messageType;
-    vector<uint8_t> data;
+    UserVirtualAddress dataAddress;
 
 public:
     Message();

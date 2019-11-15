@@ -2,7 +2,8 @@
 #include <system/System.hpp>
 #include <processes/Port.hpp>
 
-Port::Port(vector<uint32_t> acceptedTags) :
+Port::Port(Process &process, vector<uint32_t> acceptedTags) :
+    process{process},
     acceptedTags{acceptedTags} {
 
     _id = CurrentSystem.tagManager.allocateTag();

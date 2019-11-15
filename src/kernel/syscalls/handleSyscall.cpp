@@ -58,28 +58,36 @@ bool Thread::handleSyscall() {
             }
         }
 
-        process->ports.push_back(new Port(acceptedTags));
+        process->ports.push_back(new Port(*process, acceptedTags));
         registerState.setSyscallResult(process->ports[process->ports.size() - 1]->id());
         cout << "created port " << process->ports[process->ports.size() - 1]->id() << endl;
         return true;
     }
+    case SYS_RECEIVE_MESSAGE: {
+        LockHolder lh(process->portsLock);
+        Port *port(process->getPortById(static_cast<uint32_t>(registerState.syscallParameter(0))));
+
+        if (port == nullptr) {
+            cout << "SYS_RECEIVE_MESSAGE: invalid port ID" << endl;
+            return false;
+        } else {
+            /*if (port->messagesPending()) {
+                TODO
+            }*/
+            return true;
+        }
+    }
     case SYS_DESTROY_PORT: {
         LockHolder lh(process->portsLock);
-        uint32_t id = static_cast<uint32_t>(registerState.syscallParameter(0));
+        Port *port(process->getPortById(static_cast<uint32_t>(registerState.syscallParameter(0))));
 
-        cout << "deleting port " << id << endl;
-
-        for (size_t i = 0; i < process->ports.size(); i++) {
-            Port *port = process->ports[i];
-            if (port->id() == id) {
-                process->ports.remove(port);
-                cout << "success" << endl;
-                delete port;
-                return true;
-            }
+        if (port == nullptr) {
+            cout << "SYS_DESTROY_PORT: invalid port ID" << endl;
+            return false;
+        } else {
+            delete port;
+            return true;
         }
-        cout << "not found" << endl;
-        return false;
     }
     case SYS_RANDOM:
         // todo: should write to memory here

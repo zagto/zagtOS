@@ -56,6 +56,7 @@ public:
 
     //void receiveMessage(Message *msg);
     size_t runMessageAddress();
+    Port *getPortById(uint32_t id);
 };
 
 #endif // PROCESS_HPP

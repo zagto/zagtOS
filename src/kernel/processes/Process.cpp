@@ -3,6 +3,14 @@
 #include <memory/PlatformRegions.hpp>
 #include <processes/Process.hpp>
 #include <processes/MappedArea.hpp>
+#include <processes/Port.hpp>
+
+
+struct RunMessageInfo {
+    UUID type;
+    size_t address;
+    size_t length;
+};
 
 
 Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t runMessageSize):
@@ -49,9 +57,9 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, siz
         elf.tlsSegment().load(this, tlsBase);
     }
 
-    /* The run message type UUID needs to be passed along with the run message, so for our purposes
+    /* The run message metadata needs to be passed along with the run message, so for our purposes
      * the required size is the combined size of both. */
-    runMessageSize += sizeof(UUID);
+    runMessageSize += sizeof(RunMessageInfo);
 
     MappedArea *runMessageArea = mappedAreas.addNew(runMessageSize, Permissions::NONE);
     if (runMessageArea == nullptr) {
@@ -60,9 +68,14 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, siz
     }
 
     runMessageRegion = runMessageArea->region;
+    RunMessageInfo msgInfo = {
+        messageType,
+        runMessageAddress(),
+        runMessageSize - sizeof(RunMessageInfo),
+    };
     copyToUser(runMessageRegion.start,
-               reinterpret_cast<uint8_t *>(&messageType),
-               sizeof(UUID),
+               reinterpret_cast<uint8_t *>(&msgInfo),
+               sizeof(RunMessageInfo),
                false);
 
     Thread *mainThread = new Thread(this,
@@ -126,5 +139,17 @@ void Process::removeThread(Thread *thread) {
 }*/
 
 size_t Process::runMessageAddress() {
-    return runMessageRegion.start + sizeof(UUID);
+    return runMessageRegion.start + sizeof(RunMessageInfo);
+}
+
+Port *Process::getPortById(uint32_t id) {
+    assert(portsLock.isLocked());
+
+    for (size_t i = 0; i < ports.size(); i++) {
+        Port *port = ports[i];
+        if (port->id() == id) {
+            return port;
+        }
+    }
+    return nullptr;
 }

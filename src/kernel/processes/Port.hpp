@@ -4,16 +4,22 @@
 #include <lib/vector.hpp>
 
 class Message;
+class Process;
 
 class Port {
+    Process &process;
     vector<uint32_t> acceptedTags;
     uint32_t _id;
 
 public:
-    Port(vector<uint32_t> acceptedTags);
+    Port(Process &process, vector<uint32_t> acceptedTags);
+    Port(Port &) = delete;
     ~Port();
 
     uint32_t id();
+
+    bool messagesPending();
+
 };
 
 #endif // PORT_HPP
