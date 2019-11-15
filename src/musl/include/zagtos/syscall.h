@@ -20,7 +20,7 @@ size_t zagtos_syscall5(size_t call, size_t a, size_t b, size_t c, size_t d, size
 static const uint32_t SYS_LOG = 1,
                       SYS_EXIT = 2,
                       SYS_SEND_MESSAGE = 3,
-                      SYS_WAIT_MESSAGE = 4,
+                      SYS_RECEIVE_MESSAGE = 4,
                       SYS_CREATE_PORT = 5,
                       SYS_DESTROY_PORT = 6,
                       SYS_RANDOM = 7,

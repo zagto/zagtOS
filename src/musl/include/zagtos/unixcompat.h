@@ -1,7 +1,7 @@
 #ifndef __ZAGTOS_UNIXCOMPAT_H
 #define __ZAGTOS_UNIXCOMPAT_H
 
-#include <zagtos/uuid.h>
+#include <uuid/uuid.h>
 #include <zagtos/object.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -25,7 +25,8 @@ typedef struct {
     int flags;
 } ZFileDescriptor;
 
-static const ZUUID TYPE_UNIX_RUN = {0x63e228967d0349bf, 0xb1f5dbd07ccfba56};
+UUID_DEFINE(ZAGTOS_MSG_UNIX_RUN, 0x63, 0xe2, 0x28, 0x96, 0x7d, 0x03, 0x49, 0xbf,
+            0xb1, 0xf5, 0xdb, 0xd0, 0x7c, 0xcf, 0xba, 0x56);
 
 static const ZUUID TYPE_TTY = {0x8e988befa0f34235, 0xb592ed59cb8bc92d};
 

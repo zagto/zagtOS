@@ -24,3 +24,11 @@ ZMessagePort zagtos_create_port(ZUUID allowed_type, ZUUID allowed_sender_tag) {
 _Bool zagtos_spawn_process(void *image, size_t image_size, ZObject *run_message) {
     return zagtos_syscall(SYS_SPAWN_PROCESS, image, image_size, run_message);
 }
+
+
+struct zagtos_run_message_info *__run_message;
+
+
+struct zagtos_run_message_info *zagtos_get_run_message(void) {
+    return __run_message;
+}

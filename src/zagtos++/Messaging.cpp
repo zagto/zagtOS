@@ -56,10 +56,29 @@ uint32_t Port::selfTag() const {
     return id;
 }
 
+MessageInfo Port::receiveMessage() {
+    MessageInfo result;
+    zagtos_syscall1(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(&result));
+    return result;
+}
+
 void zagtos::sendMessage(const RemotePort &target, uuid_t messageTypeID, zbon::EncodedData message) {
     zagtos_syscall4(SYS_SEND_MESSAGE,
                     reinterpret_cast<size_t>(&target.id()),
                     reinterpret_cast<size_t>(&messageTypeID),
                     reinterpret_cast<size_t>(message.data()),
                     message.size());
+}
+
+extern RunMessageInfo *__run_message;
+
+const RunMessageInfo &zagtos::receiveRunMessage() {
+    return *__run_message;
+}
+
+void zagtos::receiveRunMessage(const uuid_t type) {
+    if (uuid_compare(type, __run_message->type) != 0) {
+        std::cout << "invalid run message type" << std::endl;
+        exit(1);
+    }
 }

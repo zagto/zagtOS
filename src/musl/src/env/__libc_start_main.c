@@ -5,10 +5,12 @@
 #include "syscall.h"
 #include "atomic.h"
 #include "libc.h"
-#include <zagtos/uuid.h>
+#include <zagtos/messaging.h>
 #include <zagtos/unixcompat.h>
 
 extern weak hidden void (*const __init_array_start)(void), (*const __init_array_end)(void);
+
+extern struct zagtos_run_message_info *__run_message;
 
 static char *dummy_environ = NULL;
 static char *dummy_pn = "/run";
@@ -53,11 +55,12 @@ static void libc_start_init(void)
 
 weak_alias(libc_start_init, __libc_start_init);
 
+
 typedef int lsm2_fn(int (*)(int,char **,char **), int, char **);
 static lsm2_fn libc_start_main_stage2;
 
 int __libc_start_main(int (*main)(int,char **,char **),
-                      ZObject *run_msg,
+                      struct zagtos_run_message_info *run_msg,
                       size_t tls_base,
                       size_t master_tls_base,
                       size_t tls_size)
@@ -65,7 +68,10 @@ int __libc_start_main(int (*main)(int,char **,char **),
     int argc;
     char **argv;
     char **envp;
-    if (zagtos_compare_uuid(run_msg->info.id, TYPE_UNIX_RUN)) {
+
+    __run_message = run_msg;
+
+    if (uuid_compare(run_msg->type, ZAGTOS_MSG_UNIX_RUN)) {
         ZUnixRun *urun = (ZUnixRun *)run_msg;
         argc = urun->argc;
         argv = calloc(argc, sizeof(char *));

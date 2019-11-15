@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <zagtos/object.h>
+#include <uuid/uuid.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,6 +30,15 @@ static const ZUUID INPUT_DEVICE_PROTOCOL = {{0x3cecb851c26b41a9, 0x969c0e2db9080
 
 static const ZUUID PHYSICAL_MEMORY_ACCESS_TAG = {{0x51c1370b203a45e2, 0xa335f43b570a602e}};
 static const ZUUID CAN_FIND_CPUS_TAG = {{0x0a1ec630539741dd, 0x8d4f7b54a1bb6475}};
+
+
+struct zagtos_run_message_info {
+    uuid_t type;
+    void *data;
+    size_t size;
+};
+
+struct zagtos_run_message_info *zagtos_get_run_message(void);
 
 
 #ifdef __cplusplus
