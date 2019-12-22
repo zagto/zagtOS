@@ -200,6 +200,7 @@ fail:
 
 void MappedAreaVector::insert2(MappedArea *ma, size_t index) {
     assert(index == this->findIndexFor(ma));
+    assert(ma != nullptr);
     static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
 }
 

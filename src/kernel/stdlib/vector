@@ -33,17 +33,20 @@ protected:
     size_t numAllocated{0};
 
     void changeAllocatedSize(size_t newNumAllocated) {
-        if (newNumAllocated != numAllocated) {
-            ElementType *newData = new ElementType[newNumAllocated];
-            size_t elementsToMove = min(numAllocated, newNumAllocated);
-            if (_data != nullptr) {
-                for (size_t index = 0; index < elementsToMove; index++) {
-                    newData[index] = move(_data[index]);
-                }
-                delete[] _data;
-            }
-            _data = newData;
+        if (newNumAllocated == numAllocated) {
+            return;
         }
+
+        ElementType *newData = new ElementType[newNumAllocated];
+        size_t elementsToMove = min(numAllocated, newNumAllocated);
+        if (_data != nullptr) {
+            for (size_t index = 0; index < elementsToMove; index++) {
+                newData[index] = move(_data[index]);
+            }
+            delete[] _data;
+        }
+        _data = newData;
+        numAllocated = newNumAllocated;
     }
     void adjustAllocatedSize() {
         if (numElements >= numAllocated) {
