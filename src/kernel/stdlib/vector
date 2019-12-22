@@ -16,7 +16,7 @@ protected:
             container{container},
             position{position} {}
         bool operator!=(const Iterator &other) const {
-            return container[position] != other.container[position];
+            return position != other.position || &container != &other.container;
         }
         void operator++() {
             assert(position < container.numElements);
