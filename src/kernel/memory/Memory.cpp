@@ -69,16 +69,26 @@ Memory *Memory::instance() {
 }
 
 KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
-    assert(change >= 0);
     assert(change % PAGE_SIZE == 0);
     assert(heapLock.isLocked());
 
-    for (size_t index = 0; index < change / PAGE_SIZE; index++) {
-        lock_guard lg(kernelPagingLock);
-        PagingContext::map(heapEnd + index * PAGE_SIZE,
-                             allocatePhysicalFrame(),
-                             Permissions::WRITE,
-                             false);
+    if (change == 0) {
+        return heapEnd;
+    } else if (change > 0) {
+        for (size_t index = 0; index < change / PAGE_SIZE; index++) {
+            lock_guard lg(kernelPagingLock);
+            PagingContext::map(heapEnd + index * PAGE_SIZE,
+                               allocatePhysicalFrame(),
+                               Permissions::WRITE,
+                               false);
+        }
+    } else {
+        for (size_t index = 1; index <= static_cast<size_t>(-change) / PAGE_SIZE; index++) {
+            lock_guard lg(kernelPagingLock);
+            PhysicalAddress frame = PagingContext::resolve(heapEnd - index * PAGE_SIZE);
+            PagingContext::unmap(heapEnd - index * PAGE_SIZE);
+            freePhysicalFrame(frame);
+        }
     }
     KernelVirtualAddress oldEnd = heapEnd;
     heapEnd = heapEnd + change;

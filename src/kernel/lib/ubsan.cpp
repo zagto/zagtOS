@@ -57,6 +57,12 @@ extern "C" void __ubsan_handle_sub_overflow(SourceLocation *location, void *, si
     Panic();
 }
 
+extern "C" void __ubsan_handle_negate_overflow(SourceLocation *location, void *, size_t) {
+    location->print();
+    cout << "Negate Overflow" << endl;
+    Panic();
+}
+
 extern "C" void __ubsan_handle_load_invalid_value(SourceLocation *location, void *, size_t) {
     location->print();
     cout << "Load of Invalid Value for Type" << endl;

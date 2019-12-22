@@ -42,9 +42,14 @@ public:
         return KernelVirtualAddress(value() + offset);
     }
     KernelVirtualAddress operator+(ssize_t offset) {
-        return KernelVirtualAddress(value() + offset);
+        return KernelVirtualAddress(value() + static_cast<size_t>(offset));
     }
-
+    KernelVirtualAddress operator-(size_t offset) {
+        return KernelVirtualAddress(value() - offset);
+    }
+    KernelVirtualAddress operator-(ssize_t offset) {
+        return KernelVirtualAddress(value() - static_cast<size_t>(offset));
+    }
 };
 
 class PhysicalAddress : public Address {
