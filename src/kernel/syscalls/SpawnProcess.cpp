@@ -1,4 +1,4 @@
-#include <lib/Lock.hpp>
+#include <mutex>
 #include <processes/Process.hpp>
 #include <processes/Thread.hpp>
 #include <syscalls/SpawnProcess.hpp>
@@ -39,7 +39,7 @@ bool SpawnProcess::perform(Process &process) {
                              static_cast<Thread::Priority>(priority),
                              messageType,
                              messageSize);
-    LockHolder lh2(newProcess->pagingLock);
+    lock_guard lg(newProcess->pagingLock);
     valid = newProcess->copyFromOhterUserSpace(newProcess->runMessageAddress(),
                                             &process,
                                             messageAddress,

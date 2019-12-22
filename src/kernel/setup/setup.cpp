@@ -1,7 +1,7 @@
 #include <common/common.hpp>
 #include <setup/BootInfo.hpp>
 #include <system/System.hpp>
-#include <lib/vector.hpp>
+#include <vector>
 #include <processes/Process.hpp>
 #include <processes/ELF.hpp>
 
@@ -56,7 +56,7 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
         const UUID beInitMessage(uuidData);
 
         Process *newProcess = new Process(initELF, Thread::Priority::FOREGROUND, beInitMessage, 0);
-        LockHolder lh(newProcess->pagingLock);
+        lock_guard lg(newProcess->pagingLock);
 
         /* the ELF data is the last thing we wanted to read from loader memory */
         //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();
@@ -70,7 +70,11 @@ extern "C" __attribute__((noreturn)) void KernelEntrySecondaryProcessor() {
     assert(CurrentSystem.processorsLock.isLocked());
 
     CurrentProcessor = new Processor(false);
-    CurrentSystem.processors.push_back(CurrentProcessor);
+
+    /* create local variable as CurrentProcessor is a register variable that can't be passed by
+     * const reference for push_back */
+    Processor *tmp = CurrentProcessor;
+    CurrentSystem.processors.push_back(tmp);
 
     switchStack(CurrentProcessor->kernelStack, KernelEntrySecondaryProcessor2, nullptr);
 }

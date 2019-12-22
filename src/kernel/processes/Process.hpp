@@ -1,8 +1,7 @@
-#ifndef PROCESS_HPP
-#define PROCESS_HPP
+#pragma once
 
 #include <lib/List.hpp>
-#include <lib/Lock.hpp>
+#include <mutex>
 #include <paging/PagingContext.hpp>
 #include <processes/ELF.hpp>
 #include <processes/Thread.hpp>
@@ -10,6 +9,7 @@
 #include <paging/PageTableEntry.hpp>
 #include <processes/UUID.hpp>
 #include <processes/Message.hpp>
+#include <processes/HandleManager.hpp>
 
 class Process {
 private:
@@ -18,8 +18,8 @@ private:
     friend class MMap;
     friend class MUnmap;
     vector<Thread *>threads;
-    vector<Port *>ports;
     MappedAreaVector mappedAreas;
+    HandleManager handleManager;
 
     vector<uint32_t> canUseTags;
     vector<uint32_t> ownTags;
@@ -31,9 +31,9 @@ private:
                          bool requireWritePermissions);
 
 public:
-    Lock pagingLock;
-    Lock threadsLock;
-    Lock portsLock;
+    mutex pagingLock;
+    mutex threadsLock;
+    mutex portsLock;
     PagingContext *masterPageTable;
     Region runMessageRegion;
 
@@ -56,7 +56,4 @@ public:
 
     //void receiveMessage(Message *msg);
     size_t runMessageAddress();
-    Port *getPortById(uint32_t id);
 };
-
-#endif // PROCESS_HPP

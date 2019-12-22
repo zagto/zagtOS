@@ -4,6 +4,7 @@ CXX_SOURCES = $(shell find . -type f -name '*.cpp' -not -path './arch/*')
 CXX_HEADERS = $(shell find . -type f -name '*.hpp' -not -path './arch/*')
 CXX_SOURCES += $(shell find arch/$(ARCH) -type f -name '*.cpp')
 CXX_HEADERS += $(shell find arch/$(ARCH) -type f -name '*.hpp')
+CXX_HEADERS += $(shell find stdlib -type f)
 CXX_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(CXX_SOURCES:.cpp=.o))
 
 C_SOURCES = memory/dlmalloc.c
@@ -18,7 +19,7 @@ ASM_REGULER_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJ
 TARGET = $(SHBUILD_BUILD_DIR)/SHKERNEL.BIN
 
 
-COMMON_FLAGS = -O0 -g -fsanitize=undefined -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
+COMMON_FLAGS = -O0 -g -fsanitize=undefined -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/stdlib
 COMMON_FLAGS += $(KERNEL_CFLAGS_$(ARCH))
 
 CFLAGS = $(COMMON_FLAGS) -std=c99 -Wno-expansion-to-defined -include memory/dlmalloc-glue.hpp

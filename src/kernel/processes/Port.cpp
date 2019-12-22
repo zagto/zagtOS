@@ -2,17 +2,21 @@
 #include <system/System.hpp>
 #include <processes/Port.hpp>
 
-Port::Port(Process &process, vector<uint32_t> acceptedTags) :
-    process{process},
-    acceptedTags{acceptedTags} {
+Port::Port(Thread &thread, vector<shared_ptr<Tag>> &acceptedTags) :
+    thread{thread},
+    threadWaits{false},
+    acceptedTags{move(acceptedTags)} {}
 
-    _id = CurrentSystem.tagManager.allocateTag();
-}
+unique_ptr<Message> Port::getMessageOrMakeThreadWait() {
+    assert(!threadWaits);
+    lock_guard lg(lock);
 
-Port::~Port() {
-    CurrentSystem.tagManager.freeTag(_id);
-}
-
-uint32_t Port::id() {
-    return _id;
+    if (messages.empty()) {
+        CurrentProcessor->scheduler.remove(&thread);
+        return nullptr;
+    } else {
+        auto msg = move(messages.top());
+        messages.pop();
+        return msg;
+    }
 }

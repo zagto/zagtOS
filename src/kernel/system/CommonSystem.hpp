@@ -2,14 +2,14 @@
 #define COMMONSYSTEM_HPP
 
 #include <common/common.hpp>
-#include <lib/vector.hpp>
+#include <vector>
 #include <system/Processor.hpp>
 #include <memory/Memory.hpp>
 #include <setup/BootInfo.hpp>
 #include <common/globalregisters.hpp>
 #include <time/Time.hpp>
 #include <paging/PagingContext.hpp>
-#include <processes/TagManager.hpp>
+#include <processes/HandleManager.hpp>
 
 
 class CommonSystem {
@@ -19,8 +19,7 @@ public:
     /* Memory and the MasterPageTable must be initialized before dynamic memory can be used */
     PagingContext kernelOnlyPagingContext;
     vector<Processor *> processors;
-    Lock processorsLock;
-    TagManager tagManager;
+    mutex processorsLock;
 
     CommonSystem(BootInfo *bootInfo) :
         memory(bootInfo),

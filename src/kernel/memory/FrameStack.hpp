@@ -1,7 +1,6 @@
-#ifndef FRAMESTACK_HPP
-#define FRAMESTACK_HPP
+#pragma once
 
-#include <lib/Lock.hpp>
+#include <common/common.hpp>
 
 namespace frameStack {
     class Node {
@@ -38,5 +37,3 @@ namespace frameStack {
 }
 
 using frameStack::FrameStack;
-
-#endif // FRAMESTACK_HPP

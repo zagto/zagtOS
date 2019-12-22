@@ -1,25 +1,32 @@
 #ifndef PORT_HPP
 #define PORT_HPP
 
-#include <lib/vector.hpp>
+#include <vector>
+#include <queue>
+#include <memory>
+#include <mutex>
+#include <processes/Message.hpp>
 
-class Message;
-class Process;
+class Thread;
+
+class Tag {};
 
 class Port {
-    Process &process;
-    vector<uint32_t> acceptedTags;
-    uint32_t _id;
+    Thread &thread;
+    mutex lock;
+    bool threadWaits;
+    vector<shared_ptr<Tag>> acceptedTags;
+    queue<unique_ptr<Message>> messages;
 
 public:
-    Port(Process &process, vector<uint32_t> acceptedTags);
+    Port(Thread &thread, vector<shared_ptr<Tag>> &acceptedTags);
     Port(Port &) = delete;
-    ~Port();
+    //~Port();
 
-    uint32_t id();
-
-    bool messagesPending();
-
+    bool ownedBy(const Thread &threadToCheck) {
+        return &thread == &threadToCheck;
+    }
+    unique_ptr<Message> getMessageOrMakeThreadWait();
 };
 
 #endif // PORT_HPP

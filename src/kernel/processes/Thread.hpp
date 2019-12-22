@@ -2,6 +2,8 @@
 #define THREAD_HPP
 
 #include <interrupts/RegisterState.hpp>
+#include <memory>
+#include <vector>
 
 class Processor;
 class Scheduler;
@@ -48,6 +50,7 @@ public:
         return UserVirtualAddress(tlsBase.value() - THREAD_STRUCT_AREA_SIZE);
     }
     bool handleSyscall();
+    bool lookupOwnPort(uint32_t handle, shared_ptr<Port> &port) const;
 };
 
 #endif

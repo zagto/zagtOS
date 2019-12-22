@@ -4,7 +4,7 @@
 #include <memory/FrameStack.hpp>
 #include <setup/BootInfo.hpp>
 #include <memory/PlatformRegions.hpp>
-#include <lib/Lock.hpp>
+#include <mutex>
 
 class Memory
 {
@@ -13,9 +13,9 @@ public: /* TODO: make private */
     FrameStack freshFrameStack;
     KernelVirtualAddress heapEnd{KernelHeapRegion.start};
     KernelVirtualAddress halfwayDeallocatedHeapEnd{KernelHeapRegion.start};
-    Lock heapLock;
-    Lock frameManagementLock;
-    Lock kernelPagingLock;
+    mutex heapLock;
+    mutex frameManagementLock;
+    mutex kernelPagingLock;
 
     void recyclePhysicalFrame();
 

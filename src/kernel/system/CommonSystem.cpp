@@ -7,6 +7,8 @@ void CommonSystem::addBootProcessor() {
     CurrentProcessor = new Processor(true);
     CurrentProcessor->activePagingContext = &CurrentSystem.kernelOnlyPagingContext;
     cout << "Processor object created. registering..." << endl;
-    processors.push_back(CurrentProcessor);
+    /* register variables can't be pushed */
+    auto tmp = CurrentProcessor;
+    processors.push_back(tmp);
     cout << "Processor initialized." << endl;
 }

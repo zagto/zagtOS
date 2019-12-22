@@ -1,14 +1,11 @@
-#ifndef LOCK_HPP
-#define LOCK_HPP
+#pragma once
 
 #include <common/common.hpp>
 
 extern "C" void basicLock(volatile size_t &value);
 extern "C" void basicUnlock(volatile size_t &value);
 
-class LockHolder;
-
-class Lock {
+class mutex {
 private:
     volatile size_t value{0};
 
@@ -28,17 +25,16 @@ public:
     }
 };
 
-class LockHolder {
+class lock_guard {
 private:
-    Lock *lock;
+    mutex &_mutex;
 
 public:
-    LockHolder(Lock &lock) : lock{&lock} {
-        lock.lock();
+    lock_guard(mutex &_mutex) : _mutex{_mutex} {
+        _mutex.lock();
     }
-    ~LockHolder() {
-        lock->unlock();
+    lock_guard(lock_guard &other) = delete;
+    ~lock_guard() {
+        _mutex.unlock();
     }
 };
-
-#endif // LOCK_HPP

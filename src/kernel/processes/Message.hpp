@@ -1,7 +1,6 @@
-#ifndef MESSAGE_HPP
-#define MESSAGE_HPP
+#pragma once
 
-#include <lib/vector.hpp>
+#include <vector>
 #include <processes/UUID.hpp>
 
 class Port;
@@ -16,6 +15,6 @@ private:
 public:
     Message();
     size_t dataSize();
-};
 
-#endif // MESSAGE_HPP
+    UserVirtualAddress headerAddress;
+};

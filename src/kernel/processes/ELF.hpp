@@ -2,7 +2,7 @@
 #define ELF_HPP
 
 #include <common/common.hpp>
-#include <lib/vector.hpp>
+#include <vector>
 #include <lib/Slice.hpp>
 
 class Process;

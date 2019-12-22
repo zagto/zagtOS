@@ -21,7 +21,7 @@ void LocalAPIC::setupMap(PhysicalAddress base) {
 
     KernelVirtualAddress mapAddress = CurrentSystem.memory.allocateVirtualArea(PAGE_SIZE, PAGE_SIZE);
     {
-        LockHolder lh(CurrentSystem.memory.kernelPagingLock);
+        lock_guard lg(CurrentSystem.memory.kernelPagingLock);
 
         PhysicalAddress physical = PagingContext::resolve(mapAddress);
         PagingContext::unmap(mapAddress);
@@ -49,7 +49,7 @@ LocalAPIC::LocalAPIC(PhysicalAddress base) :
     /* enables the APIC and sets spurious interrupts vector.
      * make spurious interrupts use 0x20 the same vector they use on the legacy PIC, so we can
      * ignore them all the same way */
-    writeRegister(Register::SPURIOUS_INTERRUPT_VECOTOR, 0x120);
+    writeRegister(Register::SPURIOUS_INTERRUPT_VECTOR, 0x120);
 
     writeRegister(Register::LVT_REGULATOR_INTTERRUPTS, 0x08700);
     writeRegister(Register::LVT_NON_MASKABLE_INTERRUPTS, 0x00400);

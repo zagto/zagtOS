@@ -1,5 +1,5 @@
-#include <lib/Lock.hpp>
-#include <lib/vector.hpp>
+#include <mutex>
+#include <vector>
 #include <memory/UserSpaceObject.hpp>
 #include <system/System.hpp>
 #include <processes/Thread.hpp>
@@ -12,7 +12,7 @@
 bool Thread::handleSyscall() {
     switch (registerState.syscallNr()) {
     case SYS_LOG: {
-        LockHolder lh(process->pagingLock);
+        lock_guard lg(process->pagingLock);
         static const size_t MAX_LOG_SIZE = 10000;
         size_t address = registerState.syscallParameter(1);
         size_t length = registerState.syscallParameter(0);
@@ -42,14 +42,16 @@ bool Thread::handleSyscall() {
         delete this;
         return true;
     case SYS_CREATE_PORT: {
-        LockHolder lh(process->pagingLock);
-        LockHolder lh2(process->portsLock);
+        lock_guard lg(process->pagingLock);
+        lock_guard lg2(process->portsLock);
         size_t tagsAddress = registerState.syscallParameter(0);
         size_t numTags = registerState.syscallParameter(1);
 
-        vector<uint32_t> acceptedTags(numTags);
+        vector<uint32_t> tagHandles(numTags);
+        vector<shared_ptr<Tag>> acceptedTags;
+        acceptedTags.reserve(numTags);
         if (numTags > 0) {
-            bool valid = process->copyFromUser(reinterpret_cast<uint8_t *>(acceptedTags.data()),
+            bool valid = process->copyFromUser(reinterpret_cast<uint8_t *>(tagHandles.data()),
                                             tagsAddress,
                                             numTags * sizeof(uint32_t),
                                             false);
@@ -58,36 +60,49 @@ bool Thread::handleSyscall() {
             }
         }
 
-        process->ports.push_back(new Port(*process, acceptedTags));
-        registerState.setSyscallResult(process->ports[process->ports.size() - 1]->id());
-        cout << "created port " << process->ports[process->ports.size() - 1]->id() << endl;
+        for (uint32_t handle: tagHandles) {
+            shared_ptr<Tag> tag;
+            if (!process->handleManager.lookup(handle, tag) || !tag) {
+                return false;
+            }
+            acceptedTags.push_back(tag);
+        }
+
+        auto port = make_shared<Port>(*this, acceptedTags);
+        uint32_t handle = process->handleManager.add(port);
+        if (handle == HandleManager::HANDLE_END) {
+            cout << "SYS_CREATE_PORT: out of handles" << endl;
+            return false;
+        }
+        registerState.setSyscallResult(handle);
+        port.addGhostReference();
+
+        cout << "created port " << handle << endl;
         return true;
     }
     case SYS_RECEIVE_MESSAGE: {
-        LockHolder lh(process->portsLock);
-        Port *port(process->getPortById(static_cast<uint32_t>(registerState.syscallParameter(0))));
-
-        if (port == nullptr) {
-            cout << "SYS_RECEIVE_MESSAGE: invalid port ID" << endl;
+        lock_guard lg(process->portsLock);
+        uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
+        shared_ptr<Port> port;
+        if (!lookupOwnPort(portHandle, port)) {
             return false;
-        } else {
-            /*if (port->messagesPending()) {
-                TODO
-            }*/
-            return true;
         }
+
+        unique_ptr<Message> msg = port->getMessageOrMakeThreadWait();
+        if (msg) {
+            registerState.setSyscallResult(msg->headerAddress.value());
+        }
+        return true;
     }
     case SYS_DESTROY_PORT: {
-        LockHolder lh(process->portsLock);
-        Port *port(process->getPortById(static_cast<uint32_t>(registerState.syscallParameter(0))));
-
-        if (port == nullptr) {
-            cout << "SYS_DESTROY_PORT: invalid port ID" << endl;
+        lock_guard lg(process->portsLock);
+        uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
+        shared_ptr<Port> port;
+        if (!lookupOwnPort(portHandle, port)) {
             return false;
-        } else {
-            delete port;
-            return true;
         }
+        port.removeGhostReference();
+        return true;
     }
     case SYS_RANDOM:
         // todo: should write to memory here
@@ -96,7 +111,7 @@ bool Thread::handleSyscall() {
         return true;
 
     case SYS_MMAP: {
-        LockHolder lh(process->pagingLock);
+        lock_guard lg(process->pagingLock);
         UserSpaceObject<MMap, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
                                                                 process);
         if (!uso.valid) {
@@ -106,7 +121,7 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_MUNMAP: {
-        LockHolder lh(process->pagingLock);
+        lock_guard lg(process->pagingLock);
         MUnmap munmap(registerState.syscallParameter(0), registerState.syscallParameter(1));
         munmap.perform(*process);
         registerState.setSyscallResult(munmap.error);
@@ -124,7 +139,7 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_SPAWN_PROCESS: {
-        LockHolder lh(process->pagingLock);
+        lock_guard lg(process->pagingLock);
         UserSpaceObject<SpawnProcess, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
                                                                     process);
         if (!uso.valid) {

@@ -31,7 +31,7 @@ protected:
     /* These values are offsets in the memory-mapped APIC */
     enum class Register : size_t {
         TASK_PRIORITY = 0x080,
-        SPURIOUS_INTERRUPT_VECOTOR = 0x0f0,
+        SPURIOUS_INTERRUPT_VECTOR = 0x0f0,
         INTERRUPT_COMMAND_LOW = 0x300,
         INTERRUPT_COMMAND_HIGH = 0x310,
         LVT_TIMER = 0x320,

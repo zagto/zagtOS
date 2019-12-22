@@ -15,7 +15,7 @@ struct RunMessageInfo {
 
 Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t runMessageSize):
         mappedAreas(this) {
-    LockHolder lh(pagingLock);
+    lock_guard lg(pagingLock);
 
     masterPageTable = new PagingContext(this);
 
@@ -111,7 +111,7 @@ PhysicalAddress Process::allocateFrame(UserVirtualAddress address,
 
 bool Process::handlePageFault(UserVirtualAddress address) {
     UserVirtualAddress pageAddress{align(address.value(), PAGE_SIZE, AlignDirection::DOWN)};
-    LockHolder lh(pagingLock);
+    lock_guard lg(pagingLock);
 
     MappedArea *ma = mappedAreas.findMappedArea(address);
     if (ma) {
@@ -140,16 +140,4 @@ void Process::removeThread(Thread *thread) {
 
 size_t Process::runMessageAddress() {
     return runMessageRegion.start + sizeof(RunMessageInfo);
-}
-
-Port *Process::getPortById(uint32_t id) {
-    assert(portsLock.isLocked());
-
-    for (size_t i = 0; i < ports.size(); i++) {
-        Port *port = ports[i];
-        if (port->id() == id) {
-            return port;
-        }
-    }
-    return nullptr;
 }

@@ -241,7 +241,7 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
     size_t numMove = numElements - index - 1;
 
     numElements += numAddBetween + 1;
-    updateAllocatedSize();
+    adjustAllocatedSize();
 
     memmove(&_data[index + numAddBetween + 2],
             &_data[index + 1],
@@ -312,12 +312,12 @@ size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
 
     numElements = numElements - (endIndex - index) + numAddInstead;
     if (numAddInstead > endIndex - index) {
-        updateAllocatedSize();
+        adjustAllocatedSize();
     }
     memmove(&_data[index + numAddInstead],
             &_data[endIndex],
             numMove * sizeof(MappedArea *));
-    updateAllocatedSize();
+    adjustAllocatedSize();
 
     for (size_t i = index; i < index + numAddInstead; i++) {
         _data[i] = nullptr;

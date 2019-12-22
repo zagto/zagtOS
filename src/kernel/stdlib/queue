@@ -1,0 +1,37 @@
+#pragma once
+
+#include <vector>
+
+template<typename T>
+class queue {
+private:
+    vector<T> buffer;
+    size_t firstIndex{0};
+
+public:
+    /* not implemented for now, but there is nothing wrong with copying/moving queues
+     * implement this if you need it */
+    void operator=(queue &) = delete;
+
+    void push_back(const T& newElement) {
+        buffer.push_back(newElement);
+    }
+    bool empty() const {
+        return firstIndex == buffer.size();
+    }
+    T& top() {
+        assert(!empty());
+        return buffer[firstIndex];
+    }
+    void pop() {
+        buffer[firstIndex] = T();
+
+        if (firstIndex * 2 >= buffer.size()) {
+            vector<T> newBuffer(buffer.size() - firstIndex);
+            for (size_t index = 0; index < newBuffer.size(); index++) {
+                newBuffer[index] = move(buffer[index]);
+            }
+            buffer = move(newBuffer);
+        }
+    }
+};

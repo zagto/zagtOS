@@ -1,7 +1,7 @@
 #ifndef SORTEDVECTOR_HPP
 #define SORTEDVECTOR_HPP
 
-#include <lib/vector.hpp>
+#include <vector>
 
 template<typename ElementType, bool Comperator(ElementType, ElementType)>
 class SortedVector : public vector<ElementType> {
@@ -39,6 +39,5 @@ public:
         static_cast<vector<ElementType> *>(this)->insert(element, findIndexFor(element));
     }
 };
-
 
 #endif // SORTEDVECTOR_HPP
