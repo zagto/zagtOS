@@ -9,7 +9,6 @@
 
 ssize_t writev(int fd, const struct iovec *iov, int count)
 {
-
     if (count <= 0 || count > UIO_MAXIOV) {
         errno = EINVAL;
         return -1;

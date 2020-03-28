@@ -12,8 +12,6 @@
 bool Thread::handleSyscall() {
     switch (registerState.syscallNr()) {
     case SYS_LOG: {
-        cout << "SYS_LOG\n";
-
         lock_guard lg(process->pagingLock);
         static const size_t MAX_LOG_SIZE = 10000;
         size_t address = registerState.syscallParameter(0);

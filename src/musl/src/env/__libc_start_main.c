@@ -16,7 +16,7 @@ static char *dummy_environ = NULL;
 static char *dummy_pn = "/run";
 
 static ZFileDescriptor syslog_fd = {
-    .object = NULL,
+    .port_handle = -1,
     .position = 0,
     .is_syslog = 1,
     .read = 1,
@@ -71,7 +71,7 @@ int __libc_start_main(int (*main)(int,char **,char **),
 
     __run_message = run_msg;
 
-    if (uuid_compare(run_msg->type, ZAGTOS_MSG_UNIX_RUN)) {
+    if (!uuid_compare(run_msg->type, ZAGTOS_MSG_UNIX_RUN)) {
         ZUnixRun *urun = (ZUnixRun *)run_msg;
         argc = urun->argc;
         argv = calloc(argc, sizeof(char *));

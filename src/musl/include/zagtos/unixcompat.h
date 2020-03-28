@@ -14,7 +14,7 @@ typedef struct {
 } ZUnixRun;
 
 typedef struct {
-    ZObject *object;
+    uint32_t port_handle;
     uint64_t position;
     _Bool is_syslog;
     _Bool has_position;
