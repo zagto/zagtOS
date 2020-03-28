@@ -26,7 +26,7 @@ CC = $(ARCH)-zagto-zagtos-gcc
 
 $(TARGET): $(CXX_OBJS) $(C_OBJS)
 	mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CXX) $(LDFLAGS) -o $@ $^
 
 $(SHBUILD_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
 	mkdir -p $(dir $@)
