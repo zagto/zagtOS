@@ -13,8 +13,7 @@ namespace zagtos {
 
     void environmentSpawn(const ExternalBinary &binary,
                           Priority priority,
-                          std::vector<uint32_t> canUseTags,
-                          const MessageType &messageType,
+                          const uuid_t messageType,
                           zbon::EncodedData runMessage);
 }
 

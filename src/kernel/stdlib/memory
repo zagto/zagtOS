@@ -143,17 +143,6 @@ public:
         reset();
         internalPointer = new InternalPointer(newPointer);
     }
-    void addGhostReference() {
-        assert(*this);
-        lock_guard lg(internalPointer->lock);
-        internalPointer->referenceCount++;
-    }
-    void removeGhostReference() {
-        assert(*this);
-        lock_guard lg(internalPointer->lock);
-        internalPointer->referenceCount--;
-        checkReferenceCounts();
-    }
 };
 
 template<typename T> class weak_ptr {
@@ -168,7 +157,7 @@ public:
         internalPointer->weakReferenceCount++;
     }
     weak_ptr(const weak_ptr &other) {
-        lock_guard lg(other.internalPointer.lock);
+        lock_guard lg(other.internalPointer->lock);
         internalPointer = other.internalPointer;
         internalPointer->weakReferenceCount++;
     }
@@ -176,9 +165,9 @@ public:
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
     }
-    void operator=(weak_ptr &other) {
+    void operator=(const weak_ptr &other) {
         reset();
-        lock_guard lg(other.internalPointer.lock);
+        lock_guard lg(other.internalPointer->lock);
         internalPointer = other.internalPointer;
         internalPointer->weakReferenceCount++;
     }
@@ -195,6 +184,7 @@ public:
     shared_ptr<T> lock() {
         shared_ptr<T> result;
         lock_guard lg(internalPointer->lock);
+        internalPointer->referenceCount++;
         result.internalPointer = internalPointer;
         return move(result);
     }

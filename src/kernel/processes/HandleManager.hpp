@@ -1,121 +1,142 @@
-#pragma once
+﻿#pragma once
 
 #include <common/inttypes.hpp>
 #include <vector>
-#include <memory>
+#include <optional>
 #include <mutex>
+#include <memory>
 #include <processes/Port.hpp>
 #include <processes/Thread.hpp>
 
 namespace handleManager {
 
 enum class Type : uint32_t {
-    INVALID, FREE, PORT, TAG, THREAD
+    INVALID, FREE, PORT, REMOTE_PORT
 };
 
-template<typename T>
-static Type typeIdOf();
-template<>
-Type typeIdOf<Port>() {
-    return Type::PORT;
-}
-template<>
-Type typeIdOf<Tag>() {
-    return Type::TAG;
-}
-template<>
-Type typeIdOf<Thread>() {
-    return Type::THREAD;
-}
+static const uint32_t HANDLE_END = static_cast<uint32_t>(-1);
 
-
-struct alignas(weak_ptr<Port>) Handle {
-    uint8_t data[sizeof(weak_ptr<Port>)];
+struct Handle {
     Type type;
+    union HandleData {
+        uint32_t nextFreeHandle;
+        shared_ptr<Port> port;
+        weak_ptr<Port> remotePort;
 
+        HandleData() {}
+    } data;
+
+    void clear() {
+        switch (type) {
+        case Type::FREE:
+        case Type::INVALID:
+            break;
+        case Type::PORT:
+            data.port.~shared_ptr();
+            break;
+        case Type::REMOTE_PORT:
+            data.remotePort.~weak_ptr();
+            break;
+        }
+        type = Type::INVALID;
+    }
     Handle():
         type{Type::INVALID} {}
-    template<typename T>
-    Handle(shared_ptr<T> element) {
-        type = typeIdOf<T>();
-        new (data) shared_ptr<T>(move(element));
+    Handle(uint32_t next) {
+        type = Type::FREE;
+        data.nextFreeHandle = next;
     }
-    ~Handle() {
+    Handle(shared_ptr<Port> &port) {
+        type = Type::PORT;
+        new (&data.port) shared_ptr<Port>(port);
+    }
+    Handle(const Handle &other) {
+        type = other.type;
         switch (type) {
+        case Type::INVALID:
+            break;
+        case Type::FREE:
+            data.nextFreeHandle = other.data.nextFreeHandle;
+            break;
         case Type::PORT:
-            removeValue<Port>(0);
-            return;
-        case Type::TAG:
-            removeValue<Tag>(0);
-            return;
-        case Type::THREAD:
-            removeValue<Thread>(0);
-            return;
-        default:
-            ; /* do nothing */
+            data.port = other.data.port;
+            break;
+        case Type::REMOTE_PORT:
+            data.remotePort = other.data.remotePort;
+            break;
         }
     }
-    Handle(Handle &&other) {
-        type = other.type;
-        memcpy(data, other.data, sizeof(data));
-        other.type = Type::INVALID;
+    ~Handle() {
+        clear();
     }
-    void operator=(Handle &) = delete;
-    void operator=(Handle &&other) {
-        assert(type == Type::FREE || type == Type::INVALID);
-        type = other.type;
-        memcpy(data, other.data, sizeof(data));
-        other.type = Type::INVALID;
-    }
-    template<typename T>
-    void removeValue(uint32_t nextFreeHandle) {
-        assert(type == typeIdOf<T>());
-        reinterpret_cast<T *>(data)->~T();
-        *reinterpret_cast<uint32_t *>(data) = nextFreeHandle;
-    }
-    uint32_t getNextFree() {
-        assert(type == Type::FREE);
-        return *reinterpret_cast<uint32_t *>(data);
+    void operator=(const Handle &other) {
+        clear();
+        new (this) Handle(other);
     }
 };
 
 class HandleManager {
-public:
-    static const uint32_t HANDLE_END = static_cast<uint32_t>(-1);
-
 private:
     vector<Handle> handles;
     uint32_t nextFreeHandle{HANDLE_END};
+    mutex lock;
+
+    optional<uint32_t> grabFreeHandle() {
+        if (handles.size() == HANDLE_END && nextFreeHandle == HANDLE_END) {
+            return {};
+        }
+        if (nextFreeHandle == HANDLE_END) {
+            handles.resize(handles.size() + 1);
+            return static_cast<uint32_t>(handles.size() - 1);
+        } else {
+            uint32_t handle = nextFreeHandle;
+            assert(handles[handle].type == Type::FREE);
+            nextFreeHandle = handles[handle].data.nextFreeHandle;
+            return handle;
+        }
+    }
+
+    bool handleValidFor(uint32_t handle, Type type) {
+        return handle < handles.size() && handles[handle].type == type;
+    }
 
 public:
     HandleManager() {}
     HandleManager(HandleManager &) = delete;
 
-    /* returns false if given handle is bogus
-     * returns true and sets result to a shared_ptr, which may be empty if the object the handle was
+    /* try to resolve a handle to the corresponding pointer
+     * returns no value if given handle is bogus
+     * returns true and sets result to the pointer, which may be null if the object the handle was
      * referring to no longer exists */
-    template<typename T> bool lookup(uint32_t handle, shared_ptr<T> &result) {
-        if (handle >= handles.size() || handles[handle].type != typeIdOf<T>()) {
+    optional<shared_ptr<Port>> lookupPort(uint32_t handle) {
+        lock_guard lg(lock);
+        if (!handleValidFor(handle, Type::PORT)) {
+            return {};
+        }
+        return handles[handle].data.port;
+    }
+
+    bool removePort(uint32_t handle) {
+        lock_guard lg(lock);
+        if (!handleValidFor(handle, Type::PORT)) {
             return false;
         }
-        weak_ptr<T> *weakPointer = reinterpret_cast<weak_ptr<T> *>(handles[handle].data);
-        result = weakPointer->lock();
+        handles[handle] = nextFreeHandle;
+        nextFreeHandle = handle;
         return true;
     }
-    template<typename T> uint32_t add(shared_ptr<T> newElement) {
-        if (handles.size() == HANDLE_END && nextFreeHandle == HANDLE_END) {
-            return HANDLE_END;
+
+    /* generate a new handle for the given pointer
+     * returns no value if handle namespace is full */
+    optional<uint32_t> addPort(shared_ptr<Port> &port) {
+        lock_guard lg(lock);
+        optional<uint32_t> handle = grabFreeHandle();
+        if (handle) {
+            handles[*handle] = Handle(port);
         }
-        if (nextFreeHandle == HANDLE_END) {
-            handles.push_back(move(Handle(newElement)));
-            return static_cast<uint32_t>(handles.size()) - 1;
-        } else {
-            uint32_t handle = nextFreeHandle;
-            nextFreeHandle = handles[handle].getNextFree();
-            handles[handle] = Handle(newElement);
-            return handle;
-        }
+        return handle;
     }
+
 };
 
 }

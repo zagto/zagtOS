@@ -50,7 +50,6 @@ public:
         return UserVirtualAddress(tlsBase.value() - THREAD_STRUCT_AREA_SIZE);
     }
     bool handleSyscall();
-    bool lookupOwnPort(uint32_t handle, shared_ptr<Port> &port) const;
 };
 
 #endif

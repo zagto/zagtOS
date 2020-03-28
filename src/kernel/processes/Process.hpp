@@ -33,7 +33,7 @@ private:
 public:
     mutex pagingLock;
     mutex threadsLock;
-    mutex portsLock;
+    /*needed ? mutex portsLock;*/
     PagingContext *masterPageTable;
     Region runMessageRegion;
 

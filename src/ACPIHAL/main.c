@@ -69,6 +69,8 @@ int main() {
 
     findProcessors();
 
+    printf("ACPI HAL initialized\n");
+
     /*
      * TODO
     result = AcpiLoadTables();

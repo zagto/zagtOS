@@ -1,0 +1,22 @@
+#pragma once
+
+#include <common/panic.hpp>
+
+template<typename T> class optional {
+private:
+    bool hasValue{false};
+    T _value;
+
+public:
+    constexpr optional() {}
+    optional(T value):
+        hasValue{true},
+        _value{value} {}
+    T &operator*() {
+        assert(hasValue);
+        return _value;
+    }
+    operator bool() const {
+        return hasValue;
+    }
+};

@@ -12,12 +12,10 @@ private:
     size_t length;
     size_t priority;
 
-    const uint32_t *canUse;
-    size_t numCanUse;
-
     UUID messageType;
-    size_t messageSize;
     size_t messageAddress;
+    size_t messageSize;
+    size_t numMessageHandles;
 
     size_t result;
 public:

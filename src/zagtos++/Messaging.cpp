@@ -3,71 +3,61 @@
 
 using namespace zagtos;
 
-UUIDObject::UUIDObject() {
-    uuid_clear(_id);
+HandleObject::HandleObject() {}
+
+HandleObject::HandleObject(const Handle handle) {
+    _handle = handle;
 }
 
-UUIDObject::UUIDObject(const uuid_t id) {
-    uuid_copy(_id, id);
+Handle HandleObject::handle() const {
+    return _handle;
 }
 
-const uuid_t &UUIDObject::id() const {
-    return _id;
+zbon::Type Handle::ZBONType() {
+    return zbon::Type::HANDLE;
 }
 
-zbon::Type UUIDObject::ZBONType() {
-    return zbon::Type::ARRAY;
+zbon::Size Handle::ZBONSize() const {
+    return {0, 1};
 }
 
-size_t UUIDObject::ZBONSize() const {
-    return zbon::sizeFor(_id);
+void Handle::ZBONEncode(zbon::Encoder &encoder) const {
+    encoder.encodeHandle(value);
 }
 
-void UUIDObject::ZBONEncode(zbon::Encoder &encoder) const {
-    encoder.encodeValue(_id);
-}
 
 Port::Port() :
         valid{true} {
-    id = static_cast<uint32_t>(zagtos_syscall2(SYS_CREATE_PORT, 0, 0));
-}
-
-Port::Port(const std::vector<uint32_t> &acceptedTags):
-        valid{true} {
-    id = static_cast<uint32_t>(zagtos_syscall2(SYS_CREATE_PORT,
-                               reinterpret_cast<size_t>(acceptedTags.data()),
-                               acceptedTags.size()));
+    _handle = {static_cast<uint32_t>(zagtos_syscall0(SYS_CREATE_PORT))};
 }
 
 Port::Port(Port &&other):
-        id{other.id},
         valid{other.valid} {
-    other.id = 0;
-    other.valid = 0;
+    assert(_handle.value == other._handle.value);
+    other._handle = {0};
+    other.valid = false;
 }
 
 Port::~Port() {
     if (valid) {
-        zagtos_syscall1(SYS_DESTROY_PORT, id);
+        zagtos_syscall1(SYS_DESTROY_PORT, _handle.value);
     }
-}
-
-uint32_t Port::selfTag() const {
-    return id;
 }
 
 MessageInfo Port::receiveMessage() {
     MessageInfo result;
-    zagtos_syscall1(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(&result));
+    zagtos_syscall2(SYS_RECEIVE_MESSAGE, _handle.value, reinterpret_cast<size_t>(&result));
     return result;
 }
 
+
 void zagtos::sendMessage(const RemotePort &target, uuid_t messageTypeID, zbon::EncodedData message) {
-    zagtos_syscall4(SYS_SEND_MESSAGE,
-                    reinterpret_cast<size_t>(&target.id()),
+    zagtos_syscall5(SYS_SEND_MESSAGE,
+                    target.handle().value,
                     reinterpret_cast<size_t>(&messageTypeID),
                     reinterpret_cast<size_t>(message.data()),
-                    message.size());
+                    message.size(),
+                    message.numHandles());
 }
 
 extern RunMessageInfo *__run_message;

@@ -156,6 +156,15 @@ public:
         }
     }
 
+    void resize(size_t newSize) {
+        while (newSize < numElements) {
+            numElements--;
+            _data[numElements] = ElementType();
+        }
+        numElements = newSize;
+        adjustAllocatedSize();
+    }
+
     ElementType *data() const {
         return _data;
     }

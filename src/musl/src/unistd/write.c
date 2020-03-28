@@ -12,7 +12,7 @@ ssize_t write(int fd, const void *buf, size_t count)
     }
 
     if (zfd->is_syslog) {
-        zagtos_syscall(SYS_LOG, count, buf);
+        zagtos_syscall(SYS_LOG, buf, count);
         return count;
     }
 

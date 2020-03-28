@@ -7,26 +7,23 @@
 #include <mutex>
 #include <processes/Message.hpp>
 
+class Process;
 class Thread;
 
 class Tag {};
 
 class Port {
-    Thread &thread;
+    Process &process;
     mutex lock;
-    bool threadWaits;
-    vector<shared_ptr<Tag>> acceptedTags;
+    Thread *waitingThread{nullptr};
     queue<unique_ptr<Message>> messages;
 
 public:
-    Port(Thread &thread, vector<shared_ptr<Tag>> &acceptedTags);
+    Port(Process &process);
     Port(Port &) = delete;
     //~Port();
 
-    bool ownedBy(const Thread &threadToCheck) {
-        return &thread == &threadToCheck;
-    }
-    unique_ptr<Message> getMessageOrMakeThreadWait();
+    unique_ptr<Message> getMessageOrMakeThreadWait(Thread *thread);
 };
 
 #endif // PORT_HPP

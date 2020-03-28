@@ -1,5 +1,4 @@
-#ifndef MESSAGING_HPP
-#define MESSAGING_HPP
+#pragma once
 
 #include <vector>
 #include <uuid/uuid.h>
@@ -9,22 +8,28 @@
 namespace zagtos {
     class ExternalBinary;
 
-    class UUIDObject {
-    protected:
-        uuid_t _id;
+    struct Handle {
+        uint32_t value;
 
-    public:
-        UUIDObject();
-        UUIDObject(const uuid_t id);
-        const uuid_t &id() const;
         static zbon::Type ZBONType();
-        size_t ZBONSize() const;
+        zbon::Size ZBONSize() const;
         void ZBONEncode(zbon::Encoder &encoder) const;
     };
 
-    class Protocol : public UUIDObject { using UUIDObject::UUIDObject; };
-    class RemotePort : public UUIDObject { using UUIDObject::UUIDObject; };
-    class MessageType : public UUIDObject { using UUIDObject::UUIDObject; };
+    class HandleObject {
+    protected:
+        static constexpr Handle INVALID_HANDLE{static_cast<uint32_t>(-1)};
+
+        Handle _handle{INVALID_HANDLE};
+
+    public:
+        HandleObject();
+        HandleObject(const Handle handle);
+
+        Handle handle() const;
+    };
+
+    class RemotePort : public HandleObject { using HandleObject::HandleObject; };
 
     struct MessageInfo {
         uint32_t senderPort;
@@ -32,18 +37,16 @@ namespace zagtos {
         zbon::EncodedData data;
     };
 
-    class Port {
+    class Port : public HandleObject {
     private:
-        uint32_t id;
         bool valid;
 
     public:
         Port();
-        Port(const std::vector<uint32_t> &acceptedTags);
         Port(Port &) = delete;
         Port(Port &&ohter);
         ~Port();
-        uint32_t selfTag() const;
+
         MessageInfo receiveMessage();
         template<typename T> void receiveMessage(const uuid_t type, T &result) {
             while (true) {
@@ -82,5 +85,3 @@ namespace zagtos {
         return result;
     }
 }
-
-#endif // MESSAGING_HPP

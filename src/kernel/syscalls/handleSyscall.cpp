@@ -12,13 +12,15 @@
 bool Thread::handleSyscall() {
     switch (registerState.syscallNr()) {
     case SYS_LOG: {
+        cout << "SYS_LOG\n";
+
         lock_guard lg(process->pagingLock);
         static const size_t MAX_LOG_SIZE = 10000;
-        size_t address = registerState.syscallParameter(1);
-        size_t length = registerState.syscallParameter(0);
+        size_t address = registerState.syscallParameter(0);
+        size_t length = registerState.syscallParameter(1);
 
         if (length > MAX_LOG_SIZE) {
-            cout << "Process attempted to send huge log. ingnoring.\n";
+            cout << "Process attempted to send huge log. ignoring.\n";
             return true;
         }
 
@@ -42,67 +44,35 @@ bool Thread::handleSyscall() {
         delete this;
         return true;
     case SYS_CREATE_PORT: {
-        lock_guard lg(process->pagingLock);
-        lock_guard lg2(process->portsLock);
-        size_t tagsAddress = registerState.syscallParameter(0);
-        size_t numTags = registerState.syscallParameter(1);
-
-        vector<uint32_t> tagHandles(numTags);
-        vector<shared_ptr<Tag>> acceptedTags;
-        acceptedTags.reserve(numTags);
-        if (numTags > 0) {
-            bool valid = process->copyFromUser(reinterpret_cast<uint8_t *>(tagHandles.data()),
-                                            tagsAddress,
-                                            numTags * sizeof(uint32_t),
-                                            false);
-            if (!valid) {
-                return false;
-            }
-        }
-
-        for (uint32_t handle: tagHandles) {
-            shared_ptr<Tag> tag;
-            if (!process->handleManager.lookup(handle, tag) || !tag) {
-                return false;
-            }
-            acceptedTags.push_back(tag);
-        }
-
-        auto port = make_shared<Port>(*this, acceptedTags);
-        uint32_t handle = process->handleManager.add(port);
-        if (handle == HandleManager::HANDLE_END) {
+        shared_ptr<Port> port = make_shared<Port>(*process);
+        optional<uint32_t> handle = process->handleManager.addPort(port);
+        if (!handle) {
             cout << "SYS_CREATE_PORT: out of handles" << endl;
             return false;
         }
-        registerState.setSyscallResult(handle);
-        port.addGhostReference();
+        registerState.setSyscallResult(*handle);
 
-        cout << "created port " << handle << endl;
+        cout << "created port " << *handle << endl;
         return true;
     }
     case SYS_RECEIVE_MESSAGE: {
-        lock_guard lg(process->portsLock);
+        cout << "receiveMessage" << endl;
         uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
-        shared_ptr<Port> port;
-        if (!lookupOwnPort(portHandle, port)) {
+        optional<shared_ptr<Port>> port = process->handleManager.lookupPort(portHandle);
+        if (!port) {
             return false;
         }
 
-        unique_ptr<Message> msg = port->getMessageOrMakeThreadWait();
+        unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(this);
         if (msg) {
             registerState.setSyscallResult(msg->headerAddress.value());
         }
         return true;
     }
     case SYS_DESTROY_PORT: {
-        lock_guard lg(process->portsLock);
+        cout << "destroyPort" << endl;
         uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
-        shared_ptr<Port> port;
-        if (!lookupOwnPort(portHandle, port)) {
-            return false;
-        }
-        port.removeGhostReference();
-        return true;
+        return process->handleManager.removePort(portHandle);
     }
     case SYS_RANDOM:
         // todo: should write to memory here

@@ -7,15 +7,30 @@
 #include <zagtos/ExternalBinary.hpp>
 #include <zagtos/EnvironmentSpawn.hpp>
 
+#include <zagtos/syscall.h>
+
 EXTERNAL_BINARY(ACPIHAL)
 
 using namespace zagtos;
 
+UUID_DEFINE(MSG_BE_INIT, 0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
+            0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55);
+
 int main() {
+    zagtos_syscall2(SYS_LOG, 0, 0);
+
+    std::cout << "Recieving Message..." << std::endl;
+
+    receiveRunMessage(MSG_BE_INIT);
+
     std::cout << "Starting HAL..." << std::endl;
 
     Port port;
-    //environmentSpawn(ACPIHAL, {port.selfTag()}, StartHALMessage, zbon::encode(std::make_tuple(port.selfTag())));
-    environmentSpawn(ACPIHAL, Priority::BACKGROUND, {port.selfTag()}, StartHALMessage, zbon::encode(port.selfTag()));
-    //StartHALResponse response = port.receiveMessage(msg);
+    environmentSpawn(ACPIHAL, Priority::BACKGROUND, StartHALMessage, zbon::encode(std::make_tuple(port.handle())));
+    //environmentSpawn(ACPIHAL, Priority::BACKGROUND, {port.selfTag()}, StartHALMessage, zbon::encode(port.selfTag()));
+
+
+    bool response;
+    port.receiveMessage(StartHALResponse, response);
+    std::cout << "HAL Start result: " << response << std::endl;
 }

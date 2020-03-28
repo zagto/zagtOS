@@ -14,9 +14,19 @@ namespace zbon {
     enum class Type : uint8_t {
         OBJECT, NOTHING, ARRAY, STRING, BOOLEAN,
         INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64,
-        FLOAT, DOUBLE
+        FLOAT, DOUBLE, HANDLE
     };
-    static const size_t NUM_TYPES = 15;
+    static const size_t NUM_TYPES = 16;
+    static const size_t HANDLE_SIZE = 4;
+
+    struct Size {
+        size_t numRegularBytes{0};
+        size_t numHandles{0};
+    };
+
+    static Size operator+(const Size &a, const Size &b) {
+        return {a.numRegularBytes + b.numRegularBytes, a.numHandles + b.numHandles};
+    }
 
     static std::ostream &operator<<(std::ostream &stream, Type type) {
         switch (type) {
@@ -50,6 +60,8 @@ namespace zbon {
             return stream << "Single-Precision Float";
         case Type::DOUBLE:
             return stream << "Single-Precision Float";
+        case Type::HANDLE:
+            return stream << "Handle";
         }
         assert(false);
     }
@@ -213,67 +225,67 @@ namespace zbon {
         }
     }
 
-    static size_t sizeFor(bool) {
-        return 1;
+    static Size sizeFor(bool) {
+        return {1};
     }
     template<typename T>
-    static size_t sizeFor(const T& object) {
+    static Size sizeFor(const T& object) {
         return object.ZBONSize();
     }
-    static size_t sizeFor(std::string string) {
-        return TYPE_SIZE + COUNT_SIZE + string.size();
+    static Size sizeFor(std::string string) {
+        return {TYPE_SIZE + COUNT_SIZE + string.size()};
     }
-#define NUMBER_TYPE(T) static size_t sizeFor(const T) { return sizeof(T); }
+#define NUMBER_TYPE(T) static Size sizeFor(const T) { return {sizeof(T)}; }
     INSERT_NUMBER_TYPES
 #undef NUMBER_TYPE
 
     /* The following versions of sizeFor may use others internally. forward-declare them to make
      * sure everything is avalable */
     template<typename T>
-    static size_t sizeFor(const std::vector<T> &vector);
+    static Size sizeFor(const std::vector<T> &vector);
     template<typename T, size_t count>
-    static size_t sizeFor(const std::array<T, count> &array);
+    static Size sizeFor(const std::array<T, count> &array);
     template<typename T, size_t count>
-    static size_t sizeFor(const T (&array)[count]);
+    static Size sizeFor(const T (&array)[count]);
     template<typename ...Types>
-    static size_t sizeFor(const std::tuple<Types...> &tuple);
+    static Size sizeFor(const std::tuple<Types...> &tuple);
 
     template<typename T>
-    static size_t sizeFor(const std::vector<T> &vector) {
-        size_t sum = COUNT_SIZE * 2 + TYPE_SIZE;
+    static Size sizeFor(const std::vector<T> &vector) {
+        Size sum = {COUNT_SIZE * 2 + TYPE_SIZE};
         for (const T &element: vector) {
             sum += sizeFor(element);
         }
         return sum;
     }
     template<typename T, size_t count>
-    static size_t sizeFor(const std::array<T, count> &array) {
-        size_t sum = COUNT_SIZE * 2 + TYPE_SIZE;
+    static Size sizeFor(const std::array<T, count> &array) {
+        Size sum = {COUNT_SIZE * 2 + TYPE_SIZE};
         for (const T &element: array) {
             sum += sizeFor(element);
         }
         return sum;
     }
     template<typename T, size_t count>
-    static size_t sizeFor(const T (&array)[count]) {
-        size_t sum = COUNT_SIZE * 2 + TYPE_SIZE;
+    static Size sizeFor(const T (&array)[count]) {
+        Size sum = {COUNT_SIZE * 2 + TYPE_SIZE};
         for (const T &element: array) {
             sum += sizeFor(element);
         }
         return sum;
     }
     template<size_t position, typename ...Types>
-    static size_t sizeForTupleElements(const std::tuple<Types...> &tuple) {
+    static Size sizeForTupleElements(const std::tuple<Types...> &tuple) {
         if constexpr(position == std::tuple_size<std::tuple<Types...>>::value) {
-            return 0;
+            return {};
         } else {
             const auto &element = std::get<position>(tuple);
-            return TYPE_SIZE + sizeFor(element) + sizeForTupleElements<position + 1>(tuple);
+            return Size{TYPE_SIZE} + sizeFor(element) + sizeForTupleElements<position + 1>(tuple);
         }
     }
     template<typename ...Types>
-    static size_t sizeFor(const std::tuple<Types...> &tuple) {
-        return sizeForTupleElements<0, Types...>(tuple) + COUNT_SIZE * 2;
+    static Size sizeFor(const std::tuple<Types...> &tuple) {
+        return sizeForTupleElements<0, Types...>(tuple) + Size{COUNT_SIZE * 2};
     }
 
 
@@ -325,6 +337,7 @@ namespace zbon {
         friend class Decoder;
         uint8_t *_data;
         size_t _size;
+        size_t _numHandles;
 
         EncodedData(uint8_t *data, size_t size):
             _data{data},
@@ -333,13 +346,16 @@ namespace zbon {
     public:
         EncodedData():
             _data{nullptr},
-            _size{0} {}
+            _size{0},
+            _numHandles{0} {}
         EncodedData(EncodedData &other) = delete;
         EncodedData(EncodedData &&other):
                 _data{other._data},
-                _size{other._size} {
+                _size{other._size},
+                _numHandles{other._numHandles} {
             other._data = nullptr;
             other._size = 0;
+            other._numHandles = 0;
         }
         ~EncodedData() {
             if (_data != nullptr) {
@@ -352,12 +368,16 @@ namespace zbon {
         size_t size() {
             return _size;
         }
+        size_t numHandles() {
+            return _numHandles;
+        }
     };
 
     class Encoder {
     private:
         uint8_t *data;
         size_t position;
+        size_t handlePosition;
 
         void encodeType(Type type) {
             data[position] = static_cast<uint8_t>(type);
@@ -448,6 +468,9 @@ namespace zbon {
             size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
             encodeBytesSize(bytesSize, bytesSizePosition);
         }
+        void encodeHandle(const uint32_t handle) {
+            encodeNumber(handle, handlePosition);
+        }
         template<typename T>
         void encodeValue(const T& object) {
             object.ZBONEncode(*this);
@@ -456,7 +479,8 @@ namespace zbon {
     public:
         Encoder():
             data{nullptr},
-            position{0} {}
+            position{0},
+            handlePosition{0} {}
 
         template<typename T>
         void encodeObjectProperty(const T &value) {
@@ -476,11 +500,15 @@ namespace zbon {
         EncodedData encode(const T &cppData) {
             /* the root element is encoded like an object property (with type byte), so the type of
              * the whole thing is known on decoding */
-            size_t bytesSize = sizeFor(cppData);
+            Size size = sizeFor(cppData);
+            size_t handlesSize = size.numHandles * HANDLE_SIZE;
+            size_t bytesSize = size.numRegularBytes + handlesSize;
 
             data = new uint8_t[HEADER_SIZE + bytesSize];
             EncodedData encodedData(data, HEADER_SIZE + bytesSize);
             assert(position == 0);
+            assert(handlePosition == 0);
+            position = handlesSize;
 
             encodeType(typeFor<T>::type());
             encodeValue(static_cast<uint64_t>(bytesSize));
@@ -488,6 +516,7 @@ namespace zbon {
 
             /* check encoding actually used the amount of space the size calculation got */
             assert(position == HEADER_SIZE + bytesSize);
+            assert(handlePosition == handlesSize);
             return encodedData;
         }
     };
