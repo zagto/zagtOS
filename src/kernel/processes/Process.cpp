@@ -19,8 +19,6 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, siz
 
     masterPageTable = new PagingContext(this);
 
-    UserVirtualAddress maxEndAddress = 0;
-
     for (size_t index = 0; index < elf.numSegments(); index++) {
         elf::Segment segment = elf.segment(index);
         if (segment.type() == elf::Segment::TYPE_LOAD) {
@@ -30,10 +28,6 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, siz
             mappedAreas.insert(ma);
 
             segment.load(this);
-
-            if (segment.endAddress().value() > maxEndAddress.value()) {
-                maxEndAddress = segment.endAddress();
-            }
         }
     }
 
