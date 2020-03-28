@@ -15,6 +15,10 @@ typedef struct {
 
 typedef struct {
     uint32_t port_handle;
+
+    // TODO: remove this
+    ZObject *object;
+
     uint64_t position;
     _Bool is_syslog;
     _Bool has_position;
