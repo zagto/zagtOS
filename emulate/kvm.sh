@@ -7,4 +7,7 @@ qemu-system-x86_64 \
     -enable-kvm \
     -hda out/disk.img \
     -serial stdio \
-    -no-reboot
+    -smp 2 \
+    -no-reboot \
+     -no-reboot -no-shutdown   -d guest_errors,cpu_reset \
+    -s
