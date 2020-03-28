@@ -160,6 +160,7 @@ void PagingContext::accessRange(UserVirtualAddress address,
         startOffset = 0;
         buffer += lengthInPage;
 
+        indexes[0]++;
         changedLevel = 0;
         while (indexes[changedLevel] == PageTable::NUM_ENTRIES) {
             assert(changedLevel < MASTER_LEVEL);
