@@ -1,26 +1,8 @@
 #pragma once
 
 #include <common/inttypes.hpp>
-#include <atomic>
-
-/* https://stackoverflow.com/questions/53604753/how-does-one-force-a-c-move-operator-without-
- * stdwhatever?noredirect=1&lq=1 */
-template<typename T>
-struct remove_reference {
-    typedef T type;
-};
-template<typename T>
-struct remove_reference<T &> {
-    typedef T type;
-};
-template<typename T>
-struct remove_reference<T &&> {
-    typedef T type;
-};
-template<typename T>
-typename remove_reference<T>::type&& move (T&& original) {
-    return static_cast<typename remove_reference<T>::type &&>(original);
-}
+#include <common/utils.hpp>
+#include <mutex>
 
 template<typename T> class unique_ptr {
 private:
@@ -94,15 +76,13 @@ protected:
     }
 
 public:
-    shared_ptr() {
-        internalPointer = nullptr;
-    }
+    shared_ptr() {}
     shared_ptr(T *rawPointer) {
         internalPointer = new InternalPointer(rawPointer);
     }
     shared_ptr(const shared_ptr &other) {
         assert(other.internalPointer);
-        lock_guard lg(other.internalPointer->lock);
+        scoped_lock lg(other.internalPointer->lock);
         internalPointer = other.internalPointer;
         internalPointer->referenceCount++;
     }
@@ -113,14 +93,14 @@ public:
     void operator=(const shared_ptr &other) {
         reset();
         assert(other.internalPointer);
-        lock_guard lg(other.internalPointer->lock);
+        scoped_lock lg(other.internalPointer->lock);
         internalPointer = other.internalPointer;
         internalPointer->referenceCount++;
     }
     void operator=(shared_ptr &&other) {
         reset();
         assert(other.internalPointer);
-        lock_guard lg(other.internalPointer->lock);
+        scoped_lock lg(other.internalPointer->lock);
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
     }
@@ -134,7 +114,7 @@ public:
     }
     void reset() {
         if (internalPointer) {
-            lock_guard lg(internalPointer->lock);
+            scoped_lock lg(internalPointer->lock);
             internalPointer->referenceCount--;
             checkReferenceCounts();
         }
@@ -150,14 +130,15 @@ private:
     typename shared_ptr<T>::InternalPointer *internalPointer{nullptr};
 
 public:
+    weak_ptr() {}
     weak_ptr(const shared_ptr<T> &sharedPointer) {
         assert(sharedPointer.internalPointer);
-        lock_guard lg(sharedPointer.internalPointer->lock);
+        scoped_lock lg(sharedPointer.internalPointer->lock);
         internalPointer = sharedPointer.internalPointer;
         internalPointer->weakReferenceCount++;
     }
     weak_ptr(const weak_ptr &other) {
-        lock_guard lg(other.internalPointer->lock);
+        scoped_lock lg(other.internalPointer->lock);
         internalPointer = other.internalPointer;
         internalPointer->weakReferenceCount++;
     }
@@ -167,14 +148,14 @@ public:
     }
     void operator=(const weak_ptr &other) {
         reset();
-        lock_guard lg(other.internalPointer->lock);
+        scoped_lock lg(other.internalPointer->lock);
         internalPointer = other.internalPointer;
         internalPointer->weakReferenceCount++;
     }
 
     void reset() {
         if (internalPointer) {
-            lock_guard lg(internalPointer->lock);
+            scoped_lock lg(internalPointer->lock);
             internalPointer->weakReferenceCount--;
             if (internalPointer->referenceCount == 0 && internalPointer->weakReferenceCount == 0) {
                 delete internalPointer;
@@ -183,7 +164,7 @@ public:
     }
     shared_ptr<T> lock() {
         shared_ptr<T> result;
-        lock_guard lg(internalPointer->lock);
+        scoped_lock lg(internalPointer->lock);
         internalPointer->referenceCount++;
         result.internalPointer = internalPointer;
         return move(result);

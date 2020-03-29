@@ -339,9 +339,10 @@ namespace zbon {
         size_t _size;
         size_t _numHandles;
 
-        EncodedData(uint8_t *data, size_t size):
+        EncodedData(uint8_t *data, size_t size, size_t numHandles):
             _data{data},
-            _size{size} {}
+            _size{size},
+            _numHandles{numHandles} {}
 
     public:
         EncodedData():
@@ -362,13 +363,13 @@ namespace zbon {
                 delete[] _data;
             }
         }
-        uint8_t *data() {
+        uint8_t *data() const {
             return _data;
         }
-        size_t size() {
+        size_t size() const {
             return _size;
         }
-        size_t numHandles() {
+        size_t numHandles() const {
             return _numHandles;
         }
     };
@@ -505,13 +506,13 @@ namespace zbon {
             size_t bytesSize = size.numRegularBytes + handlesSize;
 
             data = new uint8_t[HEADER_SIZE + bytesSize];
-            EncodedData encodedData(data, HEADER_SIZE + bytesSize);
+            EncodedData encodedData(data, HEADER_SIZE + bytesSize, size.numHandles);
             assert(position == 0);
             assert(handlePosition == 0);
             position = handlesSize;
 
             encodeType(typeFor<T>::type());
-            encodeValue(static_cast<uint64_t>(bytesSize));
+            encodeValue(static_cast<uint64_t>(size.numRegularBytes));
             encodeValue(cppData);
 
             /* check encoding actually used the amount of space the size calculation got */
@@ -727,7 +728,7 @@ namespace zbon {
             }
             if (handlesSize + regularBytesSize + HEADER_SIZE != encodedData._size) {
                 std::cerr << "ZBON: got " << encodedData._size << " bytes of data but encoded data "
-                          << "is only " << (regularBytesSize + HEADER_SIZE) << " bytes." << std::endl;
+                          << "is " << (handlesSize + regularBytesSize + HEADER_SIZE) << " bytes." << std::endl;
                 return false;
             }
 

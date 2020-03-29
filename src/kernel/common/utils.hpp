@@ -1,5 +1,4 @@
-#ifndef UTILS_HPP
-#define UTILS_HPP
+#pragma once
 
 #include <common/inttypes.hpp>
 
@@ -12,6 +11,35 @@ enum class AlignDirection {
 enum class Permissions {
     WRITE = 1, EXECUTE = 2, WRITE_AND_EXECUTE = 3, NONE = 4
 };
+
+
+/* move implementation
+ * https://stackoverflow.com/questions/53604753/how-does-one-force-a-c-move-operator-without-
+ * stdwhatever?noredirect=1&lq=1 */
+template<typename T>
+struct remove_reference {
+    typedef T type;
+};
+template<typename T>
+struct remove_reference<T &> {
+    typedef T type;
+};
+template<typename T>
+struct remove_reference<T &&> {
+    typedef T type;
+};
+template<typename T>
+typename remove_reference<T>::type&& move (T&& original) {
+    return static_cast<typename remove_reference<T>::type &&>(original);
+}
+
+
+template<typename T>
+void swap(T &a, T&b) {
+    T tmp = (a);
+    a = move(b);
+    b = move(tmp);
+}
 
 
 // used by dlmalloc
@@ -75,4 +103,3 @@ template<typename T1, typename T2> void arrayCopy(T1 destination,
 }
 
 #endif // __cplusplus
-#endif // UTILS_HPP

@@ -22,7 +22,7 @@ static const uint32_t SYS_LOG = 1,
                       SYS_SEND_MESSAGE = 3,
                       SYS_RECEIVE_MESSAGE = 4,
                       SYS_CREATE_PORT = 5,
-                      SYS_DESTROY_PORT = 6,
+                      SYS_DELETE_HANDLE = 6,
                       SYS_RANDOM = 7,
 
                       SYS_MPROTECT = 10,

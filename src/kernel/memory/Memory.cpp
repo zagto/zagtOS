@@ -12,7 +12,7 @@ Memory::Memory(BootInfo *bootInfo) :
 }
 
 PhysicalAddress Memory::allocatePhysicalFrame() {
-    lock_guard lg(frameManagementLock);
+    scoped_lock lg(frameManagementLock);
     if (freshFrameStack.isEmpty()) {
         //Log << "Warning: fresh physical frame stack empty on alloc, trying recycle" << EndLine;
         recyclePhysicalFrame();
@@ -21,7 +21,7 @@ PhysicalAddress Memory::allocatePhysicalFrame() {
 }
 
 void Memory::freePhysicalFrame(PhysicalAddress address) {
-    lock_guard lg(frameManagementLock);
+    scoped_lock lg(frameManagementLock);
     usedFrameStack.push(address);
 }
 
@@ -43,7 +43,7 @@ extern "C" {
 }
 
 KernelVirtualAddress Memory::allocateVirtualArea(size_t length, size_t align) {
-    lock_guard lg(heapLock);
+    scoped_lock lg(heapLock);
     KernelVirtualAddress result;
     if (align > 0) {
         result = KernelVirtualAddress(dlmemalign(align, length));
@@ -54,12 +54,12 @@ KernelVirtualAddress Memory::allocateVirtualArea(size_t length, size_t align) {
 }
 
 KernelVirtualAddress Memory::resizeVirtualArea(KernelVirtualAddress address, size_t length) {
-    lock_guard lg(heapLock);
+    scoped_lock lg(heapLock);
     return KernelVirtualAddress(dlrealloc(address.asPointer<void>(), length));
 }
 
 void Memory::freeVirtualArea(KernelVirtualAddress address) {
-    lock_guard lg(heapLock);
+    scoped_lock lg(heapLock);
     dlfree(address.asPointer<void>());
 }
 
@@ -76,7 +76,7 @@ KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
         return heapEnd;
     } else if (change > 0) {
         for (size_t index = 0; index < change / PAGE_SIZE; index++) {
-            lock_guard lg(kernelPagingLock);
+            scoped_lock lg(kernelPagingLock);
             PagingContext::map(heapEnd + index * PAGE_SIZE,
                                allocatePhysicalFrame(),
                                Permissions::WRITE,
@@ -84,7 +84,7 @@ KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
         }
     } else {
         for (size_t index = 1; index <= static_cast<size_t>(-change) / PAGE_SIZE; index++) {
-            lock_guard lg(kernelPagingLock);
+            scoped_lock lg(kernelPagingLock);
             PhysicalAddress frame = PagingContext::resolve(heapEnd - index * PAGE_SIZE);
             PagingContext::unmap(heapEnd - index * PAGE_SIZE);
             freePhysicalFrame(frame);

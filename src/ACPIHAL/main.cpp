@@ -1,5 +1,7 @@
 #include <iostream>
 #include <zagtos/syscall.h>
+#include <zagtos/Messaging.hpp>
+#include <zagtos/HAL.hpp>
 extern "C" {
     #include <acpi.h>
     #include <findProcessors.h>
@@ -8,6 +10,12 @@ extern "C" {
 
 int main() {
     std::cout << "Hello from ACPI" << std::endl;
+
+    const zagtos::MessageInfo &msg = zagtos::receiveRunMessage();
+    std::cout << "run message: size " << msg.data.size() << " numHandles " << msg.data.numHandles() << std::endl;
+    assert(uuid_compare(msg.type, zagtos::StartHALMessage) == 0);
+
+    //zagtos::RemotePort envPort = zagtos::receiveRunMessage<zagtos::RemotePort>(zagtos::StartHALMessage);
 
     if (AcpiInitializeSubsystem()) {
         std::cout << "AcpiInitializeSubsystem failed" << std::endl;

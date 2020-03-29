@@ -1,3 +1,4 @@
+#include <vector>
 #include <processes/Message.hpp>
 #include <processes/Process.hpp>
 
@@ -26,9 +27,11 @@
 bool Message::transfer() {
     /* a message should not be transferred more than once */
     assert(!transferred);
+    /* destination process may be null at first, but must exist now (see setDestinationProcess)*/
+    assert(destinationProcess);
     /* this function accesses both source and destination address space, so they must be locked */
-    assert(sourceProcess->pagingLock.isLocked());
-    assert(destinationProcess.pagingLock.isLocked());
+    assert(sourceProcess == nullptr || sourceProcess->pagingLock.isLocked());
+    assert(destinationProcess->pagingLock.isLocked());
 
     if (!prepareMemoryArea()) {
         return false;
@@ -47,7 +50,7 @@ bool Message::transfer() {
 
 fail:
     /* In case of failure, do not leave a MappedArea in the destination Process behind. */
-    destinationProcess.mappedAreas.remove(messageArea);
+    destinationProcess->mappedAreas.remove(messageArea);
     return false;
 }
 
@@ -62,8 +65,8 @@ bool Message::prepareMemoryArea() {
      * required size is the combined size of both. */
     size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
 
-    MappedArea *messageArea = destinationProcess.mappedAreas.addNew(messageRegionSize,
-                                                                    Permissions::NONE);
+    messageArea = destinationProcess->mappedAreas.addNew(messageRegionSize,
+                                                         Permissions::NONE);
     if (messageArea == nullptr) {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
         Panic();
@@ -79,29 +82,58 @@ void Message::transferMessageInfo() {
         numBytes,
         numHandles,
     };
-    destinationProcess.copyToUser(infoAddress().value(),
-                                  reinterpret_cast<uint8_t *>(&msgInfo),
-                                  sizeof(UserMessageInfo),
-                                  false);
+    destinationProcess->copyToUser(infoAddress().value(),
+                                   reinterpret_cast<uint8_t *>(&msgInfo),
+                                   sizeof(UserMessageInfo),
+                                   false);
+}
+
+/* creates a handle on destination side for each resource that was sent with the message and writes
+ * them into destination memory */
+bool Message::transferHandles() {
+    if (numHandles == 0) {
+        return true;
+    }
+    /* The run message to the initial Process is sent by the kernel (i.e. sourceProcess is null),
+     * but does not contain handles. */
+    assert(sourceProcess);
+
+    vector<uint32_t> handles(numHandles);
+    bool success = sourceProcess->copyFromUser(reinterpret_cast<uint8_t *>(handles.data()),
+                                               sourceAddress.value(),
+                                               handlesSize(),
+                                               false);
+
+    success = sourceProcess->handleManager.transferHandles(handles, destinationProcess->handleManager);
+    if (!success) {
+        cout << "Message transfer failed: some handles were invalid." << endl;
+        return false;
+    }
+
+    success = sourceProcess->copyToUser(destinationAddress().value(),
+                                        reinterpret_cast<uint8_t *>(handles.data()),
+                                        handlesSize(),
+                                        false);
+    assert(success);
+    return true;
 }
 
 /* Copies directly copyable message data from source to destination Process.
-   Returns true on success, false if source area is not accessible (not mapped) */
+ * Returns true on success, false if source area is not accessible (not mapped) */
 bool Message::transferData() {
     if (simpleDataSize() == 0) {
         return true;
     }
-
     /* The run message to the initial Process is sent by the kernel (i.e. sourceProcess is null),
      * but does not contain data. */
     assert(sourceProcess);
 
     /* the directly copyable data is after the handles */
-    return destinationProcess.copyFromOhterUserSpace(destinationAddress().value() + handlesSize(),
-                                                     sourceProcess,
-                                                     sourceAddress.value() + handlesSize(),
-                                                     simpleDataSize(),
-                                                     false);
+    return destinationProcess->copyFromOhterUserSpace(destinationAddress().value() + handlesSize(),
+                                                      sourceProcess,
+                                                      sourceAddress.value() + handlesSize(),
+                                                      simpleDataSize(),
+                                                      false);
 }
 
 size_t Message::handlesSize() const {
@@ -118,11 +150,15 @@ UserVirtualAddress Message::destinationAddress() const {
     return infoAddress().value() + sizeof(UserMessageInfo);
 }
 
+/* Allow setting destination process later on because on SpawnProcess syscalls it does not exist at
+ * first */
+void Message::setDestinationProcess(Process *process) {
+    assert(!transferred);
+    destinationProcess = process;
+}
+
 /* Returns the address of the message info (UserMessageInfo class) in the destination address
  * space. */
 UserVirtualAddress Message::infoAddress() const {
-    /* messageArea is only determined when transfer happens. */
-    assert(transferred);
-
     return messageArea->region.start;
 }

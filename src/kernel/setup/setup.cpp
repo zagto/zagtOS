@@ -55,8 +55,8 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
                                            0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55};
         const UUID beInitMessage(uuidData);
 
-        Process *newProcess = new Process(initELF, Thread::Priority::FOREGROUND, beInitMessage, 0);
-        lock_guard lg(newProcess->pagingLock);
+        Message runMessage(nullptr, nullptr, 0, beInitMessage, 0, 0);
+        new Process(initELF, Thread::Priority::FOREGROUND, runMessage);
 
         /* the ELF data is the last thing we wanted to read from loader memory */
         //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();

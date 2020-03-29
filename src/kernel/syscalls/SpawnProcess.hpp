@@ -1,5 +1,4 @@
-#ifndef SPAWNPROCESS_HPP
-#define SPAWNPROCESS_HPP
+#pragma once
 
 #include <common/inttypes.hpp>
 #include <processes/UUID.hpp>
@@ -15,12 +14,10 @@ private:
     UUID messageType;
     size_t messageAddress;
     size_t messageSize;
-    size_t numMessageHandles;
+    uint32_t numMessageHandles;
 
-    size_t result;
+    uint32_t result;
 public:
 
     bool perform(Process &process);
 };
-
-#endif // SPAWNPROCESS_HPP

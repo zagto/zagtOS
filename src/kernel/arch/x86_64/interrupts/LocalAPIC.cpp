@@ -21,7 +21,7 @@ void LocalAPIC::setupMap(PhysicalAddress base) {
 
     KernelVirtualAddress mapAddress = CurrentSystem.memory.allocateVirtualArea(PAGE_SIZE, PAGE_SIZE);
     {
-        lock_guard lg(CurrentSystem.memory.kernelPagingLock);
+        scoped_lock lg(CurrentSystem.memory.kernelPagingLock);
 
         PhysicalAddress physical = PagingContext::resolve(mapAddress);
         PagingContext::unmap(mapAddress);

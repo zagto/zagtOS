@@ -20,7 +20,7 @@ void Logger::init(const BootInfo *bootInfo) {
 
 
 void Logger::flush() {
-    lock_guard lg(logLock);
+    scoped_lock lg(logLock);
 
     char *buffer = CurrentProcessor->logBuffer;
     for (size_t i = 0; i < CurrentProcessor->logBufferIndex; i++) {
@@ -34,7 +34,7 @@ void Logger::flush() {
 Logger Logger::operator<<(char character) {
     /* On early boot there is no Processor object, write unbuffered in this case */
     if (CurrentProcessor == nullptr) {
-        lock_guard lg(logLock);
+        scoped_lock lg(logLock);
         serialBackend.write(character);
         framebufferBackend.write(character);
     } else {

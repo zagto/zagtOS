@@ -79,26 +79,21 @@ namespace zagtos {
                      zbon::EncodedData message);
 
 
-    struct RunMessageInfo {
-        uuid_t type;
-        zbon::EncodedData encodedData;
-    };
-
     extern "C" void exit(int);
 
-    const RunMessageInfo &receiveRunMessage();
+    const MessageInfo &receiveRunMessage();
     template<typename T> T receiveRunMessage(const uuid_t type) {
-        const RunMessageInfo &msgInfo = receiveRunMessage();
+        const MessageInfo &msgInfo = receiveRunMessage();
         if (uuid_compare(type, msgInfo.type) != 0) {
             std::cerr << "invalid run message type" << std::endl;
             exit(1);
         }
         T result;
-        if (!zbon::decode(msgInfo.encodedData, result)) {
+        if (!zbon::decode(msgInfo.data, result)) {
             std::cerr << "could not decode run message" << std::endl;
             exit(1);
         }
         return result;
     }
-    //void receiveRunMessage(const uuid_t type);
+    void receiveRunMessage(const uuid_t type);
 }

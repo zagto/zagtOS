@@ -9,7 +9,7 @@
 
 Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
         mappedAreas(this) {
-    lock_guard lg(pagingLock);
+    scoped_lock lg(pagingLock);
 
     masterPageTable = new PagingContext(this);
 
@@ -45,7 +45,9 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
         elf.tlsSegment().load(this, tlsBase);
     }
 
-    runMessage.transfer();
+    runMessage.setDestinationProcess(this);
+    bool success = runMessage.transfer();
+    assert(success);
 
     Thread *mainThread = new Thread(this,
                                     elf.entry(),
@@ -80,7 +82,7 @@ PhysicalAddress Process::allocateFrame(UserVirtualAddress address,
 
 bool Process::handlePageFault(UserVirtualAddress address) {
     UserVirtualAddress pageAddress{align(address.value(), PAGE_SIZE, AlignDirection::DOWN)};
-    lock_guard lg(pagingLock);
+    scoped_lock lg(pagingLock);
 
     MappedArea *ma = mappedAreas.findMappedArea(address);
     if (ma) {
@@ -106,7 +108,3 @@ void Process::removeThread(Thread *thread) {
         return false;
     }
 }*/
-
-size_t Process::runMessageAddress() {
-    return runMessageRegion.start + sizeof(UserMessageInfo);
-}

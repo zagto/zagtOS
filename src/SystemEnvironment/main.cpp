@@ -22,6 +22,7 @@ int main() {
     std::cout << "Starting HAL..." << std::endl;
 
     Port port;
+    std::cout << "num of handles in a port: " << zbon::encode(port.handle()).numHandles() << std::endl;
     environmentSpawn(ACPIHAL, Priority::BACKGROUND, StartHALMessage, zbon::encode(port.handle()));
     //environmentSpawn(ACPIHAL, Priority::BACKGROUND, {port.selfTag()}, StartHALMessage, zbon::encode(port.selfTag()));
 

@@ -9,7 +9,7 @@ unique_ptr<Message> Port::getMessageOrMakeThreadWait(Thread *thread) {
     /* only one thread can wait on a port at a given time */
     assert(waitingThread == nullptr);
 
-    lock_guard lg(lock);
+    scoped_lock lg(lock);
 
     if (messages.empty()) {
         CurrentProcessor->scheduler.remove(thread);

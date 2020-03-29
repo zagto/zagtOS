@@ -48,7 +48,7 @@ Port::Port(Port &&other) {
 
 Port::~Port() {
     if (_handle != INVALID_HANDLE) {
-        zagtos_syscall1(SYS_DESTROY_PORT, _handle.value);
+        zagtos_syscall1(SYS_DELETE_HANDLE, _handle.value);
     }
 }
 
@@ -59,7 +59,7 @@ RemotePort::RemotePort(RemotePort &&other) {
 
 RemotePort::~RemotePort() {
     if (_handle != INVALID_HANDLE) {
-        zagtos_syscall1(SYS_DESTROY_PORT, _handle.value);
+        zagtos_syscall1(SYS_DELETE_HANDLE, _handle.value);
     }
 }
 
@@ -80,16 +80,16 @@ void zagtos::sendMessage(const RemotePort &target, uuid_t messageTypeID, zbon::E
                     message.numHandles());
 }
 
-extern RunMessageInfo *__run_message;
+extern MessageInfo *__run_message;
 
-const RunMessageInfo &zagtos::receiveRunMessage() {
+const MessageInfo &zagtos::receiveRunMessage() {
     return *__run_message;
 }
 
-/*void zagtos::receiveRunMessage(const uuid_t type) {
+void zagtos::receiveRunMessage(const uuid_t type) {
     if (uuid_compare(type, __run_message->type) != 0) {
         std::cout << "invalid run message type" << std::endl;
         exit(1);
     }
 }
-*/
+

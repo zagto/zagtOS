@@ -13,9 +13,9 @@ struct SpawnProcessArgs {
     uuid_t messageType;
     const unsigned char *messageAddress;
     size_t messageSize;
-    size_t numMessageHandles;
+    uint32_t numMessageHandles;
 
-    uuid_t result;
+    uint32_t result;
 };
 
 void zagtos::environmentSpawn(const ExternalBinary &binary,
@@ -29,8 +29,8 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
         {0},
         runMessage.data(),
         runMessage.size(),
-        runMessage.numHandles(),
-        {0}
+        static_cast<uint32_t>(runMessage.numHandles()),
+        0
     };
 
     uuid_copy(args.messageType, messageType);

@@ -17,7 +17,7 @@ enum class Type : uint32_t {
 static const uint32_t HANDLE_END = static_cast<uint32_t>(-1);
 
 struct Handle {
-    Type type;
+    Type type{Type::INVALID};
     union HandleData {
         uint32_t nextFreeHandle;
         shared_ptr<Port> port;
@@ -26,53 +26,14 @@ struct Handle {
         HandleData() {}
     } data;
 
-    void clear() {
-        switch (type) {
-        case Type::FREE:
-        case Type::INVALID:
-            break;
-        case Type::PORT:
-            data.port.~shared_ptr();
-            break;
-        case Type::REMOTE_PORT:
-            data.remotePort.~weak_ptr();
-            break;
-        }
-        type = Type::INVALID;
-    }
-    Handle():
-        type{Type::INVALID} {}
-    Handle(uint32_t next) {
-        type = Type::FREE;
-        data.nextFreeHandle = next;
-    }
-    Handle(shared_ptr<Port> &port) {
-        type = Type::PORT;
-        new (&data.port) shared_ptr<Port>(port);
-    }
-    Handle(const Handle &other) {
-        type = other.type;
-        switch (type) {
-        case Type::INVALID:
-            break;
-        case Type::FREE:
-            data.nextFreeHandle = other.data.nextFreeHandle;
-            break;
-        case Type::PORT:
-            data.port = other.data.port;
-            break;
-        case Type::REMOTE_PORT:
-            data.remotePort = other.data.remotePort;
-            break;
-        }
-    }
-    ~Handle() {
-        clear();
-    }
-    void operator=(const Handle &other) {
-        clear();
-        new (this) Handle(other);
-    }
+    Handle() {}
+    Handle(uint32_t next);
+    Handle(shared_ptr<Port> &port);
+    Handle(weak_ptr<Port> &port);
+    Handle(const Handle &other);
+    ~Handle();
+    void operator=(const Handle &other);
+    void destructData();
 };
 
 class HandleManager {
@@ -81,62 +42,21 @@ private:
     uint32_t nextFreeHandle{HANDLE_END};
     mutex lock;
 
-    optional<uint32_t> grabFreeHandle() {
-        if (handles.size() == HANDLE_END && nextFreeHandle == HANDLE_END) {
-            return {};
-        }
-        if (nextFreeHandle == HANDLE_END) {
-            handles.resize(handles.size() + 1);
-            return static_cast<uint32_t>(handles.size() - 1);
-        } else {
-            uint32_t handle = nextFreeHandle;
-            assert(handles[handle].type == Type::FREE);
-            nextFreeHandle = handles[handle].data.nextFreeHandle;
-            return handle;
-        }
-    }
-
-    bool handleValidFor(uint32_t handle, Type type) {
-        return handle < handles.size() && handles[handle].type == type;
-    }
+    uint32_t grabFreeHandle();
+    bool handleValidFor(uint32_t handle, Type type);
+    uint32_t _addRemotePort(weak_ptr<Port> &port);
 
 public:
     HandleManager() {}
     HandleManager(HandleManager &) = delete;
 
-    /* try to resolve a handle to the corresponding pointer
-     * returns no value if given handle is bogus
-     * returns true and sets result to the pointer, which may be null if the object the handle was
-     * referring to no longer exists */
-    optional<shared_ptr<Port>> lookupPort(uint32_t handle) {
-        lock_guard lg(lock);
-        if (!handleValidFor(handle, Type::PORT)) {
-            return {};
-        }
-        return handles[handle].data.port;
-    }
-
-    bool removePort(uint32_t handle) {
-        lock_guard lg(lock);
-        if (!handleValidFor(handle, Type::PORT)) {
-            return false;
-        }
-        handles[handle] = nextFreeHandle;
-        nextFreeHandle = handle;
-        return true;
-    }
-
-    /* generate a new handle for the given pointer
-     * returns no value if handle namespace is full */
-    optional<uint32_t> addPort(shared_ptr<Port> &port) {
-        lock_guard lg(lock);
-        optional<uint32_t> handle = grabFreeHandle();
-        if (handle) {
-            handles[*handle] = Handle(port);
-        }
-        return handle;
-    }
-
+    uint32_t addPort(shared_ptr<Port> &port);
+    optional<shared_ptr<Port>> lookupPort(uint32_t handle);
+    optional<weak_ptr<Port>> lookupRemotePort(uint32_t handle);
+    bool removeHandle(uint32_t handle);
+    bool transferHandles(vector<uint32_t> &handles,
+                         HandleManager &destination);
+    uint32_t numFreeHandles();
 };
 
 }

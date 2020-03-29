@@ -10,6 +10,10 @@ private:
     volatile size_t value{0};
 
 public:
+    mutex() {}
+    mutex(const mutex &) = delete;
+    void operator=(mutex &) =delete;
+
     void lock() {
         basicLock(value);
     }
@@ -25,16 +29,34 @@ public:
     }
 };
 
-class lock_guard {
+class scoped_lock {
 private:
-    mutex &_mutex;
+    mutex *first;
+    mutex *second;
 
 public:
-    lock_guard(mutex &_mutex) : _mutex{_mutex} {
-        _mutex.lock();
+    scoped_lock(mutex &_mutex):
+        first{&_mutex},
+        second{nullptr} {
+
+        first->lock();
     }
-    lock_guard(lock_guard &other) = delete;
-    ~lock_guard() {
-        _mutex.unlock();
+    scoped_lock(mutex &a, mutex &b) {
+        first = &a;
+        second = &b;
+        if (first > second) {
+            swap(first, second);
+        }
+        first->lock();
+        second->lock();
+    }
+
+    scoped_lock(const scoped_lock &other) = delete;
+    void operator=(scoped_lock &) =delete;
+    ~scoped_lock() {
+        if (second) {
+            second->unlock();
+        }
+        first->unlock();
     }
 };

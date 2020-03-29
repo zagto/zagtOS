@@ -29,24 +29,20 @@ bool SpawnProcess::perform(Process &process) {
         return true;
     }
 
-    valid = process.verifyUserAccess(messageAddress, messageSize, false);
-    if (!valid) {
-        cout << "SYS_SPAWN_PROCESS: invalid message\n";
+    if (numMessageHandles * Message::HANDLE_SIZE > messageSize) {
+        cout << "SYS_SPAWN_PROCESS: invalid number of handles: " << numMessageHandles
+             << "in message of size " << messageSize << endl;
         return true;
     }
 
-    Process *newProcess = new Process(elf,
-                             static_cast<Thread::Priority>(priority),
-                             messageType,
-                             messageSize);
-    lock_guard lg(newProcess->pagingLock);
-    valid = newProcess->copyFromOhterUserSpace(newProcess->runMessageAddress(),
-                                            &process,
-                                            messageAddress,
-                                            messageSize,
-                                            false);
-    /* the checks before should have caught everything */
-    assert(valid);
+    valid = process.verifyUserAccess(messageAddress, messageSize, false);
+    if (!valid) {
+        cout << "SYS_SPAWN_PROCESS: message memory not accessible\n";
+        return true;
+    }
+
+    Message runMessage(&process, nullptr, messageAddress, messageType, messageSize, numMessageHandles);
+    new Process(elf, static_cast<Thread::Priority>(priority), runMessage);
 
     result = 1;
     return true;

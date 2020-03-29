@@ -12,7 +12,7 @@
 bool Thread::handleSyscall() {
     switch (registerState.syscallNr()) {
     case SYS_LOG: {
-        lock_guard lg(process->pagingLock);
+        scoped_lock lg(process->pagingLock);
         static const size_t MAX_LOG_SIZE = 10000;
         size_t address = registerState.syscallParameter(0);
         size_t length = registerState.syscallParameter(1);
@@ -63,14 +63,14 @@ bool Thread::handleSyscall() {
 
         unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(this);
         if (msg) {
-            registerState.setSyscallResult(msg->headerAddress.value());
+            registerState.setSyscallResult(msg->infoAddress().value());
         }
         return true;
     }
-    case SYS_DESTROY_PORT: {
+    case SYS_DELETE_HANDLE: {
         cout << "destroyPort" << endl;
         uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
-        return process->handleManager.removePort(portHandle);
+        return process->handleManager.removeHandle(portHandle);
     }
     case SYS_RANDOM:
         // todo: should write to memory here
@@ -79,7 +79,7 @@ bool Thread::handleSyscall() {
         return true;
 
     case SYS_MMAP: {
-        lock_guard lg(process->pagingLock);
+        scoped_lock lg(process->pagingLock);
         UserSpaceObject<MMap, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
                                                                 process);
         if (!uso.valid) {
@@ -89,7 +89,7 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_MUNMAP: {
-        lock_guard lg(process->pagingLock);
+        scoped_lock lg(process->pagingLock);
         MUnmap munmap(registerState.syscallParameter(0), registerState.syscallParameter(1));
         munmap.perform(*process);
         registerState.setSyscallResult(munmap.error);
@@ -107,7 +107,7 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_SPAWN_PROCESS: {
-        lock_guard lg(process->pagingLock);
+        scoped_lock lg(process->pagingLock);
         UserSpaceObject<SpawnProcess, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
                                                                     process);
         if (!uso.valid) {
