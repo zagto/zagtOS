@@ -15,6 +15,12 @@ namespace zagtos {
         zbon::Size ZBONSize() const;
         void ZBONEncode(zbon::Encoder &encoder) const;
     };
+    static constexpr bool operator==(const Handle a, const Handle b) {
+        return a.value == b.value;
+    }
+    static constexpr bool operator!=(const Handle a, const Handle b) {
+        return a.value != b.value;
+    }
 
     class HandleObject {
     protected:
@@ -27,25 +33,35 @@ namespace zagtos {
         HandleObject(const Handle handle);
 
         Handle handle() const;
+
+        static constexpr zbon::Type ZBONType() {
+            return zbon::Type::HANDLE;
+        }
+        bool ZBONDecode(zbon::Decoder &decoder);
     };
 
-    class RemotePort : public HandleObject { using HandleObject::HandleObject; };
+    class RemotePort : public HandleObject {
+    public:
+        RemotePort() {}
+        RemotePort(RemotePort &) = delete;
+        RemotePort(RemotePort &&ohter);
+        ~RemotePort();
+
+    };
 
     struct MessageInfo {
-        uint32_t senderPort;
         uuid_t type;
         zbon::EncodedData data;
     };
 
     class Port : public HandleObject {
-    private:
-        bool valid;
-
     public:
         Port();
         Port(Port &) = delete;
         Port(Port &&ohter);
         ~Port();
+
+        bool ZBONDecode(zbon::Decoder &) = delete;
 
         MessageInfo receiveMessage();
         template<typename T> void receiveMessage(const uuid_t type, T &result) {
@@ -71,17 +87,18 @@ namespace zagtos {
     extern "C" void exit(int);
 
     const RunMessageInfo &receiveRunMessage();
-    void receiveRunMessage(const uuid_t type);
-    template<typename T> void receiveRunMessage(const uuid_t type, T &result) {
+    template<typename T> T receiveRunMessage(const uuid_t type) {
         const RunMessageInfo &msgInfo = receiveRunMessage();
         if (uuid_compare(type, msgInfo.type) != 0) {
             std::cerr << "invalid run message type" << std::endl;
             exit(1);
         }
-        if (!zbon::decode(msgInfo, result)) {
+        T result;
+        if (!zbon::decode(msgInfo.encodedData, result)) {
             std::cerr << "could not decode run message" << std::endl;
             exit(1);
         }
         return result;
     }
+    //void receiveRunMessage(const uuid_t type);
 }
