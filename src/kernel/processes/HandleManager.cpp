@@ -134,9 +134,7 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
                                     HandleManager &destination) {
     scoped_lock sl(lock, destination.lock);
 
-    for (uint32_t handle: handleValues) {
-        optional<uint32_t> result;
-
+    for (uint32_t &handle: handleValues) {
         if (handle >= handles.size() || handles[handle].type == Type::FREE) {
             cout << "transferHandles: attempt to transfer non-existing handle." << endl;
             return false;
@@ -146,19 +144,18 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
         switch(handles[handle].type) {
         case Type::PORT: {
             weak_ptr<Port> port(handles[handle].data.port);
-            result = destination._addRemotePort(port);
+            handle = destination._addRemotePort(port);
             break;
         }
         case Type::REMOTE_PORT: {
             weak_ptr<Port> port = handles[handle].data.remotePort;
-            result = destination._addRemotePort(port);
+            handle = destination._addRemotePort(port);
             break;
         }
         default:
             cout << "Should never go here" << endl;
             Panic();
         }
-        handle = *result;
     }
     return true;
 }

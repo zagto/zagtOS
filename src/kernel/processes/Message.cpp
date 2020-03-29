@@ -103,6 +103,7 @@ bool Message::transferHandles() {
                                                sourceAddress.value(),
                                                handlesSize(),
                                                false);
+    assert(success);
 
     success = sourceProcess->handleManager.transferHandles(handles, destinationProcess->handleManager);
     if (!success) {
@@ -110,10 +111,10 @@ bool Message::transferHandles() {
         return false;
     }
 
-    success = sourceProcess->copyToUser(destinationAddress().value(),
-                                        reinterpret_cast<uint8_t *>(handles.data()),
-                                        handlesSize(),
-                                        false);
+    success = destinationProcess->copyToUser(destinationAddress().value(),
+                                             reinterpret_cast<uint8_t *>(handles.data()),
+                                             handlesSize(),
+                                             false);
     assert(success);
     return true;
 }

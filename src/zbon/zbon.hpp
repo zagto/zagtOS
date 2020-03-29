@@ -706,7 +706,7 @@ namespace zbon {
 
         template<typename T>
         bool decodeValue(T& object) {
-            object.ZBONDecode(*this);
+            return object.ZBONDecode(*this);
         }
 
         Decoder(const EncodedData &encodedData) :

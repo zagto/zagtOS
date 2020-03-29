@@ -15,7 +15,9 @@ int main() {
     std::cout << "run message: size " << msg.data.size() << " numHandles " << msg.data.numHandles() << std::endl;
     assert(uuid_compare(msg.type, zagtos::StartHALMessage) == 0);
 
-    //zagtos::RemotePort envPort = zagtos::receiveRunMessage<zagtos::RemotePort>(zagtos::StartHALMessage);
+    zagtos::RemotePort envPort = zagtos::receiveRunMessage<zagtos::RemotePort>(zagtos::StartHALMessage);
+    std::cout << "received port handle " << envPort.handle().value << std::endl;
+
 
     if (AcpiInitializeSubsystem()) {
         std::cout << "AcpiInitializeSubsystem failed" << std::endl;
