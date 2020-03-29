@@ -4,16 +4,10 @@
 #include <processes/Process.hpp>
 #include <processes/MappedArea.hpp>
 #include <processes/Port.hpp>
+#include <processes/Message.hpp>
 
 
-struct RunMessageInfo {
-    UUID type;
-    size_t address;
-    size_t length;
-};
-
-
-Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t runMessageSize):
+Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
         mappedAreas(this) {
     lock_guard lg(pagingLock);
 
@@ -51,31 +45,12 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, siz
         elf.tlsSegment().load(this, tlsBase);
     }
 
-    /* The run message metadata needs to be passed along with the run message, so for our purposes
-     * the required size is the combined size of both. */
-    runMessageSize += sizeof(RunMessageInfo);
-
-    MappedArea *runMessageArea = mappedAreas.addNew(runMessageSize, Permissions::NONE);
-    if (runMessageArea == nullptr) {
-        cout << "TODO: decide what should happen here (huge run message -> kill process?)" << endl;
-        Panic();
-    }
-
-    runMessageRegion = runMessageArea->region;
-    RunMessageInfo msgInfo = {
-        messageType,
-        runMessageAddress(),
-        runMessageSize - sizeof(RunMessageInfo),
-    };
-    copyToUser(runMessageRegion.start,
-               reinterpret_cast<uint8_t *>(&msgInfo),
-               sizeof(RunMessageInfo),
-               false);
+    runMessage.transfer();
 
     Thread *mainThread = new Thread(this,
                                     elf.entry(),
                                     initialPrioriy,
-                                    runMessageRegion.start,
+                                    runMessage.infoAddress(),
                                     tlsBase,
                                     masterTLSBase,
                                     tlsSize);
@@ -133,5 +108,5 @@ void Process::removeThread(Thread *thread) {
 }*/
 
 size_t Process::runMessageAddress() {
-    return runMessageRegion.start + sizeof(RunMessageInfo);
+    return runMessageRegion.start + sizeof(UserMessageInfo);
 }

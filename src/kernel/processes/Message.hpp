@@ -4,17 +4,51 @@
 #include <processes/UUID.hpp>
 
 class Port;
+class Process;
+class MappedArea;
 
 class Message {
 private:
-    Port *from;
-    Port *to;
-    UUID messageType;
-    UserVirtualAddress dataAddress;
+    static constexpr size_t HANDLE_SIZE{4};
+
+    Process *sourceProcess;
+    Process &destinationProcess;
+    const UserVirtualAddress sourceAddress;
+    MappedArea *messageArea{nullptr};
+    const UUID messageType;
+    const size_t numBytes;
+    const size_t numHandles;
+    bool transferred{false};
+
+    bool prepareMemoryArea();
+    void transferMessageInfo();
+    bool transferHandles();
+    bool transferData();
+    UserVirtualAddress destinationAddress() const;
+    size_t handlesSize() const;
+    size_t simpleDataSize() const;
 
 public:
-    Message();
-    size_t dataSize();
+    Message(Process *sourceProcess,
+            Process &destinationProcess,
+            UserVirtualAddress sourceAddress,
+            UUID messageType,
+            size_t numBytes,
+            size_t numHandles) :
+        sourceProcess{sourceProcess},
+        destinationProcess{destinationProcess},
+        sourceAddress{sourceAddress},
+        messageType{messageType},
+        numBytes{numBytes},
+        numHandles{numHandles} {}
 
-    UserVirtualAddress headerAddress;
+    bool transfer();
+    UserVirtualAddress infoAddress() const;
+};
+
+struct UserMessageInfo {
+    UUID type;
+    size_t address;
+    size_t length;
+    size_t numHandles;
 };

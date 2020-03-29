@@ -525,6 +525,7 @@ namespace zbon {
     private:
         const EncodedData &encodedData;
         size_t position;
+        size_t handlePosition;
         Type encodedType;
 
         bool decodeType(Type &result) {
@@ -553,6 +554,7 @@ namespace zbon {
             }
         }
 
+    public:
         template<typename T>
         bool decodeValue(T &result, Type encodedType) {
             if (typeFor<T>::type() == encodedType) {
@@ -576,7 +578,7 @@ namespace zbon {
         }
 
         template<typename T>
-        bool decodeNumber(T &result) {
+        bool decodeNumber(T &result, size_t &position) {
             if (!(position < encodedData._size && encodedData._size - position >= sizeof(T))) {
                 std::cerr << "ZBON: Unexpected End of Data at " << encodedData._size << std::endl;
                 return false;
@@ -586,7 +588,7 @@ namespace zbon {
             position += sizeof(T);
             return true;
         }
-#define NUMBER_TYPE(T) bool decodeValue(T &result) { return decodeNumber(result); }
+#define NUMBER_TYPE(T) bool decodeValue(T &result) { return decodeNumber(result, position); }
         INSERT_NUMBER_TYPES
 #undef NUMBER_TYPE
 
@@ -632,6 +634,10 @@ namespace zbon {
                 return false;
             }
             return true;
+        }
+
+        bool decodeHandle(uint32_t &result) {
+            return decodeNumber(result, handlePosition);
         }
 
         template<typename T, std::size_t length>
@@ -697,11 +703,15 @@ namespace zbon {
             return true;
         }
 
+        template<typename T>
+        bool decodeValue(T& object) {
+            object.ZBONDecode(*this);
+        }
 
-    public:
         Decoder(const EncodedData &encodedData) :
             encodedData{encodedData},
-            position{0} {}
+            position{encodedData._numHandles * HANDLE_SIZE},
+            handlePosition{0} {}
 
         template<typename T>
         bool decode(T &result) {
@@ -710,23 +720,25 @@ namespace zbon {
                 return false;
             }
 
-            uint64_t bytesSize;
-            if (!decodeValue(bytesSize)) {
+            uint64_t handlesSize = encodedData._numHandles * HANDLE_SIZE;
+            uint64_t regularBytesSize;
+            if (!decodeValue(regularBytesSize)) {
                 return false;
             }
-            if (bytesSize + HEADER_SIZE != encodedData._size) {
+            if (handlesSize + regularBytesSize + HEADER_SIZE != encodedData._size) {
                 std::cerr << "ZBON: got " << encodedData._size << " bytes of data but encoded data "
-                          << "is only " << (bytesSize + HEADER_SIZE) << " bytes." << std::endl;
+                          << "is only " << (regularBytesSize + HEADER_SIZE) << " bytes." << std::endl;
                 return false;
             }
 
-            assert(position == HEADER_SIZE);
+            assert(position == HEADER_SIZE + handlesSize);
             if (!decodeValue(result, rootType)) {
                 return false;
             }
 
-            if (position != HEADER_SIZE + bytesSize) {
-                std::cerr << "ZBON: root element has bytesSize value of " << bytesSize
+            if (position != HEADER_SIZE + regularBytesSize + handlesSize
+                    || handlePosition != handlesSize) {
+                std::cerr << "ZBON: root element has bytesSize value of " << regularBytesSize
                           << "but is actually " << (position - HEADER_SIZE) << " bytes big."
                           << std::endl;
                 return false;

@@ -17,12 +17,10 @@ private:
     friend class Thread;
     friend class MMap;
     friend class MUnmap;
+    friend class Message;
     vector<Thread *>threads;
     MappedAreaVector mappedAreas;
     HandleManager handleManager;
-
-    vector<uint32_t> canUseTags;
-    vector<uint32_t> ownTags;
 
     bool accessUserSpace(uint8_t *buffer,
                          size_t start,
@@ -35,9 +33,8 @@ public:
     mutex threadsLock;
     /*needed ? mutex portsLock;*/
     PagingContext *masterPageTable;
-    Region runMessageRegion;
 
-    Process(ELF elf, Thread::Priority initialPrioriy, UUID messageType, size_t messageSize);
+    Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage);
     void activate();
     PhysicalAddress allocateFrame(UserVirtualAddress address,
                                   Permissions permissions);

@@ -7,8 +7,6 @@
 #include <zagtos/ExternalBinary.hpp>
 #include <zagtos/EnvironmentSpawn.hpp>
 
-#include <zagtos/syscall.h>
-
 EXTERNAL_BINARY(ACPIHAL)
 
 using namespace zagtos;
@@ -24,7 +22,7 @@ int main() {
     std::cout << "Starting HAL..." << std::endl;
 
     Port port;
-    environmentSpawn(ACPIHAL, Priority::BACKGROUND, StartHALMessage, zbon::encode(std::make_tuple(port.handle())));
+    environmentSpawn(ACPIHAL, Priority::BACKGROUND, StartHALMessage, zbon::encode(port.handle()));
     //environmentSpawn(ACPIHAL, Priority::BACKGROUND, {port.selfTag()}, StartHALMessage, zbon::encode(port.selfTag()));
 
 

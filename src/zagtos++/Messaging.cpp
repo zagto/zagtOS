@@ -1,5 +1,6 @@
 #include <zagtos/syscall.h>
 #include <zagtos/Messaging.hpp>
+#include <cassert>
 
 using namespace zagtos;
 
@@ -25,24 +26,43 @@ void Handle::ZBONEncode(zbon::Encoder &encoder) const {
     encoder.encodeHandle(value);
 }
 
+bool HandleObject::ZBONDecode(zbon::Decoder &decoder) {
+    assert(_handle == INVALID_HANDLE);
 
-Port::Port() :
-        valid{true} {
+    bool success = decoder.decodeHandle(_handle.value);
+    if (!success) {
+        _handle = INVALID_HANDLE;
+    }
+    return success;
+}
+
+
+Port::Port() {
     _handle = {static_cast<uint32_t>(zagtos_syscall0(SYS_CREATE_PORT))};
 }
 
-Port::Port(Port &&other):
-        valid{other.valid} {
-    assert(_handle.value == other._handle.value);
-    other._handle = {0};
-    other.valid = false;
+Port::Port(Port &&other) {
+    assert(_handle == other._handle);
+    other._handle = INVALID_HANDLE;
 }
 
 Port::~Port() {
-    if (valid) {
+    if (_handle != INVALID_HANDLE) {
         zagtos_syscall1(SYS_DESTROY_PORT, _handle.value);
     }
 }
+
+RemotePort::RemotePort(RemotePort &&other) {
+    assert(_handle == other._handle);
+    other._handle = INVALID_HANDLE;
+}
+
+RemotePort::~RemotePort() {
+    if (_handle != INVALID_HANDLE) {
+        zagtos_syscall1(SYS_DESTROY_PORT, _handle.value);
+    }
+}
+
 
 MessageInfo Port::receiveMessage() {
     MessageInfo result;
@@ -66,9 +86,10 @@ const RunMessageInfo &zagtos::receiveRunMessage() {
     return *__run_message;
 }
 
-void zagtos::receiveRunMessage(const uuid_t type) {
+/*void zagtos::receiveRunMessage(const uuid_t type) {
     if (uuid_compare(type, __run_message->type) != 0) {
         std::cout << "invalid run message type" << std::endl;
         exit(1);
     }
 }
+*/
