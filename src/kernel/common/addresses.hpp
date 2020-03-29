@@ -11,7 +11,7 @@ private:
 public:
     Address(size_t value) : _value{value} {}
 
-    size_t value();
+    size_t value() const;
     bool isPageAligned();
 };
 
@@ -27,7 +27,7 @@ public:
 
     bool isInRegion(const Region &region);
     bool isKernel();
-    template<typename T> T *asPointer() {
+    template<typename T> T *asPointer() const {
         return reinterpret_cast<T *>(value());
     }
 };
@@ -38,16 +38,16 @@ public:
     KernelVirtualAddress(size_t value);
     KernelVirtualAddress(const void *pointer);
 
-    KernelVirtualAddress operator+(size_t offset) {
+    KernelVirtualAddress operator+(size_t offset) const {
         return KernelVirtualAddress(value() + offset);
     }
-    KernelVirtualAddress operator+(ssize_t offset) {
+    KernelVirtualAddress operator+(ssize_t offset) const {
         return KernelVirtualAddress(value() + static_cast<size_t>(offset));
     }
-    KernelVirtualAddress operator-(size_t offset) {
+    KernelVirtualAddress operator-(size_t offset) const {
         return KernelVirtualAddress(value() - offset);
     }
-    KernelVirtualAddress operator-(ssize_t offset) {
+    KernelVirtualAddress operator-(ssize_t offset) const {
         return KernelVirtualAddress(value() - static_cast<size_t>(offset));
     }
 };
@@ -78,6 +78,19 @@ public:
 
     UserVirtualAddress() : VirtualAddress() {}
     UserVirtualAddress(size_t value);
+
+    UserVirtualAddress operator+(size_t offset) const {
+        return UserVirtualAddress(value() + offset);
+    }
+    UserVirtualAddress operator+(ssize_t offset) const {
+        return UserVirtualAddress(value() + static_cast<size_t>(offset));
+    }
+    UserVirtualAddress operator-(size_t offset) const {
+        return UserVirtualAddress(value() - offset);
+    }
+    UserVirtualAddress operator-(ssize_t offset) const {
+        return UserVirtualAddress(value() - static_cast<size_t>(offset));
+    }
 };
 
 #endif

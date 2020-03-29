@@ -7,7 +7,7 @@ bool Address::isPageAligned() {
     return _value % PAGE_SIZE == 0;
 }
 
-size_t Address::value() {
+size_t Address::value() const {
     return _value;
 }
 
