@@ -11,13 +11,8 @@ extern "C" {
 int main() {
     std::cout << "Hello from ACPI" << std::endl;
 
-    const zagtos::MessageInfo &msg = zagtos::receiveRunMessage();
-    std::cout << "run message: size " << msg.data.size() << " numHandles " << msg.data.numHandles() << std::endl;
-    assert(uuid_compare(msg.type, zagtos::StartHALMessage) == 0);
-
-    zagtos::RemotePort envPort = zagtos::receiveRunMessage<zagtos::RemotePort>(zagtos::StartHALMessage);
+    zagtos::RemotePort envPort = zagtos::decodeRunMessage<zagtos::RemotePort>(zagtos::StartHALMessage);
     std::cout << "received port handle " << envPort.handle().value << std::endl;
-
 
     if (AcpiInitializeSubsystem()) {
         std::cout << "AcpiInitializeSubsystem failed" << std::endl;
@@ -46,6 +41,8 @@ int main() {
     findProcessors();
 
     std::cout << "ACPI HAL initialized" << std::endl;
+
+    zagtos::sendMessage(envPort, zagtos::StartHALResponse, zbon::encode(true));
 
     /*
      * TODO

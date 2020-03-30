@@ -71,7 +71,7 @@ MessageInfo Port::receiveMessage() {
 }
 
 
-void zagtos::sendMessage(const RemotePort &target, uuid_t messageTypeID, zbon::EncodedData message) {
+void zagtos::sendMessage(const RemotePort &target, const uuid_t messageTypeID, zbon::EncodedData message) {
     zagtos_syscall5(SYS_SEND_MESSAGE,
                     target.handle().value,
                     reinterpret_cast<size_t>(&messageTypeID),
@@ -82,7 +82,7 @@ void zagtos::sendMessage(const RemotePort &target, uuid_t messageTypeID, zbon::E
 
 extern MessageInfo *__run_message;
 
-const MessageInfo &zagtos::receiveRunMessage() {
+const MessageInfo &zagtos::receiveRunMessageInfo() {
     return *__run_message;
 }
 

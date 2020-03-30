@@ -75,15 +75,16 @@ namespace zagtos {
     };
 
     void sendMessage(const RemotePort &target,
-                     uuid_t messageType,
+                     const uuid_t messageType,
                      zbon::EncodedData message);
 
 
     extern "C" void exit(int);
 
-    const MessageInfo &receiveRunMessage();
-    template<typename T> T receiveRunMessage(const uuid_t type) {
-        const MessageInfo &msgInfo = receiveRunMessage();
+    const MessageInfo &receiveRunMessageInfo();
+    void receiveRunMessage(const uuid_t type);
+    template<typename T> T decodeRunMessage(const uuid_t type) {
+        const MessageInfo &msgInfo = receiveRunMessageInfo();
         if (uuid_compare(type, msgInfo.type) != 0) {
             std::cerr << "invalid run message type" << std::endl;
             exit(1);
@@ -95,5 +96,4 @@ namespace zagtos {
         }
         return result;
     }
-    void receiveRunMessage(const uuid_t type);
 }
