@@ -9,8 +9,8 @@ class MappedArea;
 
 class Message {
 private:
-    Process *sourceProcess;
-    Process *destinationProcess;
+    const shared_ptr<Process> sourceProcess;
+    shared_ptr<Process> destinationProcess;
     const UserVirtualAddress sourceAddress;
     MappedArea *messageArea{nullptr};
     const UUID messageType;
@@ -29,8 +29,8 @@ private:
 public:
     static constexpr size_t HANDLE_SIZE{4};
 
-    Message(Process *sourceProcess,
-            Process *destinationProcess,
+    Message(shared_ptr<Process> sourceProcess,
+            shared_ptr<Process> destinationProcess,
             UserVirtualAddress sourceAddress,
             UUID messageType,
             size_t numBytes,
@@ -43,7 +43,7 @@ public:
         numHandles{numHandles} {}
 
     bool transfer();
-    void setDestinationProcess(Process *process);
+    void setDestinationProcess(const shared_ptr<Process> &process);
     UserVirtualAddress infoAddress() const;
 };
 

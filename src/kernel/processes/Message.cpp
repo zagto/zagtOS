@@ -30,7 +30,7 @@ bool Message::transfer() {
     /* destination process may be null at first, but must exist now (see setDestinationProcess)*/
     assert(destinationProcess);
     /* this function accesses both source and destination address space, so they must be locked */
-    assert(sourceProcess == nullptr || sourceProcess->pagingLock.isLocked());
+    assert(!sourceProcess || sourceProcess->pagingLock.isLocked());
     assert(destinationProcess->pagingLock.isLocked());
 
     if (!prepareMemoryArea()) {
@@ -65,8 +65,7 @@ bool Message::prepareMemoryArea() {
      * required size is the combined size of both. */
     size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
 
-    messageArea = destinationProcess->mappedAreas.addNew(messageRegionSize,
-                                                         Permissions::NONE);
+    messageArea = destinationProcess->mappedAreas.addNew(messageRegionSize, Permissions::NONE);
     if (messageArea == nullptr) {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
         Panic();
@@ -131,7 +130,7 @@ bool Message::transferData() {
 
     /* the directly copyable data is after the handles */
     return destinationProcess->copyFromOhterUserSpace(destinationAddress().value() + handlesSize(),
-                                                      sourceProcess,
+                                                      *sourceProcess,
                                                       sourceAddress.value() + handlesSize(),
                                                       simpleDataSize(),
                                                       false);
@@ -153,7 +152,7 @@ UserVirtualAddress Message::destinationAddress() const {
 
 /* Allow setting destination process later on because on SpawnProcess syscalls it does not exist at
  * first */
-void Message::setDestinationProcess(Process *process) {
+void Message::setDestinationProcess(const shared_ptr<Process> &process) {
     assert(!transferred);
     destinationProcess = process;
 }

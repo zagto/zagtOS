@@ -10,7 +10,7 @@
 
 
 bool Thread::handleSyscall() {
-    switch (registerState.syscallNr()) {
+    switch (registerState.syscallNumber()) {
     case SYS_LOG: {
         scoped_lock lg(process->pagingLock);
         static const size_t MAX_LOG_SIZE = 10000;
@@ -42,15 +42,45 @@ bool Thread::handleSyscall() {
         delete this;
         return true;
     case SYS_CREATE_PORT: {
-        shared_ptr<Port> port = make_shared<Port>(*process);
-        optional<uint32_t> handle = process->handleManager.addPort(port);
-        if (!handle) {
-            cout << "SYS_CREATE_PORT: out of handles" << endl;
+        shared_ptr<Port> port = make_shared<Port>(process);
+        uint32_t handle = process->handleManager.addPort(port);
+        registerState.setSyscallResult(handle);
+
+        cout << "created port " << handle << endl;
+        return true;
+    }
+    case SYS_SEND_MESSAGE: {
+        cout << "sendMessage" << endl;
+        uint32_t handle = static_cast<uint32_t>(registerState.syscallParameter(0));
+        size_t messageTypeAddress = registerState.syscallParameter(1);
+        size_t messageAddress = registerState.syscallParameter(2);
+        size_t messageSize = registerState.syscallParameter(3);
+        size_t numMessageHandles = registerState.syscallParameter(4);
+
+        optional<weak_ptr<Port>> weakPort = process->handleManager.lookupRemotePort(handle);
+        if (!weakPort) {
+            cout << "sendMessage: invalid port handle " << handle << endl;
             return false;
         }
-        registerState.setSyscallResult(*handle);
 
-        cout << "created port " << *handle << endl;
+        registerState.setSyscallResult(0);
+        shared_ptr<Port> port = weakPort->lock();
+        if (!port) {
+            cout << "sendMessage: destination port no longer exists: " << handle << endl;
+            return false;
+        }
+
+        scoped_lock sl(process->pagingLock, port->process->pagingLock);
+        process->verifyMessageAccess(messageAddress, messageSize, numMessageHandles);
+        UserSpaceObject<UUID, USOOperation::READ> messageType(messageTypeAddress, process);
+
+        unique_ptr<Message> message = make_unique<Message>(process,
+                                                           port->process,
+                                                           messageAddress,
+                                                           messageType.object,
+                                                           messageSize, numMessageHandles);
+        message->transfer();
+        port->addMessage(move(message));
         return true;
     }
     case SYS_RECEIVE_MESSAGE: {
@@ -58,6 +88,7 @@ bool Thread::handleSyscall() {
         uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
         optional<shared_ptr<Port>> port = process->handleManager.lookupPort(portHandle);
         if (!port) {
+            cout << "receiveMessage: invalid port handle " << portHandle << endl;
             return false;
         }
 

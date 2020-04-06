@@ -1,6 +1,5 @@
 #pragma once
 
-#include <lib/List.hpp>
 #include <mutex>
 #include <paging/PagingContext.hpp>
 #include <processes/ELF.hpp>
@@ -35,6 +34,7 @@ public:
     PagingContext *masterPageTable;
 
     Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage);
+    ~Process();
     void activate();
     PhysicalAddress allocateFrame(UserVirtualAddress address,
                                   Permissions permissions);
@@ -43,13 +43,14 @@ public:
     void removeThread(Thread *thread);
 
     bool copyFromOhterUserSpace(size_t destinationAddress,
-                                Process *sourceProcess,
+                                Process &sourceProcess,
                                 size_t sourceAddress,
                                 size_t length,
                                 bool requireWriteAccessToDestination);
     bool copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions);
     bool copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
     bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
+    bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
 
     //void receiveMessage(Message *msg);
     size_t runMessageAddress();

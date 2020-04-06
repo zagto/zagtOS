@@ -12,6 +12,10 @@ public:
     optional(T value):
         hasValue{true},
         _value{value} {}
+    T *operator->() {
+        assert(hasValue);
+        return &_value;
+    }
     T &operator*() {
         assert(hasValue);
         return _value;

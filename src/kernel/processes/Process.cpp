@@ -61,6 +61,15 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
     CurrentProcessor->scheduler.add(mainThread);
 }
 
+Process::~Process() {
+    cout << "destroying Process..." << endl;
+
+    cout << "TODO: actually unmap stuff" << endl;
+    Panic();
+
+    cout << "Process terminated" << endl;
+}
+
 void Process::activate() {
     if (CurrentProcessor->currentProcess == this) {
         return;
@@ -93,9 +102,8 @@ bool Process::handlePageFault(UserVirtualAddress address) {
 }
 
 void Process::removeThread(Thread *thread) {
-    cout << "removing thread from process" << endl;
+    scoped_lock sl(threadsLock);
     threads.remove(thread);
-    cout << "done" << endl;
 }
 
 /*bool Process::receiveMessage(Message *msg) {

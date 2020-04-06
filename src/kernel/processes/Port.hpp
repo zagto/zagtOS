@@ -13,17 +13,18 @@ class Thread;
 class Tag {};
 
 class Port {
-    Process &process;
     mutex lock;
     Thread *waitingThread{nullptr};
     queue<unique_ptr<Message>> messages;
 
 public:
-    Port(Process &process);
+    const shared_ptr<Process> process;
+
+    Port(const shared_ptr<Process> process);
     Port(Port &) = delete;
-    //~Port();
 
     unique_ptr<Message> getMessageOrMakeThreadWait(Thread *thread);
+    void addMessage(unique_ptr<Message> message);
 };
 
 #endif // PORT_HPP

@@ -79,7 +79,7 @@ bool Process::verifyUserAccess(size_t address, size_t length, bool requireWriteP
 }
 
 bool Process::copyFromOhterUserSpace(size_t destinationAddress,
-                                  Process *sourceProcess,
+                                  Process &sourceProcess,
                                   size_t sourceAddress,
                                   size_t length,
                                   bool requireWriteAccessToDestination) {
@@ -87,7 +87,7 @@ bool Process::copyFromOhterUserSpace(size_t destinationAddress,
     vector<uint8_t> buffer(length);
     bool valid;
 
-    valid = sourceProcess->copyFromUser(&buffer[0], sourceAddress, length, false);
+    valid = sourceProcess.copyFromUser(&buffer[0], sourceAddress, length, false);
     if (!valid) {
         return false;
     }

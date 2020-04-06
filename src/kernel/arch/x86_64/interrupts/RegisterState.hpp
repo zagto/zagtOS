@@ -23,10 +23,10 @@ public:
                   UserVirtualAddress masterTLSBase,
                   size_t tlsSize);
 
-    inline uint32_t syscallNr() {
-        return rdi;
+    inline uint32_t syscallNumber() const {
+        return static_cast<uint32_t>(rdi);
     }
-    inline uint64_t syscallParameter(size_t index) {
+    inline uint64_t syscallParameter(size_t index) const {
         switch (index) {
         case 0:
             return rsi;
@@ -42,7 +42,7 @@ public:
             Panic();
         }
     }
-    inline size_t stackPointer() {
+    inline size_t stackPointer() const {
         return rsp;
     }
     inline void setSyscallResult(size_t value) {

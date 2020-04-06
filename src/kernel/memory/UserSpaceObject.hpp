@@ -12,10 +12,10 @@ template <typename T, USOOperation op> class UserSpaceObject {
 public:
     T object;
     size_t address;
-    Process *process;
+    const shared_ptr<Process> &process;
     bool valid;
 
-    UserSpaceObject(size_t address, Process *process) :
+    UserSpaceObject(size_t address, const shared_ptr<Process> &process) :
             address{address},
             process{process} {
         if (op == USOOperation::WRITE) {

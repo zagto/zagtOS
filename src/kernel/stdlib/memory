@@ -86,7 +86,7 @@ public:
         internalPointer = other.internalPointer;
         internalPointer->referenceCount++;
     }
-    shared_ptr(T &&other) {
+    shared_ptr(shared_ptr &&other) {
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
     }
@@ -111,6 +111,10 @@ public:
     T *operator->() const {
         assert(*this);
         return internalPointer->rawPointer;
+    }
+    T& operator *() const {
+        assert(*this);
+        return *internalPointer->rawPointer;
     }
     void reset() {
         if (internalPointer) {
@@ -174,4 +178,9 @@ public:
 template <typename T, typename ...ArgumentTypes>
 shared_ptr<T> make_shared(ArgumentTypes &...args) {
     return move(shared_ptr(new T(args...)));
+}
+
+template <typename T, typename ...ArgumentTypes>
+unique_ptr<T> make_unique(ArgumentTypes &...args) {
+    return move(unique_ptr(new T(args...)));
 }

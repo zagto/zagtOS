@@ -29,15 +29,7 @@ bool SpawnProcess::perform(Process &process) {
         return true;
     }
 
-    if (numMessageHandles * Message::HANDLE_SIZE > messageSize) {
-        cout << "SYS_SPAWN_PROCESS: invalid number of handles: " << numMessageHandles
-             << "in message of size " << messageSize << endl;
-        return true;
-    }
-
-    valid = process.verifyUserAccess(messageAddress, messageSize, false);
-    if (!valid) {
-        cout << "SYS_SPAWN_PROCESS: message memory not accessible\n";
+    if (!process.verifyMessageAccess(messageAddress, messageSize, numMessageHandles)) {
         return true;
     }
 

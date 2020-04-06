@@ -8,7 +8,10 @@ Scheduler::Scheduler(Processor *processor)
     idleThread = new Thread(nullptr,
                             VirtualAddress(reinterpret_cast<size_t>(&idleEntry)),
                             Thread::Priority::IDLE,
-                            0, THREAD_STRUCT_AREA_SIZE, 0, 0);
+                            0,
+                            THREAD_STRUCT_AREA_SIZE,
+                            0,
+                            0);
     _currentThread = idleThread;
     _currentThread->currentProcessor = processor;
 }

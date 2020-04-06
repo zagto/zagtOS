@@ -27,12 +27,12 @@ public:
 
 public:
     RegisterState registerState;
-    Process *process;
+    shared_ptr<Process> process;
     UserVirtualAddress tlsBase;
     Priority ownPriority;
     Priority currentPriority;
 
-    Thread(Process *process,
+    Thread(shared_ptr<Process>,
            VirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,

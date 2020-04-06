@@ -15,6 +15,7 @@ private:
 
 public:
     Scheduler(Processor *processor);
+    ~Scheduler() = delete;
 
     Thread *currentThread();
     void add(Thread *thread);

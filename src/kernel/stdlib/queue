@@ -13,6 +13,9 @@ public:
      * implement this if you need it */
     void operator=(queue &) = delete;
 
+    void push_back(T &&newElement) {
+        buffer.push_back(move(newElement));
+    }
     void push_back(const T& newElement) {
         buffer.push_back(newElement);
     }
