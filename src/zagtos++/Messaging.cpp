@@ -1,6 +1,8 @@
 #include <zagtos/syscall.h>
 #include <zagtos/Messaging.hpp>
 #include <cassert>
+#include <sys/mman.h>
+#include <limits.h>
 
 using namespace zagtos;
 
@@ -37,6 +39,25 @@ bool HandleObject::ZBONDecode(zbon::Decoder &decoder) {
 }
 
 
+void *MessageInfo::operator new(std::size_t) {
+    throw std::logic_error("MessageInfo objects should only be allocated by the kernel");
+}
+
+void *MessageInfo::operator new[](std::size_t) {
+    throw std::logic_error("MessageInfo objects should only be allocated by the kernel");
+}
+
+void MessageInfo::operator delete(void *object) {
+    std::cout << "unmapping message at " << object << std::endl;
+    MessageInfo *msgInfo = reinterpret_cast<MessageInfo *>(object);
+    size_t munmapSize = reinterpret_cast<size_t>(msgInfo->data.data())
+            + msgInfo->data.size()
+            - reinterpret_cast<size_t>(msgInfo);
+    int result = munmap(object, munmapSize);
+    assert(result == 0);
+}
+
+
 Port::Port() {
     _handle = {static_cast<uint32_t>(zagtos_syscall0(SYS_CREATE_PORT))};
 }
@@ -64,10 +85,9 @@ RemotePort::~RemotePort() {
 }
 
 
-MessageInfo Port::receiveMessage() {
-    MessageInfo result;
-    zagtos_syscall2(SYS_RECEIVE_MESSAGE, _handle.value, reinterpret_cast<size_t>(&result));
-    return result;
+std::unique_ptr<MessageInfo> Port::receiveMessage() {
+    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, _handle.value, reinterpret_cast<size_t>(&result));
+    return std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result));
 }
 
 

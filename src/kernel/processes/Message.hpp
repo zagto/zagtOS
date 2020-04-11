@@ -9,8 +9,11 @@ class MappedArea;
 
 class Message {
 private:
-    const shared_ptr<Process> sourceProcess;
-    shared_ptr<Process> destinationProcess;
+    /* Messages can't use shared_ptrs because a processes run message is transferred in the Process
+     * constructor. Since long-living Messages are hold by the Port, they won't affect destintion
+     * Process lifetime and should not affect Source process lifetime anyways. */
+    Process *sourceProcess;
+    Process *destinationProcess;
     const UserVirtualAddress sourceAddress;
     MappedArea *messageArea{nullptr};
     const UUID messageType;
@@ -29,8 +32,8 @@ private:
 public:
     static constexpr size_t HANDLE_SIZE{4};
 
-    Message(shared_ptr<Process> sourceProcess,
-            shared_ptr<Process> destinationProcess,
+    Message(Process *sourceProcess,
+            Process *destinationProcess,
             UserVirtualAddress sourceAddress,
             UUID messageType,
             size_t numBytes,
@@ -43,7 +46,7 @@ public:
         numHandles{numHandles} {}
 
     bool transfer();
-    void setDestinationProcess(const shared_ptr<Process> &process);
+    void setDestinationProcess(Process *process);
     UserVirtualAddress infoAddress() const;
 };
 

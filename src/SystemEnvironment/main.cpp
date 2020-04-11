@@ -24,10 +24,19 @@ int main() {
     Port port;
     std::cout << "num of handles in a port: " << zbon::encode(port.handle()).numHandles() << std::endl;
     environmentSpawn(ACPIHAL, Priority::BACKGROUND, StartHALMessage, zbon::encode(port.handle()));
-    //environmentSpawn(ACPIHAL, Priority::BACKGROUND, {port.selfTag()}, StartHALMessage, zbon::encode(port.selfTag()));
 
+
+    auto msgInfo = port.receiveMessage();
 
     bool response;
-    port.receiveMessage(StartHALResponse, response);
+    std::cout << "encodedeData data: " << (void *)msgInfo->data.data() << std::endl;
+    std::cout << "encodedeData size: " << msgInfo->data.size() << std::endl;
+    std::cout << "encodedeData numHandles: " << msgInfo->data.numHandles() << std::endl;
+    std::cout << "message type ok: " << (!uuid_compare(msgInfo->type, StartHALResponse)) << std::endl;
+    std::cout << "message decode ok: " << zbon::decode(msgInfo->data, response) << std::endl;
+
+
+    /*
+    port.receiveMessage(StartHALResponse, response);*/
     std::cout << "HAL Start result: " << response << std::endl;
 }

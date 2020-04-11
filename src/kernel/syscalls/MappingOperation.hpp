@@ -8,12 +8,12 @@ class Process;
 
 class MappingOperation {
 protected:
-    size_t start_address;
+    size_t startAddress;
     size_t length;
 
     bool addressLengthValid();
-    MappingOperation(size_t start_address, size_t length) :
-        start_address{start_address},
+    MappingOperation(size_t address, size_t length) :
+        startAddress{address},
         length{length} {}
     MappingOperation() {}
 
@@ -24,8 +24,8 @@ public:
 class MUnmap : public MappingOperation {
 public:
     void perform(Process &process);
-    MUnmap(size_t start_address, size_t length) :
-        MappingOperation(start_address, length) {}
+    MUnmap(size_t address, size_t _length) :
+        MappingOperation(address, _length) {}
 };
 
 class MMap : public MappingOperation {

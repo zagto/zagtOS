@@ -45,6 +45,10 @@ bool Message::transfer() {
         goto fail;
     }
 
+    /* After transfer, the message object may last longer than the source Process. To ensure nobody
+     * tries to do something stupid with the pointer, erase it. */
+    sourceProcess = nullptr;
+
     transferred = true;
     return true;
 
@@ -152,7 +156,7 @@ UserVirtualAddress Message::destinationAddress() const {
 
 /* Allow setting destination process later on because on SpawnProcess syscalls it does not exist at
  * first */
-void Message::setDestinationProcess(const shared_ptr<Process> &process) {
+void Message::setDestinationProcess(Process *const process) {
     assert(!transferred);
     destinationProcess = process;
 }

@@ -16,11 +16,11 @@ static const uint32_t FLAG_SHARED = 0x01,
 
 
 bool MappingOperation::addressLengthValid() {
-    return start_address != 0
-            && !(start_address % PAGE_SIZE)
-            && UserVirtualAddress::checkInRegion(start_address)
-            && start_address + length > start_address
-            && length < UserSpaceRegion.end() - start_address;
+    return startAddress != 0
+            && !(startAddress % PAGE_SIZE)
+            && UserVirtualAddress::checkInRegion(startAddress)
+            && startAddress + length > startAddress
+            && length < UserSpaceRegion.end() - startAddress;
 }
 
 
@@ -91,7 +91,7 @@ void MMap::perform(Process &process) {
         return;
     }
 
-    Region passedRegion(start_address, length);
+    Region passedRegion(startAddress, length);
     size_t insertIndex;
     Region actualRegion;
     bool slotReserved = false;
@@ -106,7 +106,7 @@ void MMap::perform(Process &process) {
                 actualRegion = passedRegion;
                 slotReserved = true;
             } else {
-                cout << "MMAP: address " << start_address << " length " << length
+                cout << "MMAP: address " << startAddress << " length " << length
                      << " invalid and FIXED flag set" << endl;
                 error = ENOMEM;
                 return;
@@ -154,10 +154,10 @@ void MUnmap::perform(Process &process) {
     }
 
     if (!addressLengthValid()) {
-        cout << "munmap with invalid address " << start_address << " length " << length << endl;
+        cout << "munmap with invalid address " << startAddress << " length " << length << endl;
         error = EINVAL;
         return;
     }
 
-    process.mappedAreas.unmapRange(Region(start_address, length));
+    process.mappedAreas.unmapRange(Region(startAddress, length));
 }

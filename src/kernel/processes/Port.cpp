@@ -24,5 +24,14 @@ unique_ptr<Message> Port::getMessageOrMakeThreadWait(Thread *thread) {
 
 void Port::addMessage(unique_ptr<Message> message) {
     scoped_lock sl(lock);
-    messages.push_back(move(message));
+
+    if (waitingThread) {
+        cout << "waking thread wainting for message. TODO: processor assignment" << endl;
+
+        waitingThread->registerState.setSyscallResult(message->infoAddress().value());
+        CurrentProcessor->scheduler.add(waitingThread);
+        waitingThread = nullptr;
+    } else {
+        messages.push_back(move(message));
+    }
 }

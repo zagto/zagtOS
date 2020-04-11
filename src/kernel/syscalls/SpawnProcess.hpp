@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common/inttypes.hpp>
+#include <memory>
 #include <processes/UUID.hpp>
 
 class Process;
@@ -19,5 +20,5 @@ private:
     uint32_t result;
 public:
 
-    bool perform(Process &process);
+    bool perform(const shared_ptr<Process> &process);
 };

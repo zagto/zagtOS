@@ -49,7 +49,7 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
     bool success = runMessage.transfer();
     assert(success);
 
-    Thread *mainThread = new Thread(this,
+    Thread *mainThread = new Thread(shared_ptr<Process>(this),
                                     elf.entry(),
                                     initialPrioriy,
                                     runMessage.infoAddress(),

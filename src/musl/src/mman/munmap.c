@@ -5,7 +5,7 @@
 int __munmap(void *start, size_t len)
 {
     int ret = zagtos_syscall(SYS_MUNMAP, start, len);
-    if (ret) {
+    if (ret == 0) {
         errno = ret;
         return -1;
     }

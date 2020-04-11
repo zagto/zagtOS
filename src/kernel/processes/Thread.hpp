@@ -32,7 +32,7 @@ public:
     Priority ownPriority;
     Priority currentPriority;
 
-    Thread(shared_ptr<Process>,
+    Thread(shared_ptr<Process> process,
            VirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,
@@ -47,7 +47,12 @@ public:
     ~Thread();
 
     UserVirtualAddress userThreadStruct() {
-        return UserVirtualAddress(tlsBase.value() - THREAD_STRUCT_AREA_SIZE);
+        // having a TLS is optional, otherwise tlsBase is null
+        if (tlsBase.value()) {
+            return UserVirtualAddress(tlsBase.value() - THREAD_STRUCT_AREA_SIZE);
+        } else {
+            return {};
+        }
     }
     bool handleSyscall();
 };

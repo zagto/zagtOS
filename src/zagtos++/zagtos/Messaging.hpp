@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include <uuid/uuid.h>
 #include <zagtos/zbon.hpp>
 #include <cstdint>
@@ -52,6 +53,10 @@ namespace zagtos {
     struct MessageInfo {
         uuid_t type;
         zbon::EncodedData data;
+
+        static void *operator new(std::size_t);
+        static void *operator new[](std::size_t);
+        static void operator delete(void *object);
     };
 
     class Port : public HandleObject {
@@ -63,11 +68,11 @@ namespace zagtos {
 
         bool ZBONDecode(zbon::Decoder &) = delete;
 
-        MessageInfo receiveMessage();
+        std::unique_ptr<MessageInfo> receiveMessage();
         template<typename T> void receiveMessage(const uuid_t type, T &result) {
             while (true) {
-                MessageInfo msgInfo = receiveMessage();
-                if (uuid_compare(type, msgInfo.type) == 0 && zbon::decode(msgInfo.data, result)) {
+                std::unique_ptr<MessageInfo> msgInfo = receiveMessage();
+                if (uuid_compare(type, msgInfo->type) == 0 && zbon::decode(msgInfo->data, result)) {
                     return;
                 }
             }

@@ -5,11 +5,11 @@
 
 Scheduler::Scheduler(Processor *processor)
 {
-    idleThread = new Thread(nullptr,
+    idleThread = new Thread({},
                             VirtualAddress(reinterpret_cast<size_t>(&idleEntry)),
                             Thread::Priority::IDLE,
                             0,
-                            THREAD_STRUCT_AREA_SIZE,
+                            0,
                             0,
                             0);
     _currentThread = idleThread;
@@ -56,5 +56,10 @@ void Scheduler::scheduleNext() {
     }
 
     cout << "Help! Where is the idle thread???" << endl;
+    Panic();
+}
+
+Scheduler::~Scheduler() {
+    // letting processors disappear is currently not supported
     Panic();
 }

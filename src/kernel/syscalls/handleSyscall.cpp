@@ -71,14 +71,20 @@ bool Thread::handleSyscall() {
         }
 
         scoped_lock sl(process->pagingLock, port->process->pagingLock);
-        process->verifyMessageAccess(messageAddress, messageSize, numMessageHandles);
+        if (!process->verifyMessageAccess(messageAddress, messageSize, numMessageHandles)) {
+            return false;
+        }
         UserSpaceObject<UUID, USOOperation::READ> messageType(messageTypeAddress, process);
+        if (!messageType.valid) {
+            return false;
+        }
 
-        unique_ptr<Message> message = make_unique<Message>(process,
-                                                           port->process,
+        unique_ptr<Message> message = make_unique<Message>(process.get(),
+                                                           port->process.get(),
                                                            messageAddress,
                                                            messageType.object,
-                                                           messageSize, numMessageHandles);
+                                                           messageSize,
+                                                           numMessageHandles);
         message->transfer();
         port->addMessage(move(message));
         return true;
@@ -144,7 +150,7 @@ bool Thread::handleSyscall() {
         if (!uso.valid) {
             return false;
         }
-        return uso.object.perform(*process);
+        return uso.object.perform(process);
     }
     default:
         return false;

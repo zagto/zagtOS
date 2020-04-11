@@ -90,11 +90,11 @@ uint32_t HandleManager::addPort(shared_ptr<Port> &port) {
 
 /* unlike the above, this is for internal use and expects the lock to be already hold. Nobody else
  * should create their own remote ports as they wouldn't be remote. */
-uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &port) {
+uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
     assert(lock.isLocked());
 
     uint32_t handle = grabFreeHandle();
-    handles[handle] = Handle(port);
+    handles[handle] = Handle(remotePort);
     return handle;
 }
 
@@ -112,7 +112,7 @@ optional<shared_ptr<Port>> HandleManager::lookupPort(uint32_t handle) {
 
 optional<weak_ptr<Port>> HandleManager::lookupRemotePort(uint32_t handle) {
     scoped_lock sl(lock);
-    if (!handleValidFor(handle, Type::PORT)) {
+    if (!handleValidFor(handle, Type::REMOTE_PORT)) {
         return {};
     }
     return handles[handle].data.remotePort;

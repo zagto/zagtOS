@@ -67,24 +67,28 @@ protected:
         if (internalPointer->referenceCount == 0) {
             if (internalPointer->weakReferenceCount == 0) {
                 delete internalPointer;
-                internalPointer = nullptr;
             } else {
                 delete internalPointer->rawPointer;
                 internalPointer->valid = false;
             }
         }
+        internalPointer = nullptr;
     }
 
 public:
     shared_ptr() {}
-    shared_ptr(T *rawPointer) {
+    explicit shared_ptr(T *rawPointer) {
         internalPointer = new InternalPointer(rawPointer);
+        assert(internalPointer);
     }
     shared_ptr(const shared_ptr &other) {
-        assert(other.internalPointer);
-        scoped_lock lg(other.internalPointer->lock);
-        internalPointer = other.internalPointer;
-        internalPointer->referenceCount++;
+        if (other.internalPointer) {
+            scoped_lock lg(other.internalPointer->lock);
+            internalPointer = other.internalPointer;
+            internalPointer->referenceCount++;
+        } else {
+            internalPointer = nullptr;
+        }
     }
     shared_ptr(shared_ptr &&other) {
         internalPointer = other.internalPointer;
@@ -92,17 +96,19 @@ public:
     }
     void operator=(const shared_ptr &other) {
         reset();
-        assert(other.internalPointer);
-        scoped_lock lg(other.internalPointer->lock);
-        internalPointer = other.internalPointer;
-        internalPointer->referenceCount++;
+        if (other.internalPointer) {
+            scoped_lock lg(other.internalPointer->lock);
+            internalPointer = other.internalPointer;
+            internalPointer->referenceCount++;
+        }
     }
     void operator=(shared_ptr &&other) {
         reset();
-        assert(other.internalPointer);
-        scoped_lock lg(other.internalPointer->lock);
-        internalPointer = other.internalPointer;
-        other.internalPointer = nullptr;
+        if (other.internalPointer) {
+            scoped_lock lg(other.internalPointer->lock);
+            internalPointer = other.internalPointer;
+            other.internalPointer = nullptr;
+        }
     }
 
     operator bool() const {
@@ -112,6 +118,10 @@ public:
         assert(*this);
         return internalPointer->rawPointer;
     }
+    T *get() const {
+        assert(internalPointer);
+        return internalPointer->rawPointer;
+    }
     T& operator *() const {
         assert(*this);
         return *internalPointer->rawPointer;
@@ -119,6 +129,7 @@ public:
     void reset() {
         if (internalPointer) {
             scoped_lock lg(internalPointer->lock);
+            assert(internalPointer->referenceCount > 0);
             internalPointer->referenceCount--;
             checkReferenceCounts();
         }
@@ -142,9 +153,13 @@ public:
         internalPointer->weakReferenceCount++;
     }
     weak_ptr(const weak_ptr &other) {
-        scoped_lock lg(other.internalPointer->lock);
-        internalPointer = other.internalPointer;
-        internalPointer->weakReferenceCount++;
+        if (other.internalPointer) {
+            scoped_lock lg(other.internalPointer->lock);
+            internalPointer = other.internalPointer;
+            internalPointer->weakReferenceCount++;
+        } else {
+            internalPointer = nullptr;
+        }
     }
     weak_ptr(T &&other) {
         internalPointer = other.internalPointer;
@@ -176,11 +191,11 @@ public:
 };
 
 template <typename T, typename ...ArgumentTypes>
-shared_ptr<T> make_shared(ArgumentTypes &...args) {
+shared_ptr<T> make_shared(ArgumentTypes ...args) {
     return move(shared_ptr(new T(args...)));
 }
 
 template <typename T, typename ...ArgumentTypes>
-unique_ptr<T> make_unique(ArgumentTypes &...args) {
+unique_ptr<T> make_unique(ArgumentTypes ...args) {
     return move(unique_ptr(new T(args...)));
 }
