@@ -1,5 +1,5 @@
 /* RISC-V disassembler
-   Copyright (C) 2011-2019 Free Software Foundation, Inc.
+   Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on MIPS target.
@@ -395,9 +395,13 @@ riscv_disassemble_insn (bfd_vma memaddr, insn_t word, disassemble_info *info)
 
   insnlen = riscv_insn_length (word);
 
+  /* RISC-V instructions are always little-endian.  */
+  info->endian_code = BFD_ENDIAN_LITTLE;
+
   info->bytes_per_chunk = insnlen % 4 == 0 ? 4 : 2;
   info->bytes_per_line = 8;
-  info->display_endian = info->endian;
+  /* We don't support constant pools, so this must be code.  */
+  info->display_endian = info->endian_code;
   info->insn_info_valid = 1;
   info->branch_delay_insns = 0;
   info->data_size = 0;

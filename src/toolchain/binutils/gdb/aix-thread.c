@@ -1,6 +1,6 @@
 /* Low level interface for debugging AIX 4.3+ pthreads.
 
-   Copyright (C) 1999-2019 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
    Written by Nick Duffek <nsd@redhat.com>.
 
    This file is part of GDB.
@@ -61,7 +61,7 @@ extern int getthrds (pid_t, struct thrdsinfo64 *, int, tid_t *, int);
 #endif
 
 /* Whether to emit debugging output.  */
-static int debug_aix_thread;
+static bool debug_aix_thread;
 
 /* In AIX 5.1, functions use pthdb_tid_t instead of tid_t.  */
 #ifndef PTHDB_VERSION_3
@@ -140,7 +140,7 @@ public:
 
   bool thread_alive (ptid_t ptid) override;
 
-  const char *pid_to_str (ptid_t) override;
+  std::string pid_to_str (ptid_t) override;
 
   const char *extra_thread_info (struct thread_info *) override;
 
@@ -670,8 +670,6 @@ giter_accum (struct thread_info *thread, void *bufp)
 static int
 ptid_cmp (ptid_t ptid1, ptid_t ptid2)
 {
-  int pid1, pid2;
-
   if (ptid1.pid () < ptid2.pid ())
     return -1;
   else if (ptid1.pid () > ptid2.pid ())
@@ -707,7 +705,6 @@ get_signaled_thread (void)
 {
   struct thrdsinfo64 thrinf;
   tid_t ktid = 0;
-  int result = 0;
 
   while (1)
   {
@@ -808,7 +805,11 @@ sync_threadlists (void)
 	  priv->pdtid = pbuf[pi].pdtid;
 	  priv->tid = pbuf[pi].tid;
 
-	  thread = add_thread_with_info (ptid_t (infpid, 0, pbuf[pi].pthid), priv);
+	  process_stratum_target *proc_target
+	    = current_inferior ()->process_target ();
+	  thread = add_thread_with_info (proc_target,
+					 ptid_t (infpid, 0, pbuf[pi].pthid),
+					 priv);
 
 	  pi++;
 	}
@@ -840,7 +841,9 @@ sync_threadlists (void)
 	    }
 	  else
 	    {
-	      thread = add_thread (pptid);
+	      process_stratum_target *proc_target
+		= current_inferior ()->process_target ();
+	      thread = add_thread (proc_target, pptid);
 
 	      aix_thread_info *priv = new aix_thread_info;
 	      thread->priv.reset (priv);
@@ -1046,7 +1049,7 @@ aix_thread_target::resume (ptid_t ptid, int step, enum gdb_signal sig)
     }
   else
     {
-      thread = find_thread_ptid (ptid);
+      thread = find_thread_ptid (current_inferior (), ptid);
       if (!thread)
 	error (_("aix-thread resume: unknown pthread %ld"),
 	       ptid.lwp ());
@@ -1092,7 +1095,9 @@ aix_thread_target::wait (ptid_t ptid, struct target_waitstatus *status,
   if (!pd_active && status->kind == TARGET_WAITKIND_STOPPED
       && status->value.sig == GDB_SIGNAL_TRAP)
     {
-      struct regcache *regcache = get_thread_regcache (ptid);
+      process_stratum_target *proc_target
+	= current_inferior ()->process_target ();
+      struct regcache *regcache = get_thread_regcache (proc_target, ptid);
       struct gdbarch *gdbarch = regcache->arch ();
 
       if (regcache_read_pc (regcache)
@@ -1332,8 +1337,6 @@ fetch_regs_kernel_thread (struct regcache *regcache, int regno,
 	}
       else
 	{
-	  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-
 	  if (!ptrace32 (PTT_READ_SPRS, tid, (uintptr_t) &sprs32, 0, NULL))
 	    memset (&sprs32, 0, sizeof (sprs32));
 	  supply_sprs32 (regcache, sprs32.pt_iar, sprs32.pt_msr, sprs32.pt_cr,
@@ -1359,7 +1362,7 @@ aix_thread_target::fetch_registers (struct regcache *regcache, int regno)
     beneath ()->fetch_registers (regcache, regno);
   else
     {
-      thread = find_thread_ptid (regcache->ptid ());
+      thread = find_thread_ptid (current_inferior (), regcache->ptid ());
       aix_thread_info *priv = get_aix_thread_info (thread);
       tid = priv->tid;
 
@@ -1501,7 +1504,6 @@ store_regs_user_thread (const struct regcache *regcache, pthdb_pthread_t pdtid)
   pthdb_context_t ctx;
   uint32_t int32;
   uint64_t int64;
-  double   dbl;
 
   if (debug_aix_thread)
     fprintf_unfiltered (gdb_stdlog, 
@@ -1593,7 +1595,6 @@ store_regs_kernel_thread (const struct regcache *regcache, int regno,
   double fprs[ppc_num_fprs];
   struct ptxsprs sprs64;
   struct ptsprs  sprs32;
-  int i;
 
   if (debug_aix_thread)
     fprintf_unfiltered (gdb_stdlog, 
@@ -1699,7 +1700,7 @@ aix_thread_target::store_registers (struct regcache *regcache, int regno)
     beneath ()->store_registers (regcache, regno);
   else
     {
-      thread = find_thread_ptid (regcache->ptid ());
+      thread = find_thread_ptid (current_inferior (), regcache->ptid ());
       aix_thread_info *priv = get_aix_thread_info (thread);
       tid = priv->tid;
 
@@ -1747,26 +1748,21 @@ aix_thread_target::thread_alive (ptid_t ptid)
 
   /* We update the thread list every time the child stops, so all
      valid threads should be in the thread list.  */
-  return in_thread_list (ptid);
+  process_stratum_target *proc_target
+    = current_inferior ()->process_target ();
+  return in_thread_list (proc_target, ptid);
 }
 
 /* Return a printable representation of composite PID for use in
    "info threads" output.  */
 
-const char *
+std::string
 aix_thread_target::pid_to_str (ptid_t ptid)
 {
-  static char *ret = NULL;
-
   if (!PD_TID (ptid))
     return beneath ()->pid_to_str (ptid);
 
-  /* Free previous return value; a new one will be allocated by
-     xstrprintf().  */
-  xfree (ret);
-
-  ret = xstrprintf (_("Thread %ld"), ptid.tid ());
-  return ret;
+  return string_printf (_("Thread %ld"), ptid.tid ());
 }
 
 /* Return a printable representation of extra information about
@@ -1838,8 +1834,9 @@ aix_thread_target::get_ada_task_ptid (long lwp, long thread)
 /* Module startup initialization function, automagically called by
    init.c.  */
 
+void _initialize_aix_thread ();
 void
-_initialize_aix_thread (void)
+_initialize_aix_thread ()
 {
   /* Notice when object files get loaded and unloaded.  */
   gdb::observers::new_objfile.attach (new_objfile);

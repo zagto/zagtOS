@@ -1,5 +1,5 @@
 /* x86 specific support for ELF
-   Copyright (C) 2017-2019 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -24,6 +24,7 @@
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "hashtab.h"
+#include "elf-linker-x86.h"
 
 #define PLT_CIE_LENGTH		20
 #define PLT_FDE_LENGTH		36
@@ -160,6 +161,14 @@
        && SYMBOL_REFERENCES_LOCAL_P ((INFO), (H))) \
        || (ELF_ST_VISIBILITY ((H)->other) \
 	   && (H)->root.type == bfd_link_hash_undefweak))
+
+/* TRUE if this symbol isn't defined by a shared object.  */
+#define SYMBOL_DEFINED_NON_SHARED_P(H) \
+  ((H)->def_regular \
+   || (H)->root.linker_def \
+   || (H)->root.ldscript_def \
+   || ((struct elf_x86_link_hash_entry *) (H))->linker_def \
+   || ELF_COMMON_DEF_P (H))
 
 /* TRUE if relative relocation should be generated.  GOT reference to
    global symbol in PIC will lead to dynamic symbol.  It becomes a
@@ -523,6 +532,9 @@ struct elf_x86_link_hash_table
   int dynamic_interpreter_size;
   const char *dynamic_interpreter;
   const char *tls_get_addr;
+
+  /* Options passed from the linker.  */
+  struct elf_linker_x86_params *params;
 };
 
 /* Architecture-specific backend data for x86.  */
@@ -684,7 +696,7 @@ extern enum elf_property_kind _bfd_x86_elf_parse_gnu_properties
   (bfd *, unsigned int, bfd_byte *, unsigned int);
 
 extern bfd_boolean _bfd_x86_elf_merge_gnu_properties
-  (struct bfd_link_info *, bfd *, elf_property *, elf_property *);
+  (struct bfd_link_info *, bfd *, bfd *, elf_property *, elf_property *);
 
 extern void _bfd_x86_elf_link_fixup_gnu_properties
   (struct bfd_link_info *, elf_property_list **);

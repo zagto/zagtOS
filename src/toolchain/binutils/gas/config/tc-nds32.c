@@ -1,5 +1,5 @@
 /* tc-nds32.c -- Assemble for the nds32
-   Copyright (C) 2012-2019 Free Software Foundation, Inc.
+   Copyright (C) 2012-2020 Free Software Foundation, Inc.
    Contributed by Andes Technology Corporation.
 
    This file is part of GAS, the GNU Assembler.
@@ -3841,7 +3841,7 @@ do_nds32_seg (int i, subsegT sub)
       seg->s = subseg_new (seg->name, sub);
       if (OUTPUT_FLAVOR == bfd_target_elf_flavour)
 	{
-	  bfd_set_section_flags (stdoutput, seg->s, seg->flags);
+	  bfd_set_section_flags (seg->s, seg->flags);
 	  if ((seg->flags & SEC_LOAD) == 0)
 	    seg_info (seg->s)->bss = 1;
 	}
@@ -6609,7 +6609,7 @@ md_operand (expressionS *expressionP)
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int align = bfd_get_section_alignment (stdoutput, segment);
+  int align = bfd_section_alignment (segment);
 
   return ((size + (1 << align) - 1) & ((valueT) -1 << align));
 }
@@ -7316,9 +7316,6 @@ md_number_to_chars (char *buf, valueT val, int n)
     number_to_chars_littleendian (buf, val, n);
 }
 
-/* Equal to MAX_PRECISION in atof-ieee.c.  */
-#define MAX_LITTLENUMS 6
-
 /* This function is called to convert an ASCII string into a floating point
    value in format used by the CPU.  */
 
@@ -7568,13 +7565,13 @@ compar_relent (const void *lhs, const void *rhs)
    relocation.  */
 
 void
-nds32_set_section_relocs (asection *sec, arelent ** relocs ATTRIBUTE_UNUSED,
-			  unsigned int n ATTRIBUTE_UNUSED)
+nds32_set_section_relocs (asection *sec ATTRIBUTE_UNUSED,
+			  arelent **relocs, unsigned int n)
 {
-  bfd *abfd ATTRIBUTE_UNUSED = sec->owner;
-  if (bfd_get_section_flags (abfd, sec) & (flagword) SEC_RELOC)
-    nds32_insertion_sort (sec->orelocation, sec->reloc_count,
-			  sizeof (arelent**), compar_relent);
+  if (n <= 1)
+    return;
+
+  nds32_insertion_sort (relocs, n, sizeof (*relocs), compar_relent);
 }
 
 long

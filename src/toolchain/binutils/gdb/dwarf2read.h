@@ -1,6 +1,6 @@
 /* DWARF 2 debugging format support for GDB.
 
-   Copyright (C) 1994-2019 Free Software Foundation, Inc.
+   Copyright (C) 1994-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,13 +24,13 @@
 #include "dwarf-index-cache.h"
 #include "filename-seen-cache.h"
 #include "gdb_obstack.h"
+#include "gdbsupport/hash_enum.h"
 
 /* Hold 'maintenance (set|show) dwarf' commands.  */
 extern struct cmd_list_element *set_dwarf_cmdlist;
 extern struct cmd_list_element *show_dwarf_cmdlist;
 
-typedef struct dwarf2_per_cu_data *dwarf2_per_cu_ptr;
-DEF_VEC_P (dwarf2_per_cu_ptr);
+extern bool dwarf_always_disassemble;
 
 /* A descriptor for dwarf sections.
 
@@ -66,14 +66,11 @@ struct dwarf2_section_info
      Only valid if is_virtual.  */
   bfd_size_type virtual_offset;
   /* True if we have tried to read this section.  */
-  char readin;
+  bool readin;
   /* True if this is a virtual section, False otherwise.
      This specifies which of s.section and s.containing_section to use.  */
-  char is_virtual;
+  bool is_virtual;
 };
-
-typedef struct dwarf2_section_info dwarf2_section_info_def;
-DEF_VEC_O (dwarf2_section_info_def);
 
 /* Read the contents of the section INFO.
    OBJFILE is the main object file, but not necessarily the file where
@@ -102,13 +99,16 @@ typedef struct die_info *die_info_ptr;
 /* Collection of data recorded per objfile.
    This hangs off of dwarf2_objfile_data_key.  */
 
-struct dwarf2_per_objfile : public allocate_on_obstack
+struct dwarf2_per_objfile
 {
   /* Construct a dwarf2_per_objfile for OBJFILE.  NAMES points to the
      dwarf2 section names, or is NULL if the standard ELF names are
-     used.  */
+     used.  CAN_COPY is true for formats where symbol
+     interposition is possible and so symbol values must follow copy
+     relocation rules.  */
   dwarf2_per_objfile (struct objfile *objfile,
-		      const dwarf2_debug_sections *names);
+		      const dwarf2_debug_sections *names,
+		      bool can_copy);
 
   ~dwarf2_per_objfile ();
 
@@ -156,6 +156,7 @@ public:
   dwarf2_section_info macinfo {};
   dwarf2_section_info macro {};
   dwarf2_section_info str {};
+  dwarf2_section_info str_offsets {};
   dwarf2_section_info line_str {};
   dwarf2_section_info ranges {};
   dwarf2_section_info rnglists {};
@@ -166,7 +167,7 @@ public:
   dwarf2_section_info debug_names {};
   dwarf2_section_info debug_aranges {};
 
-  VEC (dwarf2_section_info_def) *types = NULL;
+  std::vector<dwarf2_section_info> types;
 
   /* Back link.  */
   struct objfile *objfile = NULL;
@@ -196,7 +197,7 @@ public:
 
   /* A table mapping DW_AT_dwo_name values to struct dwo_file objects.
      This is NULL if the table hasn't been allocated yet.  */
-  htab_t dwo_files {};
+  htab_up dwo_files;
 
   /* True if we've checked for whether there is a DWP file.  */
   bool dwp_checked = false;
@@ -207,6 +208,9 @@ public:
   /* The shared '.dwz' file, if one exists.  This is used when the
      original data was compressed using 'dwz -m'.  */
   std::unique_ptr<struct dwz_file> dwz_file;
+
+  /* Whether copy relocations are supported by this object format.  */
+  bool can_copy;
 
   /* A flag indicating whether this objfile has a section loaded at a
      VMA of 0.  */
@@ -256,7 +260,8 @@ public:
 
   /* Mapping from abstract origin DIE to concrete DIEs that reference it as
      DW_AT_abstract_origin.  */
-  std::unordered_map<die_info_ptr, std::vector<die_info_ptr>>
+  std::unordered_map<sect_offset, std::vector<sect_offset>,
+		     gdb::hash_enum<sect_offset>>
     abstract_to_concrete;
 };
 
@@ -340,6 +345,37 @@ struct dwarf2_per_cu_data
     struct dwarf2_per_cu_quick_data *quick;
   } v;
 
+  /* Return true of IMPORTED_SYMTABS is empty or not yet allocated.  */
+  bool imported_symtabs_empty () const
+  {
+    return (imported_symtabs == nullptr || imported_symtabs->empty ());
+  }
+
+  /* Push P to the back of IMPORTED_SYMTABS, allocated IMPORTED_SYMTABS
+     first if required.  */
+  void imported_symtabs_push (dwarf2_per_cu_data *p)
+  {
+    if (imported_symtabs == nullptr)
+      imported_symtabs = new std::vector <dwarf2_per_cu_data *>;
+    imported_symtabs->push_back (p);
+  }
+
+  /* Return the size of IMPORTED_SYMTABS if it is allocated, otherwise
+     return 0.  */
+  size_t imported_symtabs_size () const
+  {
+    if (imported_symtabs == nullptr)
+      return 0;
+    return imported_symtabs->size ();
+  }
+
+  /* Delete IMPORTED_SYMTABS and set the pointer back to nullptr.  */
+  void imported_symtabs_free ()
+  {
+    delete imported_symtabs;
+    imported_symtabs = nullptr;
+  }
+
   /* The CUs we import using DW_TAG_imported_unit.  This is filled in
      while reading psymtabs, used to compute the psymtab dependencies,
      and then cleared.  Then it is filled in again while reading full
@@ -357,8 +393,14 @@ struct dwarf2_per_cu_data
      .gdb_index version <=7 this also records the TUs that the CU referred
      to.  Concurrently with this change gdb was modified to emit version 8
      indices so we only pay a price for gold generated indices.
-     http://sourceware.org/bugzilla/show_bug.cgi?id=15021.  */
-  VEC (dwarf2_per_cu_ptr) *imported_symtabs;
+     http://sourceware.org/bugzilla/show_bug.cgi?id=15021.
+
+     This currently needs to be a public member due to how
+     dwarf2_per_cu_data is allocated and used.  Ideally in future things
+     could be refactored to make this private.  Until then please try to
+     avoid direct access to this member, and instead use the helper
+     functions above.  */
+  std::vector <dwarf2_per_cu_data *> *imported_symtabs;
 };
 
 /* Entry in the signatured_types hash table.  */
@@ -400,7 +442,44 @@ struct signatured_type
   struct dwo_unit *dwo_unit;
 };
 
-typedef struct signatured_type *sig_type_ptr;
-DEF_VEC_P (sig_type_ptr);
+ULONGEST read_unsigned_leb128 (bfd *, const gdb_byte *, unsigned int *);
+
+/* This represents a '.dwz' file.  */
+
+struct dwz_file
+{
+  dwz_file (gdb_bfd_ref_ptr &&bfd)
+    : dwz_bfd (std::move (bfd))
+  {
+  }
+
+  const char *filename () const
+  {
+    return bfd_get_filename (this->dwz_bfd.get ());
+  }
+
+  /* A dwz file can only contain a few sections.  */
+  struct dwarf2_section_info abbrev {};
+  struct dwarf2_section_info info {};
+  struct dwarf2_section_info str {};
+  struct dwarf2_section_info line {};
+  struct dwarf2_section_info macro {};
+  struct dwarf2_section_info gdb_index {};
+  struct dwarf2_section_info debug_names {};
+
+  /* The dwz's BFD.  */
+  gdb_bfd_ref_ptr dwz_bfd;
+
+  /* If we loaded the index from an external file, this contains the
+     resources associated to the open file, memory mapping, etc.  */
+  std::unique_ptr<index_cache_resource> index_cache_res;
+};
+
+/* Open the separate '.dwz' debug file, if needed.  Return NULL if
+   there is no .gnu_debugaltlink section in the file.  Error if there
+   is such a section but the file cannot be found.  */
+
+extern struct dwz_file *dwarf2_get_dwz_file
+    (struct dwarf2_per_objfile *dwarf2_per_objfile);
 
 #endif /* DWARF2READ_H */

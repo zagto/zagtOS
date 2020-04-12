@@ -1,6 +1,6 @@
 # Test DEFINED in a linker script.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 2001-2019 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -79,5 +79,6 @@ if ![is_aout_format] {
 if [is_elf_format] {
     run_dump_test "defined6"
 }
+run_dump_test "pr24008"
 set LDFLAGS "$saved_LDFLAGS"
 set ASFLAGS "$saved_ASFLAGS"

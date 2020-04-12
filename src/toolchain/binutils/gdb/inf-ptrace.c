@@ -1,6 +1,6 @@
 /* Low-level child interface to ptrace.
 
-   Copyright (C) 1988-2019 Free Software Foundation, Inc.
+   Copyright (C) 1988-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -25,7 +25,7 @@
 #include "gdbcore.h"
 #include "regcache.h"
 #include "nat/gdb_ptrace.h"
-#include "gdb_wait.h"
+#include "gdbsupport/gdb_wait.h"
 #include <signal.h>
 
 #include "inf-ptrace.h"
@@ -33,6 +33,7 @@
 #include "gdbthread.h"
 #include "nat/fork-inferior.h"
 #include "utils.h"
+#include "gdbarch.h"
 
 
 
@@ -135,7 +136,7 @@ inf_ptrace_target::create_inferior (const char *exec_file,
   /* We have something that executes now.  We'll be running through
      the shell at this point (if startup-with-shell is true), but the
      pid shouldn't change.  */
-  add_thread_silent (ptid);
+  add_thread_silent (this, ptid);
 
   unpusher.release ();
 
@@ -185,7 +186,6 @@ inf_ptrace_target::mourn_inferior ()
 void
 inf_ptrace_target::attach (const char *args, int from_tty)
 {
-  char *exec_file;
   pid_t pid;
   struct inferior *inf;
 
@@ -209,16 +209,14 @@ inf_ptrace_target::attach (const char *args, int from_tty)
 
   if (from_tty)
     {
-      exec_file = get_exec_file (0);
+      const char *exec_file = get_exec_file (0);
 
       if (exec_file)
 	printf_unfiltered (_("Attaching to program: %s, %s\n"), exec_file,
-			   target_pid_to_str (ptid_t (pid)));
+			   target_pid_to_str (ptid_t (pid)).c_str ());
       else
 	printf_unfiltered (_("Attaching to %s\n"),
-			   target_pid_to_str (ptid_t (pid)));
-
-      gdb_flush (gdb_stdout);
+			   target_pid_to_str (ptid_t (pid)).c_str ());
     }
 
 #ifdef PT_ATTACH
@@ -237,10 +235,10 @@ inf_ptrace_target::attach (const char *args, int from_tty)
 
   /* Always add a main thread.  If some target extends the ptrace
      target, it should decorate the ptid later with more info.  */
-  thread_info *thr = add_thread_silent (inferior_ptid);
+  thread_info *thr = add_thread_silent (this, inferior_ptid);
   /* Don't consider the thread stopped until we've processed its
      initial SIGSTOP stop.  */
-  set_executing (thr->ptid, true);
+  set_executing (this, thr->ptid, true);
 
   unpusher.release ();
 }
@@ -356,10 +354,10 @@ inf_ptrace_target::resume (ptid_t ptid, int step, enum gdb_signal signal)
   if (step)
     {
       /* If this system does not support PT_STEP, a higher level
-         function will have called single_step() to transmute the step
-         request into a continue request (by setting breakpoints on
-         all possible successor instructions), so we don't have to
-         worry about that here.  */
+	 function will have called the appropriate functions to transmute the
+	 step request into a continue request (by setting breakpoints on
+	 all possible successor instructions), so we don't have to
+	 worry about that here.  */
       request = PT_STEP;
     }
 
@@ -626,10 +624,10 @@ inf_ptrace_target::files_info ()
 
   printf_filtered (_("\tUsing the running image of %s %s.\n"),
 		   inf->attach_flag ? "attached" : "child",
-		   target_pid_to_str (inferior_ptid));
+		   target_pid_to_str (inferior_ptid).c_str ());
 }
 
-const char *
+std::string
 inf_ptrace_target::pid_to_str (ptid_t ptid)
 {
   return normal_pid_to_str (ptid);

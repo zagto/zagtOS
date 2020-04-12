@@ -1,6 +1,6 @@
 /* Target-dependent code for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2019 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1234,7 +1234,7 @@ store_insn_p (unsigned long op, unsigned long rs,
    this masking operation is equal to BL_INSTRUCTION, then the opcode in
    question is a ``bl'' instruction.
    
-   BL_DISPLACMENT_MASK is anded with the opcode in order to extract
+   BL_DISPLACEMENT_MASK is anded with the opcode in order to extract
    the branch displacement.  */
 
 #define BL_MASK 0xfc000001
@@ -1360,7 +1360,7 @@ rs6000_skip_stack_check (struct gdbarch *gdbarch, const CORE_ADDR start_pc)
       return pc;
     }
 
-  /* Third sequence: No probe; instead, a comparizon between the stack size
+  /* Third sequence: No probe; instead, a comparison between the stack size
      limit (saved in a run-time global variable) and the current stack
      pointer:
 
@@ -2119,9 +2119,9 @@ rs6000_skip_main_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
          to __eabi in case the GCC option "-fleading-underscore" was
 	 used to compile the program.  */
       if (s.minsym != NULL
-          && MSYMBOL_LINKAGE_NAME (s.minsym) != NULL
-	  && (strcmp (MSYMBOL_LINKAGE_NAME (s.minsym), "__eabi") == 0
-	      || strcmp (MSYMBOL_LINKAGE_NAME (s.minsym), "___eabi") == 0))
+          && s.minsym->linkage_name () != NULL
+	  && (strcmp (s.minsym->linkage_name (), "__eabi") == 0
+	      || strcmp (s.minsym->linkage_name (), "___eabi") == 0))
 	pc += 4;
     }
   return pc;
@@ -2205,7 +2205,7 @@ rs6000_skip_trampoline_code (struct frame_info *frame, CORE_ADDR pc)
   msymbol = lookup_minimal_symbol_by_pc (pc);
   if (msymbol.minsym
       && rs6000_in_solib_return_trampoline (gdbarch, pc,
-					    MSYMBOL_LINKAGE_NAME (msymbol.minsym)))
+					    msymbol.minsym->linkage_name ()))
     {
       /* Double-check that the third instruction from PC is relative "b".  */
       op = read_memory_integer (pc + 8, 4, byte_order);
@@ -3404,20 +3404,6 @@ find_variant_by_arch (enum bfd_architecture arch, unsigned long mach)
 }
 
 
-static CORE_ADDR
-rs6000_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  return frame_unwind_register_unsigned (next_frame,
-					 gdbarch_pc_regnum (gdbarch));
-}
-
-static struct frame_id
-rs6000_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  return frame_id_build (get_frame_register_unsigned
-			  (this_frame, gdbarch_sp_regnum (gdbarch)),
-			 get_frame_pc (this_frame));
-}
 
 struct rs6000_frame_cache
 {
@@ -3451,7 +3437,7 @@ rs6000_frame_cache (struct frame_info *this_frame, void **this_cache)
   cache->pc = 0;
   cache->saved_regs = trad_frame_alloc_saved_regs (this_frame);
 
-  TRY
+  try
     {
       func = get_frame_func (this_frame);
       cache->pc = func;
@@ -3468,13 +3454,12 @@ rs6000_frame_cache (struct frame_info *this_frame, void **this_cache)
       cache->base = get_frame_register_unsigned
 	(this_frame, gdbarch_sp_regnum (gdbarch));
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (ex.error != NOT_AVAILABLE_ERROR)
-	throw_exception (ex);
+	throw;
       return (struct rs6000_frame_cache *) (*this_cache);
     }
-  END_CATCH
 
   /* If the function appears to be frameless, check a couple of likely
      indicators that we have simply failed to find the frame setup.
@@ -3683,7 +3668,7 @@ rs6000_epilogue_frame_cache (struct frame_info *this_frame, void **this_cache)
   (*this_cache) = cache;
   cache->saved_regs = trad_frame_alloc_saved_regs (this_frame);
 
-  TRY
+  try
     {
       /* At this point the stack looks as if we just entered the
 	 function, and the return address is stored in LR.  */
@@ -3698,12 +3683,11 @@ rs6000_epilogue_frame_cache (struct frame_info *this_frame, void **this_cache)
       trad_frame_set_value (cache->saved_regs,
 			    gdbarch_pc_regnum (gdbarch), lr);
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (ex.error != NOT_AVAILABLE_ERROR)
-	throw_exception (ex);
+	throw;
     }
-  END_CATCH
 
   return cache;
 }
@@ -3882,7 +3866,7 @@ bfd_uses_spe_extensions (bfd *abfd)
   if (!sect)
     return 0;
 
-  size = bfd_get_section_size (sect);
+  size = bfd_section_size (sect);
   contents = (gdb_byte *) xmalloc (size);
   if (!bfd_get_section_contents (abfd, sect, contents, 0, size))
     {
@@ -6157,16 +6141,6 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   int num_pseudoregs = 0;
   int cur_reg;
 
-  /* INFO may refer to a binary that is not of the PowerPC architecture,
-     e.g. when debugging a stand-alone SPE executable on a Cell/B.E. system.
-     In this case, we must not attempt to infer properties of the (PowerPC
-     side) of the target system from properties of that executable.  Trust
-     the target description instead.  */
-  if (info.abfd
-      && bfd_get_arch (info.abfd) != bfd_arch_powerpc
-      && bfd_get_arch (info.abfd) != bfd_arch_rs6000)
-    info.abfd = NULL;
-
   from_xcoff_exec = info.abfd && info.abfd->format == bfd_object &&
     bfd_get_flavour (info.abfd) == bfd_target_xcoff_flavour;
 
@@ -7103,19 +7077,15 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
     case GDB_OSABI_LINUX:
     case GDB_OSABI_NETBSD:
     case GDB_OSABI_UNKNOWN:
-      set_gdbarch_unwind_pc (gdbarch, rs6000_unwind_pc);
       frame_unwind_append_unwinder (gdbarch, &rs6000_epilogue_frame_unwind);
       frame_unwind_append_unwinder (gdbarch, &rs6000_frame_unwind);
-      set_gdbarch_dummy_id (gdbarch, rs6000_dummy_id);
       frame_base_append_sniffer (gdbarch, rs6000_frame_base_sniffer);
       break;
     default:
       set_gdbarch_believe_pcc_promotion (gdbarch, 1);
 
-      set_gdbarch_unwind_pc (gdbarch, rs6000_unwind_pc);
       frame_unwind_append_unwinder (gdbarch, &rs6000_epilogue_frame_unwind);
       frame_unwind_append_unwinder (gdbarch, &rs6000_frame_unwind);
-      set_gdbarch_dummy_id (gdbarch, rs6000_dummy_id);
       frame_base_append_sniffer (gdbarch, rs6000_frame_base_sniffer);
     }
 
@@ -7337,8 +7307,9 @@ ppc_insn_ds_field (unsigned int insn)
 
 /* Initialization code.  */
 
+void _initialize_rs6000_tdep ();
 void
-_initialize_rs6000_tdep (void)
+_initialize_rs6000_tdep ()
 {
   gdbarch_register (bfd_arch_rs6000, rs6000_gdbarch_init, rs6000_dump_tdep);
   gdbarch_register (bfd_arch_powerpc, rs6000_gdbarch_init, rs6000_dump_tdep);

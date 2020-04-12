@@ -1,6 +1,6 @@
 # This test code is part of GDB, the GNU debugger.
 
-# Copyright 2010-2019 Free Software Foundation, Inc.
+# Copyright 2010-2020 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,6 +36,18 @@ proc fortran_int4 {} {
 	return "integer\\(kind=4\\)"
     } elseif {[test_compiler_info {icc-*}]} {
 	return "INTEGER\\(4\\)"
+    } else {
+	return "unknown"
+    }
+}
+
+proc fortran_int8 {} {
+    if {[test_compiler_info {gcc-4-[012]-*}]} {
+	return "int8"
+    } elseif {[test_compiler_info {gcc-*}]} {
+	return "integer\\(kind=8\\)"
+    } elseif {[test_compiler_info {icc-*}]} {
+	return "INTEGER\\(8\\)"
     } else {
 	return "unknown"
     }
@@ -84,6 +96,18 @@ proc fortran_logical4 {} {
 	return "logical\\(kind=4\\)"
     } elseif {[test_compiler_info {icc-*}]} {
 	return "LOGICAL\\(4\\)"
+    } else {
+	return "unknown"
+    }
+}
+
+proc fortran_character1 {} {
+    if {[test_compiler_info {gcc-4-[012]-*}]} {
+	return "character1"
+    } elseif {[test_compiler_info {gcc-*}]} {
+	return "character\\(kind=1\\)"
+    } elseif {[test_compiler_info {icc-*}]} {
+	return "CHARACTER\\(1\\)"
     } else {
 	return "unknown"
     }

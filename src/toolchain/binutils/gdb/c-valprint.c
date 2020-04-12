@@ -1,6 +1,6 @@
 /* Support for printing C values for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2019 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -187,7 +187,7 @@ print_unpacked_pointer (struct type *type, struct type *elttype,
 	  if (want_space)
 	    fputs_filtered (" ", stream);
 	  fputs_filtered (" <", stream);
-	  fputs_filtered (MSYMBOL_PRINT_NAME (msymbol.minsym), stream);
+	  fputs_filtered (msymbol.minsym->print_name (), stream);
 	  fputs_filtered (">", stream);
 	  want_space = 1;
 	}
@@ -197,16 +197,14 @@ print_unpacked_pointer (struct type *type, struct type *elttype,
 	  struct value *vt_val;
 	  struct symbol *wsym = NULL;
 	  struct type *wtype;
-	  struct block *block = NULL;
 
 	  if (want_space)
 	    fputs_filtered (" ", stream);
 
 	  if (msymbol.minsym != NULL)
 	    {
-	      const char *search_name
-		= MSYMBOL_SEARCH_NAME (msymbol.minsym);
-	      wsym = lookup_symbol_search_name (search_name, block,
+	      const char *search_name = msymbol.minsym->search_name ();
+	      wsym = lookup_symbol_search_name (search_name, NULL,
 						VAR_DOMAIN).symbol;
 	    }
 
@@ -248,8 +246,7 @@ c_val_print_array (struct type *type, const gdb_byte *valaddr,
     {
       LONGEST low_bound, high_bound;
       int eltlen, len;
-      struct gdbarch *gdbarch = get_type_arch (type);
-      enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
+      enum bfd_endian byte_order = type_byte_order (type);
       unsigned int i = 0;	/* Number of characters printed.  */
 
       if (!get_array_bounds (type, &low_bound, &high_bound))
@@ -564,7 +561,6 @@ c_val_print (struct type *type,
 			 &c_decorations);
       break;
     }
-  gdb_flush (stream);
 }
 
 void

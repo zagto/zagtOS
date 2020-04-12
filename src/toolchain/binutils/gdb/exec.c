@@ -1,6 +1,6 @@
 /* Work with executable files, for GDB. 
 
-   Copyright (C) 1988-2019 Free Software Foundation, Inc.
+   Copyright (C) 1988-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -38,14 +38,14 @@
 #include "source.h"
 
 #include <fcntl.h>
-#include "readline/readline.h"
+#include "readline/tilde.h"
 #include "gdbcore.h"
 
 #include <ctype.h>
 #include <sys/stat.h>
 #include "solist.h"
 #include <algorithm>
-#include "common/pathstuff.h"
+#include "gdbsupport/pathstuff.h"
 
 void (*deprecated_file_changed_hook) (const char *);
 
@@ -84,7 +84,7 @@ static exec_target exec_ops;
 
 /* Whether to open exec and core files read-only or read-write.  */
 
-int write_files = 0;
+bool write_files = false;
 static void
 show_write_files (struct ui_file *file, int from_tty,
 		  struct cmd_list_element *c, const char *value)
@@ -148,7 +148,7 @@ void
 try_open_exec_file (const char *exec_file_host, struct inferior *inf,
 		    symfile_add_flags add_flags)
 {
-  struct gdb_exception prev_err = exception_none;
+  struct gdb_exception prev_err;
 
   /* exec_file_attach and symbol_file_add_main may throw an error if the file
      cannot be opened either locally or remotely.
@@ -161,41 +161,31 @@ try_open_exec_file (const char *exec_file_host, struct inferior *inf,
      Even without a symbol file, the remote-based debugging session should
      continue normally instead of ending abruptly.  Hence we catch thrown
      errors/exceptions in the following code.  */
-  std::string saved_message;
-  TRY
+  try
     {
       /* We must do this step even if exec_file_host is NULL, so that
 	 exec_file_attach will clear state.  */
       exec_file_attach (exec_file_host, add_flags & SYMFILE_VERBOSE);
     }
-  CATCH (err, RETURN_MASK_ERROR)
+  catch (gdb_exception_error &err)
     {
       if (err.message != NULL)
-	warning ("%s", err.message);
+	warning ("%s", err.what ());
 
-      prev_err = err;
-
-      /* Save message so it doesn't get trashed by the catch below.  */
-      if (err.message != NULL)
-	{
-	  saved_message = err.message;
-	  prev_err.message = saved_message.c_str ();
-	}
+      prev_err = std::move (err);
     }
-  END_CATCH
 
   if (exec_file_host != NULL)
     {
-      TRY
+      try
 	{
 	  symbol_file_add_main (exec_file_host, add_flags);
 	}
-      CATCH (err, RETURN_MASK_ERROR)
+      catch (const gdb_exception_error &err)
 	{
 	  if (!exception_print_same (prev_err, err))
-	    warning ("%s", err.message);
+	    warning ("%s", err.what ());
 	}
-      END_CATCH
     }
 }
 
@@ -464,14 +454,14 @@ add_to_section_table (bfd *abfd, struct bfd_section *asect,
      encountered on sparc-solaris 2.10 a shared library with an empty .bss
      section to which a symbol named "_end" was attached.  The address
      of this symbol still needs to be relocated.  */
-  aflag = bfd_get_section_flags (abfd, asect);
+  aflag = bfd_section_flags (asect);
   if (!(aflag & SEC_ALLOC))
     return;
 
   (*table_pp)->owner = NULL;
   (*table_pp)->the_bfd_section = asect;
-  (*table_pp)->addr = bfd_section_vma (abfd, asect);
-  (*table_pp)->endaddr = (*table_pp)->addr + bfd_section_size (abfd, asect);
+  (*table_pp)->addr = bfd_section_vma (asect);
+  (*table_pp)->endaddr = (*table_pp)->addr + bfd_section_size (asect);
   (*table_pp)++;
 }
 
@@ -557,10 +547,23 @@ add_target_sections (void *owner,
 	  table->sections[space + i].owner = owner;
 	}
 
+      scoped_restore_current_thread restore_thread;
+      program_space *curr_pspace = current_program_space;
+
       /* If these are the first file sections we can provide memory
-	 from, push the file_stratum target.  */
-      if (!target_is_pushed (&exec_ops))
-	push_target (&exec_ops);
+	 from, push the file_stratum target.  Must do this in all
+	 inferiors sharing the program space.  */
+      for (inferior *inf : all_inferiors ())
+	{
+	  if (inf->pspace != curr_pspace)
+	    continue;
+
+	  if (inf->target_is_pushed (&exec_ops))
+	    continue;
+
+	  switch_to_inferior_no_thread (inf);
+	  push_target (&exec_ops);
+	}
     }
 }
 
@@ -581,7 +584,7 @@ add_target_sections_of_objfile (struct objfile *objfile)
   /* Compute the number of sections to add.  */
   ALL_OBJFILE_OSECTIONS (objfile, osect)
     {
-      if (bfd_get_section_size (osect->the_bfd_section) == 0)
+      if (bfd_section_size (osect->the_bfd_section) == 0)
 	continue;
       count++;
     }
@@ -595,7 +598,7 @@ add_target_sections_of_objfile (struct objfile *objfile)
 
   ALL_OBJFILE_OSECTIONS (objfile, osect)
     {
-      if (bfd_get_section_size (osect->the_bfd_section) == 0)
+      if (bfd_section_size (osect->the_bfd_section) == 0)
 	continue;
 
       gdb_assert (ts < table->sections + space + count);
@@ -638,19 +641,37 @@ remove_target_sections (void *owner)
       old_count = resize_section_table (table, dest - src);
 
       /* If we don't have any more sections to read memory from,
-	 remove the file_stratum target from the stack.  */
+	 remove the file_stratum target from the stack of each
+	 inferior sharing the program space.  */
       if (old_count + (dest - src) == 0)
 	{
-	  struct program_space *pspace;
+	  scoped_restore_current_thread restore_thread;
+	  program_space *curr_pspace = current_program_space;
 
-	  ALL_PSPACES (pspace)
-	    if (pspace->target_sections.sections
-		!= pspace->target_sections.sections_end)
-	      return;
+	  for (inferior *inf : all_inferiors ())
+	    {
+	      if (inf->pspace != curr_pspace)
+		continue;
 
-	  unpush_target (&exec_ops);
+	      if (inf->pspace->target_sections.sections
+		  != inf->pspace->target_sections.sections_end)
+		continue;
+
+	      switch_to_inferior_no_thread (inf);
+	      unpush_target (&exec_ops);
+	    }
 	}
     }
+}
+
+/* See exec.h.  */
+
+void
+exec_on_vfork ()
+{
+  if (current_program_space->target_sections.sections
+      != current_program_space->target_sections.sections_end)
+    push_target (&exec_ops);
 }
 
 
@@ -675,7 +696,7 @@ exec_read_partial_read_only (gdb_byte *readbuf, ULONGEST offset,
 	    continue;
 
 	  vma = s->vma;
-	  size = bfd_get_section_size (s);
+	  size = bfd_section_size (s);
 	  if (vma <= offset && offset < (vma + size))
 	    {
 	      ULONGEST amt;
@@ -715,9 +736,7 @@ section_table_available_memory (CORE_ADDR memaddr, ULONGEST len,
 
   for (target_section *p = sections; p < sections_end; p++)
     {
-      if ((bfd_get_section_flags (p->the_bfd_section->owner,
-				  p->the_bfd_section)
-	   & SEC_READONLY) == 0)
+      if ((bfd_section_flags (p->the_bfd_section) & SEC_READONLY) == 0)
 	continue;
 
       /* Copy the meta-data, adjusted.  */
@@ -904,17 +923,16 @@ print_section_info (struct target_section_table *t, bfd *abfd)
       for (p = t->sections; p < t->sections_end; p++)
 	{
 	  struct bfd_section *psect = p->the_bfd_section;
-	  bfd *pbfd = psect->owner;
 
-	  if ((bfd_get_section_flags (pbfd, psect) & (SEC_ALLOC | SEC_LOAD))
+	  if ((bfd_section_flags (psect) & (SEC_ALLOC | SEC_LOAD))
 	      != (SEC_ALLOC | SEC_LOAD))
 	    continue;
 
-	  if (bfd_get_section_vma (pbfd, psect) <= abfd->start_address
-	      && abfd->start_address < (bfd_get_section_vma (pbfd, psect)
-					+ bfd_get_section_size (psect)))
+	  if (bfd_section_vma (psect) <= abfd->start_address
+	      && abfd->start_address < (bfd_section_vma (psect)
+					+ bfd_section_size (psect)))
 	    {
-	      displacement = p->addr - bfd_get_section_vma (pbfd, psect);
+	      displacement = p->addr - bfd_section_vma (psect);
 	      break;
 	    }
 	}
@@ -945,7 +963,7 @@ print_section_info (struct target_section_table *t, bfd *abfd)
       if (info_verbose)
 	printf_filtered (" @ %s",
 			 hex_string_custom (psect->filepos, 8));
-      printf_filtered (" is %s", bfd_section_name (pbfd, psect));
+      printf_filtered (" is %s", bfd_section_name (psect));
       if (pbfd != abfd)
 	printf_filtered (" in %s", bfd_get_filename (pbfd));
       printf_filtered ("\n");
@@ -985,9 +1003,8 @@ set_section_command (const char *args, int from_tty)
   table = current_target_sections;
   for (p = table->sections; p < table->sections_end; p++)
     {
-      if (!strncmp (secname, bfd_section_name (p->bfd,
-					       p->the_bfd_section), seclen)
-	  && bfd_section_name (p->bfd, p->the_bfd_section)[seclen] == '\0')
+      if (!strncmp (secname, bfd_section_name (p->the_bfd_section), seclen)
+	  && bfd_section_name (p->the_bfd_section)[seclen] == '\0')
 	{
 	  offset = secaddr - p->addr;
 	  p->addr += offset;
@@ -1046,8 +1063,9 @@ exec_target::find_memory_regions (find_memory_region_ftype func, void *data)
   return objfile_find_memory_regions (this, func, data);
 }
 
+void _initialize_exec ();
 void
-_initialize_exec (void)
+_initialize_exec ()
 {
   struct cmd_list_element *c;
 

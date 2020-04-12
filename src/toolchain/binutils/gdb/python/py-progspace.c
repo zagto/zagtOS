@@ -1,6 +1,6 @@
 /* Python interface to program spaces.
 
-   Copyright (C) 2010-2019 Free Software Foundation, Inc.
+   Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,7 +24,6 @@
 #include "objfiles.h"
 #include "language.h"
 #include "arch-utils.h"
-#include "py-ref.h"
 #include "solib.h"
 #include "block.h"
 
@@ -382,7 +381,7 @@ pspy_block_for_pc (PyObject *o, PyObject *args)
   if (!PyArg_ParseTuple (args, GDB_PY_LLU_ARG, &pc))
     return NULL;
 
-  TRY
+  try
     {
       scoped_restore_current_program_space saver;
 
@@ -392,18 +391,13 @@ pspy_block_for_pc (PyObject *o, PyObject *args)
       if (cust != NULL && COMPUNIT_OBJFILE (cust) != NULL)
 	block = block_for_pc (pc);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  catch (const gdb_exception &except)
     {
       GDB_PY_HANDLE_EXCEPTION (except);
     }
-  END_CATCH
 
   if (cust == NULL || COMPUNIT_OBJFILE (cust) == NULL)
-    {
-      PyErr_SetString (PyExc_RuntimeError,
-		       _("Cannot locate object file for block."));
-      return NULL;
-    }
+    Py_RETURN_NONE;
 
   if (block)
     return block_to_block_object (block, COMPUNIT_OBJFILE (cust));
@@ -426,7 +420,7 @@ pspy_find_pc_line (PyObject *o, PyObject *args)
   if (!PyArg_ParseTuple (args, GDB_PY_LLU_ARG, &pc_llu))
     return NULL;
 
-  TRY
+  try
     {
       struct symtab_and_line sal;
       CORE_ADDR pc;
@@ -438,11 +432,10 @@ pspy_find_pc_line (PyObject *o, PyObject *args)
       sal = find_pc_line (pc, 0);
       result = symtab_and_line_to_sal_object (sal);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  catch (const gdb_exception &except)
     {
       GDB_PY_HANDLE_EXCEPTION (except);
     }
-  END_CATCH
 
   return result;
 }

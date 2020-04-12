@@ -1,6 +1,6 @@
 /* Target-dependent code for GNU/Linux i386.
 
-   Copyright (C) 2000-2019 Free Software Foundation, Inc.
+   Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -38,7 +38,7 @@
 #include "xml-syscall.h"
 
 #include "i387-tdep.h"
-#include "x86-xstate.h"
+#include "gdbsupport/x86-xstate.h"
 
 /* The syscall's XML filename for i386.  */
 #define XML_SYSCALL_FILENAME_I386 "syscalls/i386-linux.xml"
@@ -402,7 +402,7 @@ i386_linux_handle_segmentation_fault (struct gdbarch *gdbarch,
   if (!i386_mpx_enabled ())
     return;
 
-  TRY
+  try
     {
       /* Sigcode evaluates if the actual segfault is a boundary violation.  */
       sig_code = parse_and_eval_long ("$_siginfo.si_code\n");
@@ -414,11 +414,10 @@ i386_linux_handle_segmentation_fault (struct gdbarch *gdbarch,
       access
         = parse_and_eval_long ("$_siginfo._sifields._sigfault.si_addr");
     }
-  CATCH (exception, RETURN_MASK_ALL)
+  catch (const gdb_exception &exception)
     {
       return;
     }
-  END_CATCH
 
   /* If this is not a boundary violation just return.  */
   if (sig_code != SIG_CODE_BONDARY_FAULT)
@@ -433,13 +432,13 @@ i386_linux_handle_segmentation_fault (struct gdbarch *gdbarch,
     uiout->field_string ("sigcode-meaning", _("Lower bound violation"));
 
   uiout->text (_(" while accessing address "));
-  uiout->field_fmt ("bound-access", "%s", paddress (gdbarch, access));
+  uiout->field_core_addr ("bound-access", gdbarch, access);
 
   uiout->text (_("\nBounds: [lower = "));
-  uiout->field_fmt ("lower-bound", "%s", paddress (gdbarch, lower_bound));
+  uiout->field_core_addr ("lower-bound", gdbarch, lower_bound);
 
   uiout->text (_(", upper = "));
-  uiout->field_fmt ("upper-bound", "%s", paddress (gdbarch, upper_bound));
+  uiout->field_core_addr ("upper-bound", gdbarch, upper_bound);
 
   uiout->text (_("]"));
 }
@@ -647,7 +646,7 @@ i386_linux_core_read_xcr0 (bfd *abfd)
 
   if (xstate)
     {
-      size_t size = bfd_section_size (abfd, xstate);
+      size_t size = bfd_section_size (xstate);
 
       /* Check extended state size.  */
       if (size < X86_XSTATE_AVX_SIZE)
@@ -694,7 +693,7 @@ i386_linux_read_description (uint64_t xcr0)
     [(xcr0 & X86_XSTATE_PKRU) ? 1 : 0];
 
   if (*tdesc == NULL)
-    *tdesc = i386_create_target_description (xcr0, true);
+    *tdesc = i386_create_target_description (xcr0, true, false);
 
   return *tdesc;
 }
@@ -1036,7 +1035,7 @@ i386_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   tdep->i386_sysenter_record = i386_linux_intx80_sysenter_syscall_record;
   tdep->i386_syscall_record = i386_linux_intx80_sysenter_syscall_record;
 
-  /* N_FUN symbols in shared libaries have 0 for their values and need
+  /* N_FUN symbols in shared libraries have 0 for their values and need
      to be relocated.  */
   set_gdbarch_sofun_address_maybe_missing (gdbarch, 1);
 
@@ -1077,33 +1076,10 @@ i386_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 					 i386_linux_handle_segmentation_fault);
 }
 
+void _initialize_i386_linux_tdep ();
 void
-_initialize_i386_linux_tdep (void)
+_initialize_i386_linux_tdep ()
 {
   gdbarch_register_osabi (bfd_arch_i386, 0, GDB_OSABI_LINUX,
 			  i386_linux_init_abi);
-
-#if GDB_SELF_TEST
-  struct
-  {
-    const char *xml;
-    uint64_t mask;
-  } xml_masks[] = {
-    { "i386/i386-linux.xml", X86_XSTATE_SSE_MASK },
-    { "i386/i386-mmx-linux.xml", X86_XSTATE_X87_MASK },
-    { "i386/i386-avx-linux.xml", X86_XSTATE_AVX_MASK },
-    { "i386/i386-mpx-linux.xml", X86_XSTATE_MPX_MASK },
-    { "i386/i386-avx-mpx-linux.xml", X86_XSTATE_AVX_MPX_MASK },
-    { "i386/i386-avx-avx512-linux.xml", X86_XSTATE_AVX_AVX512_MASK },
-    { "i386/i386-avx-mpx-avx512-pku-linux.xml",
-      X86_XSTATE_AVX_MPX_AVX512_PKU_MASK },
-  };
-
-  for (auto &a : xml_masks)
-    {
-      auto tdesc = i386_linux_read_description (a.mask);
-
-      selftests::record_xml_tdesc (a.xml, tdesc);
-    }
-#endif /* GDB_SELF_TEST */
 }

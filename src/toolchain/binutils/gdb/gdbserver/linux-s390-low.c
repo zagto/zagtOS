@@ -1,6 +1,6 @@
 /* GNU/Linux S/390 specific low level interface, for the remote server
    for GDB.
-   Copyright (C) 2001-2019 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -467,36 +467,6 @@ s390_set_pc (struct regcache *regcache, CORE_ADDR newpc)
     }
 }
 
-/* Get HWCAP from AUXV, using the given WORDSIZE.  Return the HWCAP, or
-   zero if not found.  */
-
-static unsigned long
-s390_get_hwcap (int wordsize)
-{
-  gdb_byte *data = (gdb_byte *) alloca (2 * wordsize);
-  int offset = 0;
-
-  while ((*the_target->read_auxv) (offset, data, 2 * wordsize) == 2 * wordsize)
-    {
-      if (wordsize == 4)
-        {
-          unsigned int *data_p = (unsigned int *)data;
-          if (data_p[0] == AT_HWCAP)
-	    return data_p[1];
-        }
-      else
-        {
-          unsigned long *data_p = (unsigned long *)data;
-          if (data_p[0] == AT_HWCAP)
-	    return data_p[1];
-        }
-
-      offset += 2 * wordsize;
-    }
-
-  return 0;
-}
-
 /* Determine the word size for the given PID, in bytes.  */
 
 #ifdef __s390x__
@@ -509,7 +479,7 @@ s390_get_wordsize (int pid)
 				  (PTRACE_TYPE_ARG4) 0);
   if (errno != 0)
     {
-      warning (_("Couldn't determine word size, assuming 64-bit.\n"));
+      warning (_("Couldn't determine word size, assuming 64-bit."));
       return 8;
     }
   /* Derive word size from extended addressing mode (PSW bit 31).  */
@@ -548,7 +518,7 @@ s390_arch_setup (void)
   /* Determine word size and HWCAP.  */
   int pid = pid_of (current_thread);
   int wordsize = s390_get_wordsize (pid);
-  unsigned long hwcap = s390_get_hwcap (wordsize);
+  unsigned long hwcap = linux_get_hwcap (wordsize);
 
   /* Check whether the kernel supports extra register sets.  */
   int have_regset_last_break
@@ -1066,7 +1036,7 @@ static const unsigned char s390_ft_exit_gpr_zarch[] = {
 static void
 append_insns (CORE_ADDR *to, size_t len, const unsigned char *buf)
 {
-  write_inferior_memory (*to, buf, len);
+  target_write_memory (*to, buf, len);
   *to += len;
 }
 
@@ -1823,7 +1793,7 @@ s390_write_goto_address (CORE_ADDR from, CORE_ADDR to, int size)
     }
 
   memcpy (buf, &sdiff, sizeof sdiff);
-  write_inferior_memory (from, buf, sizeof sdiff);
+  target_write_memory (from, buf, sizeof sdiff);
 }
 
 /* Preparation for emitting a literal pool of given size.  Loads the address

@@ -1,6 +1,6 @@
-/* Target dependent code for ARC arhitecture, for GDB.
+/* Target dependent code for ARC architecture, for GDB.
 
-   Copyright 2005-2019 Free Software Foundation, Inc.
+   Copyright 2005-2020 Free Software Foundation, Inc.
    Contributed by Synopsys Inc.
 
    This file is part of GDB.
@@ -33,7 +33,7 @@
 
 /* ARC header files.  */
 #include "opcode/arc.h"
-#include "../opcodes/arc-dis.h"
+#include "opcodes/arc-dis.h"
 #include "arc-tdep.h"
 
 /* Standard headers.  */
@@ -208,7 +208,7 @@ arc_insn_get_operand_value_signed (const struct arc_instruction &insn,
 
 /* Get register with base address of memory operation.  */
 
-int
+static int
 arc_insn_get_memory_base_reg (const struct arc_instruction &insn)
 {
   /* POP_S and PUSH_S have SP as an implicit argument in a disassembler.  */
@@ -227,7 +227,7 @@ arc_insn_get_memory_base_reg (const struct arc_instruction &insn)
 
 /* Get offset of a memory operation INSN.  */
 
-CORE_ADDR
+static CORE_ADDR
 arc_insn_get_memory_offset (const struct arc_instruction &insn)
 {
   /* POP_S and PUSH_S have offset as an implicit argument in a
@@ -334,7 +334,7 @@ arc_insn_get_branch_target (const struct arc_instruction &insn)
 
 /* Dump INSN into gdb_stdlog.  */
 
-void
+static void
 arc_insn_dump (const struct arc_instruction &insn)
 {
   struct gdbarch *gdbarch = target_gdbarch ();
@@ -507,19 +507,6 @@ arc_virtual_frame_pointer (struct gdbarch *gdbarch, CORE_ADDR pc,
 {
   *reg_ptr = gdbarch_sp_regnum (gdbarch);
   *offset_ptr = 0;
-}
-
-/* Implement the "dummy_id" gdbarch method.
-
-   Tear down a dummy frame created by arc_push_dummy_call ().  This data has
-   to be constructed manually from the data in our hand.  The stack pointer
-   and program counter can be obtained from the frame info.  */
-
-static struct frame_id
-arc_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  return frame_id_build (get_frame_sp (this_frame),
-			 get_frame_pc (this_frame));
 }
 
 /* Implement the "push_dummy_call" gdbarch method.
@@ -982,7 +969,7 @@ arc_is_in_prologue (struct gdbarch *gdbarch, const struct arc_instruction &insn,
   /* Store of some register.  May or may not update base address register.  */
   if (insn.insn_class == STORE || insn.insn_class == PUSH)
     {
-      /* There is definetely at least one operand - register/value being
+      /* There is definitely at least one operand - register/value being
 	 stored.  */
       gdb_assert (insn.operands_count > 0);
 
@@ -1216,7 +1203,7 @@ arc_disassemble_info (struct gdbarch *gdbarch)
    If CACHE is not NULL, then it will be filled with information about saved
    registers.
 
-   There are several variations of prologue which GDB may encouter.  "Full"
+   There are several variations of prologue which GDB may encounter.  "Full"
    prologue looks like this:
 
 	sub	sp,sp,<imm>   ; Space for variadic arguments.
@@ -1237,7 +1224,7 @@ arc_disassemble_info (struct gdbarch *gdbarch)
     store, that doesn't update SP.  Like this:
 
 
-	sub	sp,sp,8		; Create space for calee-saved registers.
+	sub	sp,sp,8		; Create space for callee-saved registers.
 	st	r13,[sp,4]      ; Store callee saved registers (up to R26/GP).
 	st	r14,[sp,0]
 
@@ -1404,7 +1391,7 @@ arc_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
 int
 arc_delayed_print_insn (bfd_vma addr, struct disassemble_info *info)
 {
-  /* Standard BFD "machine number" field allows libocodes disassembler to
+  /* Standard BFD "machine number" field allows libopcodes disassembler to
      distinguish ARC 600, 700 and v2 cores, however v2 encompasses both ARC EM
      and HS, which have some difference between.  There are two ways to specify
      what is the target core:
@@ -1510,34 +1497,6 @@ arc_sw_breakpoint_from_kind (struct gdbarch *gdbarch, int kind, int *size)
 	      ? arc_brk_s_be
 	      : arc_brk_s_le);
     }
-}
-
-/* Implement the "unwind_pc" gdbarch method.  */
-
-static CORE_ADDR
-arc_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  int pc_regnum = gdbarch_pc_regnum (gdbarch);
-  CORE_ADDR pc = frame_unwind_register_unsigned (next_frame, pc_regnum);
-
-  if (arc_debug)
-    debug_printf ("arc: unwind PC: %s\n", paddress (gdbarch, pc));
-
-  return pc;
-}
-
-/* Implement the "unwind_sp" gdbarch method.  */
-
-static CORE_ADDR
-arc_unwind_sp (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  int sp_regnum = gdbarch_sp_regnum (gdbarch);
-  CORE_ADDR sp = frame_unwind_register_unsigned (next_frame, sp_regnum);
-
-  if (arc_debug)
-    debug_printf ("arc: unwind SP: %s\n", paddress (gdbarch, sp));
-
-  return sp;
 }
 
 /* Implement the "frame_align" gdbarch method.  */
@@ -1761,7 +1720,7 @@ static const struct frame_base arc_normal_base = {
    Returns TRUE if input tdesc was valid and in this case it will assign TDESC
    and TDESC_DATA output parameters.  */
 
-static int
+static bool
 arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 		struct tdesc_arch_data **tdesc_data)
 {
@@ -1787,7 +1746,7 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
      tag.  */
   /* Cannot use arc_mach_is_arcv2 (), because gdbarch is not created yet.  */
   const int is_arcv2 = (info.bfd_arch_info->mach == bfd_mach_arc_arcv2);
-  int is_reduced_rf;
+  bool is_reduced_rf;
   const char *const *core_regs;
   const char *core_feature_name;
 
@@ -1844,10 +1803,10 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 	{
 	  arc_print (_("Error: ARC v2 target description supplied for "
 		       "non-ARCv2 target.\n"));
-	  return FALSE;
+	  return false;
 	}
 
-      is_reduced_rf = FALSE;
+      is_reduced_rf = false;
       core_feature_name = core_v2_feature_name;
       core_regs = core_v2_register_names;
     }
@@ -1860,10 +1819,10 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 	    {
 	      arc_print (_("Error: ARC v2 target description supplied for "
 			   "non-ARCv2 target.\n"));
-	      return FALSE;
+	      return false;
 	    }
 
-	  is_reduced_rf = TRUE;
+	  is_reduced_rf = true;
 	  core_feature_name = core_reduced_v2_feature_name;
 	  core_regs = core_v2_register_names;
 	}
@@ -1877,10 +1836,10 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 		{
 		  arc_print (_("Error: ARCompact target description supplied "
 			       "for non-ARCompact target.\n"));
-		  return FALSE;
+		  return false;
 		}
 
-	      is_reduced_rf = FALSE;
+	      is_reduced_rf = false;
 	      core_feature_name = core_arcompact_feature_name;
 	      core_regs = core_arcompact_register_names;
 	    }
@@ -1888,7 +1847,7 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 	    {
 	      arc_print (_("Error: Couldn't find core register feature in "
 			   "supplied target description."));
-	      return FALSE;
+	      return false;
 	    }
 	}
     }
@@ -1923,11 +1882,11 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 	  arc_print (_("Error: Cannot find required register `%s' in "
 		       "feature `%s'.\n"), core_regs[i], core_feature_name);
 	  tdesc_data_cleanup (tdesc_data_loc);
-	  return FALSE;
+	  return false;
 	}
     }
 
-  /* Mandatory AUX registeres are intentionally few and are common between
+  /* Mandatory AUX registers are intentionally few and are common between
      ARCompact and ARC v2, so same code can be used for both.  */
   feature = tdesc_find_feature (tdesc_loc, aux_minimal_feature_name);
   if (feature == NULL)
@@ -1935,7 +1894,7 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
       arc_print (_("Error: Cannot find required feature `%s' in supplied "
 		   "target description.\n"), aux_minimal_feature_name);
       tdesc_data_cleanup (tdesc_data_loc);
-      return FALSE;
+      return false;
     }
 
   for (int i = ARC_FIRST_AUX_REGNUM; i <= ARC_LAST_AUX_REGNUM; i++)
@@ -1948,14 +1907,14 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 		       "in feature `%s'.\n"),
 		     name, tdesc_feature_name (feature));
 	  tdesc_data_cleanup (tdesc_data_loc);
-	  return FALSE;
+	  return false;
 	}
     }
 
   *tdesc = tdesc_loc;
   *tdesc_data = tdesc_data_loc;
 
-  return TRUE;
+  return true;
 }
 
 /* Implement the type_align gdbarch function.  */
@@ -1963,8 +1922,27 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 static ULONGEST
 arc_type_align (struct gdbarch *gdbarch, struct type *type)
 {
-  type = check_typedef (type);
-  return std::min<ULONGEST> (4, TYPE_LENGTH (type));
+  switch (TYPE_CODE (type))
+    {
+    case TYPE_CODE_PTR:
+    case TYPE_CODE_FUNC:
+    case TYPE_CODE_FLAGS:
+    case TYPE_CODE_INT:
+    case TYPE_CODE_RANGE:
+    case TYPE_CODE_FLT:
+    case TYPE_CODE_ENUM:
+    case TYPE_CODE_REF:
+    case TYPE_CODE_RVALUE_REF:
+    case TYPE_CODE_CHAR:
+    case TYPE_CODE_BOOL:
+    case TYPE_CODE_DECFLOAT:
+    case TYPE_CODE_METHODPTR:
+    case TYPE_CODE_MEMBERPTR:
+      type = check_typedef (type);
+      return std::min<ULONGEST> (4, TYPE_LENGTH (type));
+    default:
+      return 0;
+    }
 }
 
 /* Implement the "init" gdbarch method.  */
@@ -2015,7 +1993,6 @@ arc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_ps_regnum (gdbarch, ARC_STATUS32_REGNUM);
   set_gdbarch_fp0_regnum (gdbarch, -1);	/* No FPU registers.  */
 
-  set_gdbarch_dummy_id (gdbarch, arc_dummy_id);
   set_gdbarch_push_dummy_call (gdbarch, arc_push_dummy_call);
   set_gdbarch_push_dummy_code (gdbarch, arc_push_dummy_code);
 
@@ -2037,9 +2014,6 @@ arc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
     set_gdbarch_decr_pc_after_break (gdbarch, 0);
   else
     set_gdbarch_decr_pc_after_break (gdbarch, 2);
-
-  set_gdbarch_unwind_pc (gdbarch, arc_unwind_pc);
-  set_gdbarch_unwind_sp (gdbarch, arc_unwind_sp);
 
   set_gdbarch_frame_align (gdbarch, arc_frame_align);
 
@@ -2171,8 +2145,9 @@ dump_arc_instruction_command (const char *args, int from_tty)
   arc_insn_dump (insn);
 }
 
+void _initialize_arc_tdep ();
 void
-_initialize_arc_tdep (void)
+_initialize_arc_tdep ()
 {
   gdbarch_register (bfd_arch_arc, arc_gdbarch_init, arc_dump_tdep);
 

@@ -1,6 +1,6 @@
 /* Common target-dependent functionality for RISC-V
 
-   Copyright (C) 2018-2019 Free Software Foundation, Inc.
+   Copyright (C) 2018-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,7 +20,7 @@
 #ifndef ARCH_RISCV_H
 #define ARCH_RISCV_H
 
-#include "common/tdesc.h"
+#include "gdbsupport/tdesc.h"
 
 /* The set of RISC-V architectural features that we track that impact how
    we configure the actual gdbarch instance.  We hold one of these in the

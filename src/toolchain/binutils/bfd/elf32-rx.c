@@ -1,5 +1,5 @@
 /* Renesas RX specific support for 32-bit ELF.
-   Copyright (C) 2008-2019 Free Software Foundation, Inc.
+   Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -543,7 +543,7 @@ rx_elf_relocate_section
 
 	  name = bfd_elf_string_from_elf_section
 	    (input_bfd, symtab_hdr->sh_link, sym->st_name);
-	  name = (sym->st_name == 0) ? bfd_section_name (input_bfd, sec) : name;
+	  name = sym->st_name == 0 ? bfd_section_name (sec) : name;
 	}
       else
 	{
@@ -2932,9 +2932,9 @@ elf32_rx_relax_section (bfd *		       abfd,
 		  break;
 		case 0:
 #if RX_OPCODE_BIG_ENDIAN
-		  imm_val = (ip[0] << 24) | (ip[1] << 16) | (ip[2] << 8) | ip[3];
+		  imm_val = ((unsigned) ip[0] << 24) | (ip[1] << 16) | (ip[2] << 8) | ip[3];
 #else
-		  imm_val = (ip[3] << 24) | (ip[2] << 16) | (ip[1] << 8) | ip[0];
+		  imm_val = ((unsigned) ip[3] << 24) | (ip[2] << 16) | (ip[1] << 8) | ip[0];
 #endif
 		  break;
 		}
@@ -3318,8 +3318,7 @@ rx_elf_object_p (bfd * abfd)
 static bfd_boolean
 rx_linux_object_p (bfd * abfd)
 {
-  bfd_default_set_arch_mach (abfd, bfd_arch_rx,
-           elf32_rx_machine (abfd));
+  bfd_default_set_arch_mach (abfd, bfd_arch_rx, elf32_rx_machine (abfd));
   return TRUE;
 }
  
@@ -3685,8 +3684,7 @@ rx_final_link (bfd * abfd, struct bfd_link_info * info)
 }
 
 static bfd_boolean
-elf32_rx_modify_program_headers (bfd * abfd ATTRIBUTE_UNUSED,
-				 struct bfd_link_info * info ATTRIBUTE_UNUSED)
+elf32_rx_modify_headers (bfd *abfd, struct bfd_link_info *info)
 {
   const struct elf_backend_data * bed;
   struct elf_obj_tdata * tdata;
@@ -3718,7 +3716,7 @@ elf32_rx_modify_program_headers (bfd * abfd ATTRIBUTE_UNUSED,
 #endif
 	}
 
-  return TRUE;
+  return _bfd_elf_modify_headers (abfd, info);
 }
 
 /* The default literal sections should always be marked as "code" (i.e.,
@@ -4038,7 +4036,7 @@ rx_additional_link_map_text (bfd *obfd, struct bfd_link_info *info, FILE *mapfil
 #define elf_backend_relocate_section		rx_elf_relocate_section
 #define elf_symbol_leading_char			('_')
 #define elf_backend_can_gc_sections		1
-#define elf_backend_modify_program_headers	elf32_rx_modify_program_headers
+#define elf_backend_modify_headers		elf32_rx_modify_headers
 
 #define bfd_elf32_bfd_reloc_type_lookup		rx_reloc_type_lookup
 #define bfd_elf32_bfd_reloc_name_lookup		rx_reloc_name_lookup
@@ -4083,6 +4081,6 @@ rx_additional_link_map_text (bfd *obfd, struct bfd_link_info *info, FILE *mapfil
 #define elf_backend_object_p			rx_linux_object_p
 #undef  elf_symbol_leading_char
 #undef	elf32_bed
-#define	elf32_bed 				elf32_rx_le_linux_bed
+#define	elf32_bed				elf32_rx_le_linux_bed
 
 #include "elf32-target.h"

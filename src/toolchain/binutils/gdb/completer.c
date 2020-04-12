@@ -1,5 +1,5 @@
 /* Line completion stuff for GDB, the GNU debugger.
-   Copyright (C) 2000-2019 Free Software Foundation, Inc.
+   Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,7 +22,7 @@
 #include "expression.h"
 #include "filenames.h"		/* For DOSish file names.  */
 #include "language.h"
-#include "gdb_signals.h"
+#include "gdbsupport/gdb_signals.h"
 #include "target.h"
 #include "reggroups.h"
 #include "user-regs.h"
@@ -102,13 +102,13 @@ enum explicit_location_match_type
 
 /* Variables which are necessary for fancy command line editing.  */
 
-/* When completing on command names, we remove '-' from the list of
+/* When completing on command names, we remove '-' and '.' from the list of
    word break characters, since we use it in command names.  If the
    readline library sees one in any of the current completion strings,
    it thinks that the string needs to be quoted and automatically
    supplies a leading quote.  */
 static const char gdb_completer_command_word_break_characters[] =
-" \t\n!@#$%^&*()+=|~`}{[]\"';:?/>.<,";
+" \t\n!@#$%^&*()+=|~`}{[]\"';:?/><,";
 
 /* When completing on file names, we remove from the list of word
    break characters any characters that are commonly used in file
@@ -352,25 +352,54 @@ gdb_rl_find_completion_word (struct gdb_rl_completion_word_info *info,
   return line_buffer + point;
 }
 
+/* Find the completion word point for TEXT, emulating the algorithm
+   readline uses to find the word point, using WORD_BREAK_CHARACTERS
+   as word break characters.  */
+
+static const char *
+advance_to_completion_word (completion_tracker &tracker,
+			    const char *word_break_characters,
+			    const char *text)
+{
+  gdb_rl_completion_word_info info;
+
+  info.word_break_characters = word_break_characters;
+  info.quote_characters = gdb_completer_quote_characters;
+  info.basic_quote_characters = rl_basic_quote_characters;
+
+  int delimiter;
+  const char *start
+    = gdb_rl_find_completion_word (&info, NULL, &delimiter, text);
+
+  tracker.advance_custom_word_point_by (start - text);
+
+  if (delimiter)
+    {
+      tracker.set_quote_char (delimiter);
+      tracker.set_suppress_append_ws (true);
+    }
+
+  return start;
+}
+
 /* See completer.h.  */
 
 const char *
 advance_to_expression_complete_word_point (completion_tracker &tracker,
 					   const char *text)
 {
-  gdb_rl_completion_word_info info;
+  const char *brk_chars = current_language->la_word_break_characters ();
+  return advance_to_completion_word (tracker, brk_chars, text);
+}
 
-  info.word_break_characters
-    = current_language->la_word_break_characters ();
-  info.quote_characters = gdb_completer_quote_characters;
-  info.basic_quote_characters = rl_basic_quote_characters;
+/* See completer.h.  */
 
-  const char *start
-    = gdb_rl_find_completion_word (&info, NULL, NULL, text);
-
-  tracker.advance_custom_word_point_by (start - text);
-
-  return start;
+const char *
+advance_to_filename_complete_word_point (completion_tracker &tracker,
+					 const char *text)
+{
+  const char *brk_chars = gdb_completer_file_name_break_characters;
+  return advance_to_completion_word (tracker, brk_chars, text);
 }
 
 /* See completer.h.  */
@@ -392,6 +421,39 @@ completion_tracker::completes_to_completion_word (const char *word)
     }
 
   return false;
+}
+
+/* See completer.h.  */
+
+void
+complete_nested_command_line (completion_tracker &tracker, const char *text)
+{
+  /* Must be called from a custom-word-point completer.  */
+  gdb_assert (tracker.use_custom_word_point ());
+
+  /* Disable the custom word point temporarily, because we want to
+     probe whether the command we're completing itself uses a custom
+     word point.  */
+  tracker.set_use_custom_word_point (false);
+  size_t save_custom_word_point = tracker.custom_word_point ();
+
+  int quote_char = '\0';
+  const char *word = completion_find_completion_word (tracker, text,
+						      &quote_char);
+
+  if (tracker.use_custom_word_point ())
+    {
+      /* The command we're completing uses a custom word point, so the
+	 tracker already contains the matches.  We're done.  */
+      return;
+    }
+
+  /* Restore the custom word point settings.  */
+  tracker.set_custom_word_point (save_custom_word_point);
+  tracker.set_use_custom_word_point (true);
+
+  /* Run the handle_completions completer phase.  */
+  complete_line (tracker, word, text, strlen (text));
 }
 
 /* Complete on linespecs, which might be of two possible forms:
@@ -798,14 +860,12 @@ complete_explicit_location (completion_tracker &tracker,
 		   before: "b -function 'not_loaded_function_yet()'"
 		   after:  "b -function 'not_loaded_function_yet()' "
 	      */
-	      gdb::unique_xmalloc_ptr<char> text_copy
-		(xstrdup (text));
-	      tracker.add_completion (std::move (text_copy));
+	      tracker.add_completion (make_unique_xstrdup (text));
 	    }
 	  else if (quoted_arg_end[1] == ' ')
 	    {
 	      /* We're maybe past the explicit location argument.
-		 Skip the argument without interpretion, assuming the
+		 Skip the argument without interpretation, assuming the
 		 user may want to create pending breakpoint.  Offer
 		 the keyword and explicit location options as possible
 		 completions.  */
@@ -1021,15 +1081,14 @@ complete_expression (completion_tracker &tracker,
 
   /* Perform a tentative parse of the expression, to see whether a
      field completion is required.  */
-  TRY
+  try
     {
       type = parse_expression_for_completion (text, &fieldname, &code);
     }
-  CATCH (except, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &except)
     {
       return;
     }
-  END_CATCH
 
   if (fieldname != nullptr && type)
     {
@@ -1080,23 +1139,6 @@ void
 set_rl_completer_word_break_characters (const char *break_chars)
 {
   rl_completer_word_break_characters = (char *) break_chars;
-}
-
-/* See definition in completer.h.  */
-
-void
-set_gdb_completion_word_break_characters (completer_ftype *fn)
-{
-  const char *break_chars;
-
-  /* So far we are only interested in differentiating filename
-     completers from everything else.  */
-  if (fn == filename_completer)
-    break_chars = gdb_completer_file_name_break_characters;
-  else
-    break_chars = gdb_completer_command_word_break_characters;
-
-  set_rl_completer_word_break_characters (break_chars);
 }
 
 /* Complete on symbols.  */
@@ -1242,7 +1284,7 @@ complete_line_internal_1 (completion_tracker &tracker,
      on command strings (as opposed to strings supplied by the
      individual command completer functions, which can be any string)
      then we will switch to the special word break set for command
-     strings, which leaves out the '-' character used in some
+     strings, which leaves out the '-' and '.' character used in some
      commands.  */
   set_rl_completer_word_break_characters
     (current_language->la_word_break_characters());
@@ -1305,7 +1347,7 @@ complete_line_internal_1 (completion_tracker &tracker,
       /* lookup_cmd_1 advances p up to the first ambiguous thing, but
 	 doesn't advance over that thing itself.  Do so now.  */
       q = p;
-      while (*q && (isalnum (*q) || *q == '-' || *q == '_'))
+      while (valid_cmd_char_p (*q))
 	++q;
       if (q != tmp_command + point)
 	{
@@ -1393,11 +1435,14 @@ complete_line_internal_1 (completion_tracker &tracker,
 	      q = p;
 	      while (q > tmp_command)
 		{
-		  if (isalnum (q[-1]) || q[-1] == '-' || q[-1] == '_')
+		  if (valid_cmd_char_p (q[-1]))
 		    --q;
 		  else
 		    break;
 		}
+
+	      /* Move the custom word point back too.  */
+	      tracker.advance_custom_word_point_by (q - p);
 
 	      if (reason != handle_brkchars)
 		complete_on_cmdlist (result_list, tracker, q, word,
@@ -1445,16 +1490,15 @@ complete_line_internal (completion_tracker &tracker,
 			const char *line_buffer, int point,
 			complete_line_internal_reason reason)
 {
-  TRY
+  try
     {
       complete_line_internal_1 (tracker, text, line_buffer, point, reason);
     }
-  CATCH (except, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &except)
     {
       if (except.error != MAX_COMPLETIONS_REACHED_ERROR)
-	throw_exception (except);
+	throw;
     }
-  END_CATCH
 }
 
 /* See completer.h.  */
@@ -1615,6 +1659,48 @@ make_completion_match_str (gdb::unique_xmalloc_ptr<char> &&match_name,
   return gdb::unique_xmalloc_ptr<char> (newobj);
 }
 
+/* See complete.h.  */
+
+completion_result
+complete (const char *line, char const **word, int *quote_char)
+{
+  completion_tracker tracker_handle_brkchars;
+  completion_tracker tracker_handle_completions;
+  completion_tracker *tracker;
+
+  /* The WORD should be set to the end of word to complete.  We initialize
+     to the completion point which is assumed to be at the end of LINE.
+     This leaves WORD to be initialized to a sensible value in cases
+     completion_find_completion_word() fails i.e., throws an exception.
+     See bug 24587. */
+  *word = line + strlen (line);
+
+  try
+    {
+      *word = completion_find_completion_word (tracker_handle_brkchars,
+					      line, quote_char);
+
+      /* Completers that provide a custom word point in the
+	 handle_brkchars phase also compute their completions then.
+	 Completers that leave the completion word handling to readline
+	 must be called twice.  */
+      if (tracker_handle_brkchars.use_custom_word_point ())
+	tracker = &tracker_handle_brkchars;
+      else
+	{
+	  complete_line (tracker_handle_completions, *word, line, strlen (line));
+	  tracker = &tracker_handle_completions;
+	}
+    }
+  catch (const gdb_exception &ex)
+    {
+      return {};
+    }
+
+  return tracker->build_completion_result (*word, *word - line, strlen (line));
+}
+
+
 /* Generate completions all at once.  Does nothing if max_completions
    is 0.  If max_completions is non-negative, this will collect at
    most max_completions strings.
@@ -1683,10 +1769,7 @@ signal_completer (struct cmd_list_element *ignore,
 	continue;
 
       if (strncasecmp (signame, word, len) == 0)
-	{
-	  gdb::unique_xmalloc_ptr<char> copy (xstrdup (signame));
-	  tracker.add_completion (std::move (copy));
-	}
+	tracker.add_completion (make_unique_xstrdup (signame));
     }
 }
 
@@ -1725,10 +1808,7 @@ reg_or_group_completer_1 (completion_tracker &tracker,
 	   i++)
 	{
 	  if (*name != '\0' && strncmp (word, name, len) == 0)
-	    {
-	      gdb::unique_xmalloc_ptr<char> copy (xstrdup (name));
-	      tracker.add_completion (std::move (copy));
-	    }
+	    tracker.add_completion (make_unique_xstrdup (name));
 	}
     }
 
@@ -1742,10 +1822,7 @@ reg_or_group_completer_1 (completion_tracker &tracker,
 	{
 	  name = reggroup_name (group);
 	  if (strncmp (word, name, len) == 0)
-	    {
-	      gdb::unique_xmalloc_ptr<char> copy (xstrdup (name));
-	      tracker.add_completion (std::move (copy));
-	    }
+	    tracker.add_completion (make_unique_xstrdup (name));
 	}
     }
 }
@@ -1833,6 +1910,9 @@ gdb_completion_word_break_characters_throw ()
     {
       gdb_assert (tracker.custom_word_point () > 0);
       rl_point = tracker.custom_word_point () - 1;
+
+      gdb_assert (rl_point >= 0 && rl_point < strlen (rl_line_buffer));
+
       gdb_custom_word_point_brkchars[0] = rl_line_buffer[rl_point];
       rl_completer_word_break_characters = gdb_custom_word_point_brkchars;
       rl_completer_quote_characters = NULL;
@@ -1859,17 +1939,16 @@ gdb_completion_word_break_characters ()
   /* New completion starting.  */
   current_completion.aborted = false;
 
-  TRY
+  try
     {
       return gdb_completion_word_break_characters_throw ();
     }
-  CATCH (ex, RETURN_MASK_ALL)
+  catch (const gdb_exception &ex)
     {
       /* Set this to that gdb_rl_attempted_completion_function knows
 	 to abort early.  */
       current_completion.aborted = true;
     }
-  END_CATCH
 
   return NULL;
 }
@@ -1937,7 +2016,7 @@ completion_tracker::recompute_lowest_common_denominator
 /* See completer.h.  */
 
 void
-completion_tracker::advance_custom_word_point_by (size_t len)
+completion_tracker::advance_custom_word_point_by (int len)
 {
   m_custom_word_point += len;
 }
@@ -2207,14 +2286,13 @@ gdb_rl_attempted_completion_function (const char *text, int start, int end)
   if (current_completion.aborted)
     return NULL;
 
-  TRY
+  try
     {
       return gdb_rl_attempted_completion_function_throw (text, start, end);
     }
-  CATCH (ex, RETURN_MASK_ALL)
+  catch (const gdb_exception &ex)
     {
     }
-  END_CATCH
 
   return NULL;
 }
@@ -2857,8 +2935,9 @@ gdb_display_match_list (char **matches, int len, int max,
     }
 }
 
+void _initialize_completer ();
 void
-_initialize_completer (void)
+_initialize_completer ()
 {
   add_setshow_zuinteger_unlimited_cmd ("max-completions", no_class,
 				       &max_completions, _("\

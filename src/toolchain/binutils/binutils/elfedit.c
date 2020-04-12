@@ -1,5 +1,5 @@
 /* elfedit.c -- Update the ELF header of an ELF format file
-   Copyright (C) 2010-2019 Free Software Foundation, Inc.
+   Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -225,7 +225,7 @@ update_gnu_property (const char *file_name, FILE *file)
 			if (disable_x86_features)
 			  bitmask &= ~disable_x86_features;
 			if (old_bitmask != bitmask)
-			  BYTE_PUT (ptr, bitmask);
+			  byte_put (ptr, bitmask, 4);
 			goto out;
 		      }
 
@@ -260,7 +260,10 @@ elf_x86_feature (const char *feature, int enable)
   else if (strcasecmp (feature, "shstk") == 0)
     x86_feature = GNU_PROPERTY_X86_FEATURE_1_SHSTK;
   else
-    return -1;
+    {
+      error (_("Unknown x86 feature: %s\n"), feature);
+      return -1;
+    }
 
   if (enable)
     {

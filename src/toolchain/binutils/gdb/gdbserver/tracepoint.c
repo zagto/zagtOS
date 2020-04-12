@@ -1,5 +1,5 @@
 /* Tracepoint code for remote server for GDB.
-   Copyright (C) 2009-2019 Free Software Foundation, Inc.
+   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,7 +19,7 @@
 #include "server.h"
 #include "tracepoint.h"
 #include "gdbthread.h"
-#include "rsp-low.h"
+#include "gdbsupport/rsp-low.h"
 
 #include <ctype.h>
 #include <fcntl.h>
@@ -30,7 +30,7 @@
 #include "tdesc.h"
 
 #define IPA_SYM_STRUCT_NAME ipa_sym_addresses
-#include "agent.h"
+#include "gdbsupport/agent.h"
 
 #define DEFAULT_TRACE_BUFFER_SIZE 5242880 /* 5*1024*1024 */
 
@@ -370,12 +370,18 @@ read_inferior_memory (CORE_ADDR memaddr, unsigned char *myaddr, int len)
 #  define UNKNOWN_SIDE_EFFECTS() do {} while (0)
 #endif
 
+/* This is needed for -Wmissing-declarations.  */
+IP_AGENT_EXPORT_FUNC void stop_tracing (void);
+
 IP_AGENT_EXPORT_FUNC void
 stop_tracing (void)
 {
   /* GDBserver places breakpoint here.  */
   UNKNOWN_SIDE_EFFECTS();
 }
+
+/* This is needed for -Wmissing-declarations.  */
+IP_AGENT_EXPORT_FUNC void flush_trace_buffer (void);
 
 IP_AGENT_EXPORT_FUNC void
 flush_trace_buffer (void)
@@ -440,26 +446,26 @@ static int
 write_inferior_data_pointer (CORE_ADDR symaddr, CORE_ADDR val)
 {
   void *pval = (void *) (uintptr_t) val;
-  return write_inferior_memory (symaddr,
+  return target_write_memory (symaddr,
 				(unsigned char *) &pval, sizeof (pval));
 }
 
 static int
 write_inferior_integer (CORE_ADDR symaddr, int val)
 {
-  return write_inferior_memory (symaddr, (unsigned char *) &val, sizeof (val));
+  return target_write_memory (symaddr, (unsigned char *) &val, sizeof (val));
 }
 
 static int
 write_inferior_int8 (CORE_ADDR symaddr, int8_t val)
 {
-  return write_inferior_memory (symaddr, (unsigned char *) &val, sizeof (val));
+  return target_write_memory (symaddr, (unsigned char *) &val, sizeof (val));
 }
 
 static int
 write_inferior_uinteger (CORE_ADDR symaddr, unsigned int val)
 {
-  return write_inferior_memory (symaddr, (unsigned char *) &val, sizeof (val));
+  return target_write_memory (symaddr, (unsigned char *) &val, sizeof (val));
 }
 
 static CORE_ADDR target_malloc (ULONGEST size);
@@ -517,7 +523,7 @@ m_tracepoint_action_download (const struct tracepoint_action *action)
 {
   CORE_ADDR ipa_action = target_malloc (sizeof (struct collect_memory_action));
 
-  write_inferior_memory (ipa_action, (unsigned char *) action,
+  target_write_memory (ipa_action, (unsigned char *) action,
 			 sizeof (struct collect_memory_action));
 
   return ipa_action;
@@ -540,7 +546,7 @@ r_tracepoint_action_download (const struct tracepoint_action *action)
 {
   CORE_ADDR ipa_action = target_malloc (sizeof (struct collect_registers_action));
 
-  write_inferior_memory (ipa_action, (unsigned char *) action,
+  target_write_memory (ipa_action, (unsigned char *) action,
 			 sizeof (struct collect_registers_action));
 
   return ipa_action;
@@ -560,7 +566,7 @@ x_tracepoint_action_download (const struct tracepoint_action *action)
   CORE_ADDR ipa_action = target_malloc (sizeof (struct eval_expr_action));
   CORE_ADDR expr;
 
-  write_inferior_memory (ipa_action, (unsigned char *) action,
+  target_write_memory (ipa_action, (unsigned char *) action,
 			 sizeof (struct eval_expr_action));
   expr = download_agent_expr (((struct eval_expr_action *) action)->expr);
   write_inferior_data_pointer (ipa_action
@@ -608,7 +614,7 @@ l_tracepoint_action_download (const struct tracepoint_action *action)
   CORE_ADDR ipa_action
     = target_malloc (sizeof (struct collect_static_trace_data_action));
 
-  write_inferior_memory (ipa_action, (unsigned char *) action,
+  target_write_memory (ipa_action, (unsigned char *) action,
 			 sizeof (struct collect_static_trace_data_action));
 
   return ipa_action;
@@ -1002,7 +1008,7 @@ EXTERN_C_POP
 
 /* Control structure holding the read/write/etc. pointers into the
    trace buffer.  We need more than one of these to implement a
-   transaction-like mechanism to garantees that both GDBserver and the
+   transaction-like mechanism to guarantees that both GDBserver and the
    in-process agent can try to change the trace buffer
    simultaneously.  */
 
@@ -1458,14 +1464,14 @@ clear_inferior_trace_buffer (void)
   ipa_trace_buffer_ctrl.wrap = ipa_trace_buffer_hi;
 
   /* A traceframe with zeroed fields marks the end of trace data.  */
-  write_inferior_memory (ipa_sym_addrs.addr_trace_buffer_ctrl,
+  target_write_memory (ipa_sym_addrs.addr_trace_buffer_ctrl,
 			 (unsigned char *) &ipa_trace_buffer_ctrl,
 			 sizeof (ipa_trace_buffer_ctrl));
 
   write_inferior_uinteger (ipa_sym_addrs.addr_trace_buffer_ctrl_curr, 0);
 
   /* A traceframe with zeroed fields marks the end of trace data.  */
-  write_inferior_memory (ipa_trace_buffer_lo,
+  target_write_memory (ipa_trace_buffer_lo,
 			 (unsigned char *) &ipa_traceframe,
 			 sizeof (ipa_traceframe));
 
@@ -1495,6 +1501,9 @@ init_trace_buffer (LONGEST bufsize)
 }
 
 #ifdef IN_PROCESS_AGENT
+
+/* This is needed for -Wmissing-declarations.  */
+IP_AGENT_EXPORT_FUNC void about_to_request_buffer_space (void);
 
 IP_AGENT_EXPORT_FUNC void
 about_to_request_buffer_space (void)
@@ -2091,6 +2100,9 @@ create_trace_state_variable (int num, int gdb)
   return tsv;
 }
 
+/* This is needed for -Wmissing-declarations.  */
+IP_AGENT_EXPORT_FUNC LONGEST get_trace_state_variable_value (int num);
+
 IP_AGENT_EXPORT_FUNC LONGEST
 get_trace_state_variable_value (int num)
 {
@@ -2116,6 +2128,10 @@ get_trace_state_variable_value (int num)
 
   return tsv->value;
 }
+
+/* This is needed for -Wmissing-declarations.  */
+IP_AGENT_EXPORT_FUNC void set_trace_state_variable_value (int num,
+							  LONGEST val);
 
 IP_AGENT_EXPORT_FUNC void
 set_trace_state_variable_value (int num, LONGEST val)
@@ -5154,7 +5170,7 @@ traceframe_walk_blocks (unsigned char *database, unsigned int datasize,
   return NULL;
 }
 
-/* Look for the block of type TYPE_WANTED in the trameframe starting
+/* Look for the block of type TYPE_WANTED in the traceframe starting
    at DATABASE of DATASIZE bytes long.  TFNUM is the traceframe
    number.  */
 
@@ -5786,6 +5802,10 @@ EXTERN_C_PUSH
 IP_AGENT_EXPORT_VAR collecting_t *collecting;
 EXTERN_C_POP
 
+/* This is needed for -Wmissing-declarations.  */
+IP_AGENT_EXPORT_FUNC void gdb_collect (struct tracepoint *tpoint,
+				       unsigned char *regs);
+
 /* This routine, called from the jump pad (in asm) is designed to be
    called from the jump pads of fast tracepoints, thus it is on the
    critical path.  */
@@ -6009,12 +6029,12 @@ download_agent_expr (struct agent_expr *expr)
   CORE_ADDR expr_bytes;
 
   expr_addr = target_malloc (sizeof (*expr));
-  write_inferior_memory (expr_addr, (unsigned char *) expr, sizeof (*expr));
+  target_write_memory (expr_addr, (unsigned char *) expr, sizeof (*expr));
 
   expr_bytes = target_malloc (expr->length);
   write_inferior_data_pointer (expr_addr + offsetof (struct agent_expr, bytes),
 			       expr_bytes);
-  write_inferior_memory (expr_bytes, expr->bytes, expr->length);
+  target_write_memory (expr_bytes, expr->bytes, expr->length);
 
   return expr_addr;
 }
@@ -6067,7 +6087,7 @@ download_tracepoint_1 (struct tracepoint *tpoint)
      tracepoints before clearing our own copy.  */
   target_tracepoint.hit_count = 0;
 
-  write_inferior_memory (tpptr, (unsigned char *) &target_tracepoint,
+  target_write_memory (tpptr, (unsigned char *) &target_tracepoint,
 			 sizeof (target_tracepoint));
 
   if (tpoint->cond)
@@ -6279,14 +6299,14 @@ download_trace_state_variables (void)
 	 Assume no next, fixup when needed.  */
       target_tsv.next = NULL;
 
-      write_inferior_memory (ptr, (unsigned char *) &target_tsv,
+      target_write_memory (ptr, (unsigned char *) &target_tsv,
 			     sizeof (target_tsv));
 
       if (tsv->name != NULL)
 	{
 	  size_t size = strlen (tsv->name) + 1;
 	  CORE_ADDR name_addr = target_malloc (size);
-	  write_inferior_memory (name_addr,
+	  target_write_memory (name_addr,
 				 (unsigned char *) tsv->name, size);
 	  write_inferior_data_pointer (ptr
 				       + offsetof (struct trace_state_variable,
@@ -6310,7 +6330,7 @@ download_trace_state_variables (void)
    into GDBserver's trace buffer.  This always uploads either all or
    no trace frames.  This is the counter part of
    `trace_alloc_trace_buffer'.  See its description of the atomic
-   synching mechanism.  */
+   syncing mechanism.  */
 
 static void
 upload_fast_traceframes (void)
@@ -6548,7 +6568,7 @@ upload_fast_traceframes (void)
 		   (int) (ipa_trace_buffer_hi - ipa_trace_buffer_lo));
     }
 
-  if (write_inferior_memory (ipa_trace_buffer_ctrl_addr,
+  if (target_write_memory (ipa_trace_buffer_ctrl_addr,
 			     (unsigned char *) &ipa_trace_buffer_ctrl,
 			     sizeof (struct ipa_trace_buffer_control)))
     return;
@@ -6879,7 +6899,7 @@ init_named_socket (const char *name)
   result = fd = socket (PF_UNIX, SOCK_STREAM, 0);
   if (result == -1)
     {
-      warning ("socket creation failed: %s", strerror (errno));
+      warning ("socket creation failed: %s", safe_strerror (errno));
       return -1;
     }
 
@@ -6895,7 +6915,7 @@ init_named_socket (const char *name)
       result = unlink (name);
       if (result == -1)
 	{
-	  warning ("unlink failed: %s", strerror (errno));
+	  warning ("unlink failed: %s", safe_strerror (errno));
 	  close (fd);
 	  return -1;
 	}
@@ -6905,7 +6925,7 @@ init_named_socket (const char *name)
   result = bind (fd, (struct sockaddr *) &addr, sizeof (addr));
   if (result == -1)
     {
-      warning ("bind failed: %s", strerror (errno));
+      warning ("bind failed: %s", safe_strerror (errno));
       close (fd);
       return -1;
     }
@@ -6913,7 +6933,7 @@ init_named_socket (const char *name)
   result = listen (fd, 1);
   if (result == -1)
     {
-      warning ("listen: %s", strerror (errno));
+      warning ("listen: %s", safe_strerror (errno));
       close (fd);
       return -1;
     }
@@ -7194,7 +7214,7 @@ gdb_agent_helper_thread (void *arg)
 
       if (listen_fd == -1)
 	{
-	  warning ("could not create sync socket\n");
+	  warning ("could not create sync socket");
 	  break;
 	}
 
@@ -7218,8 +7238,8 @@ gdb_agent_helper_thread (void *arg)
 
 	  if (fd < 0)
 	    {
-	      warning ("Accept returned %d, error: %s\n",
-		       fd, strerror (errno));
+	      warning ("Accept returned %d, error: %s",
+		       fd, safe_strerror (errno));
 	      break;
 	    }
 
@@ -7231,7 +7251,7 @@ gdb_agent_helper_thread (void *arg)
 	  if (ret == -1)
 	    {
 	      warning ("reading socket (fd=%d) failed with %s",
-		       fd, strerror (errno));
+		       fd, safe_strerror (errno));
 	      close (fd);
 	      break;
 	    }
@@ -7330,7 +7350,6 @@ gdb_agent_init (void)
 }
 
 #include <sys/mman.h>
-#include <fcntl.h>
 
 IP_AGENT_EXPORT_VAR char *gdb_tp_heap_buffer;
 IP_AGENT_EXPORT_VAR char *gdb_jump_pad_buffer;

@@ -1,6 +1,6 @@
 /* Convenience functions implemented in Python.
 
-   Copyright (C) 2008-2019 Free Software Foundation, Inc.
+   Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -27,7 +27,6 @@
 #include "completer.h"
 #include "expression.h"
 #include "language.h"
-#include "py-ref.h"
 
 extern PyTypeObject fnpy_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("PyObject");
@@ -128,8 +127,8 @@ fnpy_init (PyObject *self, PyObject *args, PyObject *kwds)
   if (! docstring)
     docstring.reset (xstrdup (_("This function is not documented.")));
 
-  add_internal_function (name, docstring.release (), fnpy_call,
-			 self_ref.release ());
+  add_internal_function (make_unique_xstrdup (name), std::move (docstring),
+			 fnpy_call, self_ref.release ());
   return 0;
 }
 

@@ -1,6 +1,6 @@
 /* Do various things to symbol tables (other than lookup), for GDB.
 
-   Copyright (C) 1986-2019 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -36,7 +36,7 @@
 #include "typeprint.h"
 #include "gdbcmd.h"
 #include "source.h"
-#include "readline/readline.h"
+#include "readline/tilde.h"
 
 #include "psymtab.h"
 
@@ -52,7 +52,7 @@ FILE *std_err;
 
 /* Prototypes for local functions */
 
-static int block_depth (struct block *);
+static int block_depth (const struct block *);
 
 static void print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 			  int depth, ui_file *outfile);
@@ -69,13 +69,11 @@ print_symbol_bcache_statistics (void)
 	QUIT;
 	printf_filtered (_("Byte cache statistics for '%s':\n"),
 			 objfile_name (objfile));
-	print_bcache_statistics
-	  (psymbol_bcache_get_bcache (objfile->partial_symtabs->psymbol_cache),
-	   "partial symbol cache");
-	print_bcache_statistics (objfile->per_bfd->macro_cache,
-				 "preprocessor macro cache");
-	print_bcache_statistics (objfile->per_bfd->filename_cache,
-				 "file name cache");
+	objfile->partial_symtabs->psymbol_cache.print_statistics
+	  ("partial symbol cache");
+	objfile->per_bfd->macro_cache.print_statistics
+	  ("preprocessor macro cache");
+	objfile->per_bfd->filename_cache.print_statistics ("file name cache");
       }
 }
 
@@ -136,12 +134,11 @@ print_objfile_statistics (void)
 						       ->storage_obstack)));
       printf_filtered
 	(_("  Total memory used for psymbol cache: %d\n"),
-	 bcache_memory_used (psymbol_bcache_get_bcache
-			     (objfile->partial_symtabs->psymbol_cache)));
+	 objfile->partial_symtabs->psymbol_cache.memory_used ());
       printf_filtered (_("  Total memory used for macro cache: %d\n"),
-		       bcache_memory_used (objfile->per_bfd->macro_cache));
+		       objfile->per_bfd->macro_cache.memory_used ());
       printf_filtered (_("  Total memory used for file name cache: %d\n"),
-		       bcache_memory_used (objfile->per_bfd->filename_cache));
+		       objfile->per_bfd->filename_cache.memory_used ());
     }
 }
 
@@ -239,23 +236,25 @@ dump_msymbols (struct objfile *objfile, struct ui_file *outfile)
 	  break;
 	}
       fprintf_filtered (outfile, "[%2d] %c ", index, ms_type);
-      fputs_filtered (paddress (gdbarch, MSYMBOL_VALUE_ADDRESS (objfile,
-								msymbol)),
-		      outfile);
-      fprintf_filtered (outfile, " %s", MSYMBOL_LINKAGE_NAME (msymbol));
+
+      /* Use the relocated address as shown in the symbol here -- do
+	 not try to respect copy relocations.  */
+      CORE_ADDR addr = (msymbol->value.address
+			+ objfile->section_offsets[msymbol->section]);
+      fputs_filtered (paddress (gdbarch, addr), outfile);
+      fprintf_filtered (outfile, " %s", msymbol->linkage_name ());
       if (section)
 	{
 	  if (section->the_bfd_section != NULL)
 	    fprintf_filtered (outfile, " section %s",
-			      bfd_section_name (objfile->obfd,
-						section->the_bfd_section));
+			      bfd_section_name (section->the_bfd_section));
 	  else
 	    fprintf_filtered (outfile, " spurious section %ld",
 			      (long) (section - objfile->sections));
 	}
-      if (MSYMBOL_DEMANGLED_NAME (msymbol) != NULL)
+      if (msymbol->demangled_name () != NULL)
 	{
-	  fprintf_filtered (outfile, "  %s", MSYMBOL_DEMANGLED_NAME (msymbol));
+	  fprintf_filtered (outfile, "  %s", msymbol->demangled_name ());
 	}
       if (msymbol->filename)
 	fprintf_filtered (outfile, "  %s", msymbol->filename);
@@ -281,7 +280,7 @@ dump_symtab_1 (struct symtab *symtab, struct ui_file *outfile)
   struct linetable *l;
   const struct blockvector *bv;
   struct symbol *sym;
-  struct block *b;
+  const struct block *b;
   int depth;
 
   fprintf_filtered (outfile, "\nSymtab for file %s\n",
@@ -339,11 +338,11 @@ dump_symtab_1 (struct symtab *symtab, struct ui_file *outfile)
 	  if (BLOCK_FUNCTION (b))
 	    {
 	      fprintf_filtered (outfile, ", function %s",
-				SYMBOL_LINKAGE_NAME (BLOCK_FUNCTION (b)));
-	      if (SYMBOL_DEMANGLED_NAME (BLOCK_FUNCTION (b)) != NULL)
+				BLOCK_FUNCTION (b)->linkage_name ());
+	      if (BLOCK_FUNCTION (b)->demangled_name () != NULL)
 		{
 		  fprintf_filtered (outfile, ", %s",
-				SYMBOL_DEMANGLED_NAME (BLOCK_FUNCTION (b)));
+				BLOCK_FUNCTION (b)->demangled_name ());
 		}
 	    }
 	  fprintf_filtered (outfile, "\n");
@@ -352,16 +351,15 @@ dump_symtab_1 (struct symtab *symtab, struct ui_file *outfile)
 	     block, not any blocks from included symtabs.  */
 	  ALL_DICT_SYMBOLS (BLOCK_MULTIDICT (b), miter, sym)
 	    {
-	      TRY
+	      try
 		{
 		  print_symbol (gdbarch, sym, depth + 1, outfile);
 		}
-	      CATCH (ex, RETURN_MASK_ERROR)
+	      catch (const gdb_exception_error &ex)
 		{
 		  exception_fprintf (gdb_stderr, ex,
 				     "Error printing symbol:\n");
 		}
-	      END_CATCH
 	    }
 	}
       fprintf_filtered (outfile, "\n");
@@ -387,13 +385,9 @@ dump_symtab (struct symtab *symtab, struct ui_file *outfile)
   if (symtab->language != language_unknown
       && symtab->language != language_auto)
     {
-      enum language saved_lang;
-
-      saved_lang = set_language (symtab->language);
-
+      scoped_restore_current_language save_lang;
+      set_language (symtab->language);
       dump_symtab_1 (symtab, outfile);
-
-      set_language (saved_lang);
     }
   else
     dump_symtab_1 (symtab, outfile);
@@ -528,13 +522,12 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
   print_spaces (depth, outfile);
   if (SYMBOL_DOMAIN (symbol) == LABEL_DOMAIN)
     {
-      fprintf_filtered (outfile, "label %s at ", SYMBOL_PRINT_NAME (symbol));
+      fprintf_filtered (outfile, "label %s at ", symbol->print_name ());
       fputs_filtered (paddress (gdbarch, SYMBOL_VALUE_ADDRESS (symbol)),
 		      outfile);
       if (section)
 	fprintf_filtered (outfile, " section %s\n",
-			  bfd_section_name (section->the_bfd_section->owner,
-					    section->the_bfd_section));
+			  bfd_section_name (section->the_bfd_section));
       else
 	fprintf_filtered (outfile, "\n");
       return;
@@ -554,7 +547,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 			  ? "enum"
 		     : (TYPE_CODE (SYMBOL_TYPE (symbol)) == TYPE_CODE_STRUCT
 			? "struct" : "union")),
-			    SYMBOL_LINKAGE_NAME (symbol));
+			    symbol->linkage_name ());
 	  LA_PRINT_TYPE (SYMBOL_TYPE (symbol), "", outfile, 1, depth,
 			 &type_print_raw_options);
 	}
@@ -567,7 +560,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
       if (SYMBOL_TYPE (symbol))
 	{
 	  /* Print details of types, except for enums where it's clutter.  */
-	  LA_PRINT_TYPE (SYMBOL_TYPE (symbol), SYMBOL_PRINT_NAME (symbol),
+	  LA_PRINT_TYPE (SYMBOL_TYPE (symbol), symbol->print_name (),
 			 outfile,
 			 TYPE_CODE (SYMBOL_TYPE (symbol)) != TYPE_CODE_ENUM,
 			 depth,
@@ -575,7 +568,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 	  fprintf_filtered (outfile, "; ");
 	}
       else
-	fprintf_filtered (outfile, "%s ", SYMBOL_PRINT_NAME (symbol));
+	fprintf_filtered (outfile, "%s ", symbol->print_name ());
 
       switch (SYMBOL_CLASS (symbol))
 	{
@@ -590,8 +583,8 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 	    unsigned i;
 	    struct type *type = check_typedef (SYMBOL_TYPE (symbol));
 
-	    fprintf_filtered (outfile, "const %u hex bytes:",
-			      TYPE_LENGTH (type));
+	    fprintf_filtered (outfile, "const %s hex bytes:",
+			      pulongest (TYPE_LENGTH (type)));
 	    for (i = 0; i < TYPE_LENGTH (type); i++)
 	      fprintf_filtered (outfile, " %02x",
 				(unsigned) SYMBOL_VALUE_BYTES (symbol)[i]);
@@ -604,8 +597,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 			  outfile);
 	  if (section)
 	    fprintf_filtered (outfile, " section %s",
-			      bfd_section_name (section->the_bfd_section->owner,
-						section->the_bfd_section));
+			      bfd_section_name (section->the_bfd_section));
 	  break;
 
 	case LOC_REGISTER:
@@ -646,8 +638,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 			  outfile);
 	  if (section)
 	    fprintf_filtered (outfile, " section %s",
-			      bfd_section_name (section->the_bfd_section->owner,
-						section->the_bfd_section));
+			      bfd_section_name (section->the_bfd_section));
 	  break;
 
 	case LOC_BLOCK:
@@ -663,8 +654,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 			  outfile);
 	  if (section)
 	    fprintf_filtered (outfile, " section %s",
-			      bfd_section_name (section->the_bfd_section->owner,
-						section->the_bfd_section));
+			      bfd_section_name (section->the_bfd_section));
 	  break;
 
 	case LOC_COMPUTED:
@@ -957,7 +947,7 @@ maintenance_expand_symtabs (const char *args, int from_tty)
 /* Return the nexting depth of a block within other blocks in its symtab.  */
 
 static int
-block_depth (struct block *block)
+block_depth (const struct block *block)
 {
   int i = 0;
 
@@ -1050,8 +1040,9 @@ maintenance_info_line_tables (const char *regexp, int from_tty)
 
 /* Do early runtime initializations.  */
 
+void _initialize_symmisc ();
 void
-_initialize_symmisc (void)
+_initialize_symmisc ()
 {
   std_in = stdin;
   std_out = stdout;

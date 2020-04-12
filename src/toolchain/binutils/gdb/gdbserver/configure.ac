@@ -1,5 +1,5 @@
 dnl Autoconf configure script for GDB server.
-dnl Copyright (C) 2000-2019 Free Software Foundation, Inc.
+dnl Copyright (C) 2000-2020 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GDB.
 dnl
@@ -19,7 +19,7 @@ dnl along with this program.  If not, see <http://www.gnu.org/licenses/>.
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(server.c)
-AC_CONFIG_HEADER(config.h:config.in)
+AC_CONFIG_HEADERS(config.h:config.in, [echo > stamp-h])
 
 AM_MAINTAINER_MODE
 
@@ -45,17 +45,8 @@ AC_HEADER_STDC
 # Set the 'development' global.
 . $srcdir/../../bfd/development.sh
 
-# Enable -lmcheck by default (it provides cheap-enough memory
-# mangling), but turn it off for releases.
-if $development; then
-  libmcheck_default=yes
-else
-  libmcheck_default=no
-fi
-GDB_AC_LIBMCHECK(${libmcheck_default})
-
 GDB_AC_SELFTEST([
-  srv_selftest_objs="common/selftest.o"
+  srv_selftest_objs="gdbsupport/selftest.o"
 ])
 
 ACX_NONCANONICAL_TARGET
@@ -65,7 +56,7 @@ ACX_NONCANONICAL_HOST
 ZW_CREATE_DEPDIR
 
 # Create sub-directories for objects and dependencies.
-CONFIG_SRC_SUBDIR="arch common"
+CONFIG_SRC_SUBDIR="arch gdbsupport"
 AC_SUBST(CONFIG_SRC_SUBDIR)
 
 AC_CONFIG_COMMANDS([gdbdepdir],[
@@ -88,18 +79,18 @@ fi
 # gdbserver/.  We need to build gnulib under some other directory not
 # "gnulib", to avoid the problem of both GDB and GDBserver wanting to
 # build it in the same directory, when building in the source dir.
-ACX_CONFIGURE_DIR(["../gnulib"], ["build-gnulib-gdbserver"],
+ACX_CONFIGURE_DIR(["../../gnulib"], ["build-gnulib-gdbserver"],
                   ["$gnulib_extra_configure_args"])
 
 ACX_CONFIGURE_DIR(["../../libiberty"], ["build-libiberty-gdbserver"])
 
 AC_CHECK_HEADERS(termios.h sys/reg.h string.h dnl
-		 proc_service.h sys/procfs.h linux/elf.h dnl
+		 sys/procfs.h linux/elf.h dnl
 		 fcntl.h signal.h sys/file.h dnl
 		 sys/ioctl.h netinet/in.h sys/socket.h netdb.h dnl
 		 netinet/tcp.h arpa/inet.h)
 AC_FUNC_FORK
-AC_CHECK_FUNCS(getauxval pread pwrite pread64 setns)
+AC_CHECK_FUNCS(pread pwrite pread64)
 
 GDB_AC_COMMON
 
@@ -167,9 +158,7 @@ LIBS="$old_LIBS"
 
 libiberty_INIT
 
-AC_CHECK_DECLS([strerror, perror, vasprintf, vsnprintf])
-
-AC_CHECK_MEMBERS([struct stat.st_blocks, struct stat.st_blksize])
+AC_CHECK_DECLS([perror, vasprintf, vsnprintf])
 
 # See if <sys/user.h> supports the %fs_base and %gs_bas amd64 segment registers.
 # Older amd64 Linux's don't have the fs_base and gs_base members of
@@ -254,26 +243,15 @@ esac
 
 . ${srcdir}/configure.srv
 
-# Add in the common host objects.
-. ${srcdir}/../common/common.host
-srv_host_obs="$common_host_obs"
-
 if test "${srv_mingwce}" = "yes"; then
   LIBS="$LIBS -lws2"
 elif test "${srv_mingw}" = "yes"; then
-  LIBS="$LIBS -lws2_32"
+  # WIN32APILIBS is set by GDB_AC_COMMON.
+  LIBS="$LIBS $WIN32APILIBS"
 elif test "${srv_qnx}" = "yes"; then
   LIBS="$LIBS -lsocket"
 elif test "${srv_lynxos}" = "yes"; then
   LIBS="$LIBS -lnetinet"
-fi
-
-if test "${srv_mingw}" = "yes"; then
-  AC_DEFINE(USE_WIN32API, 1,
-	    [Define if we should use the Windows API, instead of the
-	     POSIX API.  On Windows, we use the Windows API when
-	     building for MinGW, but the POSIX API when building
-	     for Cygwin.])
 fi
 
 if test "${srv_linux_usrregs}" = "yes"; then
@@ -316,14 +294,6 @@ fi
 if test "${srv_linux_btrace}" = "yes"; then
   AC_DEFINE(HAVE_LINUX_BTRACE, 1,
 	    [Define if the target supports branch tracing.])
-fi
-
-if test "$ac_cv_header_sys_procfs_h" = yes; then
-  BFD_HAVE_SYS_PROCFS_TYPE(lwpid_t)
-  BFD_HAVE_SYS_PROCFS_TYPE(psaddr_t)
-  BFD_HAVE_SYS_PROCFS_TYPE(prgregset_t)
-  BFD_HAVE_SYS_PROCFS_TYPE(prfpregset_t)
-  BFD_HAVE_SYS_PROCFS_TYPE(elf_fpregset_t)
 fi
 
 dnl Some systems (e.g., Android) have lwpid_t defined in libthread_db.h.
@@ -376,7 +346,7 @@ if test "$srv_linux_thread_db" = "yes"; then
   [AC_TRY_COMPILE([#include <thread_db.h>], [TD_VERSION;],
 		  [gdbsrv_cv_have_td_version=yes],
 		  [gdbsrv_cv_have_td_version=no])])
-  if test $gdbsrv_cv_have_td_version = yes; then
+  if test "$gdbsrv_cv_have_td_version" = yes; then
     AC_DEFINE(HAVE_TD_VERSION, 1, [Define if TD_VERSION is available.])
   fi
 fi
@@ -402,7 +372,7 @@ if test "$srv_xmlfiles" != ""; then
   done
 fi
 
-GDBSERVER_DEPFILES="$srv_regobj $srv_tgtobj $srv_hostio_err_objs $srv_thread_depfiles $srv_host_obs $srv_selftest_objs"
+GDBSERVER_DEPFILES="$srv_regobj $srv_tgtobj $srv_hostio_err_objs $srv_thread_depfiles $srv_selftest_objs"
 GDBSERVER_LIBS="$srv_libs"
 
 dnl Check whether the target supports __sync_*_compare_and_swap.
@@ -411,7 +381,7 @@ AC_CACHE_CHECK([whether the target supports __sync_*_compare_and_swap],
 AC_TRY_LINK([], [int foo, bar; bar = __sync_val_compare_and_swap(&foo, 0, 1);],
 		gdbsrv_cv_have_sync_builtins=yes,
 		gdbsrv_cv_have_sync_builtins=no)])
-if test $gdbsrv_cv_have_sync_builtins = yes; then
+if test "$gdbsrv_cv_have_sync_builtins" = yes; then
   AC_DEFINE(HAVE_SYNC_BUILTINS, 1,
     [Define to 1 if the target supports __sync_*_compare_and_swap])
 fi
@@ -423,30 +393,6 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])],
 		        [gdbsrv_cv_have_visibility_hidden=yes],
 	        	[gdbsrv_cv_have_visibility_hidden=no])
 CFLAGS="$saved_cflags"
-
-dnl Check if we can disable the virtual address space randomization.
-dnl The functionality of setarch -R.
-AC_CHECK_DECLS([ADDR_NO_RANDOMIZE],,, [#include <sys/personality.h>])
-define([PERSONALITY_TEST], [AC_LANG_PROGRAM([#include <sys/personality.h>], [
-#      if !HAVE_DECL_ADDR_NO_RANDOMIZE
-#       define ADDR_NO_RANDOMIZE 0x0040000
-#      endif
-       /* Test the flag could be set and stays set.  */
-       personality (personality (0xffffffff) | ADDR_NO_RANDOMIZE);
-       if (!(personality (personality (0xffffffff)) & ADDR_NO_RANDOMIZE))
-           return 1])])
-AC_RUN_IFELSE([PERSONALITY_TEST],
-              [gdbsrv_cv_have_personality=true],
-              [gdbsrv_cv_have_personality=false],
-              [AC_LINK_IFELSE([PERSONALITY_TEST],
-                              [gdbsrv_cv_have_personality=true],
-                              [gdbsrv_cv_have_personality=false])])
-if $gdbsrv_cv_have_personality
-then
-    AC_DEFINE([HAVE_PERSONALITY], 1,
-              [Define if you support the personality syscall.])
-fi
-
 
 IPA_DEPFILES=""
 extra_libraries=""
@@ -493,11 +439,6 @@ if test x"$STDINT_H" != x; then
 fi
 AC_SUBST(GNULIB_STDINT_H)
 
-AC_CONFIG_FILES([Makefile],
-[case x$CONFIG_HEADERS in
-xconfig.h:config.in)
-echo > stamp-h ;;
-esac
-])
+AC_CONFIG_FILES([Makefile])
 
 AC_OUTPUT

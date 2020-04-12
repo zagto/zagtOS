@@ -1,4 +1,4 @@
-/* Copyright (C) 2018-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2018-2020 Free Software Foundation, Inc.
    Contributed by Arm Ltd.
 
    This file is part of GDB.
@@ -16,8 +16,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef AARCH64_SVE_LINUX_SIGCONTEXT_H
-#define AARCH64_SVE_LINUX_SIGCONTEXT_H
+#ifndef NAT_AARCH64_SVE_LINUX_SIGCONTEXT_H
+#define NAT_AARCH64_SVE_LINUX_SIGCONTEXT_H
 
 #define SVE_MAGIC	0x53564501
 
@@ -133,7 +133,7 @@ struct sve_context {
 
 struct user_sve_header {
 	__u32 size; /* total meaningful regset content in bytes */
-	__u32 max_size; /* maxmium possible size for this thread */
+	__u32 max_size; /* maximum possible size for this thread */
 	__u16 vl; /* current vector length */
 	__u16 max_vl; /* maximum possible vector length */
 	__u16 flags;
@@ -264,5 +264,4 @@ struct user_sve_header {
 		  SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, flags)	\
 		: SVE_PT_FPSIMD_OFFSET + SVE_PT_FPSIMD_SIZE(vq, flags))
 
-
-#endif /* AARCH64_SVE_LINUX_SIGCONTEXT_H */
+#endif /* NAT_AARCH64_SVE_LINUX_SIGCONTEXT_H */

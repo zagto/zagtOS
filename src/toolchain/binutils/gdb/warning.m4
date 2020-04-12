@@ -1,5 +1,5 @@
 dnl Autoconf configure script for GDB, the GNU debugger.
-dnl Copyright (C) 1995-2019 Free Software Foundation, Inc.
+dnl Copyright (C) 1995-2020 Free Software Foundation, Inc.
 dnl
 dnl This file is part of GDB.
 dnl
@@ -46,7 +46,11 @@ build_warnings="-Wall -Wpointer-arith \
 -Wsuggest-override \
 -Wimplicit-fallthrough=3 \
 -Wduplicated-cond \
--Wshadow=local"
+-Wshadow=local \
+-Wdeprecated-copy \
+-Wdeprecated-copy-dtor \
+-Wredundant-move \
+-Wmissing-declarations"
 
 case "${host}" in
   *-*-mingw32*)

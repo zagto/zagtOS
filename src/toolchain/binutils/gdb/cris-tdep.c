@@ -1,6 +1,6 @@
 /* Target dependent code for CRIS, for GDB, the GNU debugger.
 
-   Copyright (C) 2001-2019 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
    Contributed by Axis Communications AB.
    Written by Hendrik Ruijter, Stefan Andersson, and Orjan Friberg.
@@ -148,7 +148,7 @@ extern const struct cris_spec_reg cris_spec_regs[];
 static unsigned int usr_cmd_cris_version;
 
 /* Indicates whether to trust the above variable.  */
-static int usr_cmd_cris_version_valid = 0;
+static bool usr_cmd_cris_version_valid = false;
 
 static const char cris_mode_normal[] = "normal";
 static const char cris_mode_guru[] = "guru";
@@ -163,7 +163,7 @@ static const char *const cris_modes[] = {
 static const char *usr_cmd_cris_mode = cris_mode_normal;
 
 /* Whether to make use of Dwarf-2 CFI (default on).  */
-static int usr_cmd_cris_dwarf2_cfi = 1;
+static bool usr_cmd_cris_dwarf2_cfi = true;
 
 /* Sigtramp identification code copied from i386-linux-tdep.c.  */
 
@@ -651,12 +651,6 @@ static CORE_ADDR crisv32_scan_prologue (CORE_ADDR pc,
 					struct frame_info *this_frame,
 					struct cris_unwind_cache *info);
 
-static CORE_ADDR cris_unwind_pc (struct gdbarch *gdbarch, 
-				 struct frame_info *next_frame);
-
-static CORE_ADDR cris_unwind_sp (struct gdbarch *gdbarch, 
-				 struct frame_info *next_frame);
-
 /* When arguments must be pushed onto the stack, they go on in reverse
    order.  The below implements a FILO (stack) to do this.
    Copied from d10v-tdep.c.  */
@@ -765,18 +759,6 @@ cris_frame_prev_register (struct frame_info *this_frame,
   struct cris_unwind_cache *info
     = cris_frame_unwind_cache (this_frame, this_prologue_cache);
   return trad_frame_get_prev_register (this_frame, info->saved_regs, regnum);
-}
-
-/* Assuming THIS_FRAME is a dummy, return the frame ID of that dummy
-   frame.  The frame ID's base needs to match the TOS value saved by
-   save_dummy_frame_tos(), and the PC match the dummy frame's breakpoint.  */
-
-static struct frame_id
-cris_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  CORE_ADDR sp;
-  sp = get_frame_register_unsigned (this_frame, gdbarch_sp_regnum (gdbarch));
-  return frame_id_build (sp, get_frame_pc (this_frame));
 }
 
 static CORE_ADDR
@@ -1370,24 +1352,6 @@ cris_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
     pc_after_prologue = cris_scan_prologue (pc, NULL, NULL);
 
   return pc_after_prologue;
-}
-
-static CORE_ADDR
-cris_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  ULONGEST pc;
-  pc = frame_unwind_register_unsigned (next_frame,
-				       gdbarch_pc_regnum (gdbarch));
-  return pc;
-}
-
-static CORE_ADDR
-cris_unwind_sp (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  ULONGEST sp;
-  sp = frame_unwind_register_unsigned (next_frame,
-				       gdbarch_sp_regnum (gdbarch));
-  return sp;
 }
 
 /* Implement the breakpoint_kind_from_pc gdbarch method.  */
@@ -3092,7 +3056,7 @@ move_reg_to_mem_movem_op (unsigned short inst, inst_env_type *inst_env)
   inst_env->disable_interrupt = 0;
 }
 
-/* Handles the intructions that's not yet implemented, by setting 
+/* Handles the instructions that's not yet implemented, by setting
    inst_env->invalid to true.  */
 
 static void 
@@ -3829,7 +3793,7 @@ cris_supply_gregset (struct regcache *regcache, cris_elf_gregset_t *gregsetp)
 
 static void
 fetch_core_registers (struct regcache *regcache,
-		      char *core_reg_sect, unsigned core_reg_size,
+		      gdb_byte *core_reg_sect, unsigned core_reg_size,
                       int which, CORE_ADDR reg_addr)
 {
   cris_elf_gregset_t gregset;
@@ -3865,8 +3829,9 @@ static struct core_fns cris_elf_core_fns =
   NULL                                  /* next */
 };
 
+void _initialize_cris_tdep ();
 void
-_initialize_cris_tdep (void)
+_initialize_cris_tdep ()
 {
   gdbarch_register (bfd_arch_cris, cris_gdbarch_init, cris_dump_tdep);
   
@@ -4095,10 +4060,6 @@ cris_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_breakpoint_kind_from_pc (gdbarch, cris_breakpoint_kind_from_pc);
   set_gdbarch_sw_breakpoint_from_kind (gdbarch, cris_sw_breakpoint_from_kind);
   
-  set_gdbarch_unwind_pc (gdbarch, cris_unwind_pc);
-  set_gdbarch_unwind_sp (gdbarch, cris_unwind_sp);
-  set_gdbarch_dummy_id (gdbarch, cris_dummy_id);
-
   if (tdep->cris_dwarf2_cfi == 1)
     {
       /* Hook in the Dwarf-2 frame sniffer.  */

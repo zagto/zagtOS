@@ -1,1200 +1,1598 @@
-2019-01-16  Tom Tromey  <tom@tromey.com>
+2020-01-17  Simon Marchi  <simon.marchi@efficios.com>
 
-	* objfiles.h (struct minimal_symbol_iterator): Rename.  Move
-	earlier.
-	(struct objfile) <msymbols_range>: Move from top level.
-	<msymbols>: New method.
-	(class objfile_msymbols): Remove.
-	* symtab.c (default_collect_symbol_completion_matches_break_on):
-	Update.
-	* symmisc.c (dump_msymbols): Update.
-	* stabsread.c (scan_file_globals): Update.
-	* objc-lang.c (info_selectors_command, info_classes_command)
-	(find_methods): Update.
-	* minsyms.c (find_solib_trampoline_target): Update.
-	* hppa-tdep.c (hppa_lookup_stub_minimal_symbol): Update.
-	* coffread.c (coff_symfile_read): Update.
-	* ada-lang.c (ada_lookup_simple_minsym)
-	(ada_collect_symbol_completion_matches): Update.
+	* top.c (struct qt_args): Remove.
+	(kill_or_detach): Change return type to void, replace `void *`
+	parameter with a proper one.
+	(print_inferior_quit_action):  Likewise.
+	(quit_confirm): Use range-based for loop to iterate over inferiors.
+	(quit_force): Likewise.
 
-2019-01-16  Tom Tromey  <tom@tromey.com>
+2020-01-17  Simon Marchi  <simon.marchi@efficios.com>
 
-	* objfiles.h (class objfile_msymbols) <iterator>: Change argument
-	type.  Remove no-argument constructor.
-	<iterator::operator++>: Simplify.
-	<begin>: Update.
-	<end>: Use minimal_symbol_count.
+	* mi/mi-main.c (run_one_inferior): Change return type to void, replace
+	`void *` parameter with proper parameters.
+	(mi_cmd_exec_run): Use range-based loop to iterate over inferiors.
+	(print_one_inferior): Change return type to void, replace `void *`
+	parameter with proper parameters.
+	(mi_cmd_list_thread_groups): Use range-based loop to iterate over
+	inferiors.
+	(get_other_inferior): Remove.
+	(mi_cmd_remove_inferior): Use range-based loop to iterate over
+	inferiors.
 
-2019-01-16  Tom Tromey  <tom@tromey.com>
+2020-01-17  Simon Marchi  <simon.marchi@efficios.com>
 
-	* objfiles.h (struct objfile) <psymtabs>: New method.
-	(class objfile_psymtabs): Remove.
-	* psymtab.h (class psymtab_storage) <partial_symtab_range>: New
-	typedef.
-	<range>: New method.
-	(require_partial_symbols): Change return type.
-	* psymtab.c (require_partial_symbols)
-	(psym_expand_symtabs_matching): Update.
-	* mdebugread.c (parse_partial_symbols): Update.
-	* dbxread.c (dbx_end_psymtab): Update.
+	* mi/mi-interp.c (report_initial_inferior): Remove.
+	(mi_interp::init): Use range-based for to iterate over inferiors.
 
-2019-01-15  Tom Tromey  <tom@tromey.com>
+2020-01-17  Simon Marchi  <simon.marchi@efficios.com>
 
-	* symtab.c (lookup_objfile_from_block)
-	(lookup_symbol_in_objfile_symtabs)
-	(basic_lookup_transparent_type_1, find_pc_sect_compunit_symtab)
-	(find_line_symtab, info_sources_command)
-	(default_collect_symbol_completion_matches_break_on)
-	(make_source_files_completion_list): Update.
-	* symmisc.c (print_objfile_statistics, dump_objfile)
-	(maintenance_print_symbols, maintenance_info_symtabs)
-	(maintenance_check_symtabs, maintenance_info_line_tables):
-	Update.
-	* source.c (select_source_symtab)
-	(forget_cached_source_info_for_objfile): Update.
-	* objfiles.h (class objfile_compunits): Remove.
-	(struct objfile) <compunits_range>: New typedef.
-	(compunits): New method.
-	* objfiles.c (objfile_relocate1): Update.
-	* mi/mi-cmd-file.c (mi_cmd_file_list_exec_source_files): Update.
-	* maint.c (count_symtabs_and_blocks): Update.
-	* linespec.c (iterate_over_all_matching_symtabs): Update.
-	* cp-support.c (add_symbol_overload_list_qualified): Update.
-	* coffread.c (coff_symtab_read): Update.
-	* ada-lang.c (add_nonlocal_symbols)
-	(ada_collect_symbol_completion_matches)
-	(ada_add_global_exceptions): Update.
+	* python/py-inferior.c (build_inferior_list): Remove.
+	(gdbpy_ref): Use range-based for loop to iterate over inferiors.
 
-2019-01-15  Tom Tromey  <tom@tromey.com>
+2020-01-16  Christian Biesinger  <cbiesinger@google.com>
 
-	* progspace.h (program_space) <objfiles_safe_range>: New
-	typedef.
-	<objfiles_safe>: New method.
-	* objfiles.h (class all_objfiles_safe): Remove.
-	* objfiles.c (free_all_objfiles, objfile_purge_solibs): Update.
-	* jit.c (jit_inferior_exit_hook): Update.
+	* btrace.c (btrace_compute_ftrace_1): Fix spelling error (Unkown).
+	(btrace_stitch_trace): Likewise.
+	* charset.c (intermediate_encoding): Likewise (vaild).
+	* nat/linux-btrace.c (linux_read_pt): Likewise (Unkown).
+	* python/py-record-btrace.c (struct PyMethodDef): Likewise (occurences).
+	* record-btrace.c (record_btrace_print_conf): Likewise (unkown).
 
-2019-01-17  Tom Tromey  <tom@tromey.com>
+2020-01-16  Hannes Domani  <ssbssa@yahoo.de>
 
-	* progspace.h (program_space) <objfiles_range>: New typedef.
-	<objfiles>: New method.
-	<objfiles_head>: Rename from objfiles.
-	(object_files): Update.
-	* guile/scm-progspace.c (gdbscm_progspace_objfiles): Update.
-	* guile/scm-pretty-print.c
-	(ppscm_find_pretty_printer_from_objfiles): Update.
-	* guile/scm-objfile.c (gdbscm_objfiles): Update.
-	* python/py-xmethods.c (gdbpy_get_matching_xmethod_workers):
-	Update.
-	* python/py-progspace.c (pspy_get_objfiles): Update.
-	* python/py-prettyprint.c (find_pretty_printer_from_objfiles):
-	Update.
-	* python/py-objfile.c (objfpy_lookup_objfile_by_name)
-	(objfpy_lookup_objfile_by_build_id): Update.
-	* mi/mi-cmd-file.c (mi_cmd_file_list_exec_source_files): Update.
-	* windows-tdep.c (windows_iterate_over_objfiles_in_search_order):
-	Update.
-	* symtab.c (iterate_over_symtabs, matching_obj_sections)
-	(expand_symtab_containing_pc, lookup_objfile_from_block)
-	(lookup_static_symbol, basic_lookup_transparent_type)
-	(find_pc_sect_compunit_symtab, find_symbol_at_address)
-	(find_line_symtab, info_sources_command)
-	(default_collect_symbol_completion_matches_break_on)
-	(make_source_files_completion_list, find_main_name): Update.
-	* symmisc.c (print_symbol_bcache_statistics)
-	(print_objfile_statistics, maintenance_print_symbols)
-	(maintenance_print_msymbols, maintenance_print_objfiles)
-	(maintenance_info_symtabs, maintenance_check_symtabs)
-	(maintenance_expand_symtabs, maintenance_info_line_tables):
-	Update.
-	* symfile.c (remove_symbol_file_command, overlay_invalidate_all)
-	(find_pc_overlay, find_pc_mapped_section, list_overlays_command)
-	(map_overlay_command, unmap_overlay_command)
-	(simple_overlay_update, expand_symtabs_matching)
-	(map_symbol_filenames): Update.
-	* symfile-debug.c (set_debug_symfile): Update.
-	* spu-tdep.c (spu_overlay_update, spu_objfile_from_frame):
-	Update.
-	* source.c (select_source_symtab, forget_cached_source_info):
-	Update.
-	* solib.c (solib_read_symbols): Update.
-	* solib-spu.c (append_ocl_sos): Update.
-	* psymtab.c (maintenance_print_psymbols)
-	(maintenance_info_psymtabs, maintenance_check_psymtabs): Update.
-	* probe.c (parse_probes_in_pspace, find_probe_by_pc): Update.
-	* printcmd.c (info_symbol_command): Update.
-	* ppc-linux-tdep.c (ppc_linux_spe_context_inferior_created):
-	Update.
-	* objfiles.h (class all_objfiles): Remove.
-	* objfiles.c (have_partial_symbols, have_full_symbols)
-	(have_minimal_symbols, qsort_cmp, update_section_map)
-	(shared_objfile_contains_address_p)
-	(default_iterate_over_objfiles_in_search_order): Update.
-	* objc-lang.c (info_selectors_command, info_classes_command)
-	(find_methods): Update.
-	* minsyms.c (find_solib_trampoline_target): Update.
-	* maint.c (maintenance_info_sections)
-	(maintenance_translate_address, count_symtabs_and_blocks):
-	Update.
-	* main.c (captured_main_1): Update.
-	* linux-thread-db.c (try_thread_db_load_from_pdir)
-	(has_libpthread): Update.
-	* linespec.c (iterate_over_all_matching_symtabs)
-	(search_minsyms_for_name): Update.
-	* jit.c (jit_find_objf_with_entry_addr): Update.
-	* hppa-tdep.c (find_unwind_entry)
-	(hppa_lookup_stub_minimal_symbol): Update.
-	* gcore.c (gcore_create_callback, objfile_find_memory_regions):
-	Update.
-	* elfread.c (elf_gnu_ifunc_resolve_by_cache)
-	(elf_gnu_ifunc_resolve_by_got): Update.
-	* dwarf2-frame.c (dwarf2_frame_find_fde): Update.
-	* dwarf-index-write.c (save_gdb_index_command): Update.
-	* cp-support.c (add_symbol_overload_list_qualified): Update.
-	* breakpoint.c (create_overlay_event_breakpoint)
-	(create_longjmp_master_breakpoint)
-	(create_std_terminate_master_breakpoint)
-	(create_exception_master_breakpoint): Update.
-	* blockframe.c (find_pc_partial_function): Update.
-	* ada-lang.c (ada_lookup_simple_minsym, add_nonlocal_symbols)
-	(ada_collect_symbol_completion_matches)
-	(ada_add_global_exceptions): Update.
+	* windows-tdep.c (windows_get_tlb_type):
+	Add rtl_user_process_parameters type.
 
-2019-01-17  Tom Tromey  <tom@tromey.com>
+2020-01-16  Pedro Alves  <palves@redhat.com>
+            Norbert Lange  <nolange79@gmail.com>
 
-	* solib-target.c (lm_info_target_p): Remove typedef.  Don't
-	declare VEC.
-	(solib_target_parse_libraries): Change return type.
-	(library_list_start_segment, library_list_start_section)
-	(library_list_end_library, library_list_start_library); Update.
-	(solib_target_free_library_list): Remove.
-	(solib_target_parse_libraries): Remove cleanup.  Change return
-	type.
-	(solib_target_current_sos): Update.
+	PR build/24805
+	* gdbsupport/gdb_proc_service.h (PS_EXPORT): New.
+	(ps_get_thread_area, ps_getpid, ps_lcontinue, ps_lgetfpregs)
+	(ps_lgetregs, ps_lsetfpregs, ps_lsetregs, ps_lstop, ps_pcontinue)
+	(ps_pdread, ps_pdwrite, ps_pglobal_lookup, ps_pstop, ps_ptread)
+	(ps_ptwrite, ps_lgetxregs, ps_lgetxregsize, ps_lsetxregs)
+	(ps_plog): Redeclare exported functions with default visibility.
 
-2019-01-17  Tom Tromey  <tromey@bapiya>
+2020-01-16  Nitika Achra  <Nitika.Achra@amd.com>
 
-	* valprint.c: Replace "the the" with "the".
-	* symtab.c: Replace "the the" with "the".
-	* solib.c: Replace "the the" with "the".
-	* solib-dsbt.c: Replace "the the" with "the".
-	* linespec.c: Replace "the the" with "the".
-	* dwarf2loc.h: Replace "the the" with "the".
-	* amd64-windows-tdep.c: Replace "the the" with "the".
-	* aarch64-tdep.c: Replace "the the" with "the".
+	* dwarf2loc.c (decode_debug_loclists_addresses): Handle
+	DW_LLE_base_addressx, DW_LLE_startx_length, DW_LLE_start_length.
 
-2019-01-16  Keith Seitz  <keiths@redhat.com>
+2020-01-15  Simon Marchi  <simon.marchi@efficios.com>
 
-	PR gdb/23773
-	* dwarf2read.c (dwarf2_cu) <ancestor>: New field.
-	<builder>: Rename to ..
-	<m_builder>: ... this and make private.
-	(dwarf2_cu::get_builder): New method.  Change all users of
-	`builder' to use this method.
-	(dwarf2_start_symtab): Move to ...
-	(dwarf2_cu::start_symtab): ... here.  Update all callers
-	(setup_type_unit_groups): Move to ...
-	(dwarf2_cu::setup_type_unit_groups): ... here.  Update all
-	callers.
-	(dwarf2_cu::reset_builder): New method.
-	(process_full_compunit, process_full_type_unit): Use
-	dwarf2_cu::reset_builder.
-	(follow_die_offset): Record the ancestor CU if it is different
-	from the followed DIE's CU.
-	(follow_die_sig_1): Likewise.
+	* infcmd.c (post_create_inferior): Use get_thread_regcache
+	instead of get_current_regcache.
 
-2019-01-15  Tom Tromey  <tom@tromey.com>
+2020-01-14  Tom Tromey  <tom@tromey.com>
 
-	* remote.c (class remote_state) <buf>: Now a char_vector.
-	<buf_size>: Remove.
-	(remote_target::getpkt): Change type of buf.  Remove sizeof_buf
+	PR symtab/12535:
+	* python/python.c (gdbpy_decode_line): Treat empty string the same
+	as no argument.
+
+2020-01-14  Tom Tromey  <tom@tromey.com>
+
+	* Makefile.in (CLIBS): Remove second use of $(LIBIBERTY).
+
+2020-01-14  Tom Tromey  <tom@tromey.com>
+
+	* nat/linux-btrace.c: Don't include <config.h>.
+	* nat/linux-ptrace.c: Don't include <config.h>.
+	* nat/x86-linux-dregs.c: Don't include <config.h>.
+
+2020-01-14  Tom Tromey  <tom@tromey.com>
+
+	* configure: Rebuild.
+	* configure.ac: Move many checks to ../gdbsupport/common.m4.
+
+2020-01-14  Tom Tromey  <tom@tromey.com>
+
+	* nat/x86-linux-dregs.c: Include configh.h.
+	* nat/linux-ptrace.c: Include configh.h.
+	* nat/linux-btrace.c: Include configh.h.
+	* defs.h: Include config.h, bfd.h.
+	* configure.ac: Don't source common.host.
+	(CONFIG_OBS, CONFIG_SRCS): Remove gdbsupport files.
+	* configure: Rebuild.
+	* acinclude.m4: Update path.
+	* Makefile.in (SUPPORT, LIBSUPPORT, INCSUPPORT): New variables.
+	(CONFIG_SRC_SUBDIR): Remove gdbsupport.
+	(INTERNAL_CFLAGS_BASE): Add INCSUPPORT.
+	(CLIBS): Add LIBSUPPORT.
+	(CDEPS): Likewise.
+	(COMMON_SFILES): Remove gdbsupport files.
+	(HFILES_NO_SRCDIR): Likewise.
+	(stamp-version): Update path to create-version.sh.
+	(ALLDEPFILES): Remove gdbsupport files.
+
+2020-01-14  Tom Tromey  <tom@tromey.com>
+
+	* gdbsupport/common.m4 (GDB_AC_COMMON): Define WIN32APILIBS and
+	USE_WIN32API when needed.
+	* configure.ac (USE_WIN32API): Don't define.
+	(WIN32LIBS): Use WIN32APILIBS.
+	* configure: Rebuild.
+
+2020-01-14  Tom Tromey  <tom@tromey.com>
+
+	* configure: Rebuild.
+	* gdbsupport/common.m4 (GDB_AC_COMMON): Fix indentation.
+
+2020-01-14  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	* skip.c (skip_function_command): Make skip w/o arguments use the
+	name of the inlined function if pc is inside any inlined function.
+
+2020-01-14  Luis Machado  <luis.machado@linaro.org>
+
+	* inf-ptrace.c (inf_ptrace_target::resume): Update comments.
+	* infrun.c (resume_1): Likewise.
+	(handle_inferior_event): Remove stale comment.
+	* linux-nat.c (linux_nat_target::resume): Update comments.
+	(save_stop_reason): Likewise.
+	(linux_nat_filter_event): Likewise.
+	* linux-nat.h (struct lwp_info) <stop_pc>, <stop_reason>: Likewise.
+
+2020-01-13  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* elfread.c (record_minimal_symbol): Set section index to 0 for
+	non-allocatable sections.
+
+
+2020-01-13  Ali Tamur <tamur@google.com>
+
+	* dwarf2read.c (dwarf2_debug_sections): Add debug_str_offsets sections.
+	(dwarf2_cu): Add str_offsets_base field.  Change the type of addr_base
+	to gdb::optional.  Update comments.
+	(dwo_file): Update comments.
+	(read_attribute): Update API to take an additional out parameter,
+	need_reprocess.  This is used to mark attributes that need other
+	attributes (e.g. str_offsets_base) for correct computation which may not
+	have been read yet.
+	(read_attribute_reprocess): New function declaration.
+	(read_addr_index): Likewise.
+	(read_dwo_str_index): Likewise.
+	(read_stub_str_index): Likewise.
+	(dwarf2_per_objfile::locate_sections): Handle debug_str_offsets section.
+	(lookup_addr_base): New function definition.
+	(lookup_ranges_base): Likewise.
+	(read_cutu_die_from_dwo): Use the new functions: lookup_addr_base,
+	lookup_ranges_base.
+	(init_cutu_and_read_dies): Update comments.
+	(init_cutu_and_read_dies_no_follow): Change API to take parent compile
+	unit.  This is used to inherit parent's str_offsets_base and addr_base.
+	Update comments.
+	(init_cutu_and_read_dies_simple): Reflect API changes.
+	(skip_one_die): Reflect API changes.  Handle DW_FORM_rnglistx.
+	(create_cus_hash_table): Change API to take parent compile unit.  
+	Reflect API changes.
+	(open_and_init_dwo_file): Reflect API changes.
+	(dwarf2_get_pc_bounds): Update comments.
+	(dwarf2_record_block_ranges): Likewise.
+	(read_full_die_1): Change implementation to reprocess attributes that
+	need str_offsets_base and addr_base.
+	(partial_die_info::read): Likewise.
+	(read_attribute_reprocess): New function definition.
+	(read_attribute_value): Change API to take an additional out parameter,
+	need_reprocess.  Handle DW_FORM_rnglistx.  No longer trigger an error
+	when a non-dwo compile unit has index based attributes.
+	(read_attribute): Reflect API changes.
+	(read_addr_index_1): Reflect API changes.  Update comments.
+	(dwarf2_read_addr_index_data): Reflect API changes.
+	(dwarf2_read_addr_index): Likewise.
+	(read_str_index): Change API and implementation.  This becomes a helper
+	to be used by the new string index related methods.  Update error
+	message and comments.
+	(read_dwo_str_index): New function definition.
+	(read_stub_str_index): Likewise.
+	* dwarf2read.h (dwarf2_per_objfile): Add str_offsets field.
+	* symfile.h (dwarf2_debug_sections): Likewise.
+	* xcoffread.c (dwarf2_debug_sections): Likewise.
+
+2020-01-13  Simon Marchi  <simon.marchi@efficios.com>
+
+	* gdbcore.h (struct core_fns) <core_read_registers>: Change
+	core_reg_sect type to gdb_byte *.
+	* arm-nbsd-nat.c (fetch_elfcore_registers): Likewise.
+	* cris-tdep.c (fetch_core_registers): Likewise.
+	* corelow.c (core_target::get_core_register_section): Change
+	type of `contents` to gdb::byte_vector.
+
+2020-01-13  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* tui/tui-wingeneral.c (box_win): Position the title in the center
+	of the border.
+
+2020-01-13  Simon Marchi  <simon.marchi@polymtl.ca>
+
+	* corelow.c (core_target::get_core_register_section): Use
+	  std::vector instead of alloca.
+
+2020-01-13  Simon Marchi  <simon.marchi@efficios.com>
+
+	* warning.m4: Add -Wmissing-declarations to build_warnings.
+	* configure: Re-generate.
+
+2020-01-13  Simon Marchi  <simon.marchi@efficios.com>
+
+	* python/python.c (init__gdb_module): Add declaration.
+
+2020-01-13  Simon Marchi  <simon.marchi@efficios.com>
+
+	* aarch64-fbsd-nat.c (_initialize_aarch64_fbsd_nat): Add declaration.
+	* aarch64-fbsd-tdep.c (_initialize_aarch64_fbsd_tdep): Add declaration.
+	* aarch64-linux-nat.c (_initialize_aarch64_linux_nat): Add declaration.
+	* aarch64-linux-tdep.c (_initialize_aarch64_linux_tdep): Add declaration.
+	* aarch64-newlib-tdep.c (_initialize_aarch64_newlib_tdep): Add declaration.
+	* aarch64-tdep.c (_initialize_aarch64_tdep): Add declaration.
+	* ada-exp.y (_initialize_ada_exp): Add declaration.
+	* ada-lang.c (_initialize_ada_language): Add declaration.
+	* ada-tasks.c (_initialize_tasks): Add declaration.
+	* agent.c (_initialize_agent): Add declaration.
+	* aix-thread.c (_initialize_aix_thread): Add declaration.
+	* alpha-bsd-nat.c (_initialize_alphabsd_nat): Add declaration.
+	* alpha-linux-nat.c (_initialize_alpha_linux_nat): Add declaration.
+	* alpha-linux-tdep.c (_initialize_alpha_linux_tdep): Add declaration.
+	* alpha-nbsd-tdep.c (_initialize_alphanbsd_tdep): Add declaration.
+	* alpha-obsd-tdep.c (_initialize_alphaobsd_tdep): Add declaration.
+	* alpha-tdep.c (_initialize_alpha_tdep): Add declaration.
+	* amd64-darwin-tdep.c (_initialize_amd64_darwin_tdep): Add declaration.
+	* amd64-dicos-tdep.c (_initialize_amd64_dicos_tdep): Add declaration.
+	* amd64-fbsd-nat.c (_initialize_amd64fbsd_nat): Add declaration.
+	* amd64-fbsd-tdep.c (_initialize_amd64fbsd_tdep): Add declaration.
+	* amd64-linux-nat.c (_initialize_amd64_linux_nat): Add declaration.
+	* amd64-linux-tdep.c (_initialize_amd64_linux_tdep): Add declaration.
+	* amd64-nbsd-nat.c (_initialize_amd64nbsd_nat): Add declaration.
+	* amd64-nbsd-tdep.c (_initialize_amd64nbsd_tdep): Add declaration.
+	* amd64-obsd-nat.c (_initialize_amd64obsd_nat): Add declaration.
+	* amd64-obsd-tdep.c (_initialize_amd64obsd_tdep): Add declaration.
+	* amd64-sol2-tdep.c (_initialize_amd64_sol2_tdep): Add declaration.
+	* amd64-tdep.c (_initialize_amd64_tdep): Add declaration.
+	* amd64-windows-nat.c (_initialize_amd64_windows_nat): Add declaration.
+	* amd64-windows-tdep.c (_initialize_amd64_windows_tdep): Add declaration.
+	* annotate.c (_initialize_annotate): Add declaration.
+	* arc-newlib-tdep.c (_initialize_arc_newlib_tdep): Add declaration.
+	* arc-tdep.c (_initialize_arc_tdep): Add declaration.
+	* arch-utils.c (_initialize_gdbarch_utils): Add declaration.
+	* arm-fbsd-nat.c (_initialize_arm_fbsd_nat): Add declaration.
+	* arm-fbsd-tdep.c (_initialize_arm_fbsd_tdep): Add declaration.
+	* arm-linux-nat.c (_initialize_arm_linux_nat): Add declaration.
+	* arm-linux-tdep.c (_initialize_arm_linux_tdep): Add declaration.
+	* arm-nbsd-nat.c (_initialize_arm_netbsd_nat): Add declaration.
+	* arm-nbsd-tdep.c (_initialize_arm_netbsd_tdep): Add declaration.
+	* arm-obsd-tdep.c (_initialize_armobsd_tdep): Add declaration.
+	* arm-pikeos-tdep.c (_initialize_arm_pikeos_tdep): Add declaration.
+	* arm-symbian-tdep.c (_initialize_arm_symbian_tdep): Add declaration.
+	* arm-tdep.c (_initialize_arm_tdep): Add declaration.
+	* arm-wince-tdep.c (_initialize_arm_wince_tdep): Add declaration.
+	* auto-load.c (_initialize_auto_load): Add declaration.
+	* auxv.c (_initialize_auxv): Add declaration.
+	* avr-tdep.c (_initialize_avr_tdep): Add declaration.
+	* ax-gdb.c (_initialize_ax_gdb): Add declaration.
+	* bfin-linux-tdep.c (_initialize_bfin_linux_tdep): Add declaration.
+	* bfin-tdep.c (_initialize_bfin_tdep): Add declaration.
+	* break-catch-sig.c (_initialize_break_catch_sig): Add declaration.
+	* break-catch-syscall.c (_initialize_break_catch_syscall): Add declaration.
+	* break-catch-throw.c (_initialize_break_catch_throw): Add declaration.
+	* breakpoint.c (_initialize_breakpoint): Add declaration.
+	* bsd-uthread.c (_initialize_bsd_uthread): Add declaration.
+	* btrace.c (_initialize_btrace): Add declaration.
+	* charset.c (_initialize_charset): Add declaration.
+	* cli/cli-cmds.c (_initialize_cli_cmds): Add declaration.
+	* cli/cli-dump.c (_initialize_cli_dump): Add declaration.
+	* cli/cli-interp.c (_initialize_cli_interp): Add declaration.
+	* cli/cli-logging.c (_initialize_cli_logging): Add declaration.
+	* cli/cli-script.c (_initialize_cli_script): Add declaration.
+	* cli/cli-style.c (_initialize_cli_style): Add declaration.
+	* coff-pe-read.c (_initialize_coff_pe_read): Add declaration.
+	* coffread.c (_initialize_coffread): Add declaration.
+	* compile/compile-cplus-types.c (_initialize_compile_cplus_types): Add declaration.
+	* compile/compile.c (_initialize_compile): Add declaration.
+	* complaints.c (_initialize_complaints): Add declaration.
+	* completer.c (_initialize_completer): Add declaration.
+	* copying.c (_initialize_copying): Add declaration.
+	* corefile.c (_initialize_core): Add declaration.
+	* corelow.c (_initialize_corelow): Add declaration.
+	* cp-abi.c (_initialize_cp_abi): Add declaration.
+	* cp-namespace.c (_initialize_cp_namespace): Add declaration.
+	* cp-support.c (_initialize_cp_support): Add declaration.
+	* cp-valprint.c (_initialize_cp_valprint): Add declaration.
+	* cris-linux-tdep.c (_initialize_cris_linux_tdep): Add declaration.
+	* cris-tdep.c (_initialize_cris_tdep): Add declaration.
+	* csky-linux-tdep.c (_initialize_csky_linux_tdep): Add declaration.
+	* csky-tdep.c (_initialize_csky_tdep): Add declaration.
+	* ctfread.c (_initialize_ctfread): Add declaration.
+	* d-lang.c (_initialize_d_language): Add declaration.
+	* darwin-nat-info.c (_initialize_darwin_info_commands): Add declaration.
+	* darwin-nat.c (_initialize_darwin_nat): Add declaration.
+	* dbxread.c (_initialize_dbxread): Add declaration.
+	* dcache.c (_initialize_dcache): Add declaration.
+	* disasm-selftests.c (_initialize_disasm_selftests): Add declaration.
+	* disasm.c (_initialize_disasm): Add declaration.
+	* dtrace-probe.c (_initialize_dtrace_probe): Add declaration.
+	* dummy-frame.c (_initialize_dummy_frame): Add declaration.
+	* dwarf-index-cache.c (_initialize_index_cache): Add declaration.
+	* dwarf-index-write.c (_initialize_dwarf_index_write): Add declaration.
+	* dwarf2-frame-tailcall.c (_initialize_tailcall_frame): Add declaration.
+	* dwarf2-frame.c (_initialize_dwarf2_frame): Add declaration.
+	* dwarf2expr.c (_initialize_dwarf2expr): Add declaration.
+	* dwarf2loc.c (_initialize_dwarf2loc): Add declaration.
+	* dwarf2read.c (_initialize_dwarf2_read): Add declaration.
+	* elfread.c (_initialize_elfread): Add declaration.
+	* exec.c (_initialize_exec): Add declaration.
+	* extension.c (_initialize_extension): Add declaration.
+	* f-lang.c (_initialize_f_language): Add declaration.
+	* f-valprint.c (_initialize_f_valprint): Add declaration.
+	* fbsd-nat.c (_initialize_fbsd_nat): Add declaration.
+	* fbsd-tdep.c (_initialize_fbsd_tdep): Add declaration.
+	* filesystem.c (_initialize_filesystem): Add declaration.
+	* findcmd.c (_initialize_mem_search): Add declaration.
+	* findvar.c (_initialize_findvar): Add declaration.
+	* fork-child.c (_initialize_fork_child): Add declaration.
+	* frame-base.c (_initialize_frame_base): Add declaration.
+	* frame-unwind.c (_initialize_frame_unwind): Add declaration.
+	* frame.c (_initialize_frame): Add declaration.
+	* frv-linux-tdep.c (_initialize_frv_linux_tdep): Add declaration.
+	* frv-tdep.c (_initialize_frv_tdep): Add declaration.
+	* ft32-tdep.c (_initialize_ft32_tdep): Add declaration.
+	* gcore.c (_initialize_gcore): Add declaration.
+	* gdb-demangle.c (_initialize_gdb_demangle): Add declaration.
+	* gdb_bfd.c (_initialize_gdb_bfd): Add declaration.
+	* gdbarch-selftests.c (_initialize_gdbarch_selftests): Add declaration.
+	* gdbarch.c (_initialize_gdbarch): Add declaration.
+	* gdbtypes.c (_initialize_gdbtypes): Add declaration.
+	* gnu-nat.c (_initialize_gnu_nat): Add declaration.
+	* gnu-v2-abi.c (_initialize_gnu_v2_abi): Add declaration.
+	* gnu-v3-abi.c (_initialize_gnu_v3_abi): Add declaration.
+	* go-lang.c (_initialize_go_language): Add declaration.
+	* go32-nat.c (_initialize_go32_nat): Add declaration.
+	* guile/guile.c (_initialize_guile): Add declaration.
+	* h8300-tdep.c (_initialize_h8300_tdep): Add declaration.
+	* hppa-linux-nat.c (_initialize_hppa_linux_nat): Add declaration.
+	* hppa-linux-tdep.c (_initialize_hppa_linux_tdep): Add declaration.
+	* hppa-nbsd-nat.c (_initialize_hppanbsd_nat): Add declaration.
+	* hppa-nbsd-tdep.c (_initialize_hppanbsd_tdep): Add declaration.
+	* hppa-obsd-nat.c (_initialize_hppaobsd_nat): Add declaration.
+	* hppa-obsd-tdep.c (_initialize_hppabsd_tdep): Add declaration.
+	* hppa-tdep.c (_initialize_hppa_tdep): Add declaration.
+	* i386-bsd-nat.c (_initialize_i386bsd_nat): Add declaration.
+	* i386-cygwin-tdep.c (_initialize_i386_cygwin_tdep): Add declaration.
+	* i386-darwin-nat.c (_initialize_i386_darwin_nat): Add declaration.
+	* i386-darwin-tdep.c (_initialize_i386_darwin_tdep): Add declaration.
+	* i386-dicos-tdep.c (_initialize_i386_dicos_tdep): Add declaration.
+	* i386-fbsd-nat.c (_initialize_i386fbsd_nat): Add declaration.
+	* i386-fbsd-tdep.c (_initialize_i386fbsd_tdep): Add declaration.
+	* i386-gnu-nat.c (_initialize_i386gnu_nat): Add declaration.
+	* i386-gnu-tdep.c (_initialize_i386gnu_tdep): Add declaration.
+	* i386-go32-tdep.c (_initialize_i386_go32_tdep): Add declaration.
+	* i386-linux-nat.c (_initialize_i386_linux_nat): Add declaration.
+	* i386-linux-tdep.c (_initialize_i386_linux_tdep): Add declaration.
+	* i386-nbsd-nat.c (_initialize_i386nbsd_nat): Add declaration.
+	* i386-nbsd-tdep.c (_initialize_i386nbsd_tdep): Add declaration.
+	* i386-nto-tdep.c (_initialize_i386nto_tdep): Add declaration.
+	* i386-obsd-nat.c (_initialize_i386obsd_nat): Add declaration.
+	* i386-obsd-tdep.c (_initialize_i386obsd_tdep): Add declaration.
+	* i386-sol2-nat.c (_initialize_amd64_sol2_nat): Add declaration.
+	* i386-sol2-tdep.c (_initialize_i386_sol2_tdep): Add declaration.
+	* i386-tdep.c (_initialize_i386_tdep): Add declaration.
+	* i386-windows-nat.c (_initialize_i386_windows_nat): Add declaration.
+	* ia64-libunwind-tdep.c (_initialize_libunwind_frame): Add declaration.
+	* ia64-linux-nat.c (_initialize_ia64_linux_nat): Add declaration.
+	* ia64-linux-tdep.c (_initialize_ia64_linux_tdep): Add declaration.
+	* ia64-tdep.c (_initialize_ia64_tdep): Add declaration.
+	* ia64-vms-tdep.c (_initialize_ia64_vms_tdep): Add declaration.
+	* infcall.c (_initialize_infcall): Add declaration.
+	* infcmd.c (_initialize_infcmd): Add declaration.
+	* inflow.c (_initialize_inflow): Add declaration.
+	* infrun.c (_initialize_infrun): Add declaration.
+	* interps.c (_initialize_interpreter): Add declaration.
+	* iq2000-tdep.c (_initialize_iq2000_tdep): Add declaration.
+	* jit.c (_initialize_jit): Add declaration.
+	* language.c (_initialize_language): Add declaration.
+	* linux-fork.c (_initialize_linux_fork): Add declaration.
+	* linux-nat.c (_initialize_linux_nat): Add declaration.
+	* linux-tdep.c (_initialize_linux_tdep): Add declaration.
+	* linux-thread-db.c (_initialize_thread_db): Add declaration.
+	* lm32-tdep.c (_initialize_lm32_tdep): Add declaration.
+	* m2-lang.c (_initialize_m2_language): Add declaration.
+	* m32c-tdep.c (_initialize_m32c_tdep): Add declaration.
+	* m32r-linux-nat.c (_initialize_m32r_linux_nat): Add declaration.
+	* m32r-linux-tdep.c (_initialize_m32r_linux_tdep): Add declaration.
+	* m32r-tdep.c (_initialize_m32r_tdep): Add declaration.
+	* m68hc11-tdep.c (_initialize_m68hc11_tdep): Add declaration.
+	* m68k-bsd-nat.c (_initialize_m68kbsd_nat): Add declaration.
+	* m68k-bsd-tdep.c (_initialize_m68kbsd_tdep): Add declaration.
+	* m68k-linux-nat.c (_initialize_m68k_linux_nat): Add declaration.
+	* m68k-linux-tdep.c (_initialize_m68k_linux_tdep): Add declaration.
+	* m68k-tdep.c (_initialize_m68k_tdep): Add declaration.
+	* machoread.c (_initialize_machoread): Add declaration.
+	* macrocmd.c (_initialize_macrocmd): Add declaration.
+	* macroscope.c (_initialize_macroscope): Add declaration.
+	* maint-test-options.c (_initialize_maint_test_options): Add declaration.
+	* maint-test-settings.c (_initialize_maint_test_settings): Add declaration.
+	* maint.c (_initialize_maint_cmds): Add declaration.
+	* mdebugread.c (_initialize_mdebugread): Add declaration.
+	* memattr.c (_initialize_mem): Add declaration.
+	* mep-tdep.c (_initialize_mep_tdep): Add declaration.
+	* mi/mi-cmd-env.c (_initialize_mi_cmd_env): Add declaration.
+	* mi/mi-cmds.c (_initialize_mi_cmds): Add declaration.
+	* mi/mi-interp.c (_initialize_mi_interp): Add declaration.
+	* mi/mi-main.c (_initialize_mi_main): Add declaration.
+	* microblaze-linux-tdep.c (_initialize_microblaze_linux_tdep): Add declaration.
+	* microblaze-tdep.c (_initialize_microblaze_tdep): Add declaration.
+	* mips-fbsd-nat.c (_initialize_mips_fbsd_nat): Add declaration.
+	* mips-fbsd-tdep.c (_initialize_mips_fbsd_tdep): Add declaration.
+	* mips-linux-nat.c (_initialize_mips_linux_nat): Add declaration.
+	* mips-linux-tdep.c (_initialize_mips_linux_tdep): Add declaration.
+	* mips-nbsd-nat.c (_initialize_mipsnbsd_nat): Add declaration.
+	* mips-nbsd-tdep.c (_initialize_mipsnbsd_tdep): Add declaration.
+	* mips-sde-tdep.c (_initialize_mips_sde_tdep): Add declaration.
+	* mips-tdep.c (_initialize_mips_tdep): Add declaration.
+	* mips64-obsd-nat.c (_initialize_mips64obsd_nat): Add declaration.
+	* mips64-obsd-tdep.c (_initialize_mips64obsd_tdep): Add declaration.
+	* mipsread.c (_initialize_mipsread): Add declaration.
+	* mn10300-linux-tdep.c (_initialize_mn10300_linux_tdep): Add declaration.
+	* mn10300-tdep.c (_initialize_mn10300_tdep): Add declaration.
+	* moxie-tdep.c (_initialize_moxie_tdep): Add declaration.
+	* msp430-tdep.c (_initialize_msp430_tdep): Add declaration.
+	* nds32-tdep.c (_initialize_nds32_tdep): Add declaration.
+	* nios2-linux-tdep.c (_initialize_nios2_linux_tdep): Add declaration.
+	* nios2-tdep.c (_initialize_nios2_tdep): Add declaration.
+	* nto-procfs.c (_initialize_procfs): Add declaration.
+	* objc-lang.c (_initialize_objc_language): Add declaration.
+	* observable.c (_initialize_observer): Add declaration.
+	* opencl-lang.c (_initialize_opencl_language): Add declaration.
+	* or1k-linux-tdep.c (_initialize_or1k_linux_tdep): Add declaration.
+	* or1k-tdep.c (_initialize_or1k_tdep): Add declaration.
+	* osabi.c (_initialize_gdb_osabi): Add declaration.
+	* osdata.c (_initialize_osdata): Add declaration.
+	* p-valprint.c (_initialize_pascal_valprint): Add declaration.
+	* parse.c (_initialize_parse): Add declaration.
+	* ppc-fbsd-nat.c (_initialize_ppcfbsd_nat): Add declaration.
+	* ppc-fbsd-tdep.c (_initialize_ppcfbsd_tdep): Add declaration.
+	* ppc-linux-nat.c (_initialize_ppc_linux_nat): Add declaration.
+	* ppc-linux-tdep.c (_initialize_ppc_linux_tdep): Add declaration.
+	* ppc-nbsd-nat.c (_initialize_ppcnbsd_nat): Add declaration.
+	* ppc-nbsd-tdep.c (_initialize_ppcnbsd_tdep): Add declaration.
+	* ppc-obsd-nat.c (_initialize_ppcobsd_nat): Add declaration.
+	* ppc-obsd-tdep.c (_initialize_ppcobsd_tdep): Add declaration.
+	* printcmd.c (_initialize_printcmd): Add declaration.
+	* probe.c (_initialize_probe): Add declaration.
+	* proc-api.c (_initialize_proc_api): Add declaration.
+	* proc-events.c (_initialize_proc_events): Add declaration.
+	* proc-service.c (_initialize_proc_service): Add declaration.
+	* procfs.c (_initialize_procfs): Add declaration.
+	* producer.c (_initialize_producer): Add declaration.
+	* psymtab.c (_initialize_psymtab): Add declaration.
+	* python/python.c (_initialize_python): Add declaration.
+	* ravenscar-thread.c (_initialize_ravenscar): Add declaration.
+	* record-btrace.c (_initialize_record_btrace): Add declaration.
+	* record-full.c (_initialize_record_full): Add declaration.
+	* record.c (_initialize_record): Add declaration.
+	* regcache-dump.c (_initialize_regcache_dump): Add declaration.
+	* regcache.c (_initialize_regcache): Add declaration.
+	* reggroups.c (_initialize_reggroup): Add declaration.
+	* remote-notif.c (_initialize_notif): Add declaration.
+	* remote-sim.c (_initialize_remote_sim): Add declaration.
+	* remote.c (_initialize_remote): Add declaration.
+	* reverse.c (_initialize_reverse): Add declaration.
+	* riscv-fbsd-nat.c (_initialize_riscv_fbsd_nat): Add declaration.
+	* riscv-fbsd-tdep.c (_initialize_riscv_fbsd_tdep): Add declaration.
+	* riscv-linux-nat.c (_initialize_riscv_linux_nat): Add declaration.
+	* riscv-linux-tdep.c (_initialize_riscv_linux_tdep): Add declaration.
+	* riscv-tdep.c (_initialize_riscv_tdep): Add declaration.
+	* rl78-tdep.c (_initialize_rl78_tdep): Add declaration.
+	* rs6000-aix-tdep.c (_initialize_rs6000_aix_tdep): Add declaration.
+	* rs6000-lynx178-tdep.c (_initialize_rs6000_lynx178_tdep):
+	Add declaration.
+	* rs6000-nat.c (_initialize_rs6000_nat): Add declaration.
+	* rs6000-tdep.c (_initialize_rs6000_tdep): Add declaration.
+	* run-on-main-thread.c (_initialize_run_on_main_thread): Add declaration.
+	* rust-exp.y (_initialize_rust_exp): Add declaration.
+	* rx-tdep.c (_initialize_rx_tdep): Add declaration.
+	* s12z-tdep.c (_initialize_s12z_tdep): Add declaration.
+	* s390-linux-nat.c (_initialize_s390_nat): Add declaration.
+	* s390-linux-tdep.c (_initialize_s390_linux_tdep): Add declaration.
+	* s390-tdep.c (_initialize_s390_tdep): Add declaration.
+	* score-tdep.c (_initialize_score_tdep): Add declaration.
+	* ser-go32.c (_initialize_ser_dos): Add declaration.
+	* ser-mingw.c (_initialize_ser_windows): Add declaration.
+	* ser-pipe.c (_initialize_ser_pipe): Add declaration.
+	* ser-tcp.c (_initialize_ser_tcp): Add declaration.
+	* ser-uds.c (_initialize_ser_socket): Add declaration.
+	* ser-unix.c (_initialize_ser_hardwire): Add declaration.
+	* serial.c (_initialize_serial): Add declaration.
+	* sh-linux-tdep.c (_initialize_sh_linux_tdep): Add declaration.
+	* sh-nbsd-nat.c (_initialize_shnbsd_nat): Add declaration.
+	* sh-nbsd-tdep.c (_initialize_shnbsd_tdep): Add declaration.
+	* sh-tdep.c (_initialize_sh_tdep): Add declaration.
+	* skip.c (_initialize_step_skip): Add declaration.
+	* sol-thread.c (_initialize_sol_thread): Add declaration.
+	* solib-aix.c (_initialize_solib_aix): Add declaration.
+	* solib-darwin.c (_initialize_darwin_solib): Add declaration.
+	* solib-dsbt.c (_initialize_dsbt_solib): Add declaration.
+	* solib-frv.c (_initialize_frv_solib): Add declaration.
+	* solib-svr4.c (_initialize_svr4_solib): Add declaration.
+	* solib-target.c (_initialize_solib_target): Add declaration.
+	* solib.c (_initialize_solib): Add declaration.
+	* source-cache.c (_initialize_source_cache): Add declaration.
+	* source.c (_initialize_source): Add declaration.
+	* sparc-linux-nat.c (_initialize_sparc_linux_nat): Add declaration.
+	* sparc-linux-tdep.c (_initialize_sparc_linux_tdep): Add declaration.
+	* sparc-nat.c (_initialize_sparc_nat): Add declaration.
+	* sparc-nbsd-nat.c (_initialize_sparcnbsd_nat): Add declaration.
+	* sparc-nbsd-tdep.c (_initialize_sparcnbsd_tdep): Add declaration.
+	* sparc-obsd-tdep.c (_initialize_sparc32obsd_tdep): Add declaration.
+	* sparc-sol2-tdep.c (_initialize_sparc_sol2_tdep): Add declaration.
+	* sparc-tdep.c (_initialize_sparc_tdep): Add declaration.
+	* sparc64-fbsd-nat.c (_initialize_sparc64fbsd_nat): Add declaration.
+	* sparc64-fbsd-tdep.c (_initialize_sparc64fbsd_tdep): Add declaration.
+	* sparc64-linux-nat.c (_initialize_sparc64_linux_nat): Add declaration.
+	* sparc64-linux-tdep.c (_initialize_sparc64_linux_tdep): Add declaration.
+	* sparc64-nat.c (_initialize_sparc64_nat): Add declaration.
+	* sparc64-nbsd-nat.c (_initialize_sparc64nbsd_nat): Add declaration.
+	* sparc64-nbsd-tdep.c (_initialize_sparc64nbsd_tdep): Add declaration.
+	* sparc64-obsd-nat.c (_initialize_sparc64obsd_nat): Add declaration.
+	* sparc64-obsd-tdep.c (_initialize_sparc64obsd_tdep): Add declaration.
+	* sparc64-sol2-tdep.c (_initialize_sparc64_sol2_tdep): Add declaration.
+	* sparc64-tdep.c (_initialize_sparc64_adi_tdep): Add declaration.
+	* stabsread.c (_initialize_stabsread): Add declaration.
+	* stack.c (_initialize_stack): Add declaration.
+	* stap-probe.c (_initialize_stap_probe): Add declaration.
+	* std-regs.c (_initialize_frame_reg): Add declaration.
+	* symfile-debug.c (_initialize_symfile_debug): Add declaration.
+	* symfile-mem.c (_initialize_symfile_mem): Add declaration.
+	* symfile.c (_initialize_symfile): Add declaration.
+	* symmisc.c (_initialize_symmisc): Add declaration.
+	* symtab.c (_initialize_symtab): Add declaration.
+	* target.c (_initialize_target): Add declaration.
+	* target-connection.c (_initialize_target_connection): Add
+	declaration.
+	* target-dcache.c (_initialize_target_dcache): Add declaration.
+	* target-descriptions.c (_initialize_target_descriptions): Add declaration.
+	* thread.c (_initialize_thread): Add declaration.
+	* tic6x-linux-tdep.c (_initialize_tic6x_linux_tdep): Add declaration.
+	* tic6x-tdep.c (_initialize_tic6x_tdep): Add declaration.
+	* tilegx-linux-nat.c (_initialize_tile_linux_nat): Add declaration.
+	* tilegx-linux-tdep.c (_initialize_tilegx_linux_tdep): Add declaration.
+	* tilegx-tdep.c (_initialize_tilegx_tdep): Add declaration.
+	* tracectf.c (_initialize_ctf): Add declaration.
+	* tracefile-tfile.c (_initialize_tracefile_tfile): Add declaration.
+	* tracefile.c (_initialize_tracefile): Add declaration.
+	* tracepoint.c (_initialize_tracepoint): Add declaration.
+	* tui/tui-hooks.c (_initialize_tui_hooks): Add declaration.
+	* tui/tui-interp.c (_initialize_tui_interp): Add declaration.
+	* tui/tui-layout.c (_initialize_tui_layout): Add declaration.
+	* tui/tui-regs.c (_initialize_tui_regs): Add declaration.
+	* tui/tui-stack.c (_initialize_tui_stack): Add declaration.
+	* tui/tui-win.c (_initialize_tui_win): Add declaration.
+	* tui/tui.c (_initialize_tui): Add declaration.
+	* typeprint.c (_initialize_typeprint): Add declaration.
+	* ui-style.c (_initialize_ui_style): Add declaration.
+	* unittests/array-view-selftests.c (_initialize_array_view_selftests): Add declaration.
+	* unittests/child-path-selftests.c (_initialize_child_path_selftests): Add declaration.
+	* unittests/cli-utils-selftests.c (_initialize_cli_utils_selftests): Add declaration.
+	* unittests/common-utils-selftests.c (_initialize_common_utils_selftests): Add declaration.
+	* unittests/copy_bitwise-selftests.c (_initialize_copy_bitwise_utils_selftests): Add declaration.
+	* unittests/environ-selftests.c (_initialize_environ_selftests): Add declaration.
+	* unittests/filtered_iterator-selftests.c
+	(_initialize_filtered_iterator_selftests): Add declaration.
+	* unittests/format_pieces-selftests.c (_initialize_format_pieces_selftests): Add declaration.
+	* unittests/function-view-selftests.c (_initialize_function_view_selftests): Add declaration.
+	* unittests/help-doc-selftests.c (_initialize_help_doc_selftests): Add declaration.
+	* unittests/lookup_name_info-selftests.c (_initialize_lookup_name_info_selftests): Add declaration.
+	* unittests/main-thread-selftests.c
+	(_initialize_main_thread_selftests): Add declaration.
+	* unittests/memory-map-selftests.c (_initialize_memory_map_selftests): Add declaration.
+	* unittests/memrange-selftests.c (_initialize_memrange_selftests): Add declaration.
+	* unittests/mkdir-recursive-selftests.c (_initialize_mkdir_recursive_selftests): Add declaration.
+	* unittests/observable-selftests.c (_initialize_observer_selftest): Add declaration.
+	* unittests/offset-type-selftests.c (_initialize_offset_type_selftests): Add declaration.
+	* unittests/optional-selftests.c (_initialize_optional_selftests): Add declaration.
+	* unittests/parse-connection-spec-selftests.c (_initialize_parse_connection_spec_selftests): Add declaration.
+	* unittests/rsp-low-selftests.c (_initialize_rsp_low_selftests): Add declaration.
+	* unittests/scoped_fd-selftests.c (_initialize_scoped_fd_selftests): Add declaration.
+	* unittests/scoped_mmap-selftests.c (_initialize_scoped_mmap_selftests): Add declaration.
+	* unittests/scoped_restore-selftests.c (_initialize_scoped_restore_selftests): Add declaration.
+	* unittests/string_view-selftests.c (_initialize_string_view_selftests): Add declaration.
+	* unittests/style-selftests.c (_initialize_style_selftest): Add declaration.
+	* unittests/tracepoint-selftests.c (_initialize_tracepoint_selftests): Add declaration.
+	* unittests/tui-selftests.c (_initialize_tui_selftest): Add
+	declaration.
+	* unittests/unpack-selftests.c (_initialize_unpack_selftests): Add declaration.
+	* unittests/utils-selftests.c (_initialize_utils_selftests): Add declaration.
+	* unittests/vec-utils-selftests.c (_initialize_vec_utils_selftests): Add declaration.
+	* unittests/xml-utils-selftests.c (_initialize_xml_utils): Add declaration.
+	* user-regs.c (_initialize_user_regs): Add declaration.
+	* utils.c (_initialize_utils): Add declaration.
+	* v850-tdep.c (_initialize_v850_tdep): Add declaration.
+	* valops.c (_initialize_valops): Add declaration.
+	* valprint.c (_initialize_valprint): Add declaration.
+	* value.c (_initialize_values): Add declaration.
+	* varobj.c (_initialize_varobj): Add declaration.
+	* vax-bsd-nat.c (_initialize_vaxbsd_nat): Add declaration.
+	* vax-nbsd-tdep.c (_initialize_vaxnbsd_tdep): Add declaration.
+	* vax-tdep.c (_initialize_vax_tdep): Add declaration.
+	* windows-nat.c (_initialize_windows_nat): Add declaration.
+	(_initialize_check_for_gdb_ini): Add declaration.
+	(_initialize_loadable): Add declaration.
+	* windows-tdep.c (_initialize_windows_tdep): Add declaration.
+	* x86-bsd-nat.c (_initialize_x86_bsd_nat): Add declaration.
+	* x86-linux-nat.c (_initialize_x86_linux_nat): Add declaration.
+	* xcoffread.c (_initialize_xcoffread): Add declaration.
+	* xml-support.c (_initialize_xml_support): Add declaration.
+	* xstormy16-tdep.c (_initialize_xstormy16_tdep): Add declaration.
+	* xtensa-linux-nat.c (_initialize_xtensa_linux_nat): Add declaration.
+	* xtensa-linux-tdep.c (_initialize_xtensa_linux_tdep): Add declaration.
+	* xtensa-tdep.c (_initialize_xtensa_tdep): Add declaration.
+
+2020-01-13  Simon Marchi  <simon.marchi@polymtl.ca>
+
+	* regformats/regdat.sh: Generate declaration for init function.
+
+2020-01-13  Simon Marchi  <simon.marchi@polymtl.ca>
+
+	* remote-sim.c (next_pid, INITIAL_PID, sim_inferior_data): Move
+	up.
+	(gdbsim_target) <get_inferior_data_by_ptid, resume_one_inferior,
+	close_one_inferior>: New methods.
+	(get_sim_inferior_data_by_ptid): Move to gdbsim_target,
+	pass down target to find_inferior_pid.
+	(gdbsim_target::fetch_registers, gdbsim_target::store_registers):
+	Pass down target to find_inferior_ptid.
+	(gdbsim_target::create_inferior): Pass down target to
+	add_thread_silent.
+	(gdbsim_close_inferior): Move to gdbsim_close_inferior, pass
+	target down to find_inferior_ptid and switch_to_thread.
+	(gdbsim_target::close): Update to call close_one_inferior.
+	(struct resume_data): Remove.
+	(gdbsim_resume_inferior): Move to gdbsim_target.  Take arguments
+	directly, rather than through a void pointer.
+	(gdbsim_target::resume): Update to call resume_one_inferior.
+
+2020-01-12  Simon Marchi  <simon.marchi@polymtl.ca>
+
+	* gdbsupport/gdb_wait.c: Include gdb_wait.h.
+
+2020-01-12  Pedro Alves  <palves@redhat.com>
+
+	* bsd-kvm.c (bsd_kvm_target::close): Call exit_inferior_silent
+	directly for the current inferior instead of
+	discard_all_inferiors.
+	(discard_all_inferiors): Delete.
+
+2020-01-11  Tom Tromey  <tom@tromey.com>
+
+	* tui/tui-wingeneral.c (box_win): Check cli_styling.
+	* tui/tui-winsource.c (tui_source_window_base::refill): Use
+	deprecated_safe_get_selected_frame.
+
+2020-01-10  Tankut Baris Aktemur  <tankut.baris.aktemur@intel.com>
+
+	* inferior.c (print_inferior): Switch inferior before printing it.
+
+2020-01-10  Aleksandar Paunovic  <aleksandar.paunovic@intel.com>
+	    Pedro Alves  <palves@redhat.com>
+
+	* progspace-and-thread.c (switch_to_program_space_and_thread):
+	Assert there's an inferior for PSPACE.  Use
+	switch_to_inferior_no_thread to switch the inferior too.
+	* progspace.c (program_space::~program_space): Call
+	clear_symtab_users here, with SYMFILE_DEFER_BP_RESET.
+	(program_space::free_all_objfiles): Don't call clear_symtab_users
+	here.
+	* symfile.c (symbol_file_clear): Call clear_symtab_users here.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* NEWS: Mention multi-target debugging, "info connections", and
+	"add-inferior -no-connection".
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* infrun.c: Include "target-connection.h".
+	(check_multi_target_resumption): New.
+	(proceed): Call it.
+	* target-connection.c (make_target_connection_string): Make
+	extern.
+	* target-connection.h (make_target_connection_string): Declare.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (COMMON_SFILES): Add target-connection.c.
+	* inferior.c (uiout_field_connection): New function.
+	(print_inferior): Add new "connection-id" column.
+	(add_inferior_command): Show connection number/string of added
+	inferior.
+	* process-stratum-target.h
+	(process_stratum_target::connection_string): New virtual method.
+	(process_stratum_target::connection_number): New field.
+	* remote.c (remote_target::connection_string): New override.
+	* target-connection.c: New file.
+	* target-connection.h: New file.
+	* target.c (decref_target): Remove process_stratum targets from
+	the connection list.
+	(target_stack::push): Add process_stratum targets to the
+	connection list.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	Revert:
+	2016-04-12  Pedro Alves  <palves@redhat.com>
+	* serial.c (serial_open, serial_fdopen_ops, do_serial_close):
+	Remove references to name.
+	* serial.h (struct serial) <name>: Delete.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* gdbarch-selftests.c (register_to_value_test): Remove "target
+	already pushed" check.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+	    John Baldwin  <jhb@FreeBSD.org>
+
+	* aarch64-linux-nat.c
+	(aarch64_linux_nat_target::thread_architecture): Adjust.
+	* ada-tasks.c (print_ada_task_info): Adjust find_thread_ptid call.
+	(task_command_1): Likewise.
+	* aix-thread.c (sync_threadlists, aix_thread_target::resume)
+	(aix_thread_target::wait, aix_thread_target::fetch_registers)
+	(aix_thread_target::store_registers)
+	(aix_thread_target::thread_alive): Adjust.
+	* amd64-fbsd-tdep.c: Include "inferior.h".
+	(amd64fbsd_get_thread_local_address): Pass down target.
+	* amd64-linux-nat.c (ps_get_thread_area): Use ps_prochandle
+	thread's gdbarch instead of target_gdbarch.
+	* break-catch-sig.c (signal_catchpoint_print_it): Adjust call to
+	get_last_target_status.
+	* break-catch-syscall.c (print_it_catch_syscall): Likewise.
+	* breakpoint.c (breakpoints_should_be_inserted_now): Consider all
+	inferiors.
+	(update_inserted_breakpoint_locations): Skip if inferiors with no
+	execution.
+	(update_global_location_list): When handling moribund locations,
+	find representative inferior for location's pspace, and use thread
+	count of its process_stratum target.
+	* bsd-kvm.c (bsd_kvm_target_open): Pass target down.
+	* bsd-uthread.c (bsd_uthread_target::wait): Use
+	as_process_stratum_target and adjust thread_change_ptid and
+	add_thread calls.
+	(bsd_uthread_target::update_thread_list): Use
+	as_process_stratum_target and adjust find_thread_ptid,
+	thread_change_ptid and add_thread calls.
+	* btrace.c (maint_btrace_packet_history_cmd): Adjust
+	find_thread_ptid call.
+	* corelow.c (add_to_thread_list): Adjust add_thread call.
+	(core_target_open): Adjust add_thread_silent and thread_count
+	calls.
+	(core_target::pid_to_str): Adjust find_inferior_ptid call.
+	* ctf.c (ctf_target_open): Adjust add_thread_silent call.
+	* event-top.c (async_disconnect): Pop targets from all inferiors.
+	* exec.c (add_target_sections): Push exec target on all inferiors
+	sharing the program space.
+	(remove_target_sections): Remove the exec target from all
+	inferiors sharing the program space.
+	(exec_on_vfork): New.
+	* exec.h (exec_on_vfork): Declare.
+	* fbsd-nat.c (fbsd_add_threads): Add fbsd_nat_target parameter.
+	Pass it down.
+	(fbsd_nat_target::update_thread_list): Adjust.
+	(fbsd_nat_target::resume): Adjust.
+	(fbsd_handle_debug_trap): Add fbsd_nat_target parameter.  Pass it
+	down.
+	(fbsd_nat_target::wait, fbsd_nat_target::post_attach): Adjust.
+	* fbsd-tdep.c (fbsd_corefile_thread): Adjust
+	get_thread_arch_regcache call.
+	* fork-child.c (gdb_startup_inferior): Pass target down to
+	startup_inferior and set_executing.
+	* gdbthread.h (struct process_stratum_target): Forward declare.
+	(add_thread, add_thread_silent, add_thread_with_info)
+	(in_thread_list): Add process_stratum_target parameter.
+	(find_thread_ptid(inferior*, ptid_t)): New overload.
+	(find_thread_ptid, thread_change_ptid): Add process_stratum_target
 	parameter.
-	(remote_target::getpkt_or_notif_sane_1)
-	(remote_target::getpkt_sane)
-	(remote_target::getpkt_or_notif_sane): Likewise.
-	(class remote_target) <putpkt>: New overload.
-	(remote_target::read_frame): Change type of "buf_p".  Remove
-	sizeof_p parameter.
-	(packet_ok): New overload.
-	(packet_check_result): New overload.
-	Update all uses.
-
-2019-01-14  Tom Tromey  <tom@tromey.com>
-
-	* remote-notif.c (handle_notification, remote_notif_ack)
-	(remote_notif_parse): Make "buf" const.
-	* remote-notif.h (struct notif_client) <parse, ack>: Make "buf"
-	const.
-	(remote_notif_parse, remote_notif_ack, handle_notification):
-	Likewise.
-	* remote.c (remote_notif_stop_parse): Make "buf" const.
-	(remote_target::remote_parse_stop_reply): Make "buf" const.
-	(remote_notif_stop_ack): Make "buf" const.
-
-2019-01-14  Tom Tromey  <tom@tromey.com>
-
-	* remote.c (remote_console_output): Make parameter const.
-
-2019-01-14  Tom Tromey  <tom@tromey.com>
-
-	* target-debug.h (target_debug_print_signals): Constify.
-	* nto-procfs.c (nto_procfs_target::pass_signals): Update.
-	* procfs.c (procfs_target::pass_signals): Update.
-	* linux-nat.c (linux_nat_target::pass_signals): Update.
-	* linux-nat.h (class linux_nat_target) <pass_signals>: Update.
-	* target-delegates.c: Rebuild.
-	* remote.c (remote_target::program_signals): Update.
-	(remote_target::pass_signals): Update.
-	* target.c (target_pass_signals): Constify argument.
-	(target_program_signals): Likewise.
-	* target.h (struct target_ops) <pass_signals, program_signals>:
-	Constify argument.
-	(target_pass_signals, target_program_signals): Constify argument.
-
-2019-01-14  Tom Tromey  <tom@tromey.com>
-
-	PR tui/28819:
-	* tui/tui-io.c (gdb_wgetch): Print \r when needed.
-
-2019-01-14  Pedro Franco de Carvalho  <pedromfc@linux.ibm.com>
-
-	* ppc-tdep.h (struct gdbarch_tdep) <ppc_v0_alias_regnum>: New
+	(all_threads()): Delete overload.
+	(all_threads, all_non_exited_threads): Add process_stratum_target
+	parameter.
+	(all_threads_safe): Use brace initialization.
+	(thread_count): Add process_stratum_target parameter.
+	(set_resumed, set_running, set_stop_requested, set_executing)
+	(threads_are_executing, finish_thread_state): Add
+	process_stratum_target parameter.
+	(switch_to_thread): Use is_current_thread.
+	* i386-fbsd-tdep.c: Include "inferior.h".
+	(i386fbsd_get_thread_local_address): Pass down target.
+	* i386-linux-nat.c (i386_linux_nat_target::low_resume): Adjust.
+	* inf-child.c (inf_child_target::maybe_unpush_target): Remove
+	have_inferiors check.
+	* inf-ptrace.c (inf_ptrace_target::create_inferior)
+	(inf_ptrace_target::attach): Adjust.
+	* infcall.c (run_inferior_call): Adjust.
+	* infcmd.c (run_command_1): Pass target to
+	scoped_finish_thread_state.
+	(proceed_thread_callback): Skip inferiors with no execution.
+	(continue_command): Rename 'all_threads' local to avoid hiding
+	'all_threads' function.  Adjust get_last_target_status call.
+	(prepare_one_step): Adjust set_running call.
+	(signal_command): Use user_visible_resume_target.  Compare thread
+	pointers instead of inferior_ptid.
+	(info_program_command): Adjust to pass down target.
+	(attach_command): Mark target's 'thread_executing' flag.
+	(stop_current_target_threads_ns): New, factored out from ...
+	(interrupt_target_1): ... this.  Switch inferior before making
+	target calls.
+	* inferior-iter.h
+	(struct all_inferiors_iterator, struct all_inferiors_range)
+	(struct all_inferiors_safe_range)
+	(struct all_non_exited_inferiors_range): Filter on
+	process_stratum_target too.  Remove explicit.
+	* inferior.c (inferior::inferior): Push dummy target on target
+	stack.
+	(find_inferior_pid, find_inferior_ptid, number_of_live_inferiors):
+	Add process_stratum_target parameter, and pass it down.
+	(have_live_inferiors): Adjust.
+	(switch_to_inferior_and_push_target): New.
+	(add_inferior_command, clone_inferior_command): Handle
+	"-no-connection" parameter.  Use
+	switch_to_inferior_and_push_target.
+	(_initialize_inferior): Mention "-no-connection" option in
+	the help of "add-inferior" and "clone-inferior" commands.
+	* inferior.h: Include "process-stratum-target.h".
+	(interrupt_target_1): Use bool.
+	(struct inferior) <push_target, unpush_target, target_is_pushed,
+	find_target_beneath, top_target, process_target, target_at,
+	m_stack>: New.
+	(discard_all_inferiors): Delete.
+	(find_inferior_pid, find_inferior_ptid, number_of_live_inferiors)
+	(all_inferiors, all_non_exited_inferiors): Add
+	process_stratum_target parameter.
+	* infrun.c: Include "gdb_select.h" and <unordered_map>.
+	(target_last_proc_target): New global.
+	(follow_fork_inferior): Push target on new inferior.  Pass target
+	to add_thread_silent.  Call exec_on_vfork.  Handle target's
+	reference count.
+	(follow_fork): Adjust get_last_target_status call.  Also consider
+	target.
+	(follow_exec): Push target on new inferior.
+	(struct execution_control_state) <target>: New field.
+	(user_visible_resume_target): New.
+	(do_target_resume): Call target_async.
+	(resume_1): Set target's threads_executing flag.  Consider resume
+	target.
+	(commit_resume_all_targets): New.
+	(proceed): Also consider resume target.  Skip threads of inferiors
+	with no execution.  Commit resumtion in all targets.
+	(start_remote): Pass current inferior to wait_for_inferior.
+	(infrun_thread_stop_requested): Consider target as well.  Pass
+	thread_info pointer to clear_inline_frame_state instead of ptid.
+	(infrun_thread_thread_exit): Consider target as well.
+	(random_pending_event_thread): New inferior parameter.  Use it.
+	(do_target_wait): Rename to ...
+	(do_target_wait_1): ... this.  Add inferior parameter, and pass it
+	down.
+	(threads_are_resumed_pending_p, do_target_wait): New.
+	(prepare_for_detach): Adjust calls.
+	(wait_for_inferior): New inferior parameter.  Handle it.  Use
+	do_target_wait_1 instead of do_target_wait.
+	(fetch_inferior_event): Adjust.  Switch to representative
+	inferior.  Pass target down.
+	(set_last_target_status): Add process_stratum_target parameter.
+	Save target in global.
+	(get_last_target_status): Add process_stratum_target parameter and
+	handle it.
+	(nullify_last_target_wait_ptid): Clear 'target_last_proc_target'.
+	(context_switch): Check inferior_ptid == null_ptid before calling
+	inferior_thread().
+	(get_inferior_stop_soon): Pass down target.
+	(wait_one): Rename to ...
+	(poll_one_curr_target): ... this.
+	(struct wait_one_event): New.
+	(wait_one): New.
+	(stop_all_threads): Adjust.
+	(handle_no_resumed, handle_inferior_event): Adjust to consider the
+	event's target.
+	(switch_back_to_stepped_thread): Also consider target.
+	(print_stop_event): Update.
+	(normal_stop): Update.  Also consider the resume target.
+	* infrun.h (wait_for_inferior): Remove declaration.
+	(user_visible_resume_target): New declaration.
+	(get_last_target_status, set_last_target_status): New
+	process_stratum_target parameter.
+	* inline-frame.c (clear_inline_frame_state(ptid_t)): Add
+	process_stratum_target parameter, and use it.
+	(clear_inline_frame_state (thread_info*)): New.
+	* inline-frame.c (clear_inline_frame_state(ptid_t)): Add
+	process_stratum_target parameter.
+	(clear_inline_frame_state (thread_info*)): Declare.
+	* linux-fork.c (delete_checkpoint_command): Pass target down to
+	find_thread_ptid.
+	(checkpoint_command): Adjust.
+	* linux-nat.c (linux_nat_target::follow_fork): Switch to thread
+	instead of just tweaking inferior_ptid.
+	(linux_nat_switch_fork): Pass target down to thread_change_ptid.
+	(exit_lwp): Pass target down to find_thread_ptid.
+	(attach_proc_task_lwp_callback): Pass target down to
+	add_thread/set_running/set_executing.
+	(linux_nat_target::attach): Pass target down to
+	thread_change_ptid.
+	(get_detach_signal): Pass target down to find_thread_ptid.
+	Consider last target status's target.
+	(linux_resume_one_lwp_throw, resume_lwp)
+	(linux_handle_syscall_trap, linux_handle_extended_wait, wait_lwp)
+	(stop_wait_callback, save_stop_reason, linux_nat_filter_event)
+	(linux_nat_wait_1, resume_stopped_resumed_lwps): Pass target down.
+	(linux_nat_target::async_wait_fd): New.
+	(linux_nat_stop_lwp, linux_nat_target::thread_address_space): Pass
+	target down.
+	* linux-nat.h (linux_nat_target::async_wait_fd): Declare.
+	* linux-tdep.c (get_thread_arch_regcache): Pass target down.
+	* linux-thread-db.c (struct thread_db_info::process_target): New
 	field.
-	* rs6000-tdep.c: Include reggroups.h.
-	(IS_V_ALIAS_PSEUDOREG): Define.
-	(rs6000_register_name): Return names for the "vX" aliases.
-	(rs6000_pseudo_register_type): Return type for the "vX" aliases.
-	(rs6000_pseudo_register_reggroup_p): Restore.  Handle "vX"
-	aliases.  Call default_register_reggroup_p for all other
-	pseudo-registers.
-	(v_alias_pseudo_register_read, v_alias_pseudo_register_write):
-	New functions.
-	(rs6000_pseudo_register_read, rs6000_pseudo_register_write):
-	Handle "vX" aliases.
-	(v_alias_pseudo_register_collect): New function.
-	(rs6000_ax_pseudo_register_collect): Handle "vX" aliases.
-	(rs6000_gdbarch_init): Initialize "vX" aliases as
-	pseudo-registers.  Restore registration of
-	rs6000_pseudo_register_reggroup_p with
-	set_tdesc_pseudo_register_reggroup_p.
-
-2019-01-13  Max Filippov  <jcmvbkbc@gmail.com>
-
-	* xtensa-linux-tdep.c (xtensa_linux_init_abi): Update
-	tdep->num_pseudo_regs. Add calls to set_gdbarch_num_regs and
-	set_gdbarch_num_pseudo_regs.
-
-2019-01-12  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
-
-	* cli/cli-style.h (class cli_style_option): <add_setshow_commands>
-	Remove arg prefixname, add do_set and do_show.
-	Add member functions set_list and show_list.
-	* cli/cli-style.c (class cli_style_option): Update accordingly.
-	(style_set_list): Move to file scope.
-	(style_show_list): Likewise.
-	(set_style): Call help_list.
-	(show_style): Call cmd_show_list.
-	(_initialize_cli_style): New macro STYLE_ADD_SETSHOW_COMMANDS.
-	Update to use the new macro.
-
-2019-10-12  Joel Brobecker  <brobecker@adacore.com>
-
-	* ada-lang.c (_initialize_ada_language): Expand the help text
-	for the "catch exception" command.
-
-2019-01-12  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
-
-	* symtab.c (matching_obj_sections): Initialize obj,
-	declare it closer to its usage.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* thread-iter.h (inf_threads_iterator): Use next_iterator.
-	(basic_inf_threads_range): Remove.
-	(inf_threads_range, inf_non_exited_threads_range)
-	(safe_inf_threads_range): Use next_adapter.
-
-2019-01-10  Keith Seitz  <keiths@redhat.com>
-
-	PR gdb/23712
-	PR symtab/23010
-	* dwarf2read.c (dw2_add_symbol_to_list): Remove.
-	(fixup_go_packaging, new_symbol): Use add_symbol_to_list.
-
-2019-01-10  Keith Seitz  <keiths@redhat.com>
-
-	PR gdb/23712
-	PR symtab/23010
-	* dictionary.c (pending_to_vector): Remove.
-	(dict_create_hashed_1, dict_create_linear_1, dict_add_pending_1):
-	Remove _1 suffix, replacing functions of the same name.  Update
-	all callers.
-	(dict_create_hashed, dict_create_hashed_expandable)
-	(dict_create_linear, dict_create_linear_expandable, dict_free)
-	(dict_add_symbol, dict_add_pending, dict_size, dict_empty):
-	Make functions static.
-
-2019-01-10  Keith Seitz  <keiths@redhat.com>
-
-	PR gdb/23712
-	PR symtab/23010
-	* dictionary.h (struct dictionary): Replace declaration with
-	multidictionary.
-	(dict_create_hashed, dict_create_hashed_expandable)
-	(dict_create_linear, dict_create_linear_expandable)
-	(dict_free, dict_add_symbol, dict_add_pending, dict_empty)
-	(dict_iterator_first, dict_iterator_next, dict_iter_match_first)
-	(dict_iter_match_next, dict_size): Rename to "mdict_" versions
-	taking multidictionary argument.
-	[ALL_DICT_SYMBOLS]: Update for multidictionary.
-	* block.h (struct block) <dict>: Change to multidictionary
-	and rename `multidict'.
-	* block.c, buildsym.c, jit.c, mdebugread.c, objfiles.c,
-	symmisc.c: Update all dictionary references to multidictionary.
-
-2019-01-10  Keith Seitz  <keiths@redhat.com>
-
-	PR gdb/23712
-	PR symtab/23010
-	* dictionary.c: Include unordered_map.
-	(pending_to_vector): New function.
-	(dict_create_hashed_1, dict_create_linear_1, dict_add_pending_1):
-	Rewrite the non-"_1" functions to take vector instead
-	of linked list.
-	(dict_create_hashed, dict_create_linear, dict_add_pending): Use the
-	"new" _1 versions of the same name.
-	(multidictionary): Define.
-	(std::hash<enum language): New definition.
-	(collate_pending_symbols_by_language, mdict_create_hashed)
-	(mdict_create_hashed_expandable, mdict_create_linear)
-	(mdict_create_linear_expandable, mdict_free)
-	(find_language_dictionary, create_new_language_dictionary)
-	(mdict_add_symbol, mdict_add_pending, mdict_iterator_first)
-	(mdict_iterator_next, mdict_iter_match_first, mdict_iter_match_next)
-	(mdict_size, mdict_empty): New functions.
-	* dictionary.h (mdict_iterator): Define.
-
-2019-01-10  Pedro Alves  <palves@redhat.com>
-
-	* breakpoint.c (read_uploaded_action)
-	(create_tracepoint_from_upload): Adjust to use
-	gdb::unique_xmalloc_ptr.
-	* ctf.c (ctf_write_uploaded_tp):
-	(SET_ARRAY_FIELD): Use emplace_back.
-	(SET_STRING_FIELD): Adjust to use gdb::unique_xmalloc_ptr.
-	* tracefile-tfile.c (tfile_write_uploaded_tp):
-	* tracepoint.c (parse_tracepoint_definition): Adjust to use
-	gdb::unique_xmalloc_ptr.
-	* tracepoint.h (struct uploaded_tp) <cond, actions, step_actions,
-	at_string, cond_string, cmd_strings>: Replace char pointers
-	with gdb::unique_xmalloc_ptr.
-
-2019-01-10  Pedro Alves  <palves@redhat.com>
-
-	* solib-target.c (library_list_start_library): Don't xstrdup name.
-
-2019-01-10  Pedro Alves  <palves@redhat.com>
-
-	* mdebugread.c (parse_partial_symbols): Use
-	gdb::unique_xmalloc_ptr to manage heap-allocated 'stabsstring'.
-
-2019-01-10  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* linux-fork.c (scoped_switch_fork_info)
-	<~scoped_switch_fork_info>: Fix incorrect variable name.
-
-2019-01-10  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* linux-fork.c (scoped_switch_fork_info)
-	<scoped_switch_fork_info>: Make explicit.
-	<~scoped_switch_fork_info>: Wrap core in TRY/CATCH.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* objfiles.h (objfile::reset_psymtabs): Update.
-	* objfiles.c (objfile::objfile): Update.
-	* psymtab.h (psymtab_storage::obstack): Update.
-	(psymtab_storage::m_obstack): Use gdb::optional.
-	(class psymtab_storage): Update comment.  Remove objfile
+	(add_thread_db_info): Save target.
+	(get_thread_db_info): New process_stratum_target parameter.  Also
+	match target.
+	(delete_thread_db_info): New process_stratum_target parameter.
+	Also match target.
+	(thread_from_lwp): Adjust to pass down target.
+	(thread_db_notice_clone): Pass down target.
+	(check_thread_db_callback): Pass down target.
+	(try_thread_db_load_1): Always push the thread_db target.
+	(try_thread_db_load, record_thread): Pass target down.
+	(thread_db_target::detach): Pass target down.  Always unpush the
+	thread_db target.
+	(thread_db_target::wait, thread_db_target::mourn_inferior): Pass
+	target down.  Always unpush the thread_db target.
+	(find_new_threads_callback, thread_db_find_new_threads_2)
+	(thread_db_target::update_thread_list): Pass target down.
+	(thread_db_target::pid_to_str): Pass current inferior down.
+	(thread_db_target::get_thread_local_address): Pass target down.
+	(thread_db_target::resume, maintenance_check_libthread_db): Pass
+	target down.
+	* nto-procfs.c (nto_procfs_target::update_thread_list): Adjust.
+	* procfs.c (procfs_target::procfs_init_inferior): Declare.
+	(proc_set_current_signal, do_attach, procfs_target::wait): Adjust.
+	(procfs_init_inferior): Rename to ...
+	(procfs_target::procfs_init_inferior): ... this and adjust.
+	(procfs_target::create_inferior, procfs_notice_thread)
+	(procfs_do_thread_registers): Adjust.
+	* ppc-fbsd-tdep.c: Include "inferior.h".
+	(ppcfbsd_get_thread_local_address): Pass down target.
+	* proc-service.c (ps_xfer_memory): Switch current inferior and
+	program space as well.
+	(get_ps_regcache): Pass target down.
+	* process-stratum-target.c
+	(process_stratum_target::thread_address_space)
+	(process_stratum_target::thread_architecture): Pass target down.
+	* process-stratum-target.h
+	(process_stratum_target::threads_executing): New field.
+	(as_process_stratum_target): New.
+	* ravenscar-thread.c
+	(ravenscar_thread_target::update_inferior_ptid): Pass target down.
+	(ravenscar_thread_target::wait, ravenscar_add_thread): Pass target
+	down.
+	* record-btrace.c (record_btrace_target::info_record): Adjust.
+	(record_btrace_target::record_method)
+	(record_btrace_target::record_is_replaying)
+	(record_btrace_target::fetch_registers)
+	(get_thread_current_frame_id, record_btrace_target::resume)
+	(record_btrace_target::wait, record_btrace_target::stop): Pass
+	target down.
+	* record-full.c (record_full_wait_1): Switch to event thread.
+	Pass target down.
+	* regcache.c (regcache::regcache)
+	(get_thread_arch_aspace_regcache, get_thread_arch_regcache): Add
+	process_stratum_target parameter and handle it.
+	(current_thread_target): New global.
+	(get_thread_regcache): Add process_stratum_target parameter and
+	handle it.  Switch inferior before calling target method.
+	(get_thread_regcache): Pass target down.
+	(get_thread_regcache_for_ptid): Pass target down.
+	(registers_changed_ptid): Add process_stratum_target parameter and
+	handle it.
+	(registers_changed_thread, registers_changed): Pass target down.
+	(test_get_thread_arch_aspace_regcache): New.
+	(current_regcache_test): Define a couple local test_target_ops
+	instances and use them for testing.
+	(readwrite_regcache): Pass process_stratum_target parameter.
+	(cooked_read_test, cooked_write_test): Pass mock_target down.
+	* regcache.h (get_thread_regcache, get_thread_arch_regcache)
+	(get_thread_arch_aspace_regcache): Add process_stratum_target
 	parameter.
-	* psymtab.c (psymtab_storage::psymtab_storage): Update.
+	(regcache::target): New method.
+	(regcache::regcache, regcache::get_thread_arch_aspace_regcache)
+	(regcache::registers_changed_ptid): Add process_stratum_target
+	parameter.
+	(regcache::m_target): New field.
+	(registers_changed_ptid): Add process_stratum_target parameter.
+	* remote.c (remote_state::supports_vCont_probed): New field.
+	(remote_target::async_wait_fd): New method.
+	(remote_unpush_and_throw): Add remote_target parameter.
+	(get_current_remote_target): Adjust.
+	(remote_target::remote_add_inferior): Push target.
+	(remote_target::remote_add_thread)
+	(remote_target::remote_notice_new_inferior)
+	(get_remote_thread_info): Pass target down.
+	(remote_target::update_thread_list): Skip threads of inferiors
+	bound to other targets.  (remote_target::close): Don't discard
+	inferiors.  (remote_target::add_current_inferior_and_thread)
+	(remote_target::process_initial_stop_replies)
+	(remote_target::start_remote)
+	(remote_target::remote_serial_quit_handler): Pass down target.
+	(remote_target::remote_unpush_target): New remote_target
+	parameter.  Unpush the target from all inferiors.
+	(remote_target::remote_unpush_and_throw): New remote_target
+	parameter.  Pass it down.
+	(remote_target::open_1): Check whether the current inferior has
+	execution instead of checking whether any inferior is live.  Pass
+	target down.
+	(remote_target::remote_detach_1): Pass down target.  Use
+	remote_unpush_target.
+	(extended_remote_target::attach): Pass down target.
+	(remote_target::remote_vcont_probe): Set supports_vCont_probed.
+	(remote_target::append_resumption): Pass down target.
+	(remote_target::append_pending_thread_resumptions)
+	(remote_target::remote_resume_with_hc, remote_target::resume)
+	(remote_target::commit_resume): Pass down target.
+	(remote_target::remote_stop_ns): Check supports_vCont_probed.
+	(remote_target::interrupt_query)
+	(remote_target::remove_new_fork_children)
+	(remote_target::check_pending_events_prevent_wildcard_vcont)
+	(remote_target::remote_parse_stop_reply)
+	(remote_target::process_stop_reply): Pass down target.
+	(first_remote_resumed_thread): New remote_target parameter.  Pass
+	it down.
+	(remote_target::wait_as): Pass down target.
+	(unpush_and_perror): New remote_target parameter.  Pass it down.
+	(remote_target::readchar, remote_target::remote_serial_write)
+	(remote_target::getpkt_or_notif_sane_1)
+	(remote_target::kill_new_fork_children, remote_target::kill): Pass
+	down target.
+	(remote_target::mourn_inferior): Pass down target.  Use
+	remote_unpush_target.
+	(remote_target::core_of_thread)
+	(remote_target::remote_btrace_maybe_reopen): Pass down target.
+	(remote_target::pid_to_exec_file)
+	(remote_target::thread_handle_to_thread_info): Pass down target.
+	(remote_target::async_wait_fd): New.
+	* riscv-fbsd-tdep.c: Include "inferior.h".
+	(riscv_fbsd_get_thread_local_address): Pass down target.
+	* sol2-tdep.c (sol2_core_pid_to_str): Pass down target.
+	* sol-thread.c (sol_thread_target::wait, ps_lgetregs, ps_lsetregs)
+	(ps_lgetfpregs, ps_lsetfpregs, sol_update_thread_list_callback):
+	Adjust.
+	* solib-spu.c (spu_skip_standalone_loader): Pass down target.
+	* solib-svr4.c (enable_break): Pass down target.
+	* spu-multiarch.c (parse_spufs_run): Pass down target.
+	* spu-tdep.c (spu2ppu_sniffer): Pass down target.
+	* target-delegates.c: Regenerate.
+	* target.c (g_target_stack): Delete.
+	(current_top_target): Return the current inferior's top target.
+	(target_has_execution_1): Refer to the passed-in inferior's top
+	target.
+	(target_supports_terminal_ours): Check whether the initial
+	inferior was already created.
+	(decref_target): New.
+	(target_stack::push): Incref/decref the target.
+	(push_target, push_target, unpush_target): Adjust.
+	(target_stack::unpush): Defref target.
+	(target_is_pushed): Return bool.  Adjust to refer to the current
+	inferior's target stack.
+	(dispose_inferior): Delete, and inline parts ...
+	(target_preopen): ... here.  Only dispose of the current inferior.
+	(target_detach): Hold strong target reference while detaching.
+	Pass target down.
+	(target_thread_name): Add assertion.
+	(target_resume): Pass down target.
+	(target_ops::beneath, find_target_at): Adjust to refer to the
+	current inferior's target stack.
+	(get_dummy_target): New.
+	(target_pass_ctrlc): Pass the Ctrl-C to the first inferior that
+	has a thread running.
+	(initialize_targets): Rename to ...
+	(_initialize_target): ... this.
+	* target.h: Include "gdbsupport/refcounted-object.h".
+	(struct target_ops): Inherit refcounted_object.
+	(target_ops::shortname, target_ops::longname): Make const.
+	(target_ops::async_wait_fd): New method.
+	(decref_target): Declare.
+	(struct target_ops_ref_policy): New.
+	(target_ops_ref): New typedef.
+	(get_dummy_target): Declare function.
+	(target_is_pushed): Return bool.
+	* thread-iter.c (all_matching_threads_iterator::m_inf_matches)
+	(all_matching_threads_iterator::all_matching_threads_iterator):
+	Handle filter target.
+	* thread-iter.h (struct all_matching_threads_iterator, struct
+	all_matching_threads_range, class all_non_exited_threads_range):
+	Filter by target too.  Remove explicit.
+	* thread.c (threads_executing): Delete.
+	(inferior_thread): Pass down current inferior.
+	(clear_thread_inferior_resources): Pass down thread pointer
+	instead of ptid_t.
+	(add_thread_silent, add_thread_with_info, add_thread): Add
+	process_stratum_target parameter.  Use it for thread and inferior
+	searches.
+	(is_current_thread): New.
+	(thread_info::deletable): Use it.
+	(find_thread_ptid, thread_count, in_thread_list)
+	(thread_change_ptid, set_resumed, set_running): New
+	process_stratum_target parameter.  Pass it down.
+	(set_executing): New process_stratum_target parameter.  Pass it
+	down.  Adjust reference to 'threads_executing'.
+	(threads_are_executing): New process_stratum_target parameter.
+	Adjust reference to 'threads_executing'.
+	(set_stop_requested, finish_thread_state): New
+	process_stratum_target parameter.  Pass it down.
+	(switch_to_thread): Also match inferior.
+	(switch_to_thread): New process_stratum_target parameter.  Pass it
+	down.
+	(update_threads_executing): Reimplement.
+	* top.c (quit_force): Pop targets from all inferior.
+	(gdb_init): Don't call initialize_targets.
+	* windows-nat.c (windows_nat_target) <get_windows_debug_event>:
+	Declare.
+	(windows_add_thread, windows_delete_thread): Adjust.
+	(get_windows_debug_event): Rename to ...
+	(windows_nat_target::get_windows_debug_event): ... this.  Adjust.
+	* tracefile-tfile.c (tfile_target_open): Pass down target.
+	* gdbsupport/common-gdbthread.h (struct process_stratum_target):
+	Forward declare.
+	(switch_to_thread): Add process_stratum_target parameter.
+	* mi/mi-interp.c (mi_on_resume_1): Add process_stratum_target
+	parameter.  Use it.
+	(mi_on_resume): Pass target down.
+	* nat/fork-inferior.c (startup_inferior): Add
+	process_stratum_target parameter.  Pass it down.
+	* nat/fork-inferior.h (startup_inferior): Add
+	process_stratum_target parameter.
+	* python/py-threadevent.c (py_get_event_thread): Pass target down.
 
-2019-01-10  Tom Tromey  <tom@tromey.com>
+2020-01-10  Pedro Alves  <palves@redhat.com>
 
-	* psymtab.h (psymtab_storage::allocate_psymtab): New method.
-	<free_psymtabs>: Now private.
-	* psymtab.c (psymtab_storage::allocate_psymtab): Implement.
-	(allocate_psymtab): Use new method.
+	* remote.c (remote_target::start_remote): Don't set inferior_ptid
+	directly.  Instead find the first thread in the thread list and
+	use switch_to_thread.
 
-2019-01-10  Tom Tromey  <tom@tromey.com>
+2020-01-10  Pedro Alves  <palves@redhat.com>
 
-	* xcoffread.c (xcoff_end_psymtab): Use allocate_dependencies.
-	* psymtab.h (psymtab_storage::allocate_dependencies): New method.
-	* mdebugread.c (parse_partial_symbols): Use
-	allocate_dependencies.
-	* dwarf2read.c (dwarf2_create_include_psymtab): Use
-	allocate_dependencies.
-	(process_psymtab_comp_unit_reader)
-	(build_type_psymtab_dependencies): Likewise.
-	* dbxread.c (dbx_end_psymtab): Use allocate_dependencies.
+	* remote.c (remote_target::remote_add_inferior): Don't bind a
+	process to the current inferior if the current inferior is already
+	bound to a process.
 
-2019-01-10  Tom Tromey  <tom@tromey.com>
+2020-01-10  Tankut Baris Aktemur  <tankut.baris.aktemur@intel.com>
+	    Pedro Alves	 <palves@redhat.com>
 
-	* psymtab.c (add_psymbol_to_bcache): Pass psymtab obstack to
-	PSYMBOL_SET_LANGUAGE.
-	(allocate_psymtab): Allocate psymtab on the psymtab obstack.
+	* remote.c (remote_target::remote_parse_stop_reply) <W/X packets>:
+	If no process is specified, return null_ptid instead of
+	inferior_ptid.
+	(remote_target::wait_as): Handle TARGET_WAITKIND_EXITED /
+	TARGET_WAITKIND_SIGNALLED with no pid.
 
-2019-01-10  Tom Tromey  <tom@tromey.com>
+2020-01-10  Pedro Alves  <palves@redhat.com>
 
-	* psymtab.h (psymtab_storage::obstack): New method.
-	<m_obstack>: Rename from obstack; now private.
-	* psymtab.c (psymtab_storage): Update.
-	* dwarf2read.c (create_addrmap_from_index)
-	(create_addrmap_from_aranges, dwarf2_build_psymtabs_hard):
+	* remote.c (first_remote_resumed_thread): New.
+	(remote_target::wait_as): Use it as default event_ptid instead of
+	inferior_ptid.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* infrun.c (handle_no_resumed): Use all_non_exited_inferiors.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* tracefile-tfile.c (tfile_target::close): Assert that trace_fd is
+	not -1.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* break-catch-sig.c (signal_catchpoint_print_it): Don't pass a
+	ptid to get_last_target_status.
+	* break-catch-syscall.c (print_it_catch_syscall): Don't pass a
+	ptid to get_last_target_status.
+	* infcmd.c (continue_command): Don't pass a target_waitstatus to
+	get_last_target_status.
+	(info_program_command): Don't pass a target_waitstatus to
+	get_last_target_status.
+	* infrun.c (init_wait_for_inferior): Use
+	nullify_last_target_wait_ptid.
+	(get_last_target_status): Handle nullptr arguments.
+	(nullify_last_target_wait_ptid): Clear target_last_waitstatus.
+	(print_stop_event): Don't pass a ptid to get_last_target_status.
+	(normal_stop): Don't pass a ptid to get_last_target_status.
+	* infrun.h (get_last_target_status, set_last_target_status): Move
+	comments here and update.
+	(nullify_last_target_wait_ptid): Declare.
+	* linux-fork.c (fork_load_infrun_state): Remove local extern
+	declaration of nullify_last_target_wait_ptid.
+	* linux-nat.c (get_detach_signal): Don't pass a target_waitstatus
+	to get_last_target_status.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* gdbthread.h (scoped_restore_current_thread)
+	<dont_restore, restore, m_dont_restore>: Declare.
+	* thread.c (thread_alive): Add assertion.  Return bool.
+	(switch_to_thread_if_alive): New.
+	(prune_threads): Switch inferior/thread.
+	(print_thread_info_1): Switch thread before calling target methods.
+	(scoped_restore_current_thread::restore): New, factored out from
+	...
+	(scoped_restore_current_thread::~scoped_restore_current_thread):
+	... this.
+	(scoped_restore_current_thread::scoped_restore_current_thread):
+	Add assertion.
+	(thread_apply_all_command, thread_select): Use
+	switch_to_thread_if_alive.
+	* infrun.c (proceed, restart_threads, handle_signal_stop)
+	(switch_back_to_stepped_thread): Switch current thread before
+	calling target methods.
+
+2020-01-10  Pedro Alves <palves@redhat.com>
+
+	* inferior.c (switch_to_inferior_no_thread): New function,
+	factored out from ...
+	(inferior_command): ... here.
+	* inferior.h (switch_to_inferior_no_thread): Declare.
+	* mi/mi-main.c (run_one_inferior): Use
+	switch_to_inferior_no_thread.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* infcmd.c (kill_command): Remove dead code.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* remote.c (remote_target::mourn_inferior): No longer check
+	whether the target is running.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* corelow.c (core_target::has_execution): Change parameter type to
+	inferior pointer.
+	* inferior.c (number_of_live_inferiors): Use
+	inferior::has_execution instead of target_has_execution_1.
+	* inferior.h (inferior::has_execution): New.
+	* linux-thread-db.c (thread_db_target::update_thread_list): Use
+	inferior::has_execution instead of target_has_execution_1.
+	* process-stratum-target.c
+	(process_stratum_target::has_execution): Change parameter type to
+	inferior pointer.  Check the inferior's PID instead of
+	inferior_ptid.
+	* process-stratum-target.h
+	(process_stratum_target::has_execution): Change parameter type to
+	inferior pointer.
+	* record-full.c (record_full_core_target::has_execution): Change
+	parameter type to inferior pointer.
+	* target.c (target_has_execution_1): Change parameter type to
+	inferior pointer.
+	(target_has_execution_current): Adjust.
+	* target.h (target_ops::has_execution): Change parameter type to
+	inferior pointer.
+	(target_has_execution_1): Change parameter type to inferior
+	pointer.  Change return type to bool.
+	* tracefile.h (tracefile_target::has_execution): Change parameter
+	type to inferior pointer.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* exceptions.c (print_flush): Remove current_top_target() check.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* remote.c (show_remote_exec_file): Show the current inferior's
+	exec-file instead of the command variable's value.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* record-full.c (record_full_resume_ptid): New global.
+	(record_full_target::resume): Set it.
+	(record_full_wait_1): Use record_full_resume_ptid instead of
+	inferior_ptid.
+
+2020-01-10  Pedro Alves  <palves@redhat.com>
+
+	* gdbthread.h (scoped_restore_current_thread)
+	<dont_restore, restore, m_dont_restore>: Declare.
+	* thread.c (thread_alive): Add assertion.  Return bool.
+	(switch_to_thread_if_alive): New.
+	(prune_threads): Switch inferior/thread.
+	(print_thread_info_1): Switch thread before calling target methods.
+	(scoped_restore_current_thread::restore): New, factored out from
+	...
+	(scoped_restore_current_thread::~scoped_restore_current_thread):
+	... this.
+	(scoped_restore_current_thread::scoped_restore_current_thread):
+	Add assertion.
+	(thread_apply_all_command, thread_select): Use
+	switch_to_thread_if_alive.
+
+2020-01-10  George Barrett  <bob@bob131.so>
+
+	* stap-probe.c (stap_modify_semaphore): Don't check for null
+	semaphores.
+	(stap_probe::set_semaphore, stap_probe::clear_semaphore): Check
+	for null semaphores.
+
+2020-01-09  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* tui/tui-source.c (tui_source_window::do_scroll_vertical): Update
+	all source windows, and maintain horizontal scroll status while
+	doing so.
+
+2020-01-09  Tom Tromey  <tom@tromey.com>
+
+	PR tui/18932:
+	* tui/tui-source.c (tui_source_window::do_scroll_vertical): Call
+	update_source_window, not print_source_lines.
+
+2020-01-09  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* tui/tui.c (tui_enable): Register tui hooks after calling
+	tui_display_main.
+
+2020-01-09  Christian Biesinger  <cbiesinger@google.com>
+
+	* gdbsupport/common-defs.h: Don't define _FORTIFY_SOURCE on MinGW.
+
+2020-01-08  Simon Marchi  <simon.marchi@efficios.com>
+
+	* thread.c (print_thread_info_1): Fix indentation.
+
+2020-01-09  Christian Biesinger  <cbiesinger@google.com>
+
+	* symtab.c (general_symbol_info::compute_and_set_names): Move the
+	unique_xmalloc_ptr outside the if to always free the demangled name.
+
+2020-01-08  Tom Tromey  <tromey@adacore.com>
+
+	* xcoffread.c (enter_line_range, read_xcoff_symtab)
+	(process_xcoff_symbol, xcoff_symfile_offsets): Update.
+	* symtab.h (MSYMBOL_VALUE_ADDRESS): Update.
+	(struct section_offsets, ANOFFSET, SIZEOF_N_SECTION_OFFSETS):
+	Remove.
+	(section_offsets): New typedef.
+	* symtab.c (fixup_section, get_msymbol_address): Update.
+	* symmisc.c (dump_msymbols): Update.
+	* symfile.h (relative_addr_info_to_section_offsets)
+	(symfile_map_offsets_to_segments): Update.
+	* symfile.c (build_section_addr_info_from_objfile)
+	(init_objfile_sect_indices): Update.
+	(struct place_section_arg): Change type of "offsets".
+	(place_section): Update.
+	(relative_addr_info_to_section_offsets): Change type of
+	"section_offsets".  Remove "num_sections" parameter.
+	(default_symfile_offsets, syms_from_objfile_1)
+	(set_objfile_default_section_offset): Update.
+	(reread_symbols): No need to preserve section offsets by hand.
+	(symfile_map_offsets_to_segments): Change type of "offsets".
+	* stap-probe.c (relocate_address): Update.
+	* stabsread.h (process_one_symbol): Update.
+	* solib-target.c (struct lm_info_target) <offsets>: Change type.
+	(solib_target_relocate_section_addresses): Update.
+	* solib-svr4.c (enable_break, svr4_relocate_main_executable):
 	Update.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* symfile.c (reread_symbols): Call objfile->reset_psymtabs.
-	* objfiles.h (objfile::reset_psymtabs): New method.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* symmisc.c (print_symbol_bcache_statistics): Update.
-	(print_objfile_statistics): Update.
-	* symfile.c (reread_symbols): Update.
-	* psymtab.h (class psymtab_storage): New.
-	* psymtab.c (psymtab_storage): New constructor.
-	(~psymtab_storage): New destructor.
-	(require_partial_symbols): Update.
-	(ALL_OBJFILE_PSYMTABS_REQUIRED): Rewrite.
-	(find_pc_sect_psymtab, find_pc_sect_psymbol)
-	(match_partial_symbol, lookup_partial_symbol, dump_psymtab)
-	(psym_dump, recursively_search_psymtabs, psym_has_symbols)
-	(psym_find_compunit_symtab_by_address, sort_pst_symbols)
-	(start_psymtab_common, end_psymtab_common)
-	(add_psymbol_to_bcache, add_psymbol_to_list, init_psymbol_list)
-	(allocate_psymtab): Update.
-	(psymtab_storage::discard_psymtab): Rename from discard_psymtab.
-	Update.
-	(dump_psymtab_addrmap, maintenance_print_psymbols)
-	(maintenance_check_psymtabs): Update.
-	(class objfile_psymtabs): Move to objfiles.h.
-	* psympriv.h (discard_psymtab): Now inline.
-	(psymtab_discarder::psymtab_discarder): Update.
-	(psymtab_discarder::~psymtab_discarder): Update.
-	(ALL_OBJFILE_PSYMTABS): Rewrite.
-	* objfiles.h (struct objfile) <psymtabs, psymtabs_addrmap,
-	free_psymtabs, psymbol_cache, global_psymbols, static_psymbols>:
-	Remove fields.
-	<partial_symtabs>: New field.
-	(class objfile_psymtabs): Move from psymtab.h.  Update.
-	* objfiles.c (objfile::objfile): Initialize partial_symtabs, not
-	psymbol_cache.
-	(objfile::~objfile): Don't destroy psymbol_cache.
-	* mdebugread.c (parse_partial_symbols): Update.
+	* solib-frv.c (frv_relocate_main_executable): Update.
+	* solib-dsbt.c (dsbt_relocate_main_executable): Update.
+	* solib-aix.c (solib_aix_get_section_offsets): Change return
+	type.
+	(solib_aix_solib_create_inferior_hook): Update.
+	* remote.c (remote_target::get_offsets): Update.
+	* psymtab.c (find_pc_sect_psymtab): Update.
+	* psympriv.h (struct partial_symbol) <address, text_low,
+	text_high>: Update.
+	* objfiles.h (obj_section_offset): Update.
+	(struct objfile) <section_offsets>: Change type.
+	<num_sections>: Remove.
+	(objfile_relocate): Update.
+	* objfiles.c (entry_point_address_query): Update
+	(relocate_one_symbol): Change type of "section_offsets".
+	(objfile_relocate1, objfile_relocate1): Change type of
+	"new_offsets".
+	(objfile_rebase1): Update.
+	* mipsread.c (mipscoff_symfile_read): Update.
+	(read_alphacoff_dynamic_symtab): Remove "section_offsets"
+	parameter.
+	* mdebugread.c (parse_symbol): Change type of "section_offsets".
+	(parse_external, psymtab_to_symtab_1): Update.
+	* machoread.c (macho_symfile_offsets): Update.
+	* ia64-tdep.c (ia64_find_unwind_table): Update.
+	* hppa-tdep.c (read_unwind_info): Update.
+	* hppa-bsd-tdep.c (hppabsd_find_global_pointer): Update.
 	* dwarf2read.c (create_addrmap_from_index)
 	(create_addrmap_from_aranges, dw2_find_pc_sect_compunit_symtab)
-	(process_psymtab_comp_unit_reader, dwarf2_build_psymtabs_hard)
-	(add_partial_subprogram, dwarf2_ranges_read): Update.
-	* dwarf-index-write.c (write_address_map)
-	(write_one_signatured_type, recursively_write_psymbols)
-	(class debug_names, class debug_names, write_psymtabs_to_index):
+	(process_psymtab_comp_unit_reader, add_partial_symbol)
+	(add_partial_subprogram, process_full_comp_unit)
+	(read_file_scope, read_func_scope, read_lexical_block_scope)
+	(read_call_site_scope, dwarf2_rnglists_process)
+	(dwarf2_ranges_process, dwarf2_ranges_read)
+	(dwarf_decode_lines_1, var_decode_location, new_symbol)
+	(dwarf2_fetch_die_loc_sect_off, dwarf2_per_cu_text_offset):
 	Update.
+	* dwarf2-frame.c (execute_cfa_program, dwarf2_frame_find_fde):
+	Update.
+	* dtrace-probe.c (dtrace_probe::get_relocated_address): Update.
+	* dbxread.c (read_dbx_symtab, read_ofile_symtab): Update.
+	(process_one_symbol): Change type of "section_offsets".
+	* ctfread.c (get_objfile_text_range): Update.
+	* coffread.c (coff_symtab_read, enter_linenos)
+	(process_coff_symbol): Update.
+	* coff-pe-read.c (add_pe_forwarded_sym): Update.
+	* amd64-windows-tdep.c (amd64_windows_find_unwind_info): Update.
 
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* symtab.h (SYMBOL_SET_NAMES): Update.
-	(symbol_set_names): Update.
-	(MSYMBOL_SET_NAMES): Update.
-	* symtab.c (symbol_set_names): Change argument to be an
-	objfile_per_bfd_storage.
-	* psymtab.c (add_psymbol_to_bcache): Update.
-	* psympriv.h (PSYMBOL_SET_NAMES): Take per_bfd argument.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* symtab.c (create_demangled_names_hash): Change argument to be an
-	objfile_per_bfd_storage.
-	(symbol_set_names): Update.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* xcoffread.c (xcoff_initial_scan): Unconditionally call
-	init_psymbol_list.
-	* psymtab.c (init_psymbol_list): Do nothing if already called.
-	* psympriv.h (init_psymbol_list): Add comment.
-	* dwarf2read.c (dwarf2_build_psymtabs): Unconditionally call
-	init_psymbol_list.
-	* dbxread.c (dbx_symfile_read): Unconditionally call
-	init_psymbol_list.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* xcoffread.c (scan_xcoff_symtab): Update.
-	* psymtab.c (add_psymbol_to_list): Replace "list" parameter with
-	"where".
-	* mdebugread.c (parse_partial_symbols)
-	(handle_psymbol_enumerators): Update.
-	* dwarf2read.c (add_partial_symbol, load_partial_dies): Update.
-	* dbxread.c (read_dbx_symtab): Update.
-	* psympriv.h (psymbol_placement): New enum.
-	(add_psymbol_to_list): Update.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* xcoffread.c (xcoff_start_psymtab): Remove global_psymbols and
-	static_psymbols parameters.
-	(scan_xcoff_symtab): Update.
-	* psymtab.c (start_psymtab_common): Remove global_psymbols and
-	static_psymbols parameters.
-	* psympriv.h (start_psymtab_common): Update.
-	* mdebugread.c (parse_partial_symbols): Update.
-	* dwarf2read.c (create_partial_symtab): Update.
-	* dbxread.c (read_dbx_symtab): Update.
-	(start_psymtab): Remove global_psymbols and static_psymbols
-	parameters.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* xcoffread.c (xcoff_end_psymtab): Remove some initializations.
-	* psymtab.c (allocate_psymtab): Add comment.
-	* psympriv.h (allocate_psymtab): Add comment.
-	* dwarf2read.c (dwarf2_create_include_psymtab): Remove some
-	initializations.
-	* dbxread.c (dbx_end_psymtab): Remove some initializations.
-
-2019-01-10  Tom Tromey  <tom@tromey.com>
-
-	* symfile.h (mdebug_build_psymtabs, elfmdebug_build_psymtabs):
-	Don't declare.
-	* mipsread.c: Include mdebugread.h.
-	* mdebugread.h (mdebug_build_psymtabs, elfmdebug_build_psymtabs):
-	Declare.
-	* elfread.c: Include mdebugread.h.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* dbxread.c (dbx_end_psymtab): Use objfile_psymtabs.
-	* mdebugread.c (parse_partial_symbols): Use objfile_psymtabs.
-	* psymtab.c (ALL_OBJFILE_PSYMTABS_REQUIRED): Remove.
-	(psym_map_symtabs_matching_filename, find_pc_sect_psymtab)
-	(psym_lookup_symbol, psym_find_last_source_symtab)
-	(psym_forget_cached_source_info, psym_print_stats)
-	(psym_expand_symtabs_for_function, psym_expand_all_symtabs)
-	(psym_expand_symtabs_with_fullname, psym_map_symbol_filenames)
-	(psym_map_matching_symbols, psym_expand_symtabs_matching)
-	(psym_find_compunit_symtab_by_address)
-	(maintenance_print_psymbols, maintenance_info_psymtabs)
-	(maintenance_check_psymtabs): Use ranged for.
-	* psymtab.h (class objfile_psymtabs): New.
-	(require_partial_symbols): Return objfile_psymtabs.
-	* psympriv.h (ALL_OBJFILE_PSYMTABS): Remove.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* symfile.c (overlay_invalidate_all, find_pc_overlay)
-	(find_pc_mapped_section, list_overlays_command)
-	(map_overlay_command, unmap_overlay_command)
-	(simple_overlay_update): Use all_objfiles.
-	* spu-tdep.c (spu_overlay_update): Use all_objfiles.
-	* printcmd.c (info_symbol_command): Use all_objfiles.
-	* objfiles.h (ALL_OBJSECTIONS): Remove.
-	* maint.c (maintenance_translate_address): Use all_objfiles.
-	* gcore.c (gcore_create_callback): Use all_objfiles.
-	(objfile_find_memory_regions): Likewise.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* symtab.c (find_line_symtab, info_sources_command)
-	(make_source_files_completion_list): Use objfile_compunits.
-	* source.c (select_source_symtab): Use objfile_compunits.
-	* objfiles.h (struct objfile): Update comment.
-	(ALL_OBJFILES): Remove.
-	(ALL_FILETABS): Remove.
-	* mi/mi-cmd-file.c (mi_cmd_file_list_exec_source_files): Use
-	objfile_compunits.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* symmisc.c (print_objfile_statistics, dump_objfile)
-	(maintenance_print_symbols): Use compunit_filetabs.
-	* source.c (forget_cached_source_info_for_objfile): Use
-	compunit_filetabs.
-	* objfiles.h (ALL_OBJFILE_FILETABS): Remove.
-	(ALL_FILETABS): Use compunit_filetabs.
-	* objfiles.c (objfile_relocate1): Use compunit_filetabs.
-	* coffread.c (coff_symtab_read): Use compunit_filetabs.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* symtab.h (ALL_COMPUNIT_FILETABS): Remove.
-	(compunit_filetabs): New.
-	* symtab.c (iterate_over_some_symtabs, find_pc_sect_line): Use
-	compunit_filetabs.
-	(info_sources_command, make_source_files_completion_list): Remove
-	declaration.
-	* symmisc.c (print_objfile_statistics, dump_objfile)
-	(maintenance_print_symbols): Remove declaration.
-	(maintenance_info_symtabs): Use compunit_filetabs.
-	(maintenance_info_line_tables): Likewise.
-	* source.c (select_source_symtab): Change local variable name.
-	(forget_cached_source_info_for_objfile): Remove declaration.
-	* objfiles.h (ALL_OBJFILE_FILETABS): Use compunit_filetabs.
-	* objfiles.c (objfile_relocate1): Remove declaration.
-	* mi/mi-cmd-file.c (mi_cmd_file_list_exec_source_files): Remove
-	declaration.
-	* maint.c (count_symtabs_and_blocks): Use compunit_filetabs.
-	* coffread.c (coff_symtab_read): Remove declaration.
-	* buildsym.c (buildsym_compunit::end_symtab_with_blockvector): Use
-	compunit_filetabs.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* symtab.c (lookup_objfile_from_block)
-	(find_pc_sect_compunit_symtab, search_symbols)
-	(default_collect_symbol_completion_matches_break_on): Use
-	objfile_compunits.
-	* objfiles.h (ALL_COMPUNITS): Remove.
-	* maint.c (count_symtabs_and_blocks): Use objfile_compunits.
-	* cp-support.c (add_symbol_overload_list_qualified): Use
-	objfile_compunits.
-	* ada-lang.c (ada_collect_symbol_completion_matches)
-	(ada_add_global_exceptions): Use objfile_compunits.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* source.c (select_source_symtab)
-	(forget_cached_source_info_for_objfile): Remove declaration.
-	* mi/mi-cmd-file.c (mi_cmd_file_list_exec_source_files): Remove
-	declaration.
-	* maint.c (count_symtabs_and_blocks): Remove declaration.
-	* cp-support.c (add_symbol_overload_list_qualified): Remove
-	declaration.
-	* coffread.c (coff_symtab_read): Remove declaration.
-	* symtab.c (lookup_symbol_in_objfile_symtabs)
-	(basic_lookup_transparent_type_1): Use objfile_compunits.
-	(lookup_objfile_from_block, find_pc_sect_compunit_symtab)
-	(info_sources_command, search_symbols)
-	(default_collect_symbol_completion_matches_break_on)
-	(make_source_files_completion_list): Remove declaration.
-	* ada-lang.c (add_nonlocal_symbols): Use objfile_compunits.
-	(ada_collect_symbol_completion_matches)
-	(ada_add_global_exceptions): Remove declaration.
-	* linespec.c (iterate_over_all_matching_symtabs): Use
-	objfile_compunits.
-	* objfiles.h (ALL_OBJFILE_COMPUNITS): Remove.
-	(class objfile_compunits): New.
-	(ALL_COMPUNITS): Use objfile_compunits.
-	* symmisc.c (print_objfile_statistics, maintenance_info_symtabs)
-	(maintenance_check_symtabs, maintenance_info_line_tables): Use
-	objfile_compunits.
-	* objfiles.c (objfile_relocate1): Use objfile_compunits.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* symtab.c (search_symbols)
-	(default_collect_symbol_completion_matches_break_on): Use
-	objfile_msymbols.
-	* ada-lang.c (ada_lookup_simple_minsym)
-	(ada_collect_symbol_completion_matches): Use objfile_msymbols.
-	* minsyms.c (find_solib_trampoline_target): Use objfile_msymbols.
-	* hppa-tdep.c (hppa_lookup_stub_minimal_symbol): Use
-	objfile_msymbols.
-	* coffread.c (coff_symfile_read): Use objfile_msymbols.
-	* symmisc.c (dump_msymbols): Use objfile_msymbols.
-	* objc-lang.c (find_methods): Use objfile_msymbols.
-	(info_selectors_command, info_classes_command): Likewise.
-	* stabsread.c (scan_file_globals): Use objfile_msymbols.
-	* objfiles.h (class objfile_msymbols): New.
-	(ALL_OBJFILE_MSYMBOLS): Remove.
-	(ALL_MSYMBOLS): Remove.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* common/next-iterator.h (next_adapter): Add Iterator template
-	parameter.
-	* objfiles.h (ALL_OBJFILES_SAFE): Remove.
-	(class all_objfiles_safe): New.
-	* jit.c (jit_inferior_exit_hook): Use all_objfiles_safe.
-	* objfiles.c (put_objfile_before): Update comment.
-	(add_separate_debug_objfile): Likewise.
-	(free_all_objfiles): Use all_objfiles_safe.
-	(objfile_purge_solibs): Likewise.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* symtab.c (iterate_over_symtabs, matching_obj_sections)
-	(expand_symtab_containing_pc, lookup_static_symbol)
-	(basic_lookup_transparent_type, find_pc_sect_compunit_symtab)
-	(find_symbol_at_address, find_line_symtab, find_main_name): Use
-	all_objfiles.
-	* probe.c (find_probe_by_pc, collect_probes): Use all_objfiles.
-	* breakpoint.c (create_overlay_event_breakpoint)
-	(create_longjmp_master_breakpoint)
-	(create_std_terminate_master_breakpoint)
-	(create_exception_master_breakpoint): Use all_objfiles.
-	* linux-thread-db.c (try_thread_db_load_from_pdir)
-	(has_libpthread): Use all_objfiles.
-	* ada-lang.c (add_nonlocal_symbols): Use all_objfiles.
-	* linespec.c (iterate_over_all_matching_symtabs)
-	(search_minsyms_for_name): Use all_objfiles.
-	* maint.c (maintenance_info_sections): Use all_objfiles.
-	* main.c (captured_main_1): Use all_objfiles.
-	* spu-tdep.c (spu_objfile_from_frame): Use all_objfiles.
-	* guile/scm-objfile.c (gdbscm_objfiles): Use all_objfiles.
-	* guile/scm-pretty-print.c
-	(ppscm_find_pretty_printer_from_objfiles): Use all_objfiles.
-	* solib-spu.c (append_ocl_sos): Use all_objfiles.
-	* symmisc.c (maintenance_print_symbols): Use all_objfiles.
-	(maintenance_print_msymbols): Use all_objfiles.
-	* source.c (select_source_symtab): Use all_objfiles.
-	* jit.c (jit_find_objf_with_entry_addr): Use all_objfiles.
-	* symfile.c (remove_symbol_file_command)
-	(expand_symtabs_matching, map_symbol_filenames): Use
-	all_objfiles.
-	* ppc-linux-tdep.c (ppc_linux_spe_context_inferior_created): Use
-	all_objfiles.
-	* dwarf2-frame.c (dwarf2_frame_find_fde): Use all_objfiles.
-	* objc-lang.c (find_methods): Use all_objfiles.
-	* objfiles.c (have_partial_symbols, have_full_symbols)
-	(have_minimal_symbols, qsort_cmp)
-	(default_iterate_over_objfiles_in_search_order): Use
-	all_objfiles.
-	* hppa-tdep.c (find_unwind_entry): Use all_objfiles.
-	* psymtab.c (maintenance_print_psymbols): Use all_objfiles.
-	(maintenance_check_psymtabs): Use all_objfiles.
-	(ALL_PSYMTABS): Remove.
-	* compile/compile-object-run.c (do_module_cleanup): Use
-	all_objfiles.
-	* blockframe.c (find_pc_partial_function): Use all_objfiles.
-	* cp-support.c (add_symbol_overload_list_qualified): Use
-	all_objfiles.
-	* windows-tdep.c (windows_iterate_over_objfiles_in_search_order):
-	Use all_objfiles.
-	* dwarf-index-write.c (save_gdb_index_command): Use all_objfiles.
-	* python/py-xmethods.c (gdbpy_get_matching_xmethod_workers): Use
-	all_objfiles.
-	* python/py-objfile.c (objfpy_lookup_objfile_by_name)
-	(objfpy_lookup_objfile_by_build_id): Use all_objfiles.
-	* python/py-prettyprint.c (find_pretty_printer_from_objfiles):
-	Uses all_objfiles.
-	* solib.c (solib_read_symbols): Use all_objfiles
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* probe.c (parse_probes_in_pspace): Use all_objfiles.
-	* guile/scm-progspace.c (gdbscm_progspace_objfiles): Use
-	all_objfiles.
-	* objfiles.h (ALL_PSPACE_OBJFILES): Remove.
-	* symmisc.c (print_symbol_bcache_statistics)
-	(print_objfile_statistics, maintenance_print_objfiles)
-	(maintenance_info_symtabs, maintenance_check_symtabs)
-	(maintenance_expand_symtabs, maintenance_info_line_tables): Use
-	all_objfiles.
-	* source.c (forget_cached_source_info): Use all_objfiles.
-	* symfile-debug.c (set_debug_symfile): Use all_objfiles.
-	* elfread.c (elf_gnu_ifunc_resolve_by_cache)
-	(elf_gnu_ifunc_resolve_by_got): Use all_objfiles.
-	* objfiles.c (update_section_map): Use all_objfiles.
-	(shared_objfile_contains_address_p): Likewise.
-	* psymtab.c (maintenance_info_psymtabs): Use all_objfiles.
-	* python/py-progspace.c (pspy_get_objfiles): Use all_objfiles.
-
-2019-01-09  Tom Tromey  <tom@tromey.com>
-
-	* common/next-iterator.h: New file.
-	* objfiles.h (class all_objfiles): New.
-	(struct objfile_iterator): New.
-
-2019-01-09  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
-
-	* NEWS: Move the description of the changed "frame", "select-frame",
-	 and "info frame" commands to the Changed commands section.
-
-2019-01-09  Simon Marchi  <simon.marchi@ericsson.com>
-
-	* gdbtypes.c (check_stub_method_group): Remove handling of old
-	mangling schemes.
-	* linespec.c (find_methods): Likewise.
-	* stabsread.c (read_member_functions): Likewise.
-	* valops.c (search_struct_method): Likewise.
-	(value_struct_elt_for_reference): Likewise.
-	* NEWS: Mention this change.
-
-2019-01-09  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* cli/cli-cmds.c (list_command): Pass a source_lines_range to
-	print_source_lines.
-	* source.c (print_source_lines_base): Update line number check.
-	(print_source_lines): New function.
-	(source_lines_range::source_lines_range): New function.
-	* source.h (class source_lines_range): New class.
-	(print_source_lines): New declaration.
-
-2019-01-09  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
-
-	* linespec.c (linespec_state_destructor): Free self->canonical_names.
-
-2019-01-08  Tom Tromey  <tom@tromey.com>
-	    Simon Marchi  <simon.marchi@ericsson.com>
-
-	PR gdb/24060
-	* ada-exp.y (DOLLAR_VARIABLE): Rename from SPECIAL_VARIABLE.
-	* ada-lex.l (DOLLAR_VARIABLE): Likewise.
-	* c-exp.y (DOLLAR_VARIABLE): Rename from VARIABLE.
-	* f-exp.y (DOLLAR_VARIABLE): Likewise.
-	* m2-exp.y (DOLLAR_VARIABLE): Rename from INTERNAL_VAR.
-	* p-exp.y (DOLLAR_VARIABLE): Rename from VARIABLE.
-
-2019-01-08  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* source.c (select_source_symtab): Move header comment to
-	declaration in source.h.
-	(forget_cached_source_info_for_objfile): Likewise.
-	(forget_cached_source_info): Likewise.
-	(identify_source_line): Likewise.
-	* source.h (identify_source_line): Move declaration from symtab.h
-	and add comment from source.c
-	(print_source_lines): Likewise.
-	(forget_cached_source_info_for_objfile): Likewise.
-	(forget_cached_source_info): Likewise.
-	(select_source_symtab): Likewise.
-	(enum print_source_lines_flag): Move definition from symtab.h.
-	* symtab.h (identify_source_line): Move declaration to source.h.
-	(print_source_lines): Likewise.
-	(forget_cached_source_info_for_objfile): Likewise.
-	(forget_cached_source_info): Likewise.
-	(select_source_symtab): Likewise.
-	(enum print_source_lines_flag): Move definition to source.h.
-	* tui/tui-hooks.c: Add 'source.h' include.
-
-2019-01-08  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* source.c (print_source_lines_base): Handle requests to print
-	reverse line number sequences, and guard against empty lines
-	string.
-
-2019-01-08  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* source.c (print_source_lines_base): Fix skip of '\r' if next
-	character is '\n'.
-
-2019-01-06  Tom Tromey  <tom@tromey.com>
-
-	* c-exp.y (struct c_parse_state) <macro_original_text,
-	expansion_obstack>: New member.
-	(macro_original_text, expansion_obstack): Remove globals.
-	(scan_macro_expansion, scanning_macro_expansion)
-	(finished_macro_expansion): Update.
-	(scan_macro_cleanup): Remove.
-	(yylex, c_parse): Update.
-
-2019-01-06  Tom Tromey  <tom@tromey.com>
-
-	* c-exp.y (struct c_parse_state) <strings>: New member.
-	(operator_stoken): Update.
-
-2019-01-06  Tom Tromey  <tom@tromey.com>
-
-	* parser-defs.h (type_ptr): Remove typedef.  Don't declare VEC.
-	(union type_stack_elt) <typelist_val>: Now a pointer to
-	std::vector.
-	(type_stack_cleanup): Don't declare.
-	(push_typelist): Update.
-	* parse.c (pop_typelist): Return a std::vector.
-	(push_typelist): Take a std::vector.
-	(follow_types): Update.  Do not free args.
-	(type_stack_cleanup): Remove.
-	* c-exp.y (struct c_parse_state): New.
-	(cpstate): New global.
-	(type_aggregate_p, exp, ptr_operator, parameter_typelist)
-	(nonempty_typelist): Update.
-	(func_mod): Create a new vector.
-	(c_parse): Create a c_parse_state.
-	(check_parameter_typelist): Do not delete params.
-	(function_method): Update.  Do not delete type_list.
-
-2019-01-06  Tom Tromey  <tom@tromey.com>
-
-	PR gdb/28155:
-	* python/py-finishbreakpoint.c (bpfinishpy_init): Use
-	check_typedef.
-	* infcmd.c (finish_command_fsm_should_stop): Use check_typedef.
-	(print_return_value): Likewise.
-
-2019-01-05  Tom Tromey  <tom@tromey.com>
-
-	* contrib/cleanup_check.py: Remove.
-	* contrib/gcc-with-excheck: Remove.
-	* contrib/exsummary.py: Remove.
-	* contrib/excheck.py: Remove.
-
-2019-01-05  Joel Brobecker  <brobecker@adacore.com>
-
-	* thread.c (delete_thread_1): Add gdb_assert that THR is not
-	NULL. Initialize tpprev to NULL instead of assigning it
-	to NULL on the next statement.
-	* windows-nat.c (windows_delete_thread): Remove check for
-	main_thread_id before printing thread exit notifications.
-	(get_windows_debug_event) <EXIT_THREAD_DEBUG_EVENT>:
-	Remove thread ID check against main_thread_id.
-	<CREATE_PROCESS_DEBUG_EVENT>: Remove call to
-	windows_delete_thread.
-	<EXIT_PROCESS_DEBUG_EVENT>: Add call to windows_delete_thread.
-
-2019-01-04  Tom Tromey  <tom@tromey.com>
-
-	* compile/compile.c (_initialize_compile): Use upper case for
-	metasyntactic variables.
-	* symmisc.c (_initialize_symmisc): Use upper case for
-	metasyntactic variables.
-	* psymtab.c (_initialize_psymtab): Use upper case for
-	metasyntactic variables.
-	* demangle.c (demangle_command): Use upper case for metasyntactic
-	variables.
-	(_initialize_demangler): Likewise.
-	* ax-gdb.c (_initialize_ax_gdb): Use upper case for metasyntactic
-	variables.
-
-2019-01-03  Tom Tromey  <tom@tromey.com>
-
-	* tui/tui-source.c (tui_set_source_content): Use xstrdup.
-
-2019-01-03  Tom Tromey  <tom@tromey.com>
-
-	* python/py-symtab.c (salpy_str): Update.
-	(struct salpy_sal_object) <symtab>: Now a PyObject.
-	(salpy_dealloc): Update.
-	(del_objfile_sal): Use gdbpy_ref.
-
-2019-01-03  Tom Tromey  <tom@tromey.com>
-
-	* python/py-type.c (convert_field): Use new_reference.  Return
-	gdbpy_ref.
-	(make_fielditem): Return gdbpy_ref.
-	(typy_fields): Update.
-	(typy_getitem): Update.
-	(field_name): Return gdbpy_ref.  Use new_reference.
-	(typy_iterator_iternext): Update.
-
-2019-01-03  Tom Tromey  <tom@tromey.com>
-
-	* python/py-record.c (gdbpy_stop_recording): Use Py_RETURN_NONE.
-
-2019-01-03  Tom Tromey  <tom@tromey.com>
-
-	* python/py-value.c (valpy_dealloc): Use Py_XDECREF.
-	* python/py-type.c (typy_fields_items): Use gdbpy_ref.
-	* python/py-progspace.c (pspy_set_printers): Use gdbpy_ref.
-	(pspy_set_frame_filters, pspy_set_frame_unwinders)
-	(pspy_set_type_printers): Likewise.
-	* python/py-function.c (fnpy_init): Use gdbpy_ref.
-	* python/py-cmd.c (cmdpy_init): Use gdbpy_ref.
-	* python/py-objfile.c (objfpy_set_printers): Use gdbpy_ref.
-	(objfpy_set_frame_filters, objfpy_set_frame_unwinders)
-	(objfpy_set_type_printers): Likewise.
-
-2019-01-03  Tom Tromey  <tom@tromey.com>
-
-	* python/python.c (gdbpy_enter, ~gdbpy_enter): Update.
-	(gdbpy_print_stack): Use gdbpy_err_fetch.
-	* python/python-internal.h (class gdbpy_err_fetch): New class.
-	(class gdbpy_enter) <m_error_type, m_error_value,
-	m_error_traceback>: Remove.
-	<m_error>: New member.
-	(gdbpy_exception_to_string): Don't declare.
-	* python/py-varobj.c (py_varobj_iter_next): Use gdbpy_err_fetch.
-	* python/py-value.c (convert_value_from_python): Use
-	gdbpy_err_fetch.
-	* python/py-utils.c (gdbpy_err_fetch::to_string): Rename from
-	gdbpy_exception_to_string.
-	(gdbpy_handle_exception): Use gdbpy_err_fetch.
-	* python/py-prettyprint.c (print_stack_unless_memory_error): Use
-	gdbpy_err_fetch.
-
-2019-01-03  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* linux-nat.c (delete_lwp_cleanup): Delete.
-	(struct lwp_deleter): New struct.
-	(lwp_info_up): New typedef.
-	(linux_nat_target::follow_fork): Delete cleanup, and make use of
-	lwp_info_up.
-
-2019-01-03  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* linux-fork.c (class scoped_switch_fork_info): New class.
-	(inferior_call_waitpid): Update to use scoped_switch_fork_info.
-
-2019-01-03  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* valops.c (find_overload_match): Remove use of null_cleanup, and
-	calls to do_cleanups.
-
-2019-01-03  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* compile/compile-cplus-types.c
-	(compile_cplus_instance::decl_name): Handle changes to
-	cp_func_name.
-	* cp-support.c (cp_func_name): Update header comment, update
-	return type.
-	* cp-support.h (cp_func_name): Update return type in declaration.
-	* valops.c (find_overload_match): Move temp_func local to top
-	level of function and change its type.  Use temp_func to hold and
-	delete temporary string obtained from cp_func_name.
-
-2019-01-03  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* remote.c (remote_target::remote_check_symbols): Convert `msg` to
-	gdb::char_vector, remove cleanup, and update uses of `msg`.
-
-2019-01-03  Jim Wilson  <jimw@sifive.com>
-
-	* riscv-tdep.c (riscv_freg_feature): Drop s0 name from f8.
-
-2019-01-02  Tom Tromey  <tom@tromey.com>
-
-	* xml-tdesc.c (xml_cache): Hold a target_desc_up.
-	(tdesc_parse_xml): Remove cleanups.
-	* target-descriptions.h (make_cleanup_free_target_description):
-	Don't declare.
-	(target_desc_deleter): New struct.
-	(target_desc_up): New typedef.
-	* target-descriptions.c (target_desc_deleter::operator()): Rename
-	from free_target_description.
-	(make_cleanup_free_target_description): Remove.
-
-2019-01-02  Tom Tromey  <tom@tromey.com>
-
-	* linespec.c (struct linespec_parser): Rename from ls_parser.  Add
-	constructor, destructor.
-	(linespec_parser): Remove typedef.
-	(~linespec_parser): Rename from linespec_parser_delete.
-	(linespec_lex_to_end, linespec_complete_label)
-	(linespec_complete): Update.
-	(decode_line_full): Remove cleanups.
-	(decode_line_1): Update.
-
-2019-01-02  Tom Tromey  <tom@tromey.com>
-
-	* python/python-internal.h (inferior_to_inferior_object): Change
-	return type.
-	* python/py-exitedevent.c (create_exited_event_object): Update.
-	* python/py-inferior.c (inferior_to_inferior_object): Return
-	gdbpy_ref.
-	(python_new_inferior, python_inferior_deleted)
-	(thread_to_thread_object, delete_thread_object)
-	(build_inferior_list, gdbpy_selected_inferior): Update.
-	* python/py-infthread.c (create_thread_object): Update.  Also fail
-	if inferior_to_inferior_object fails.
-
-2019-01-02  Simon Marchi  <simon.marchi@ericsson.com>
-
-	* inferior.h (class inferior) <displaced_step_state>: New field.
-	* infrun.h (struct displaced_step_state): Move here from
-	infrun.c.  Initialize fields, add constructor.
-	<inf>: Remove field.
-	<reset>: New method.
-	* infrun.c (struct displaced_step_inferior_state): Move to
-	infrun.h.
-	(displaced_step_inferior_states): Remove.
-	(get_displaced_stepping_state): Adust.
-	(displaced_step_in_progress_any_inferior): Adjust.
-	(displaced_step_in_progress_thread): Adjust.
-	(displaced_step_in_progress): Adjust.
-	(add_displaced_stepping_state): Remove.
-	(get_displaced_step_closure_by_addr): Adjust.
-	(remove_displaced_stepping_state): Remove.
-	(infrun_inferior_exit): Call displaced_step_state.reset.
-	(use_displaced_stepping): Don't check for NULL.
-	(displaced_step_prepare_throw): Call
-	get_displaced_stepping_state.
-	(displaced_step_fixup): Don't check for NULL.
-	(prepare_for_detach): Don't check for NULL.
-
-2019-01-02  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
-
-	* infcall.c (call_function_by_hand_dummy): cleanup/destroy sm
-	 in case of call that did not complete.
-
-2019-01-02  Andrey Utkin  <autkin@undo.io>
-
-	* symfile.c (find_separate_debug_file): Fix search of debug files for
-	remote debuggee.
-
-2019-01-02  Tom Tromey  <tom@tromey.com>
-
-	* python/py-inferior.c (gdbpy_initialize_inferior): Fix
-	indentation.
-	* python/py-frame.c (frapy_older): Remove cast.
-	(frapy_newer): Likewise.
-	* python/py-breakpoint.c (local_setattro): Remove cast.
-	* python/py-arch.c (archpy_name): Remove local variable.
-	* python/py-type.c (gdbpy_lookup_type): Remove cast.
-
-2019-01-02  Joel Brobecker  <brobecker@adacore.com>
-
-	* unittests/basic_string_view/element_access/char/empty.cc:
-	Fix year range in copyright header.
-
-2019-01-01  Andrew Burgess  <andrew.burgess@embecosm.com>
-
-	* arch/riscv.h (struct riscv_gdbarch_features) <hw_float_abi>:
-	Delete.
-	<operator==>: Update with for removed field.
-	<hash>: Likewise.
-	* riscv-tdep.h (struct gdbarch_tdep) <features>: Renamed to...
-	<isa_features>: ...this.
-	<abi_features>: New field.
-	(riscv_isa_flen): Update comment.
-	(riscv_abi_xlen): New declaration.
-	(riscv_abi_flen): New declaration.
-	* riscv-tdep.c (riscv_isa_xlen): Update to get answer from
-	isa_features.
-	(riscv_abi_xlen): New function.
-	(riscv_isa_flen): Update to get answer from isa_features.
-	(riscv_abi_flen): New function.
-	(riscv_has_fp_abi): Update to get answer from abi_features.
-	(riscv_call_info::riscv_call_info): Use abi xlen and flen, not isa
-	xlen and flen.
-	(riscv_call_info) <xlen, flen>: Update comment.
-	(riscv_call_arg_struct): Remove invalid assertions
-	(riscv_features_from_gdbarch_info): Update now hw_float_abi field
-	is removed.
-	(riscv_gdbarch_init): Gather isa features and abi features
-	separately, ensure both match on the gdbarch when reusing an old
-	gdbarch.  Relax an error check to allow 32-bit abi float to run on
-	a target with 64-bit float hardware.
-
-2019-01-01  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
-
-	* source.c (search_command_helper): Stop reverse search
-	when line 1 has been searched.
-
-2019-01-01  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
-
-	* record-full.c (record_full_base_target::close): Rewrite
-	record_full_core_buf_list free logic.
-
-2019-01-01  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
-
-	* break-catch-syscall.c (print_one_catch_syscall): xfree
-	the last text.
-
-2019-01-01  Joel Brobecker  <brobecker@adacore.com>
-
-	* top.c (print_gdb_version): Update Copyright year in version
-	message.
-
-2019-01-01  Joel Brobecker  <brobecker@adacore.com>
+2020-01-08  Tom Tromey  <tromey@adacore.com>
+
+	* dwarf2read.c (parse_macro_definition): Use std::string.
+	(parse_macro_definition): Likewise.
+
+2020-01-08  Tom Tromey  <tromey@adacore.com>
+
+	* dwarf2read.c (abbrev_table_read_table): Use std::vector.
+	(ATTR_ALLOC_CHUNK): Remove.
+
+2020-01-08  Tom Tromey  <tromey@adacore.com>
+
+	* dwarf2read.c (fixup_go_packaging): Use unique_xmalloc_ptr.
+
+2020-01-08  Tom Tromey  <tromey@adacore.com>
+
+	* dwarf2read.c (add_partial_symbol): Use unique_xmalloc_ptr.
+	(dwarf2_compute_name, open_dwo_file): Likewise.
+	(process_enumeration_scope): Use std::vector.
+	(guess_partial_die_structure_name): Use unique_xmalloc_ptr.
+	(partial_die_info::fixup, dwarf2_start_subfile)
+	(guess_full_die_structure_name, dwarf2_name): Likewise.
+	(determine_prefix): Update.
+	(guess_full_die_structure_name): Make return type const.
+	(partial_die_full_name): Return unique_xmalloc_ptr.
+	(DW_FIELD_ALLOC_CHUNK): Remove.
+
+2020-01-07  Tom Tromey  <tromey@adacore.com>
+
+	PR build/24937:
+	* stap-probe.c (class stap_static_probe_ops): Add constructor.
+
+2020-01-02  Jon Turney  <jon.turney@dronecode.org.uk>
+
+	* cli/cli-style.c: Set cli_styling to 'true' in the Cygwin build.
+
+2020-01-06  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* stack.c (print_frame_info): Move disassemble_next_line code
+	inside source_print block.
+
+2020-01-06  Eli Zaretskii  <eliz@gnu.org>
+
+	* gdbsupport/gdb_wait.c: Include <signal.h> instead of
+	gdb/signals.h, as we are now using native signal symbols.
+
+2020-01-06  Shahab Vahedi  <shahab@synopsys.com>
+
+	* tui/tui-disasm.c (tui_disasm_window::addr_is_displayed): Avoid
+	overflow by an early check of content vs threshold.
+        * tui/tui-source.c (tui_source_window::line_is_displayed):
+	Likewise.
+
+2020-01-06  Eli Zaretskii  <eliz@gnu.org>
+
+	* NEWS: Mention the recent fix of $_exitsignal on MS-Windows.
+
+2020-01-02  Jon Turney  <jon.turney@dronecode.org.uk>
+
+	* coff-pe-read.c (read_pe_exported_syms): Don't try to read the
+	export table if no section contains it's RVA.
+
+2020-01-06  Eli Zaretskii  <eliz@gnu.org>
+
+	* windows-tdep.c: Fix a typo in WINDOWS_SIGABRT.
+
+2020-01-06  Hannes Domani  <ssbssa@yahoo.de>
+
+	* source.c (print_source_lines_base): Set last_line_listed.
+
+2020-01-06  Shahab Vahedi  <shahab@synopsys.com>
+
+	* tui/tui-disasm.c: Remove trailing spaces.
+
+2020-01-06  Eli Zaretskii  <eliz@gnu.org>
+	    Pedro Alves  <palves@redhat.com>
+
+	* Makefile.in (COMMON_SFILES): Add gdbsupport/gdb_wait.c.
+	* windows-tdep.c: New enumeration of WINDOWS_SIG* signals.
+	(windows_gdb_signal_to_target): New function, uses the above
+	enumeration to convert GDB internal signal codes to equivalent
+	Windows codes.
+	(windows_init_abi): Call set_gdbarch_gdb_signal_to_target.
+	* windows-nat.c: Include "gdb_wait.h".
+	(get_windows_debug_event): Extract the fatal exception from the
+	exit status and convert to the equivalent Posix signal number.
+	* cli/cli-cmds.c (exit_status_set_internal_vars): Account for the
+	possibility that WTERMSIG returns GDB_SIGNAL_UNKNOWN.
+	* gdbsupport/gdb_wait.c: New file, implements
+	windows_status_to_termsig.
+	* gdbsupport/gdb_wait.h (WIFEXITED, WIFSIGNALED, WEXITSTATUS)
+	(WTERMSIG) [__MINGW32__]: Separate definitions for MinGW.
+
+2020-01-05  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* tui/tui-layout.c (tui_add_win_to_layout): Use tui_set_layout not
+	show_layout.
+
+2020-01-05  Luis Machado  <luis.machado@linaro.org>
+
+	* aarch64-linux-nat.c
+	(aarch64_linux_nat_target::thread_architecture): Use bfd_arch_aarch64
+	and bfd_mach_aarch64.
+
+2020-01-03  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
+
+	* ui-file.c (stdio_file::can_emit_style_escape)
+	(tee_file::can_emit_style_escape): Ensure style is used also on
+	gdb_stderr when gdb_stderr is a tty supporting styling, similarly
+	to gdb_stdout.
+	* main.c (set_gdb_data_directory): Use file style to output the
+	warning that the given pathname is not a directory.
+	* top.c (show_history_filename, gdb_safe_append_history)
+	(show_gdb_datadir): Use file style.
+
+2020-01-03  Hannes Domani  <ssbssa@yahoo.de>
+
+	* solib-target.c (struct lm_info_target):
+	Change offsets to be a unique_xmalloc_ptr.
+	(solib_target_relocate_section_addresses): Update.
+
+2020-01-03  Hannes Domani  <ssbssa@yahoo.de>
+
+	* windows-nat.c (windows_clear_solib): Free so_list linked list.
+
+2020-01-03  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	* MAINTAINERS (Write After Approval): Add myself.
+
+2020-01-02  Luis Machado  <luis.machado@linaro.org>
+
+	* proc-service.c (get_ps_regcache): Remove reference to obsolete
+	Cell BE architecture.
+	* target.h (struct target_ops) <thread_architecture>: Likewise.
+
+2020-01-01  Hannes Domani  <ssbssa@yahoo.de>
+
+	* Makefile.in: Use INSTALL_PROGRAM_ENV.
+
+2020-01-01  Hannes Domani  <ssbssa@yahoo.de>
+
+	* MAINTAINERS (Write After Approval): Add myself.
+
+2020-01-01  Joel Brobecker  <brobecker@adacore.com>
+
+	* gdbarch.sh: Update copyright year range of generated files.
+
+2020-01-01  Joel Brobecker  <brobecker@adacore.com>
 
 	Update copyright year range in all GDB files.
 
-2019-01-01, 19  Joel Brobecker  <brobecker@adacore.com>
+2020-01-01  Joel Brobecker  <brobecker@adacore.com>
 
-	* config/djgpp/fnchange.lst: Add entry for gdb/ChangeLog-2018.
+	* copyright.py: Convert to Python 3.
 
-For older changes see ChangeLog-2018.
+2020-01-01  Joel Brobecker  <brobecker@adacore.com>
+
+	* copyright.py: Adapt after move of gnulib directory from gdb
+	directory to toplevel directory.
+
+2020-01-01  Joel Brobecker  <brobecker@adacore.com>
+
+	* copyright.py (main): Exit if run from the wrong directory.
+
+2020-01-01  Joel Brobecker  <brobecker@adacore.com>
+
+	* top.c (print_gdb_version): Change copyright year to 2020.
+
+2020-01-01  Joel Brobecker  <brobecker@adacore.com>
+
+	* config/djgpp/fnchange.lst: Add entry for gdb/ChangeLog-2019.
+
+For older changes see ChangeLog-2019.
 
 Local Variables:
 mode: change-log
@@ -1203,4 +1601,3 @@ fill-column: 74
 version-control: never
 coding: utf-8
 End:
-

@@ -1,6 +1,6 @@
 /* FreeBSD/riscv target support, prototypes.
 
-   Copyright (C) 2018-2019 Free Software Foundation, Inc.
+   Copyright (C) 2018-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,6 +17,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#ifndef RISCV_FBSD_TDEP_H
+#define RISCV_FBSD_TDEP_H
+
 #include "regset.h"
 
 /* The general-purpose regset consists of 31 X registers, EPC, and
@@ -31,3 +34,5 @@
 
 extern const struct regset riscv_fbsd_gregset;
 extern const struct regset riscv_fbsd_fpregset;
+
+#endif /* RISCV_FBSD_TDEP_H */

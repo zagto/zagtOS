@@ -1,6 +1,6 @@
 /* build-id-related functions.
 
-   Copyright (C) 1991-2019 Free Software Foundation, Inc.
+   Copyright (C) 1991-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,7 +21,7 @@
 #include "bfd.h"
 #include "gdb_bfd.h"
 #include "build-id.h"
-#include "gdb_vecs.h"
+#include "gdbsupport/gdb_vecs.h"
 #include "symfile.h"
 #include "objfiles.h"
 #include "filenames.h"
@@ -32,7 +32,8 @@
 const struct bfd_build_id *
 build_id_bfd_get (bfd *abfd)
 {
-  if (!bfd_check_format (abfd, bfd_object))
+  if (!bfd_check_format (abfd, bfd_object)
+      && !bfd_check_format (abfd, bfd_core))
     return NULL;
 
   if (abfd->build_id != NULL)
@@ -65,13 +66,66 @@ build_id_verify (bfd *abfd, size_t check_len, const bfd_byte *check)
   return retval;
 }
 
-/* See build-id.h.  */
+/* Helper for build_id_to_debug_bfd.  LINK is a path to a potential
+   build-id-based separate debug file, potentially a symlink to the real file.
+   If the file exists and matches BUILD_ID, return a BFD reference to it.  */
 
-gdb_bfd_ref_ptr
-build_id_to_debug_bfd (size_t build_id_len, const bfd_byte *build_id)
+static gdb_bfd_ref_ptr
+build_id_to_debug_bfd_1 (const std::string &link, size_t build_id_len,
+			 const bfd_byte *build_id)
 {
-  gdb_bfd_ref_ptr abfd;
+  if (separate_debug_file_debug)
+    {
+      printf_unfiltered (_("  Trying %s..."), link.c_str ());
+      gdb_flush (gdb_stdout);
+    }
 
+  /* lrealpath() is expensive even for the usually non-existent files.  */
+  gdb::unique_xmalloc_ptr<char> filename;
+  if (access (link.c_str (), F_OK) == 0)
+    filename.reset (lrealpath (link.c_str ()));
+
+  if (filename == NULL)
+    {
+      if (separate_debug_file_debug)
+	printf_unfiltered (_(" no, unable to compute real path\n"));
+
+      return {};
+    }
+
+  /* We expect to be silent on the non-existing files.  */
+  gdb_bfd_ref_ptr debug_bfd = gdb_bfd_open (filename.get (), gnutarget, -1);
+
+  if (debug_bfd == NULL)
+    {
+      if (separate_debug_file_debug)
+	printf_unfiltered (_(" no, unable to open.\n"));
+
+      return {};
+    }
+
+  if (!build_id_verify (debug_bfd.get(), build_id_len, build_id))
+    {
+      if (separate_debug_file_debug)
+	printf_unfiltered (_(" no, build-id does not match.\n"));
+
+      return {};
+    }
+
+  if (separate_debug_file_debug)
+    printf_unfiltered (_(" yes!\n"));
+
+  return debug_bfd;
+}
+
+/* Common code for finding BFDs of a given build-id.  This function
+   works with both debuginfo files (SUFFIX == ".debug") and executable
+   files (SUFFIX == "").  */
+
+static gdb_bfd_ref_ptr
+build_id_to_bfd_suffix (size_t build_id_len, const bfd_byte *build_id,
+			const char *suffix)
+{
   /* Keep backward compatibility so that DEBUG_FILE_DIRECTORY being "" will
      cause "/.build-id/..." lookups.  */
 
@@ -83,6 +137,10 @@ build_id_to_debug_bfd (size_t build_id_len, const bfd_byte *build_id)
       const gdb_byte *data = build_id;
       size_t size = build_id_len;
 
+      /* Compute where the file named after the build-id would be.
+
+	 If debugdir is "/usr/lib/debug" and the build-id is abcdef, this will
+         give "/usr/lib/debug/.build-id/ab/cdef.debug".  */
       std::string link = debugdir.get ();
       link += "/.build-id/";
 
@@ -95,55 +153,46 @@ build_id_to_debug_bfd (size_t build_id_len, const bfd_byte *build_id)
       while (size-- > 0)
 	string_appendf (link, "%02x", (unsigned) *data++);
 
-      link += ".debug";
+      link += suffix;
 
-      if (separate_debug_file_debug)
+      gdb_bfd_ref_ptr debug_bfd
+	= build_id_to_debug_bfd_1 (link, build_id_len, build_id);
+      if (debug_bfd != NULL)
+	return debug_bfd;
+
+      /* Try to look under the sysroot as well.  If the sysroot is
+         "/the/sysroot", it will give
+         "/the/sysroot/usr/lib/debug/.build-id/ab/cdef.debug".
+
+         Don't do it if the sysroot is the target system ("target:").  It
+         could work in theory, but the lrealpath in build_id_to_debug_bfd_1
+         only works with local paths.  */
+      if (strcmp (gdb_sysroot, TARGET_SYSROOT_PREFIX) != 0)
 	{
-	  printf_unfiltered (_("  Trying %s..."), link.c_str ());
-	  gdb_flush (gdb_stdout);
+	  link = gdb_sysroot + link;
+	  debug_bfd = build_id_to_debug_bfd_1 (link, build_id_len, build_id);
+	  if (debug_bfd != NULL)
+	    return debug_bfd;
 	}
-
-      /* lrealpath() is expensive even for the usually non-existent files.  */
-      gdb::unique_xmalloc_ptr<char> filename;
-      if (access (link.c_str (), F_OK) == 0)
-	filename.reset (lrealpath (link.c_str ()));
-
-      if (filename == NULL)
-	{
-	  if (separate_debug_file_debug)
-	    printf_unfiltered (_(" no, unable to compute real path\n"));
-
-	  continue;
-	}
-
-      /* We expect to be silent on the non-existing files.  */
-      abfd = gdb_bfd_open (filename.get (), gnutarget, -1);
-
-      if (abfd == NULL)
-	{
-	  if (separate_debug_file_debug)
-	    printf_unfiltered (_(" no, unable to open.\n"));
-
-	  continue;
-	}
-
-      if (build_id_verify (abfd.get(), build_id_len, build_id))
-	{
-	  if (separate_debug_file_debug)
-	    printf_unfiltered (_(" yes!\n"));
-
-	  break;
-	}
-      else
-	{
-	  if (separate_debug_file_debug)
-	    printf_unfiltered (_(" no, build-id does not match.\n"));
-	}
-
-      abfd.release ();
     }
 
-  return abfd;
+  return {};
+}
+
+/* See build-id.h.  */
+
+gdb_bfd_ref_ptr
+build_id_to_debug_bfd (size_t build_id_len, const bfd_byte *build_id)
+{
+  return build_id_to_bfd_suffix (build_id_len, build_id, ".debug");
+}
+
+/* See build-id.h.  */
+
+gdb_bfd_ref_ptr
+build_id_to_exec_bfd (size_t build_id_len, const bfd_byte *build_id)
+{
+  return build_id_to_bfd_suffix (build_id_len, build_id, "");
 }
 
 /* See build-id.h.  */

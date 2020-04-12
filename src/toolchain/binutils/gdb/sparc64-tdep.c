@@ -1,6 +1,6 @@
 /* Target-dependent code for UltraSPARC.
 
-   Copyright (C) 2003-2019 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -316,8 +316,10 @@ adi_is_addr_mapped (CORE_ADDR vaddr, size_t cnt)
   if (data)
     {
       adi_stat_t adi_stat = get_adi_info (pid);
-      char *line;
-      for (line = strtok (data.get (), "\n"); line; line = strtok (NULL, "\n"))
+      char *saveptr;
+      for (char *line = strtok_r (data.get (), "\n", &saveptr);
+	   line;
+	   line = strtok_r (NULL, "\n", &saveptr))
         {
           ULONGEST addr, endaddr;
 
@@ -406,7 +408,6 @@ adi_print_versions (CORE_ADDR vaddr, size_t cnt, gdb_byte *tags)
           ++v_idx;
         }
       printf_filtered ("\n");
-      gdb_flush (gdb_stdout);
       vaddr += maxelts;
     }
 }
@@ -533,8 +534,9 @@ adi_assign_command (const char *args, int from_tty)
   do_assign (next_address, cnt, version);
 }
 
+void _initialize_sparc64_adi_tdep ();
 void
-_initialize_sparc64_adi_tdep (void)
+_initialize_sparc64_adi_tdep ()
 {
 
   add_prefix_cmd ("adi", class_support, info_adi_command,
@@ -1200,7 +1202,7 @@ sparc64_16_byte_align_p (struct type *type)
 
 /* Store floating fields of element ELEMENT of an "parameter array"
    that has type TYPE and is stored at BITPOS in VALBUF in the
-   apropriate registers of REGCACHE.  This function can be called
+   appropriate registers of REGCACHE.  This function can be called
    recursively and therefore handles floating types in addition to
    structures.  */
 
@@ -1464,7 +1466,7 @@ sparc64_store_arguments (struct regcache *regcache, int nargs,
   /* The psABI says that "Every stack frame must be 16-byte aligned."  */
   sp &= ~0xf;
 
-  /* Now we store the arguments in to the "paramater array".  Some
+  /* Now we store the arguments in to the "parameter array".  Some
      Integer or Pointer arguments and Structure or Union arguments
      will be passed in %o registers.  Some Floating arguments and
      floating members of structures are passed in floating-point

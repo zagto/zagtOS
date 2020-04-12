@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2020 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GDB.
@@ -16,8 +16,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "common-defs.h"
-#include "break-common.h"
+#include "gdbsupport/common-defs.h"
+#include "gdbsupport/break-common.h"
 #include "nat/linux-nat.h"
 #include "nat/aarch64-linux-hw-point.h"
 #include "nat/aarch64-linux.h"
@@ -76,7 +76,7 @@ aarch64_linux_new_thread (struct lwp_info *lwp)
   ptid_t ptid = ptid_of_lwp (lwp);
   struct aarch64_debug_reg_state *state
     = aarch64_get_debug_reg_state (ptid.pid ());
-  struct arch_lwp_info *info = XNEW (struct arch_lwp_info);
+  struct arch_lwp_info *info = XCNEW (struct arch_lwp_info);
 
   /* If there are hardware breakpoints/watchpoints in the process then mark that
      all the hardware breakpoint/watchpoint register pairs for this thread need

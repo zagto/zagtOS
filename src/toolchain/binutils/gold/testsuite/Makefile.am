@@ -278,6 +278,16 @@ icf_test: icf_test.o gcctestdir/ld
 icf_test.map: icf_test
 	@touch icf_test.map
 
+check_SCRIPTS += icf_test_pr21066.sh
+check_DATA += icf_test_pr21066.map
+MOSTLYCLEANFILES += icf_test_pr21066 icf_test_pr21066.map
+icf_test_pr21066.o: icf_test_pr21066.cc
+	$(CXXCOMPILE) -O0 -c -ffunction-sections -g -o $@ $<
+icf_test_pr21066: icf_test_pr21066.o gcctestdir/ld
+	$(CXXLINK) -o icf_test_pr21066 -Bgcctestdir/ -Wl,--icf=all,-Map,icf_test_pr21066.map icf_test_pr21066.o
+icf_test_pr21066.map: icf_test_pr21066
+	@touch icf_test_pr21066.map
+
 check_SCRIPTS += icf_keep_unique_test.sh
 check_DATA += icf_keep_unique_test.stdout
 MOSTLYCLEANFILES += icf_keep_unique_test
@@ -3284,6 +3294,26 @@ pr22266: pr22266_main.o pr22266_ar.o gcctestdir/ld
 	$(LINK) pr22266_main.o pr22266_ar.o
 pr22266_ar.o: pr22266_a.o gcctestdir/ld
 	gcctestdir/ld -r -T $(srcdir)/pr22266_script.t -o $@ pr22266_a.o
+
+if DEFAULT_TARGET_AARCH64
+
+check_PROGRAMS += aarch64_pr23870
+aarch64_pr23870_SOURCES = aarch64_pr23870_foo.c
+aarch64_pr23870_DEPENDENCIES = \
+	gcctestdir/ld gcctestdir/as aarch64_pr23870_main.o \
+	aarch64_pr23870_foo.o aarch64_pr23870_bar.so
+aarch64_pr23870_LDFLAGS = -Wl,-R,. -L. -Wl,-l:aarch64_pr23870_bar.so
+aarch64_pr23870_LDADD = aarch64_pr23870_main.o
+aarch64_pr23870_main.o: aarch64_pr23870_main.S
+	$(COMPILE) -c -o $@ $<
+aarch64_pr23870_foo.o: aarch64_pr23870_foo.c
+	$(COMPILE) -c -o $@ $<
+aarch64_pr23870_bar.o: aarch64_pr23870_bar.c
+	$(COMPILE) -c -fPIC -o $@ $<
+aarch64_pr23870_bar.so: aarch64_pr23870_bar.o
+	$(COMPILE) -shared -o $@ $<
+
+endif DEFAULT_TARGET_AARCH64
 
 endif GCC
 endif NATIVE_LINKER

@@ -1,6 +1,6 @@
 /* C language support definitions for GDB, the GNU debugger.
 
-   Copyright (C) 1992-2019 Free Software Foundation, Inc.
+   Copyright (C) 1992-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -29,7 +29,7 @@ struct parser_state;
 #include "value.h"
 #include "macroexp.h"
 #include "parser-defs.h"
-#include "common/enum-flags.h"
+#include "gdbsupport/enum-flags.h"
 
 
 /* The various kinds of C string and character.  Note that these
@@ -144,9 +144,20 @@ extern void cp_print_value_fields_rtti (struct type *,
 					const struct value_print_options *,
 					struct type **, int);
 
+/* gcc-2.6 or later (when using -fvtable-thunks)
+   emits a unique named type for a vtable entry.
+   Some gdb code depends on that specific name.  */
+
+extern const char vtbl_ptr_name[];
+
 extern int cp_is_vtbl_ptr_type (struct type *);
 
 extern int cp_is_vtbl_member (struct type *);
+
+/* Return true if TYPE is a string type.  Unlike DEFAULT_IS_STRING_TYPE_P
+   this will detect arrays of characters not just TYPE_CODE_STRING.  */
+
+extern bool c_is_string_type_p (struct type *type);
 
 /* These are in c-valprint.c.  */
 

@@ -1,6 +1,6 @@
 /* Private partial symbol table definitions.
 
-   Copyright (C) 2009-2019 Free Software Foundation, Inc.
+   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,6 +22,7 @@
 
 #include "psymtab.h"
 #include "objfiles.h"
+#include "gdbsupport/gdb_string_view.h"
 
 /* A partial_symbol records the name, domain, and address class of
    symbols whose types we have not parsed yet.  For functions, it also
@@ -33,36 +34,41 @@
 /* This structure is space critical.  See space comments at the top of
    symtab.h.  */
 
-struct partial_symbol : public general_symbol_info
+struct partial_symbol
 {
   /* Return the section for this partial symbol, or nullptr if no
      section has been set.  */
   struct obj_section *obj_section (struct objfile *objfile) const
   {
-    if (section >= 0)
-      return &objfile->sections[section];
+    if (ginfo.section >= 0)
+      return &objfile->sections[ginfo.section];
     return nullptr;
   }
 
   /* Return the unrelocated address of this partial symbol.  */
   CORE_ADDR unrelocated_address () const
   {
-    return value.address;
+    return ginfo.value.address;
   }
 
   /* Return the address of this partial symbol, relocated according to
      the offsets provided in OBJFILE.  */
   CORE_ADDR address (const struct objfile *objfile) const
   {
-    return value.address + ANOFFSET (objfile->section_offsets, section);
+    return ginfo.value.address + objfile->section_offsets[ginfo.section];
   }
 
   /* Set the address of this partial symbol.  The address must be
      unrelocated.  */
   void set_unrelocated_address (CORE_ADDR addr)
   {
-    value.address = addr;
+    ginfo.value.address = addr;
   }
+
+  /* Note that partial_symbol does not derive from general_symbol_info
+     due to the bcache.  See add_psymbol_to_bcache.  */
+
+  struct general_symbol_info ginfo;
 
   /* Name space code.  */
 
@@ -113,15 +119,13 @@ struct partial_symtab
   /* Return the relocated low text address of this partial_symtab.  */
   CORE_ADDR text_low (struct objfile *objfile) const
   {
-    return m_text_low + ANOFFSET (objfile->section_offsets,
-				  SECT_OFF_TEXT (objfile));
+    return m_text_low + objfile->section_offsets[SECT_OFF_TEXT (objfile)];
   }
 
   /* Return the relocated high text address of this partial_symtab.  */
   CORE_ADDR text_high (struct objfile *objfile) const
   {
-    return m_text_high + ANOFFSET (objfile->section_offsets,
-				   SECT_OFF_TEXT (objfile));
+    return m_text_high + objfile->section_offsets[SECT_OFF_TEXT (objfile)];
   }
 
   /* Set the low text address of this partial_symtab.  */
@@ -280,15 +284,32 @@ enum class psymbol_placement
   GLOBAL
 };
 
-/* Add any kind of symbol to a partial_symbol vector.  */
+/* Add a symbol to the partial symbol table of OBJFILE.
 
-extern void add_psymbol_to_list (const char *, int,
-				 int, domain_enum,
-				 enum address_class,
-				 short /* section */,
-				 enum psymbol_placement,
-				 CORE_ADDR,
-				 enum language, struct objfile *);
+   If COPY_NAME is true, make a copy of NAME, otherwise use the passed
+   reference.
+
+   THECLASS is the type of symbol.
+
+   SECTION is the index of the section of OBJFILE in which the symbol is found.
+
+   WHERE determines whether the symbol goes in the list of static or global
+   partial symbols of OBJFILE.
+
+   COREADDR is the address of the symbol.  For partial symbols that don't have
+   an address, zero is passed.
+
+   LANGUAGE is the language from which the symbol originates.  This will
+   influence, amongst other things, how the symbol name is demangled. */
+
+extern void add_psymbol_to_list (gdb::string_view name,
+				 bool copy_name, domain_enum domain,
+				 enum address_class theclass,
+				 short section,
+				 psymbol_placement where,
+				 CORE_ADDR coreaddr,
+				 enum language language,
+				 struct objfile *objfile);
 
 /* Initialize storage for partial symbols.  If partial symbol storage
    has already been initialized, this does nothing.  TOTAL_SYMBOLS is

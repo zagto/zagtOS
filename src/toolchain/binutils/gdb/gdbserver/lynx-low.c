@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -25,10 +25,10 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include "gdb_wait.h"
+#include "gdbsupport/gdb_wait.h"
 #include <signal.h>
-#include "filestuff.h"
-#include "common-inferior.h"
+#include "gdbsupport/filestuff.h"
+#include "gdbsupport/common-inferior.h"
 #include "nat/fork-inferior.h"
 
 int using_threads = 1;
@@ -316,7 +316,7 @@ lynx_attach (unsigned long pid)
 
   if (lynx_ptrace (PTRACE_ATTACH, ptid, 0, 0, 0) != 0)
     error ("Cannot attach to process %lu: %s (%d)\n", pid,
-	   strerror (errno), errno);
+	   safe_strerror (errno), errno);
 
   lynx_add_process (pid, 1);
   lynx_add_threads_after_attach (pid);
@@ -721,7 +721,7 @@ lynx_request_interrupt (void)
 
 /* The LynxOS target_ops vector.  */
 
-static struct target_ops lynx_target_ops = {
+static process_stratum_target lynx_target_ops = {
   lynx_create_inferior,
   NULL,  /* post_create_inferior */
   lynx_attach,
@@ -753,7 +753,6 @@ static struct target_ops lynx_target_ops = {
   NULL,  /* stopped_data_address */
   NULL,  /* read_offsets */
   NULL,  /* get_tls_address */
-  NULL,  /* qxfer_spu */
   NULL,  /* hostio_last_error */
   NULL,  /* qxfer_osdata */
   NULL,  /* qxfer_siginfo */

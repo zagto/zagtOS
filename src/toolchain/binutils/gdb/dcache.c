@@ -1,6 +1,6 @@
 /* Caching code for GDB, the GNU debugger.
 
-   Copyright (C) 1992-2019 Free Software Foundation, Inc.
+   Copyright (C) 1992-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,6 +24,7 @@
 #include "target-dcache.h"
 #include "inferior.h"
 #include "splay-tree.h"
+#include "gdbarch.h"
 
 /* Commands with a prefix of `{set,show} dcache'.  */
 static struct cmd_list_element *dcache_set_list = NULL;
@@ -65,7 +66,7 @@ static struct cmd_list_element *dcache_show_list = NULL;
    is set, etc., then the chunk is skipped.  Those chunks are handled
    in target_xfer_memory() (or target_xfer_memory_partial()).
 
-   This doesn't occur very often.  The most common occurance is when
+   This doesn't occur very often.  The most common occurrence is when
    the last bit of the .text segment and the first bit of the .data
    segment fall within the same dcache page with a ro/cacheable memory
    region defined for the .text segment and a rw/non-cacheable memory
@@ -125,7 +126,7 @@ static int dcache_read_line (DCACHE *dcache, struct dcache_block *db);
 
 static struct dcache_block *dcache_alloc (DCACHE *dcache, CORE_ADDR addr);
 
-static int dcache_enabled_p = 0; /* OBSOLETE */
+static bool dcache_enabled_p = false; /* OBSOLETE */
 
 static void
 show_dcache_enabled_p (struct ui_file *file, int from_tty,
@@ -615,7 +616,7 @@ dcache_info_1 (DCACHE *dcache, const char *exp)
     }
 
   printf_filtered (_("Contains data for %s\n"),
-		   target_pid_to_str (dcache->ptid));
+		   target_pid_to_str (dcache->ptid).c_str ());
 
   refcount = 0;
 
@@ -683,8 +684,9 @@ show_dcache_command (const char *args, int from_tty)
   cmd_show_list (dcache_show_list, from_tty, "");
 }
 
+void _initialize_dcache ();
 void
-_initialize_dcache (void)
+_initialize_dcache ()
 {
   add_setshow_boolean_cmd ("remotecache", class_support,
 			   &dcache_enabled_p, _("\

@@ -1,7 +1,7 @@
 /* GNU/Linux/AArch64 specific low level interface, for the remote server for
    GDB.
 
-   Copyright (C) 2009-2019 Free Software Foundation, Inc.
+   Copyright (C) 2009-2020 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GDB.
@@ -28,6 +28,7 @@
 #include "elf/common.h"
 #include "ax.h"
 #include "tracepoint.h"
+#include "debug.h"
 
 #include <signal.h>
 #include <sys/user.h>
@@ -39,6 +40,7 @@
 
 #include "gdb_proc_service.h"
 #include "arch/aarch64.h"
+#include "linux-aarch32-tdesc.h"
 #include "linux-aarch64-tdesc.h"
 #include "nat/aarch64-sve-linux-ptrace.h"
 #include "tdesc.h"
@@ -81,7 +83,7 @@ is_sve_tdesc (void)
 {
   struct regcache *regcache = get_thread_regcache (current_thread, 0);
 
-  return regcache->tdesc->reg_defs.size () == AARCH64_SVE_NUM_REGS;
+  return tdesc_contains_feature (regcache->tdesc, "org.gnu.gdb.aarch64.sve");
 }
 
 static void
@@ -135,9 +137,22 @@ aarch64_store_fpregset (struct regcache *regcache, const void *buf)
   supply_register (regcache, AARCH64_FPCR_REGNUM, &regset->fpcr);
 }
 
-/* Enable miscellaneous debugging output.  The name is historical - it
-   was originally used to debug LinuxThreads support.  */
-extern int debug_threads;
+/* Store the pauth registers to regcache.  */
+
+static void
+aarch64_store_pauthregset (struct regcache *regcache, const void *buf)
+{
+  uint64_t *pauth_regset = (uint64_t *) buf;
+  int pauth_base = find_regno (regcache->tdesc, "pauth_dmask");
+
+  if (pauth_base == 0)
+    return;
+
+  supply_register (regcache, AARCH64_PAUTH_DMASK_REGNUM (pauth_base),
+		   &pauth_regset[0]);
+  supply_register (regcache, AARCH64_PAUTH_CMASK_REGNUM (pauth_base),
+		   &pauth_regset[1]);
+}
 
 /* Implementation of linux_target_ops method "get_pc".  */
 
@@ -485,6 +500,9 @@ aarch64_linux_new_fork (struct process_info *parent,
   *child->priv->arch_private = *parent->priv->arch_private;
 }
 
+/* Matches HWCAP_PACA in kernel header arch/arm64/include/uapi/asm/hwcap.h.  */
+#define AARCH64_HWCAP_PACA (1 << 30)
+
 /* Implementation of linux_target_ops method "arch_setup".  */
 
 static void
@@ -501,10 +519,13 @@ aarch64_arch_setup (void)
   if (is_elf64)
     {
       uint64_t vq = aarch64_sve_get_vq (tid);
-      current_process ()->tdesc = aarch64_linux_read_description (vq);
+      unsigned long hwcap = linux_get_hwcap (8);
+      bool pauth_p = hwcap & AARCH64_HWCAP_PACA;
+
+      current_process ()->tdesc = aarch64_linux_read_description (vq, pauth_p);
     }
   else
-    current_process ()->tdesc = tdesc_arm_with_neon;
+    current_process ()->tdesc = aarch32_linux_read_description ();
 
   aarch64_linux_get_debug_reg_capacity (lwpid_of (current_thread));
 }
@@ -534,6 +555,9 @@ static struct regset_info aarch64_regsets[] =
     sizeof (struct user_fpsimd_state), FP_REGS,
     aarch64_fill_fpregset, aarch64_store_fpregset
   },
+  { PTRACE_GETREGSET, PTRACE_SETREGSET, NT_ARM_PAC_MASK,
+    AARCH64_PAUTH_REGS_SIZE, OPTIONAL_REGS,
+    NULL, aarch64_store_pauthregset },
   NULL_REGSET
 };
 
@@ -560,6 +584,9 @@ static struct regset_info aarch64_sve_regsets[] =
     SVE_PT_SIZE (AARCH64_MAX_SVE_VQ, SVE_PT_REGS_SVE), EXTENDED_REGS,
     aarch64_sve_regs_copy_from_regcache, aarch64_sve_regs_copy_to_regcache
   },
+  { PTRACE_GETREGSET, PTRACE_SETREGSET, NT_ARM_PAC_MASK,
+    AARCH64_PAUTH_REGS_SIZE, OPTIONAL_REGS,
+    NULL, aarch64_store_pauthregset },
   NULL_REGSET
 };
 
@@ -1596,11 +1623,11 @@ append_insns (CORE_ADDR *to, size_t len, const uint32_t *buf)
   for (i = 0; i < len; i++)
     le_buf[i] = htole32 (buf[i]);
 
-  write_inferior_memory (*to, (const unsigned char *) le_buf, byte_len);
+  target_write_memory (*to, (const unsigned char *) le_buf, byte_len);
 
   xfree (le_buf);
 #else
-  write_inferior_memory (*to, (const unsigned char *) buf, byte_len);
+  target_write_memory (*to, (const unsigned char *) buf, byte_len);
 #endif
 
   *to += byte_len;
@@ -1921,7 +1948,7 @@ aarch64_install_fast_tracepoint_jump_pad (CORE_ADDR tpoint,
   for (i = 30; i >= 0; i -= 2)
     p += emit_stp_q_offset (p, i, i + 1, sp, i * 16);
 
-  /* Push general puspose registers on the stack.  Note that we do not need
+  /* Push general purpose registers on the stack.  Note that we do not need
      to push x31 as it represents the xzr register and not the stack
      pointer in a STR instruction.
 
@@ -2089,7 +2116,7 @@ aarch64_install_fast_tracepoint_jump_pad (CORE_ADDR tpoint,
        ; This instruction is a normal store with memory ordering
        ; constraints.  Thanks to this we do not have to put a data
        ; barrier instruction to make sure all data read and writes are done
-       ; before this instruction is executed.  Furthermore, this instrucion
+       ; before this instruction is executed.  Furthermore, this instruction
        ; will trigger an event, letting other threads know they can grab
        ; the lock.
        STLR xzr, [x0]
@@ -2284,7 +2311,7 @@ aarch64_emit_prologue (void)
      the current stack pointer in the frame pointer.  This way, it is not
      clobbered when calling C functions.
 
-     Finally, throughtout every operation, we are using register x0 as the
+     Finally, throughout every operation, we are using register x0 as the
      top of the stack, and x1 as a scratch register.  */
 
   p += emit_stp (p, x0, x1, sp, preindex_memory_operand (-2 * 16));
@@ -2611,7 +2638,7 @@ aarch64_emit_goto (int *offset_p, int *size_p)
 
 /* Implementation of emit_ops method "write_goto_address".  */
 
-void
+static void
 aarch64_write_goto_address (CORE_ADDR from, CORE_ADDR to, int size)
 {
   uint32_t insn;
@@ -3068,8 +3095,4 @@ initialize_low_arch (void)
 
   initialize_regsets_info (&aarch64_regsets_info);
   initialize_regsets_info (&aarch64_sve_regsets_info);
-
-#if GDB_SELF_TEST
-  initialize_low_tdesc ();
-#endif
 }

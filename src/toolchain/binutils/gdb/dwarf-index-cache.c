@@ -1,6 +1,6 @@
 /* Caching of GDB/DWARF index files.
 
-   Copyright (C) 1994-2019 Free Software Foundation, Inc.
+   Copyright (C) 1994-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,17 +23,17 @@
 #include "build-id.h"
 #include "cli/cli-cmds.h"
 #include "command.h"
-#include "common/scoped_mmap.h"
-#include "common/pathstuff.h"
+#include "gdbsupport/scoped_mmap.h"
+#include "gdbsupport/pathstuff.h"
 #include "dwarf-index-write.h"
 #include "dwarf2read.h"
 #include "objfiles.h"
-#include "selftest.h"
+#include "gdbsupport/selftest.h"
 #include <string>
 #include <stdlib.h>
 
-/* When set to 1, show debug messages about the index cache.  */
-static int debug_index_cache = 0;
+/* When set to true, show debug messages about the index cache.  */
+static bool debug_index_cache = false;
 
 /* The index cache directory, used for "set/show index-cache directory".  */
 static char *index_cache_directory = NULL;
@@ -93,6 +93,7 @@ index_cache::store (struct dwarf2_per_objfile *dwarf2_per_objfile)
   if (!enabled ())
     return;
 
+  /* Get build id of objfile.  */
   const bfd_build_id *build_id = build_id_bfd_get (obj->obfd);
   if (build_id == nullptr)
     {
@@ -102,40 +103,61 @@ index_cache::store (struct dwarf2_per_objfile *dwarf2_per_objfile)
       return;
     }
 
+  std::string build_id_str = build_id_to_string (build_id);
+
+  /* Get build id of dwz file, if present.  */
+  gdb::optional<std::string> dwz_build_id_str;
+  const dwz_file *dwz = dwarf2_get_dwz_file (dwarf2_per_objfile);
+  const char *dwz_build_id_ptr = NULL;
+
+  if (dwz != nullptr)
+    {
+      const bfd_build_id *dwz_build_id = build_id_bfd_get (dwz->dwz_bfd.get ());
+
+      if (dwz_build_id == nullptr)
+	{
+	  if (debug_index_cache)
+	    printf_unfiltered ("index cache: dwz objfile %s has no build id\n",
+			       dwz->filename ());
+	  return;
+	}
+
+      dwz_build_id_str = build_id_to_string (dwz_build_id);
+      dwz_build_id_ptr = dwz_build_id_str->c_str ();
+    }
+
   if (m_dir.empty ())
     {
       warning (_("The index cache directory name is empty, skipping store."));
       return;
     }
 
-  std::string build_id_str = build_id_to_string (build_id);
-
-  TRY
+  try
     {
       /* Try to create the containing directory.  */
       if (!mkdir_recursive (m_dir.c_str ()))
 	{
-	  warning (_("index cache: could not make cache directory: %s\n"),
+	  warning (_("index cache: could not make cache directory: %s"),
 		   safe_strerror (errno));
 	  return;
 	}
 
       if (debug_index_cache)
         printf_unfiltered ("index cache: writing index cache for objfile %s\n",
-			 objfile_name (obj));
+			   objfile_name (obj));
 
       /* Write the index itself to the directory, using the build id as the
          filename.  */
       write_psymtabs_to_index (dwarf2_per_objfile, m_dir.c_str (),
-			       build_id_str.c_str (), dw_index_kind::GDB_INDEX);
+			       build_id_str.c_str (), dwz_build_id_ptr,
+			       dw_index_kind::GDB_INDEX);
     }
-  CATCH (except, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &except)
     {
       if (debug_index_cache)
 	printf_unfiltered ("index cache: couldn't store index cache for objfile "
-			 "%s: %s", objfile_name (obj), except.message);
+			   "%s: %s", objfile_name (obj), except.what ());
     }
-  END_CATCH
 }
 
 #if HAVE_SYS_MMAN_H
@@ -172,7 +194,7 @@ index_cache::lookup_gdb_index (const bfd_build_id *build_id,
   /* Compute where we would expect a gdb index file for this build id to be.  */
   std::string filename = make_index_filename (build_id, INDEX4_SUFFIX);
 
-  TRY
+  try
     {
       if (debug_index_cache)
         printf_unfiltered ("index cache: trying to read %s\n",
@@ -189,13 +211,12 @@ index_cache::lookup_gdb_index (const bfd_build_id *build_id,
 	  ((const gdb_byte *) mmap_resource->mapping.get (),
 	   mmap_resource->mapping.size ());
     }
-  CATCH (except, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &except)
     {
       if (debug_index_cache)
 	printf_unfiltered ("index cache: couldn't read %s: %s\n",
-			 filename.c_str (), except.message);
+			   filename.c_str (), except.what ());
     }
-  END_CATCH
 
   return {};
 }
@@ -304,6 +325,7 @@ show_index_cache_stats_command (const char *arg, int from_tty)
 		     indent, global_index_cache.n_misses ());
 }
 
+void _initialize_index_cache ();
 void
 _initialize_index_cache ()
 {
@@ -319,12 +341,12 @@ _initialize_index_cache ()
 
   /* set index-cache */
   add_prefix_cmd ("index-cache", class_files, set_index_cache_command,
-		  _("Set index-cache options"), &set_index_cache_prefix_list,
+		  _("Set index-cache options."), &set_index_cache_prefix_list,
 		  "set index-cache ", false, &setlist);
 
   /* show index-cache */
   add_prefix_cmd ("index-cache", class_files, show_index_cache_command,
-		  _("Show index-cache options"), &show_index_cache_prefix_list,
+		  _("Show index-cache options."), &show_index_cache_prefix_list,
 		  "show index-cache ", false, &showlist);
 
   /* set index-cache on */

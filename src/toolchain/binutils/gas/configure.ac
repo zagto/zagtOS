@@ -3,7 +3,7 @@ dnl
 dnl And be careful when changing it!  If you must add tests with square
 dnl brackets, be sure changequote invocations surround it.
 dnl
-dnl   Copyright (C) 2012-2019 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2020 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -111,6 +111,17 @@ AC_ARG_ENABLE(generate_build_notes,
   no)   ac_default_generate_build_notes=0 ;;
 esac])dnl
 
+# Decide if the MIPS assembler should default to enable MIPS fix Loongson3
+# LLSC errata.
+ac_default_mips_fix_loongson3_llsc=unset
+# Provide a configuration option to override the default.
+AC_ARG_ENABLE(mips-fix-loongson3-llsc,
+             AS_HELP_STRING([--enable-mips-fix-loongson3-llsc],
+             [enable MIPS fix Loongson3 LLSC errata]),
+[case "${enableval}" in
+  yes)  ac_default_mips_fix_loongson3_llsc=1 ;;
+  no)   ac_default_mips_fix_loongson3_llsc=0 ;;
+esac])dnl
 
 # Decide if the x86 ELF assembler should default to generating GNU x86
 # used ISA and feature properties.
@@ -419,6 +430,12 @@ changequote([,])dnl
 	done
 	;;
 
+      bpf)
+      	if test $this_target = $target ; then
+	  AC_DEFINE_UNQUOTED(DEFAULT_ARCH, "${arch}", [Default architecture.])
+	fi
+        using_cgen=yes
+        ;;
       epiphany | fr30 | ip2k | iq2000 | lm32 | m32r | or1k)
 	using_cgen=yes
 	;;
@@ -686,6 +703,13 @@ fi
 AC_DEFINE_UNQUOTED(DEFAULT_RISCV_ATTR,
   $ac_default_generate_riscv_attr,
   [Define to 1 if you want to generate RISC-V arch attribute by default.])
+
+if test ${ac_default_mips_fix_loongson3_llsc} = unset; then
+  ac_default_mips_fix_loongson3_llsc=0
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_MIPS_FIX_LOONGSON3_LLSC,
+  $ac_default_mips_fix_loongson3_llsc,
+  [Define to 1 if you want to fix Loongson3 LLSC Errata by default.])
 
 if test x$ac_default_compressed_debug_sections = xyes ; then
   AC_DEFINE(DEFAULT_FLAG_COMPRESS_DEBUG, 1, [Define if you want compressed debug sections by default.])

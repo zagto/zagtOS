@@ -1,6 +1,6 @@
 /* Interface between gdb and its extension languages.
 
-   Copyright (C) 2014-2019 Free Software Foundation, Inc.
+   Copyright (C) 2014-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,8 +21,7 @@
 #define EXTENSION_H
 
 #include "mi/mi-cmds.h" /* For PRINT_NO_VALUES, etc.  */
-#include "common/vec.h"
-#include "common/array-view.h"
+#include "gdbsupport/array-view.h"
 
 struct breakpoint;
 struct command_line;
@@ -125,7 +124,10 @@ enum ext_lang_frame_args
     CLI_SCALAR_VALUES,
 
     /* Print all values for arguments when invoked from the CLI. */
-    CLI_ALL_VALUES
+    CLI_ALL_VALUES,
+
+    /* Only indicate the presence of arguments when invoked from the CLI.  */
+    CLI_PRESENCE
   };
 
 /* The possible results of

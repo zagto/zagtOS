@@ -1,5 +1,5 @@
 /* SPARC-specific support for 64-bit ELF
-   Copyright (C) 1993-2019 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -19,6 +19,7 @@
    MA 02110-1301, USA.  */
 
 #include "sysdep.h"
+#include <limits.h>
 #include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -36,13 +37,28 @@
 static long
 elf64_sparc_get_reloc_upper_bound (bfd *abfd ATTRIBUTE_UNUSED, asection *sec)
 {
+#if SIZEOF_LONG == SIZEOF_INT
+  if (sec->reloc_count >= LONG_MAX / 2 / sizeof (arelent *))
+    {
+      bfd_set_error (bfd_error_file_too_big);
+      return -1;
+    }
+#endif
   return (sec->reloc_count * 2 + 1) * sizeof (arelent *);
 }
 
 static long
 elf64_sparc_get_dynamic_reloc_upper_bound (bfd *abfd)
 {
-  return _bfd_elf_get_dynamic_reloc_upper_bound (abfd) * 2;
+  long ret = _bfd_elf_get_dynamic_reloc_upper_bound (abfd);
+  if (ret > LONG_MAX / 2)
+    {
+      bfd_set_error (bfd_error_file_too_big);
+      ret = -1;
+    }
+  else if (ret > 0)
+    ret *= 2;
+  return ret;
 }
 
 /* Read  relocations for ASECT from REL_HDR.  There are RELOC_COUNT of
@@ -100,17 +116,17 @@ elf64_sparc_slurp_one_reloc_table (bfd *abfd, asection *asect,
       if (ELF64_R_SYM (rela.r_info) == STN_UNDEF)
 	relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
       else if (/* PR 17512: file: 996185f8.  */
-               (!dynamic && ELF64_R_SYM(rela.r_info) > bfd_get_symcount(abfd))
-               || (dynamic
-                   && ELF64_R_SYM(rela.r_info) > bfd_get_dynamic_symcount(abfd)))
-        {
-          _bfd_error_handler
+	       ELF64_R_SYM (rela.r_info) > (dynamic
+					    ? bfd_get_dynamic_symcount (abfd)
+					    : bfd_get_symcount (abfd)))
+	{
+	  _bfd_error_handler
 	    /* xgettext:c-format */
 	    (_("%pB(%pA): relocation %d has invalid symbol index %ld"),
 	     abfd, asect, i, (long) ELF64_R_SYM (rela.r_info));
 	  bfd_set_error (bfd_error_bad_value);
 	  relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
-        }
+	}
       else
 	{
 	  asymbol **ps, *s;
@@ -732,7 +748,7 @@ elf64_sparc_fake_sections (bfd *abfd ATTRIBUTE_UNUSED,
 {
   const char *name;
 
-  name = bfd_get_section_name (abfd, sec);
+  name = bfd_section_name (sec);
 
   if (strcmp (name, ".stab") == 0)
     {
@@ -769,13 +785,44 @@ elf64_sparc_print_symbol_all (bfd *abfd ATTRIBUTE_UNUSED, void * filep,
     return symbol->name;
 }
 
+/* Used to decide how to sort relocs in an optimal manner for the
+   dynamic linker, before writing them out.  */
+
 static enum elf_reloc_type_class
-elf64_sparc_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
+elf64_sparc_reloc_type_class (const struct bfd_link_info *info,
 			      const asection *rel_sec ATTRIBUTE_UNUSED,
 			      const Elf_Internal_Rela *rela)
 {
+  bfd *abfd = info->output_bfd;
+  const struct elf_backend_data *bed = get_elf_backend_data (abfd);
+  struct _bfd_sparc_elf_link_hash_table *htab
+    = _bfd_sparc_elf_hash_table (info);
+  BFD_ASSERT (htab != NULL);
+
+  if (htab->elf.dynsym != NULL
+      && htab->elf.dynsym->contents != NULL)
+    {
+      /* Check relocation against STT_GNU_IFUNC symbol if there are
+	 dynamic symbols.  */
+      unsigned long r_symndx = htab->r_symndx (rela->r_info);
+      if (r_symndx != STN_UNDEF)
+	{
+	  Elf_Internal_Sym sym;
+	  if (!bed->s->swap_symbol_in (abfd,
+				       (htab->elf.dynsym->contents
+					+ r_symndx * bed->s->sizeof_sym),
+				       0, &sym))
+	    abort ();
+
+	  if (ELF_ST_TYPE (sym.st_info) == STT_GNU_IFUNC)
+	    return reloc_class_ifunc;
+	}
+    }
+
   switch ((int) ELF64_R_TYPE (rela->r_info))
     {
+    case R_SPARC_IRELATIVE:
+      return reloc_class_ifunc;
     case R_SPARC_RELATIVE:
       return reloc_class_relative;
     case R_SPARC_JMP_SLOT:
