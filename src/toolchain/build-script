@@ -24,7 +24,7 @@ function check_toolchain() {
         fi
         mkdir -p "$BINUTILS_BUILD_DIR"
         pushd "$BINUTILS_BUILD_DIR"
-        "$BINUTILS_SOURCE_DIR/configure" --target="$TARGET" --prefix="$TOOLCHAIN_DIR" --disable-werror --disable-nls --enable-lto $EXTRA_FLAGS_BINUTILS
+        "$BINUTILS_SOURCE_DIR/configure" --target="$TARGET" --prefix="$TOOLCHAIN_DIR" --disable-werror --disable-gdb --disable-nls --enable-lto $EXTRA_FLAGS_BINUTILS
         make -j "$PARALLEL_JOBS"
         make install
         popd
