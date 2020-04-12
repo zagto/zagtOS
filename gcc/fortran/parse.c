@@ -1,5 +1,5 @@
 /* Main parser.
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -587,10 +587,16 @@ decode_statement (void)
     }
 
   /* All else has failed, so give up.  See if any of the matchers has
-     stored an error message of some sort.  */
-
+     stored an error message of some sort.  Suppress the "Unclassifiable
+     statement" if a previous error message was emitted, e.g., by
+     gfc_error_now ().  */
   if (!gfc_error_check ())
-    gfc_error_now ("Unclassifiable statement at %C");
+    {
+      int ecnt;
+      gfc_get_errors (NULL, &ecnt);
+      if (ecnt <= 0)
+        gfc_error_now ("Unclassifiable statement at %C");
+    }
 
   reject_statement ();
 
@@ -1072,12 +1078,21 @@ decode_gcc_attribute (void)
 
   match ("attributes", gfc_match_gcc_attributes, ST_ATTR_DECL);
   match ("unroll", gfc_match_gcc_unroll, ST_NONE);
+  match ("builtin", gfc_match_gcc_builtin, ST_NONE);
+  match ("ivdep", gfc_match_gcc_ivdep, ST_NONE);
+  match ("vector", gfc_match_gcc_vector, ST_NONE);
+  match ("novector", gfc_match_gcc_novector, ST_NONE);
 
   /* All else has failed, so give up.  See if any of the matchers has
      stored an error message of some sort.  */
 
   if (!gfc_error_check ())
-    gfc_error_now ("Unclassifiable GCC directive at %C");
+    {
+      if (pedantic)
+	gfc_error_now ("Unclassifiable GCC directive at %C");
+      else
+	gfc_warning_now (0, "Unclassifiable GCC directive at %C, ignored");
+    }
 
   reject_statement ();
 
@@ -3739,7 +3754,7 @@ loop:
 	  break;
       }
 
-  /* If we find a statement that can not be followed by an IMPLICIT statement
+  /* If we find a statement that cannot be followed by an IMPLICIT statement
      (and thus we can expect to see none any further), type the function result
      if it has not yet been typed.  Be careful not to give the END statement
      to verify_st_order!  */
@@ -4536,7 +4551,7 @@ parse_associate (void)
 	 in case of association to a derived-type.  */
       sym->ts = a->target->ts;
 
-      /* Check if the target expression is array valued.  This can not always
+      /* Check if the target expression is array valued.  This cannot always
 	 be done by looking at target.rank, because that might not have been
 	 set yet.  Therefore traverse the chain of refs, looking for the last
 	 array ref and evaluate that.  */
@@ -4562,7 +4577,7 @@ parse_associate (void)
 	  else
 	    rank = a->target->rank;
 	  /* When the rank is greater than zero then sym will be an array.  */
-	  if (sym->ts.type == BT_CLASS)
+	  if (sym->ts.type == BT_CLASS && CLASS_DATA (sym))
 	    {
 	      if ((!CLASS_DATA (sym)->as && rank != 0)
 		  || (CLASS_DATA (sym)->as
@@ -4664,6 +4679,21 @@ parse_do_block (void)
 	{
 	  new_st.ext.iterator->unroll = directive_unroll;
 	  directive_unroll = -1;
+	}
+      if (directive_ivdep)
+	{
+	  new_st.ext.iterator->ivdep = directive_ivdep;
+	  directive_ivdep = false;
+	}
+      if (directive_vector)
+	{
+	  new_st.ext.iterator->vector = directive_vector;
+	  directive_vector = false;
+	}
+      if (directive_novector)
+	{
+	  new_st.ext.iterator->novector = directive_novector;
+	  directive_novector = false;
 	}
     }
   else
@@ -5073,6 +5103,9 @@ parse_omp_structured_block (gfc_statement omp_st, bool workshare_stmts_only)
     case ST_OMP_TARGET_DATA:
       omp_end_st = ST_OMP_END_TARGET_DATA;
       break;
+    case ST_OMP_TARGET_PARALLEL:
+      omp_end_st = ST_OMP_END_TARGET_PARALLEL;
+      break;
     case ST_OMP_TARGET_TEAMS:
       omp_end_st = ST_OMP_END_TARGET_TEAMS;
       break;
@@ -5424,7 +5457,17 @@ parse_executable (gfc_statement st)
 	}
 
       if (directive_unroll != -1)
-	gfc_error ("%<GCC unroll%> directive does not commence a loop at %C");
+	gfc_error ("%<GCC unroll%> directive not at the start of a loop at %C");
+
+      if (directive_ivdep)
+	gfc_error ("%<GCC ivdep%> directive not at the start of a loop at %C");
+
+      if (directive_vector)
+	gfc_error ("%<GCC vector%> directive not at the start of a loop at %C");
+
+      if (directive_novector)
+	gfc_error ("%<GCC novector%> "
+		   "directive not at the start of a loop at %C");
 
       st = next_statement ();
     }
@@ -5663,6 +5706,8 @@ parse_progunit (gfc_statement st)
   gfc_state_data *p;
   int n;
 
+  gfc_adjust_builtins ();
+
   if (gfc_new_block
       && gfc_new_block->abr_modproc_decl
       && gfc_new_block->attr.function)
@@ -5830,7 +5875,7 @@ parse_block_data (void)
     }
   else
     {
-      s = gfc_get_gsymbol (gfc_new_block->name);
+      s = gfc_get_gsymbol (gfc_new_block->name, false);
       if (s->defined
 	  || (s->type != GSYM_UNKNOWN && s->type != GSYM_BLOCK_DATA))
        gfc_global_used (s, &gfc_new_block->declared_at);
@@ -5912,7 +5957,7 @@ parse_module (void)
   gfc_gsymbol *s;
   bool error;
 
-  s = gfc_get_gsymbol (gfc_new_block->name);
+  s = gfc_get_gsymbol (gfc_new_block->name, false);
   if (s->defined || (s->type != GSYM_UNKNOWN && s->type != GSYM_MODULE))
     gfc_global_used (s, &gfc_new_block->declared_at);
   else
@@ -5976,7 +6021,7 @@ add_global_procedure (bool sub)
      name is a global identifier.  */
   if (!gfc_new_block->binding_label || gfc_notification_std (GFC_STD_F2008))
     {
-      s = gfc_get_gsymbol (gfc_new_block->name);
+      s = gfc_get_gsymbol (gfc_new_block->name, false);
 
       if (s->defined
 	  || (s->type != GSYM_UNKNOWN
@@ -6001,7 +6046,7 @@ add_global_procedure (bool sub)
       && (!gfc_notification_std (GFC_STD_F2008)
           || strcmp (gfc_new_block->name, gfc_new_block->binding_label) != 0))
     {
-      s = gfc_get_gsymbol (gfc_new_block->binding_label);
+      s = gfc_get_gsymbol (gfc_new_block->binding_label, true);
 
       if (s->defined
 	  || (s->type != GSYM_UNKNOWN
@@ -6033,7 +6078,7 @@ add_global_program (void)
 
   if (gfc_new_block == NULL)
     return;
-  s = gfc_get_gsymbol (gfc_new_block->name);
+  s = gfc_get_gsymbol (gfc_new_block->name, false);
 
   if (s->defined || (s->type != GSYM_UNKNOWN && s->type != GSYM_PROGRAM))
     gfc_global_used (s, &gfc_new_block->declared_at);
@@ -6051,7 +6096,7 @@ add_global_program (void)
 static void
 resolve_all_program_units (gfc_namespace *gfc_global_ns_list)
 {
-  gfc_free_dt_list ();
+  gfc_derived_types = NULL;
   gfc_current_ns = gfc_global_ns_list;
   for (; gfc_current_ns; gfc_current_ns = gfc_current_ns->sibling)
     {
@@ -6269,9 +6314,6 @@ loop:
   if (flag_dump_fortran_original)
     gfc_dump_parse_tree (gfc_current_ns, stdout);
 
-  if (flag_c_prototypes)
-    gfc_dump_c_prototypes (gfc_current_ns, stdout);
-
   gfc_get_errors (NULL, &errors);
   if (s.state == COMP_MODULE || s.state == COMP_SUBMODULE)
     {
@@ -6324,9 +6366,49 @@ done:
 	fputs ("------------------------------------------\n\n", stdout);
       }
 
+  /* Dump C prototypes.  */
+  if (flag_c_prototypes || flag_c_prototypes_external)
+    {
+      fprintf (stdout,
+	       "#include <stddef.h>\n"
+	       "#ifdef __cplusplus\n"
+	       "#include <complex>\n"
+	       "#define __GFORTRAN_FLOAT_COMPLEX std::complex<float>\n"
+	       "#define __GFORTRAN_DOUBLE_COMPLEX std::complex<double>\n"
+	       "#define __GFORTRAN_LONG_DOUBLE_COMPLEX std::complex<long double>\n"
+	       "extern \"C\" {\n"
+	       "#else\n"
+	       "#define __GFORTRAN_FLOAT_COMPLEX float _Complex\n"
+	       "#define __GFORTRAN_DOUBLE_COMPLEX double _Complex\n"
+	       "#define __GFORTRAN_LONG_DOUBLE_COMPLEX long double _Complex\n"
+	       "#endif\n\n");
+    }
+
+  /* First dump BIND(C) prototypes.  */
+  if (flag_c_prototypes)
+    {
+      for (gfc_current_ns = gfc_global_ns_list; gfc_current_ns;
+	   gfc_current_ns = gfc_current_ns->sibling)
+	gfc_dump_c_prototypes (gfc_current_ns, stdout);
+    }
+
+  /* Dump external prototypes.  */
+  if (flag_c_prototypes_external)
+    gfc_dump_external_c_prototypes (stdout);
+
+  if (flag_c_prototypes || flag_c_prototypes_external)
+    fprintf (stdout, "\n#ifdef __cplusplus\n}\n#endif\n");
+
   /* Do the translation.  */
   translate_all_program_units (gfc_global_ns_list);
 
+  /* Dump the global symbol ist.  We only do this here because part
+     of it is generated after mangling the identifiers in
+     trans-decl.c.  */
+
+  if (flag_dump_fortran_global)
+    gfc_dump_global_symbols (stdout);
+  
   gfc_end_source_files ();
   return true;
 

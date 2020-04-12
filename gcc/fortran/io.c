@@ -1,5 +1,5 @@
 /* Deal with I/O statements & related stuff.
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -1441,24 +1441,29 @@ match_vtag (const io_tag *tag, gfc_expr **v)
       return MATCH_ERROR;
     }
 
-  if (result->symtree->n.sym->attr.intent == INTENT_IN)
+  if (result->symtree)
     {
-      gfc_error ("Variable %s cannot be INTENT(IN) at %C", tag->name);
-      gfc_free_expr (result);
-      return MATCH_ERROR;
-    }
+      bool impure;
 
-  bool impure = gfc_impure_variable (result->symtree->n.sym);
-  if (impure && gfc_pure (NULL))
-    {
-      gfc_error ("Variable %s cannot be assigned in PURE procedure at %C",
-		 tag->name);
-      gfc_free_expr (result);
-      return MATCH_ERROR;
-    }
+      if (result->symtree->n.sym->attr.intent == INTENT_IN)
+	{
+	  gfc_error ("Variable %s cannot be INTENT(IN) at %C", tag->name);
+	  gfc_free_expr (result);
+	  return MATCH_ERROR;
+	}
 
-  if (impure)
-    gfc_unset_implicit_pure (NULL);
+      impure = gfc_impure_variable (result->symtree->n.sym);
+      if (impure && gfc_pure (NULL))
+	{
+	  gfc_error ("Variable %s cannot be assigned in PURE procedure at %C",
+		     tag->name);
+	  gfc_free_expr (result);
+	  return MATCH_ERROR;
+	}
+
+      if (impure)
+	gfc_unset_implicit_pure (NULL);
+    }
 
   *v = result;
   return MATCH_YES;
@@ -1474,7 +1479,16 @@ match_out_tag (const io_tag *tag, gfc_expr **result)
 
   m = match_vtag (tag, result);
   if (m == MATCH_YES)
-    gfc_check_do_variable ((*result)->symtree);
+    {
+      if ((*result)->symtree)
+	gfc_check_do_variable ((*result)->symtree);
+
+      if ((*result)->expr_type == EXPR_CONSTANT)
+	{
+	  gfc_error ("Expecting a variable at %L", &(*result)->where);
+	  return MATCH_ERROR;
+	}
+    }
 
   return m;
 }
@@ -1635,6 +1649,12 @@ resolve_tag_format (gfc_expr *e)
 	  gfc_charlen_t n, len;
 	  gfc_expr *r;
 	  gfc_char_t *dest, *src;
+
+	  if (e->value.constructor == NULL)
+	   {
+	     gfc_error ("FORMAT tag at %C cannot be a zero-sized array");
+	     return false;
+	   }
 
 	  n = 0;
 	  c = gfc_constructor_first (e->value.constructor);
@@ -2150,33 +2170,6 @@ gfc_match_open (void)
 
   warn = (open->err || open->iostat) ? true : false;
 
-  /* Checks on NEWUNIT specifier.  */
-  if (open->newunit)
-    {
-      if (open->unit)
-	{
-	  gfc_error ("UNIT specifier not allowed with NEWUNIT at %C");
-	  goto cleanup;
-	}
-
-      if (!open->file && open->status)
-        {
-	  if (open->status->expr_type == EXPR_CONSTANT
-	     && gfc_wide_strncasecmp (open->status->value.character.string,
-				       "scratch", 7) != 0)
-	   {
-	     gfc_error ("NEWUNIT specifier must have FILE= "
-			"or STATUS='scratch' at %C");
-	     goto cleanup;
-	   }
-	}
-    }
-  else if (!open->unit)
-    {
-      gfc_error ("OPEN statement at %C must have UNIT or NEWUNIT specified");
-      goto cleanup;
-    }
-
   /* Checks on the ACCESS specifier.  */
   if (open->access && open->access->expr_type == EXPR_CONSTANT)
     {
@@ -2231,6 +2224,21 @@ gfc_match_open (void)
 
       if (!is_char_type ("ASYNCHRONOUS", open->asynchronous))
 	goto cleanup;
+
+      if (open->asynchronous->ts.kind != 1)
+	{
+	  gfc_error ("ASYNCHRONOUS= specifier at %L must be of default "
+		     "CHARACTER kind", &open->asynchronous->where);
+	  return MATCH_ERROR;
+	}
+
+      if (open->asynchronous->expr_type == EXPR_ARRAY
+	  || open->asynchronous->expr_type == EXPR_STRUCTURE)
+	{
+	  gfc_error ("ASYNCHRONOUS= specifier at %L must be scalar",
+		     &open->asynchronous->where);
+	  return MATCH_ERROR;
+	}
 
       if (open->asynchronous->expr_type == EXPR_CONSTANT)
 	{
@@ -2499,6 +2507,32 @@ gfc_match_open (void)
 			 "cannot have the value SCRATCH if a FILE specifier "
 			 "is present");
 	}
+    }
+
+  /* Checks on NEWUNIT specifier.  */
+  if (open->newunit)
+    {
+      if (open->unit)
+	{
+	  gfc_error ("UNIT specifier not allowed with NEWUNIT at %C");
+	  goto cleanup;
+	}
+
+      if (!open->file &&
+	  (!open->status ||
+	   (open->status->expr_type == EXPR_CONSTANT
+	     && gfc_wide_strncasecmp (open->status->value.character.string,
+				      "scratch", 7) != 0)))
+	{
+	     gfc_error ("NEWUNIT specifier must have FILE= "
+			"or STATUS='scratch' at %C");
+	     goto cleanup;
+	}
+    }
+  else if (!open->unit)
+    {
+      gfc_error ("OPEN statement at %C must have UNIT or NEWUNIT specified");
+      goto cleanup;
     }
 
   /* Things that are not allowed for unformatted I/O.  */
@@ -2784,7 +2818,7 @@ match_filepos (gfc_statement st, gfc_exec_op op)
 
   m = match_file_element (fp);
   if (m == MATCH_ERROR)
-    goto done;
+    goto cleanup;
   if (m == MATCH_NO)
     {
       m = gfc_match_expr (&fp->unit);
@@ -2834,21 +2868,20 @@ cleanup:
 
 
 bool
-gfc_resolve_filepos (gfc_filepos *fp)
+gfc_resolve_filepos (gfc_filepos *fp, locus *where)
 {
   RESOLVE_TAG (&tag_unit, fp->unit);
   RESOLVE_TAG (&tag_iostat, fp->iostat);
   RESOLVE_TAG (&tag_iomsg, fp->iomsg);
-  if (!gfc_reference_st_label (fp->err, ST_LABEL_TARGET))
-    return false;
 
-  if (!fp->unit && (fp->iostat || fp->iomsg))
+  if (!fp->unit && (fp->iostat || fp->iomsg || fp->err))
     {
-      locus where;
-      where = fp->iostat ? fp->iostat->where : fp->iomsg->where;
-      gfc_error ("UNIT number missing in statement at %L", &where);
+      gfc_error ("UNIT number missing in statement at %L", where);
       return false;
     }
+
+  if (!gfc_reference_st_label (fp->err, ST_LABEL_TARGET))
+    return false;
 
   if (fp->unit->expr_type == EXPR_CONSTANT
       && fp->unit->ts.type == BT_INTEGER
@@ -3231,12 +3264,21 @@ gfc_resolve_dt (gfc_dt *dt, locus *loc)
 {
   gfc_expr *e;
   io_kind k;
+  locus tmp;
 
   /* This is set in any case.  */
   gcc_assert (dt->dt_io_kind);
   k = dt->dt_io_kind->value.iokind;
 
-  RESOLVE_TAG (&tag_format, dt->format_expr);
+  tmp = gfc_current_locus;
+  gfc_current_locus = *loc;
+  if (!resolve_tag (&tag_format, dt->format_expr))
+    {
+      gfc_current_locus = tmp;
+      return false;
+    }
+  gfc_current_locus = tmp;
+
   RESOLVE_TAG (&tag_rec, dt->rec);
   RESOLVE_TAG (&tag_spos, dt->pos);
   RESOLVE_TAG (&tag_advance, dt->advance);
@@ -3580,7 +3622,26 @@ match_io_element (io_kind k, gfc_code **cpp)
     {
       m = gfc_match_variable (&expr, 0);
       if (m == MATCH_NO)
-	gfc_error ("Expected variable in READ statement at %C");
+	{
+	  gfc_error ("Expecting variable in READ statement at %C");
+	  m = MATCH_ERROR;
+	}
+
+      if (m == MATCH_YES && expr->expr_type == EXPR_CONSTANT)
+	{
+	  gfc_error ("Expecting variable or io-implied-do in READ statement "
+		   "at %L", &expr->where);
+	  m = MATCH_ERROR;
+	}
+
+      if (m == MATCH_YES
+	  && expr->expr_type == EXPR_VARIABLE
+	  && expr->symtree->n.sym->attr.external)
+	{
+	  gfc_error ("Expecting variable or io-implied-do at %L",
+		     &expr->where);
+	  m = MATCH_ERROR;
+	}
     }
   else
     {
@@ -3678,10 +3739,13 @@ static match
 check_io_constraints (io_kind k, gfc_dt *dt, gfc_code *io_code,
 		      locus *spec_end)
 {
-#define io_constraint(condition,msg,arg)\
+#define io_constraint(condition, msg, arg)\
 if (condition) \
   {\
-    gfc_error(msg,arg);\
+    if ((arg)->lb != NULL)\
+      gfc_error ((msg), (arg));\
+    else\
+      gfc_error ((msg), &gfc_current_locus);\
     m = MATCH_ERROR;\
   }
 
@@ -3741,11 +3805,14 @@ if (condition) \
   if (expr && expr->ts.type != BT_CHARACTER)
     {
 
-      io_constraint (gfc_pure (NULL) && (k == M_READ || k == M_WRITE),
-		     "IO UNIT in %s statement at %C must be "
+      if (gfc_pure (NULL) && (k == M_READ || k == M_WRITE))
+	{
+	  gfc_error ("IO UNIT in %s statement at %C must be "
 		     "an internal file in a PURE procedure",
 		     io_kind_name (k));
-
+	  return MATCH_ERROR;
+	}
+	  
       if (k == M_READ || k == M_WRITE)
 	gfc_unset_implicit_pure (NULL);
     }
@@ -3792,6 +3859,21 @@ if (condition) \
 
       if (!is_char_type ("ASYNCHRONOUS", dt->asynchronous))
 	return MATCH_ERROR;
+
+      if (dt->asynchronous->ts.kind != 1)
+	{
+	  gfc_error ("ASYNCHRONOUS= specifier at %L must be of default "
+		     "CHARACTER kind", &dt->asynchronous->where);
+	  return MATCH_ERROR;
+	}
+
+      if (dt->asynchronous->expr_type == EXPR_ARRAY
+	  || dt->asynchronous->expr_type == EXPR_STRUCTURE)
+	{
+	  gfc_error ("ASYNCHRONOUS= specifier at %L must be scalar",
+		     &dt->asynchronous->where);
+	  return MATCH_ERROR;
+	}
 
       if (!compare_to_allowed_values
 		("ASYNCHRONOUS", asynchronous, NULL, NULL,
@@ -4112,6 +4194,23 @@ match_io (io_kind k)
 	      else
 		gfc_current_locus = where;
 	    }
+
+	  if (gfc_match_char ('*') == MATCH_YES
+	      && gfc_match_char(',') == MATCH_YES)
+	    {
+	      locus where2 = gfc_current_locus;
+	      if (gfc_match_eos () == MATCH_YES)
+		{
+		  gfc_current_locus = where2;
+		  gfc_error ("Comma after * at %C not allowed without I/O list");
+		  m = MATCH_ERROR;
+		  goto cleanup;
+		}
+	      else
+		gfc_current_locus = where;
+	    }
+	  else
+	    gfc_current_locus = where;
 	}
 
       if (gfc_current_form == FORM_FREE)
@@ -4507,6 +4606,17 @@ gfc_match_inquire (void)
       if (m == MATCH_NO)
 	goto syntax;
 
+      for (gfc_code *c = code; c; c = c->next)
+	if (c->expr1 && c->expr1->expr_type == EXPR_FUNCTION
+	    && c->expr1->symtree && c->expr1->symtree->n.sym->attr.function
+	    && !c->expr1->symtree->n.sym->attr.external
+	    && strcmp (c->expr1->symtree->name, "null") == 0)
+	  {
+	    gfc_error ("NULL() near %L cannot appear in INQUIRE statement",
+		       &c->expr1->where);
+	    goto cleanup;
+	  }
+
       new_st.op = EXEC_IOLENGTH;
       new_st.expr1 = inquire->iolength;
       new_st.ext.inquire = inquire;
@@ -4569,7 +4679,7 @@ gfc_match_inquire (void)
       && ((mpz_get_si (inquire->unit->value.integer) == GFC_INTERNAL_UNIT4)
       || (mpz_get_si (inquire->unit->value.integer) == GFC_INTERNAL_UNIT)))
     {
-      gfc_error ("UNIT number in INQUIRE statement at %L can not "
+      gfc_error ("UNIT number in INQUIRE statement at %L cannot "
 		 "be %d", &loc, (int) mpz_get_si (inquire->unit->value.integer));
       goto cleanup;
     }

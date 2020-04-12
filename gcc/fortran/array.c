@@ -1,5 +1,5 @@
 /* Array things
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -324,10 +324,22 @@ gfc_free_array_spec (gfc_array_spec *as)
   if (as == NULL)
     return;
 
-  for (i = 0; i < as->rank + as->corank; i++)
+  if (as->corank == 0)
     {
-      gfc_free_expr (as->lower[i]);
-      gfc_free_expr (as->upper[i]);
+      for (i = 0; i < as->rank; i++)
+	{
+	  gfc_free_expr (as->lower[i]);
+	  gfc_free_expr (as->upper[i]);
+	}
+    }
+  else
+    {
+      int n = as->rank + as->corank - (as->cotype == AS_EXPLICIT ? 1 : 0);
+      for (i = 0; i < n; i++)
+	{
+	  gfc_free_expr (as->lower[i]);
+	  gfc_free_expr (as->upper[i]);
+	}
     }
 
   free (as);
@@ -533,7 +545,7 @@ gfc_match_array_spec (gfc_array_spec **asp, bool match_dim, bool match_codim)
       as->type = AS_ASSUMED_RANK;
       as->rank = -1;
 
-      if (!gfc_notify_std (GFC_STD_F2008_TS, "Assumed-rank array at %C"))
+      if (!gfc_notify_std (GFC_STD_F2018, "Assumed-rank array at %C"))
 	goto cleanup;
 
       if (!match_codim)
@@ -825,12 +837,12 @@ gfc_set_array_spec (gfc_symbol *sym, gfc_array_spec *as, locus *error_loc)
 
   if (as->corank)
     {
-      /* The "sym" has no corank (checked via gfc_add_codimension). Thus
-	 the codimension is simply added.  */
-      gcc_assert (as->rank == 0 && sym->as->corank == 0);
-
       sym->as->cotype = as->cotype;
       sym->as->corank = as->corank;
+      /* Check F2018:C822.  */
+      if (sym->as->rank + sym->as->corank > GFC_MAX_DIMENSIONS)
+	goto too_many;
+
       for (i = 0; i < as->corank; i++)
 	{
 	  sym->as->lower[sym->as->rank + i] = as->lower[i];
@@ -849,7 +861,11 @@ gfc_set_array_spec (gfc_symbol *sym, gfc_array_spec *as, locus *error_loc)
       sym->as->cray_pointee = as->cray_pointee;
       sym->as->cp_was_assumed = as->cp_was_assumed;
 
-      for (i = 0; i < sym->as->corank; i++)
+      /* Check F2018:C822.  */
+      if (sym->as->rank + sym->as->corank > GFC_MAX_DIMENSIONS)
+	goto too_many;
+
+      for (i = sym->as->corank - 1; i >= 0; i--)
 	{
 	  sym->as->lower[as->rank + i] = sym->as->lower[i];
 	  sym->as->upper[as->rank + i] = sym->as->upper[i];
@@ -863,6 +879,12 @@ gfc_set_array_spec (gfc_symbol *sym, gfc_array_spec *as, locus *error_loc)
 
   free (as);
   return true;
+
+too_many:
+
+  gfc_error ("rank + corank of %qs exceeds %d at %C", sym->name,
+	     GFC_MAX_DIMENSIONS);
+  return false;
 }
 
 
@@ -1112,6 +1134,31 @@ match_array_cons_element (gfc_constructor_base *result)
 }
 
 
+/* Convert components of an array constructor to the type in ts.  */
+
+static match
+walk_array_constructor (gfc_typespec *ts, gfc_constructor_base head)
+{
+  gfc_constructor *c;
+  gfc_expr *e;
+  match m;
+
+  for (c = gfc_constructor_first (head); c; c = gfc_constructor_next (c))
+    {
+      e = c->expr;
+      if (e->expr_type == EXPR_ARRAY && e->ts.type == BT_UNKNOWN
+	  && !e->ref && e->value.constructor)
+	{
+	  m = walk_array_constructor (ts, e->value.constructor);
+	  if (m == MATCH_ERROR)
+	    return m;
+	}
+      else if (!gfc_convert_type (e, ts, 1) && e->ts.type != BT_UNKNOWN)
+	return MATCH_ERROR;
+  }
+  return MATCH_YES;
+}
+
 /* Match an array constructor.  */
 
 match
@@ -1241,12 +1288,13 @@ done:
 	    }
 	}
 
-      /* Walk the constructor and ensure type conversion for numeric types.  */
+      /* Walk the constructor, and if possible, do type conversion for
+	 numeric types.  */
       if (gfc_numeric_ts (&ts))
 	{
-	  c = gfc_constructor_first (head);
-	  for (; c; c = gfc_constructor_next (c))
-	    gfc_convert_type (c->expr, &ts, 1);
+	  m = walk_array_constructor (&ts, head);
+	  if (m == MATCH_ERROR)
+	    return m;
 	}
     }
   else
@@ -2161,6 +2209,9 @@ gfc_copy_iterator (gfc_iterator *src)
   dest->end = gfc_copy_expr (src->end);
   dest->step = gfc_copy_expr (src->step);
   dest->unroll = src->unroll;
+  dest->ivdep = src->ivdep;
+  dest->vector = src->vector;
+  dest->novector = src->novector;
 
   return dest;
 }

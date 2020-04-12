@@ -1,5 +1,5 @@
 /* Matching subroutines in all sizes, shapes and colors.
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -1350,6 +1350,14 @@ gfc_match_assignment (void)
 
   rvalue = NULL;
   m = gfc_match (" %e%t", &rvalue);
+
+  if (lvalue->expr_type == EXPR_CONSTANT)
+    {
+      /* This clobbers %len and %kind.  */
+      m = MATCH_ERROR;
+      gfc_error ("Assignment to a constant expression at %C");
+    }
+
   if (m != MATCH_YES)
     {
       gfc_current_locus = old_loc;
@@ -1365,6 +1373,9 @@ gfc_match_assignment (void)
   new_st.expr2 = rvalue;
 
   gfc_check_do_variable (lvalue->symtree);
+
+  if (lvalue->ts.type == BT_CLASS)
+    gfc_find_vtab (&rvalue->ts);
 
   return MATCH_YES;
 }
@@ -1442,7 +1453,8 @@ match_arithmetic_if (void)
       return MATCH_ERROR;
     }
 
-  if (!gfc_notify_std (GFC_STD_F95_OBS, "Arithmetic IF statement at %C"))
+  if (!gfc_notify_std (GFC_STD_F95_OBS | GFC_STD_F2018_DEL,
+		       "Arithmetic IF statement at %C"))
     return MATCH_ERROR;
 
   new_st.op = EXEC_ARITHMETIC_IF;
@@ -1522,7 +1534,8 @@ gfc_match_if (gfc_statement *if_type)
 	  return MATCH_ERROR;
 	}
 
-      if (!gfc_notify_std (GFC_STD_F95_OBS, "Arithmetic IF statement at %C"))
+      if (!gfc_notify_std (GFC_STD_F95_OBS | GFC_STD_F2018_DEL,
+			   "Arithmetic IF statement at %C"))
 	return MATCH_ERROR;
 
       new_st.op = EXEC_ARITHMETIC_IF;
@@ -1887,17 +1900,21 @@ gfc_match_associate (void)
       gfc_association_list* a;
 
       /* Match the next association.  */
-      if (gfc_match (" %n => %e", newAssoc->name, &newAssoc->target)
-	    != MATCH_YES)
+      if (gfc_match (" %n =>", newAssoc->name) != MATCH_YES)
+	{
+	  gfc_error ("Expected association at %C");
+	  goto assocListError;
+	}
+
+      if (gfc_match (" %e", &newAssoc->target) != MATCH_YES)
 	{
 	  /* Have another go, allowing for procedure pointer selectors.  */
 	  gfc_matching_procptr_assignment = 1;
-	  if (gfc_match (" %n => %e", newAssoc->name, &newAssoc->target)
- 	      != MATCH_YES)
- 	    {
- 	      gfc_error ("Expected association at %C");
- 	      goto assocListError;
- 	    }
+	  if (gfc_match (" %e", &newAssoc->target) != MATCH_YES)
+	    {
+	      gfc_error ("Invalid association target at %C");
+	      goto assocListError;
+	    }
 	  gfc_matching_procptr_assignment = 0;
 	}
       newAssoc->where = gfc_current_locus;
@@ -2105,8 +2122,6 @@ gfc_match_type_spec (gfc_typespec *ts)
       ts->type = BT_CHARACTER;
 
       m = gfc_match_char_spec (ts);
-      if (ts->u.cl && ts->u.cl->length)
-	gfc_resolve_expr (ts->u.cl->length);
 
       if (m == MATCH_NO)
 	m = MATCH_YES;
@@ -2208,6 +2223,9 @@ found:
 	      return MATCH_NO;
 	    }
 
+	  if (e->expr_type != EXPR_CONSTANT)
+	    goto ohno;
+
 	  gfc_next_char (); /* Burn the ')'. */
 	  ts->kind = (int) mpz_get_si (e->value.integer);
 	  if (gfc_validate_kind (ts->type, ts->kind , true) == -1)
@@ -2221,6 +2239,8 @@ found:
 	  return MATCH_YES;
 	}
     }
+
+ohno:
 
   /* If a type is not matched, simply return MATCH_NO.  */
   gfc_current_locus = old_locus;
@@ -2935,15 +2955,16 @@ gfc_match_stopcode (gfc_statement st)
 {
   gfc_expr *e = NULL;
   match m;
-  bool f95, f03;
+  bool f95, f03, f08;
 
   /* Set f95 for -std=f95.  */
-  f95 = gfc_option.allow_std == (GFC_STD_F95_OBS | GFC_STD_F95 | GFC_STD_F77
-				 | GFC_STD_F2008_OBS);
+  f95 = (gfc_option.allow_std == GFC_STD_OPT_F95);
 
   /* Set f03 for -std=f2003.  */
-  f03 = gfc_option.allow_std == (GFC_STD_F95_OBS | GFC_STD_F95 | GFC_STD_F77
-				 | GFC_STD_F2008_OBS | GFC_STD_F2003);
+  f03 = (gfc_option.allow_std == GFC_STD_OPT_F03);
+
+  /* Set f08 for -std=f2008.  */
+  f08 = (gfc_option.allow_std == GFC_STD_OPT_F08);
 
   /* Look for a blank between STOP and the stop-code for F2008 or later.  */
   if (gfc_current_form != FORM_FIXED && !(f95 || f03))
@@ -3033,8 +3054,8 @@ gfc_match_stopcode (gfc_statement st)
       /* Test for F95 and F2003 style STOP stop-code.  */
       if (e->expr_type != EXPR_CONSTANT && (f95 || f03))
 	{
-	  gfc_error ("STOP code at %L must be a scalar CHARACTER constant or "
-		     "digit[digit[digit[digit[digit]]]]", &e->where);
+	  gfc_error ("STOP code at %L must be a scalar CHARACTER constant "
+		     "or digit[digit[digit[digit[digit]]]]", &e->where);
 	  goto cleanup;
 	}
 
@@ -3043,6 +3064,14 @@ gfc_match_stopcode (gfc_statement st)
       gfc_init_expr_flag = true;
       gfc_reduce_init_expr (e);
       gfc_init_expr_flag = false;
+
+      /* Test for F2008 style STOP stop-code.  */
+      if (e->expr_type != EXPR_CONSTANT && f08)
+	{
+	  gfc_error ("STOP code at %L must be a scalar default CHARACTER or "
+		     "INTEGER constant expression", &e->where);
+	  goto cleanup;
+	}
 
       if (!(e->ts.type == BT_CHARACTER || e->ts.type == BT_INTEGER))
 	{
@@ -3322,7 +3351,7 @@ cleanup:
 match
 gfc_match_event_post (void)
 {
-  if (!gfc_notify_std (GFC_STD_F2008_TS, "EVENT POST statement at %C"))
+  if (!gfc_notify_std (GFC_STD_F2018, "EVENT POST statement at %C"))
     return MATCH_ERROR;
 
   return event_statement (ST_EVENT_POST);
@@ -3332,7 +3361,7 @@ gfc_match_event_post (void)
 match
 gfc_match_event_wait (void)
 {
-  if (!gfc_notify_std (GFC_STD_F2008_TS, "EVENT WAIT statement at %C"))
+  if (!gfc_notify_std (GFC_STD_F2018, "EVENT WAIT statement at %C"))
     return MATCH_ERROR;
 
   return event_statement (ST_EVENT_WAIT);
@@ -3344,7 +3373,7 @@ gfc_match_event_wait (void)
 match
 gfc_match_fail_image (void)
 {
-  if (!gfc_notify_std (GFC_STD_F2008_TS, "FAIL IMAGE statement at %C"))
+  if (!gfc_notify_std (GFC_STD_F2018, "FAIL IMAGE statement at %C"))
     return MATCH_ERROR;
 
   if (gfc_match_char ('(') == MATCH_YES)
@@ -3368,7 +3397,7 @@ gfc_match_form_team (void)
   match m;
   gfc_expr *teamid,*team;
 
-  if (!gfc_notify_std (GFC_STD_F2008_TS, "FORM TEAM statement at %C"))
+  if (!gfc_notify_std (GFC_STD_F2018, "FORM TEAM statement at %C"))
     return MATCH_ERROR;
 
   if (gfc_match_char ('(') == MATCH_NO)
@@ -3407,7 +3436,7 @@ gfc_match_change_team (void)
   match m;
   gfc_expr *team;
 
-  if (!gfc_notify_std (GFC_STD_F2008_TS, "CHANGE TEAM statement at %C"))
+  if (!gfc_notify_std (GFC_STD_F2018, "CHANGE TEAM statement at %C"))
     return MATCH_ERROR;
 
   if (gfc_match_char ('(') == MATCH_NO)
@@ -3437,7 +3466,7 @@ syntax:
 match
 gfc_match_end_team (void)
 {
-  if (!gfc_notify_std (GFC_STD_F2008_TS, "END TEAM statement at %C"))
+  if (!gfc_notify_std (GFC_STD_F2018, "END TEAM statement at %C"))
     return MATCH_ERROR;
 
   if (gfc_match_char ('(') == MATCH_YES)
@@ -3461,7 +3490,7 @@ gfc_match_sync_team (void)
   match m;
   gfc_expr *team;
 
-  if (!gfc_notify_std (GFC_STD_F2008_TS, "SYNC TEAM statement at %C"))
+  if (!gfc_notify_std (GFC_STD_F2018, "SYNC TEAM statement at %C"))
     return MATCH_ERROR;
 
   if (gfc_match_char ('(') == MATCH_NO)
@@ -4190,6 +4219,12 @@ gfc_match_allocate (void)
       if (m == MATCH_ERROR)
 	goto cleanup;
 
+      if (tail->expr->expr_type == EXPR_CONSTANT)
+	{
+	  gfc_error ("Unexpected constant at %C");
+	  goto cleanup;
+	}
+
       if (gfc_check_do_variable (tail->expr->symtree))
 	goto cleanup;
 
@@ -4321,6 +4356,12 @@ alloc_opt_list:
 	  stat = tmp;
 	  tmp = NULL;
 	  saw_stat = true;
+
+	  if (stat->expr_type == EXPR_CONSTANT)
+	    {
+	      gfc_error ("STAT tag at %L cannot be a constant", &stat->where);
+	      goto cleanup;
+	    }
 
 	  if (gfc_check_do_variable (stat->symtree))
 	    goto cleanup;
@@ -4597,6 +4638,12 @@ gfc_match_deallocate (void)
 	goto cleanup;
       if (m == MATCH_NO)
 	goto syntax;
+
+      if (tail->expr->expr_type == EXPR_CONSTANT)
+	{
+	  gfc_error ("Unexpected constant at %C");
+	  goto cleanup;
+	}
 
       if (gfc_check_do_variable (tail->expr->symtree))
 	goto cleanup;
@@ -5124,7 +5171,7 @@ gfc_match_common (void)
                 }
 
               if (sym->attr.is_bind_c == 1)
-                gfc_error_now ("Variable %qs in common block %qs at %C can not "
+                gfc_error_now ("Variable %qs in common block %qs at %C cannot "
                                "be bind(c) since it is not global", sym->name,
 			       t->name);
             }
@@ -5258,6 +5305,10 @@ gfc_match_block_data (void)
   char name[GFC_MAX_SYMBOL_LEN + 1];
   gfc_symbol *sym;
   match m;
+
+  if (!gfc_notify_std (GFC_STD_F2018_OBS, "BLOCK DATA construct at %L",
+      &gfc_current_locus))
+    return MATCH_ERROR;
 
   if (gfc_match_eos () == MATCH_YES)
     {
@@ -5575,6 +5626,9 @@ gfc_match_equivalence (void)
 	}
     }
 
+  if (!gfc_notify_std (GFC_STD_F2018_OBS, "EQUIVALENCE statement at %C"))
+    return MATCH_ERROR;
+
   return MATCH_YES;
 
 syntax:
@@ -5662,7 +5716,29 @@ gfc_match_st_function (void)
   gfc_symbol *sym;
   gfc_expr *expr;
   match m;
+  char name[GFC_MAX_SYMBOL_LEN + 1];
+  locus old_locus;
+  bool fcn;
+  gfc_formal_arglist *ptr;
 
+  /* Read the possible statement function name, and then check to see if
+     a symbol is already present in the namespace.  Record if it is a
+     function and whether it has been referenced.  */
+  fcn = false;
+  ptr = NULL;
+  old_locus = gfc_current_locus;
+  m = gfc_match_name (name);
+  if (m == MATCH_YES)
+    {
+      gfc_find_symbol (name, NULL, 1, &sym);
+      if (sym && sym->attr.function && !sym->attr.referenced)
+	{
+	  fcn = true;
+	  ptr = sym->formal;
+	}
+    }
+
+  gfc_current_locus = old_locus;
   m = gfc_match_symbol (&sym, 0);
   if (m != MATCH_YES)
     return m;
@@ -5687,6 +5763,13 @@ gfc_match_st_function (void)
   if (recursive_stmt_fcn (expr, sym))
     {
       gfc_error ("Statement function at %L is recursive", &expr->where);
+      return MATCH_ERROR;
+    }
+
+  if (fcn && ptr != sym->formal)
+    {
+      gfc_error ("Statement function %qs at %L conflicts with function name",
+		 sym->name, &expr->where);
       return MATCH_ERROR;
     }
 
@@ -6082,6 +6165,7 @@ select_type_set_tmp (gfc_typespec *ts)
 {
   char name[GFC_MAX_SYMBOL_LEN];
   gfc_symtree *tmp = NULL;
+  gfc_symbol *selector = select_type_stack->selector;
 
   if (!ts)
     {
@@ -6103,22 +6187,27 @@ select_type_set_tmp (gfc_typespec *ts)
       gfc_get_sym_tree (name, gfc_current_ns, &tmp, false);
       gfc_add_type (tmp->n.sym, ts, NULL);
 
-      if (select_type_stack->selector->ts.type == BT_CLASS
-	&& select_type_stack->selector->attr.class_ok)
+      if (selector->ts.type == BT_CLASS && selector->attr.class_ok)
 	{
-	  tmp->n.sym->attr.pointer
-		= CLASS_DATA (select_type_stack->selector)->attr.class_pointer;
+	  tmp->n.sym->attr.pointer = CLASS_DATA (selector)->attr.class_pointer;
 
 	  /* Copy across the array spec to the selector.  */
-	  if (CLASS_DATA (select_type_stack->selector)->attr.dimension
-	      || CLASS_DATA (select_type_stack->selector)->attr.codimension)
+	  if (CLASS_DATA (selector)->attr.dimension
+	      || CLASS_DATA (selector)->attr.codimension)
 	    {
 	      tmp->n.sym->attr.dimension
-		    = CLASS_DATA (select_type_stack->selector)->attr.dimension;
+		    = CLASS_DATA (selector)->attr.dimension;
 	      tmp->n.sym->attr.codimension
-		    = CLASS_DATA (select_type_stack->selector)->attr.codimension;
-	      tmp->n.sym->as
-	    = gfc_copy_array_spec (CLASS_DATA (select_type_stack->selector)->as);
+		    = CLASS_DATA (selector)->attr.codimension;
+	      if (CLASS_DATA (selector)->as->type != AS_EXPLICIT)
+		tmp->n.sym->as
+			= gfc_copy_array_spec (CLASS_DATA (selector)->as);
+	      else
+		{
+		  tmp->n.sym->as = gfc_get_array_spec();
+		  tmp->n.sym->as->rank = CLASS_DATA (selector)->as->rank;
+		  tmp->n.sym->as->type = AS_DEFERRED;
+		}
 	    }
     }
 
@@ -6160,6 +6249,13 @@ gfc_match_select_type (void)
   m = gfc_match (" select type ( ");
   if (m != MATCH_YES)
     return m;
+
+  if (gfc_current_state() == COMP_MODULE
+      || gfc_current_state() == COMP_SUBMODULE)
+    {
+      gfc_error ("SELECT TYPE at %C cannot appear in this scope");
+      return MATCH_ERROR;
+    }
 
   gfc_current_ns = gfc_build_block_ns (ns);
   m = gfc_match (" %n => %e", name, &expr2);

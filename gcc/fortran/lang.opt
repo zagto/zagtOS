@@ -1,5 +1,5 @@
 ; Options for the Fortran front end.
-; Copyright (C) 2003-2018 Free Software Foundation, Inc.
+; Copyright (C) 2003-2019 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -250,7 +250,7 @@ Fortran Var(flag_warn_frontend_loop_interchange)
 Warn if loops have been interchanged.
 
 Wfunction-elimination
-Fortran Warning Var(warn_function_elimination)
+Fortran Warning Var(warn_function_elimination) LangEnabledBy(Fortran,Wextra)
 Warn about function call elimination.
 
 Wimplicit-interface
@@ -428,6 +428,10 @@ fc-prototypes
 Fortran Var(flag_c_prototypes)
 Generate C prototypes from BIND(C) declarations.
 
+fc-prototypes-external
+Fortran Var(flag_c_prototypes_external)
+Generate C prototypes from non-BIND(C) external procedure definitions.
+
 fd-lines-as-code
 Fortran RejectNegative
 Ignore 'D' in column one in fixed form.
@@ -439,6 +443,10 @@ Treat lines with 'D' in column one as comments.
 fdec
 Fortran Var(flag_dec)
 Enable all DEC language extensions.
+
+fdec-include
+Fortran Var(flag_dec_include)
+Enable legacy parsing of INCLUDE as statement.
 
 fdec-intrinsic-ints
 Fortran Var(flag_dec_intrinsic_ints)
@@ -492,6 +500,10 @@ fdump-fortran-optimized
 Fortran Var(flag_dump_fortran_optimized)
 Display the code tree after front end optimization.
 
+fdump-fortran-global
+Fortran Var(flag_dump_fortran_global)
+Display the global symbol table after parsing.
+
 fdump-parse-tree
 Fortran Alias(fdump-fortran-original)
 Display the code tree after parsing; deprecated option.
@@ -531,6 +543,10 @@ Allow arbitrary character line width in fixed mode.
 ffixed-line-length-
 Fortran RejectNegative Joined UInteger Var(flag_fixed_line_length) Init(72)
 -ffixed-line-length-<n>	Use n as character line width in fixed mode.
+
+fpad-source
+Fortran Var(flag_pad_source) Init(1)
+Pad shorter fixed form lines to line width with spaces.
 
 ffpe-trap=
 Fortran RejectNegative JoinedOrMissing
@@ -662,6 +678,10 @@ fprotect-parens
 Fortran Var(flag_protect_parens) Init(-1)
 Protect parentheses in expressions.
 
+fpre-include=
+Fortran RejectNegative Joined Var(flag_pre_include) Undocumented
+Path to header file that should be pre-included before each compilation unit.
+
 frange-check
 Fortran Var(flag_range_check) Init(1)
 Enable range checking during compilation.
@@ -741,6 +761,13 @@ Fortran Var(flag_short_enums)
 fsign-zero
 Fortran Var(flag_sign_zero) Init(1)
 Apply negative sign to zero values.
+
+ftail-call-workaround
+Fortran Alias(ftail-call-workaround=,1,0)
+
+ftail-call-workaround=
+Fortran RejectNegative Joined UInteger IntegerRange(0, 2) Var(flag_tail_call_workaround) Init(1)
+Disallow tail call optimization when a calling routine may have omitted character lengths.
 
 funderscoring
 Fortran Var(flag_underscoring) Init(1)
