@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512vl -mavx512dq -mavx512bw -mavx512vbmi -mavx512ifma -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
+/* { dg-options "-O2 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512vl -mavx512dq -mavx512bw -mavx512vbmi -mavx512vbmi2 -mavx512ifma -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
 /* { dg-add-options bind_pic_locally } */
 
 #include <mm_malloc.h>
@@ -368,18 +368,36 @@
 #define __builtin_ia32_vfmaddsubps512_maskz(A, B, C, D, E) __builtin_ia32_vfmaddsubps512_maskz(A, B, C, D, 8)
 #define __builtin_ia32_vfmsubaddpd512_mask3(A, B, C, D, E) __builtin_ia32_vfmsubaddpd512_mask3(A, B, C, D, 8)
 #define __builtin_ia32_vfmsubaddps512_mask3(A, B, C, D, E) __builtin_ia32_vfmsubaddps512_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfmsubpd512_mask(A, B, C, D, E) __builtin_ia32_vfmsubpd512_mask(A, B, C, D, 8)
 #define __builtin_ia32_vfmsubpd512_mask3(A, B, C, D, E) __builtin_ia32_vfmsubpd512_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfmsubpd512_maskz(A, B, C, D, E) __builtin_ia32_vfmsubpd512_maskz(A, B, C, D, 8)
+#define __builtin_ia32_vfmsubps512_mask(A, B, C, D, E) __builtin_ia32_vfmsubps512_mask(A, B, C, D, 8)
 #define __builtin_ia32_vfmsubps512_mask3(A, B, C, D, E) __builtin_ia32_vfmsubps512_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfmsubps512_maskz(A, B, C, D, E) __builtin_ia32_vfmsubps512_maskz(A, B, C, D, 8)
 #define __builtin_ia32_vfmsubsd3_mask3(A, B, C, D, E) __builtin_ia32_vfmsubsd3_mask3(A, B, C, D, 8)
 #define __builtin_ia32_vfmsubss3_mask3(A, B, C, D, E) __builtin_ia32_vfmsubss3_mask3(A, B, C, D, 8)
 #define __builtin_ia32_vfnmaddpd512_mask(A, B, C, D, E) __builtin_ia32_vfnmaddpd512_mask(A, B, C, D, 8)
+#define __builtin_ia32_vfnmaddpd512_mask3(A, B, C, D, E) __builtin_ia32_vfnmaddpd512_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfnmaddpd512_maskz(A, B, C, D, E) __builtin_ia32_vfnmaddpd512_maskz(A, B, C, D, 8)
 #define __builtin_ia32_vfnmaddps512_mask(A, B, C, D, E) __builtin_ia32_vfnmaddps512_mask(A, B, C, D, 8)
+#define __builtin_ia32_vfnmaddps512_mask3(A, B, C, D, E) __builtin_ia32_vfnmaddps512_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfnmaddps512_maskz(A, B, C, D, E) __builtin_ia32_vfnmaddps512_maskz(A, B, C, D, 8)
 #define __builtin_ia32_vfnmsubpd512_mask(A, B, C, D, E) __builtin_ia32_vfnmsubpd512_mask(A, B, C, D, 8)
 #define __builtin_ia32_vfnmsubpd512_mask3(A, B, C, D, E) __builtin_ia32_vfnmsubpd512_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfnmsubpd512_maskz(A, B, C, D, E) __builtin_ia32_vfnmsubpd512_maskz(A, B, C, D, 8)
 #define __builtin_ia32_vfnmsubps512_mask(A, B, C, D, E) __builtin_ia32_vfnmsubps512_mask(A, B, C, D, 8)
 #define __builtin_ia32_vfnmsubps512_mask3(A, B, C, D, E) __builtin_ia32_vfnmsubps512_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfnmsubps512_maskz(A, B, C, D, E) __builtin_ia32_vfnmsubps512_maskz(A, B, C, D, 8)
 #define __builtin_ia32_vpermilpd512_mask(A, E, C, D) __builtin_ia32_vpermilpd512_mask(A, 1, C, D)
 #define __builtin_ia32_vpermilps512_mask(A, E, C, D) __builtin_ia32_vpermilps512_mask(A, 1, C, D)
+#define __builtin_ia32_vfmaddsd3_mask(A, B, C, D, E) __builtin_ia32_vfmaddsd3_mask(A, B, C, D, 8)
+#define __builtin_ia32_vfmaddsd3_mask3(A, B, C, D, E) __builtin_ia32_vfmaddsd3_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfmaddsd3_maskz(A, B, C, D, E) __builtin_ia32_vfmaddsd3_maskz(A, B, C, D, 8)
+#define __builtin_ia32_vfmsubsd3_mask3(A, B, C, D, E) __builtin_ia32_vfmsubsd3_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfmaddss3_mask(A, B, C, D, E) __builtin_ia32_vfmaddss3_mask(A, B, C, D, 8)
+#define __builtin_ia32_vfmaddss3_mask3(A, B, C, D, E) __builtin_ia32_vfmaddss3_mask3(A, B, C, D, 8)
+#define __builtin_ia32_vfmaddss3_maskz(A, B, C, D, E) __builtin_ia32_vfmaddss3_maskz(A, B, C, D, 8)
+#define __builtin_ia32_vfmsubss3_mask3(A, B, C, D, E) __builtin_ia32_vfmsubss3_mask3(A, B, C, D, 8)
 
 /* avx512erintrin.h */
 #define __builtin_ia32_exp2ps_mask(A, B, C, D) __builtin_ia32_exp2ps_mask(A, B, C, 8)

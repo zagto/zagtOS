@@ -1,5 +1,5 @@
 /* Miscellaneous stuff that doesn't fit anywhere else.
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -125,6 +125,7 @@ gfc_typename (gfc_typespec *ts)
   static char buffer2[GFC_MAX_SYMBOL_LEN + 7];
   static int flag = 0;
   char *buffer;
+  gfc_typespec *ts1;
 
   buffer = flag ? buffer1 : buffer2;
   flag = !flag;
@@ -156,9 +157,8 @@ gfc_typename (gfc_typespec *ts)
       sprintf (buffer, "TYPE(%s)", ts->u.derived->name);
       break;
     case BT_CLASS:
-      if (ts->u.derived->components)
-	ts = &ts->u.derived->components->ts;
-      if (ts->u.derived->attr.unlimited_polymorphic)
+      ts1 = ts->u.derived->components ? &ts->u.derived->components->ts : NULL;
+      if (ts1 && ts1->u.derived && ts1->u.derived->attr.unlimited_polymorphic)
 	sprintf (buffer, "CLASS(*)");
       else
 	sprintf (buffer, "CLASS(%s)", ts->u.derived->name);
@@ -286,7 +286,7 @@ get_c_kind(const char *c_kind_name, CInteropKind_t kinds_table[])
 
 
 /* For a given name TYPO, determine the best candidate from CANDIDATES
-   perusing Levenshtein distance.  Frees CANDIDATES before returning.  */
+   using get_edit_distance.  Frees CANDIDATES before returning.  */
 
 const char *
 gfc_closest_fuzzy_match (const char *typo, char **candidates)
@@ -299,7 +299,7 @@ gfc_closest_fuzzy_match (const char *typo, char **candidates)
 
   while (cand && *cand)
     {
-      edit_distance_t dist = levenshtein_distance (typo, tl, *cand,
+      edit_distance_t dist = get_edit_distance (typo, tl, *cand,
 	  strlen (*cand));
       if (dist < best_distance)
 	{

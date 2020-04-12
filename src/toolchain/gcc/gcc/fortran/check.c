@@ -1,5 +1,5 @@
 /* Check functions
-   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+   Copyright (C) 2002-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Katherine Holcomb
 
 This file is part of GCC.
@@ -148,6 +148,21 @@ int_or_real_or_char_check_f2003 (gfc_expr *e, int n)
   return true;
 }
 
+/* Check that an expression is an intrinsic type.  */
+static bool
+intrinsic_type_check (gfc_expr *e, int n)
+{
+  if (e->ts.type != BT_INTEGER && e->ts.type != BT_REAL
+      && e->ts.type != BT_COMPLEX && e->ts.type != BT_CHARACTER
+      && e->ts.type != BT_LOGICAL)
+    {
+      gfc_error ("%qs argument of %qs intrinsic at %L must be of intrinsic type",
+		 gfc_current_intrinsic_arg[n]->name,
+		 gfc_current_intrinsic, &e->where);
+      return false;
+    }
+  return true;
+}
 
 /* Check that an expression is real or complex.  */
 
@@ -909,6 +924,10 @@ gfc_check_all_any (gfc_expr *mask, gfc_expr *dim)
 }
 
 
+/* Limited checking for ALLOCATED intrinsic.  Additional checking
+   is performed in intrinsic.c(sort_actual), because ALLOCATED
+   has two mutually exclusive non-optional arguments.  */
+
 bool
 gfc_check_allocated (gfc_expr *array)
 {
@@ -1136,7 +1155,7 @@ gfc_check_atomic (gfc_expr *atom, int atom_no, gfc_expr *value, int val_no,
       if (!kind_value_check (stat, stat_no, gfc_default_integer_kind))
 	return false;
 
-      if (!gfc_notify_std (GFC_STD_F2008_TS, "STAT= argument to %s at %L",
+      if (!gfc_notify_std (GFC_STD_F2018, "STAT= argument to %s at %L",
 			   gfc_current_intrinsic, &stat->where))
 	return false;
     }
@@ -1349,7 +1368,7 @@ gfc_check_event_query (gfc_expr *event, gfc_expr *count, gfc_expr *stat)
       if (!variable_check (stat, 2, false))
 	return false;
 
-      if (!gfc_notify_std (GFC_STD_F2008_TS, "STAT= argument to %s at %L",
+      if (!gfc_notify_std (GFC_STD_F2018, "STAT= argument to %s at %L",
 			   gfc_current_intrinsic, &stat->where))
 	return false;
     }
@@ -2153,6 +2172,21 @@ gfc_check_dprod (gfc_expr *x, gfc_expr *y)
 }
 
 
+static bool
+boz_args_check(gfc_expr *i, gfc_expr *j)
+{
+  if (i->is_boz && j->is_boz)
+    {
+      gfc_error ("Arguments of %qs at %L and %L cannot both be BOZ "
+		 "literal constants", gfc_current_intrinsic, &i->where,
+		 &j->where);
+      return false;
+
+    }
+  return true;
+}
+
+
 bool
 gfc_check_dshift (gfc_expr *i, gfc_expr *j, gfc_expr *shift)
 {
@@ -2162,12 +2196,8 @@ gfc_check_dshift (gfc_expr *i, gfc_expr *j, gfc_expr *shift)
   if (!type_check (j, 1, BT_INTEGER))
     return false;
 
-  if (i->is_boz && j->is_boz)
-    {
-      gfc_error ("%<I%> at %L and %<J%>' at %L cannot both be BOZ literal "
-		   "constants", &i->where, &j->where);
-      return false;
-    }
+  if (!boz_args_check (i, j))
+    return false;
 
   if (!i->is_boz && !j->is_boz && !same_type_check (i, 0, j, 1))
     return false;
@@ -2467,7 +2497,7 @@ gfc_check_i (gfc_expr *i)
 
 
 bool
-gfc_check_iand (gfc_expr *i, gfc_expr *j)
+gfc_check_iand_ieor_ior (gfc_expr *i, gfc_expr *j)
 {
   if (!type_check (i, 0, BT_INTEGER))
     return false;
@@ -2475,10 +2505,16 @@ gfc_check_iand (gfc_expr *i, gfc_expr *j)
   if (!type_check (j, 1, BT_INTEGER))
     return false;
 
+  if (!boz_args_check (i, j))
+    return false;
+
+  if (i->is_boz) i->ts.kind = j->ts.kind;
+  if (j->is_boz) j->ts.kind = i->ts.kind;
+
   if (i->ts.kind != j->ts.kind)
     {
-      if (!gfc_notify_std (GFC_STD_GNU, "Different type kinds at %L",
-			   &i->where))
+      gfc_error ("Arguments of %qs have different kind type parameters "
+		 "at %L", gfc_current_intrinsic, &i->where);
 	return false;
     }
 
@@ -2593,26 +2629,6 @@ gfc_check_idnint (gfc_expr *a)
 
 
 bool
-gfc_check_ieor (gfc_expr *i, gfc_expr *j)
-{
-  if (!type_check (i, 0, BT_INTEGER))
-    return false;
-
-  if (!type_check (j, 1, BT_INTEGER))
-    return false;
-
-  if (i->ts.kind != j->ts.kind)
-    {
-      if (!gfc_notify_std (GFC_STD_GNU, "Different type kinds at %L",
-			   &i->where))
-	return false;
-    }
-
-  return true;
-}
-
-
-bool
 gfc_check_index (gfc_expr *string, gfc_expr *substring, gfc_expr *back,
 		 gfc_expr *kind)
 {
@@ -2664,27 +2680,6 @@ gfc_check_intconv (gfc_expr *x)
 
   return true;
 }
-
-
-bool
-gfc_check_ior (gfc_expr *i, gfc_expr *j)
-{
-  if (!type_check (i, 0, BT_INTEGER))
-    return false;
-
-  if (!type_check (j, 1, BT_INTEGER))
-    return false;
-
-  if (i->ts.kind != j->ts.kind)
-    {
-      if (!gfc_notify_std (GFC_STD_GNU, "Different type kinds at %L",
-			   &i->where))
-	return false;
-    }
-
-  return true;
-}
-
 
 bool
 gfc_check_ishft (gfc_expr *i, gfc_expr *shift)
@@ -2790,6 +2785,22 @@ gfc_check_kill_sub (gfc_expr *pid, gfc_expr *sig, gfc_expr *status)
 
       if (!scalar_check (status, 2))
 	return false;
+
+      if (status->expr_type != EXPR_VARIABLE)
+	{
+	  gfc_error ("STATUS at %L shall be an INTENT(OUT) variable",
+		     &status->where);
+	  return false;
+	}
+
+      if (status->expr_type == EXPR_VARIABLE
+	  && status->symtree && status->symtree->n.sym
+	  && status->symtree->n.sym->attr.intent == INTENT_IN)
+	{
+	  gfc_error ("%qs at %L shall be an INTENT(OUT) variable",
+		     status->symtree->name, &status->where);
+	  return false;
+	}
     }
 
   return true;
@@ -3306,18 +3317,10 @@ gfc_check_minloc_maxloc (gfc_actual_arglist *ap)
     {
       if (!type_check (b, 4, BT_LOGICAL) || !scalar_check (b,4))
 	return false;
-
-      /* TODO: Remove this once BACK is actually implemented.  */
-      if (b->expr_type != EXPR_CONSTANT || b->value.logical != 0)
-	{
-	  gfc_error ("BACK argument to %qs intrinsic not yet "
-		     "implemented", gfc_current_intrinsic);
-	  return false;
-	}
     }
   else
     {
-      b = gfc_get_logical_expr (gfc_default_logical_kind, NULL, 0);
+      b = gfc_get_logical_expr (gfc_logical_4_kind, NULL, 0);
       ap->next->next->next->next->expr = b;
     }
 
@@ -3351,6 +3354,91 @@ gfc_check_minloc_maxloc (gfc_actual_arglist *ap)
     return false;
 
   return true;
+}
+
+/* Check function for findloc.  Mostly like gfc_check_minloc_maxloc
+   above, with the additional "value" argument.  */
+
+bool
+gfc_check_findloc (gfc_actual_arglist *ap)
+{
+  gfc_expr *a, *v, *m, *d, *k, *b;
+  bool a1, v1;
+
+  a = ap->expr;
+  if (!intrinsic_type_check (a, 0) || !array_check (a, 0))
+    return false;
+
+  v = ap->next->expr;
+  if (!intrinsic_type_check (v, 1) || !scalar_check (v,1))
+    return false;
+
+  /* Check if the type are both logical.  */
+  a1 = a->ts.type == BT_LOGICAL;
+  v1 = v->ts.type == BT_LOGICAL;
+  if ((a1 && !v1) || (!a1 && v1))
+    goto incompat;
+
+  /* Check if the type are both character.  */
+  a1 = a->ts.type == BT_CHARACTER;
+  v1 = v->ts.type == BT_CHARACTER;
+  if ((a1 && !v1) || (!a1 && v1))
+    goto incompat;
+	 
+  d = ap->next->next->expr;
+  m = ap->next->next->next->expr;
+  k = ap->next->next->next->next->expr;
+  b = ap->next->next->next->next->next->expr;
+
+  if (b)
+    {
+      if (!type_check (b, 5, BT_LOGICAL) || !scalar_check (b,4))
+	return false;
+    }
+  else
+    {
+      b = gfc_get_logical_expr (gfc_logical_4_kind, NULL, 0);
+      ap->next->next->next->next->next->expr = b;
+    }
+
+  if (m == NULL && d != NULL && d->ts.type == BT_LOGICAL
+      && ap->next->name == NULL)
+    {
+      m = d;
+      d = NULL;
+      ap->next->next->expr = NULL;
+      ap->next->next->next->expr = m;
+    }
+
+  if (!dim_check (d, 2, false))
+    return false;
+
+  if (!dim_rank_check (d, a, 0))
+    return false;
+
+  if (m != NULL && !type_check (m, 3, BT_LOGICAL))
+    return false;
+
+  if (m != NULL
+      && !gfc_check_conformance (a, m,
+				 "arguments '%s' and '%s' for intrinsic %s",
+				 gfc_current_intrinsic_arg[0]->name,
+				 gfc_current_intrinsic_arg[3]->name,
+				 gfc_current_intrinsic))
+    return false;
+
+  if (!kind_check (k, 1, BT_INTEGER))
+    return false;
+
+  return true;
+
+incompat:
+  gfc_error ("Argument %qs of %qs intrinsic at %L must be in type "
+	     "conformance to argument %qs at %L",
+	     gfc_current_intrinsic_arg[0]->name,
+	     gfc_current_intrinsic, &a->where,
+	     gfc_current_intrinsic_arg[1]->name, &v->where);
+  return false;
 }
 
 
@@ -3501,6 +3589,12 @@ gfc_check_merge_bits (gfc_expr *i, gfc_expr *j, gfc_expr *mask)
   if (!type_check (j, 1, BT_INTEGER))
     return false;
 
+  if (!boz_args_check (i, j))
+    return false;
+
+  if (i->is_boz) i->ts.kind = j->ts.kind;
+  if (j->is_boz) j->ts.kind = i->ts.kind;
+
   if (!type_check (mask, 2, BT_INTEGER))
     return false;
 
@@ -3509,6 +3603,8 @@ gfc_check_merge_bits (gfc_expr *i, gfc_expr *j, gfc_expr *mask)
 
   if (!same_type_check (i, 0, mask, 2))
     return false;
+
+  if (mask->is_boz) mask->ts.kind = i->ts.kind;
 
   return true;
 }
@@ -4753,7 +4849,7 @@ gfc_check_c_f_pointer (gfc_expr *cptr, gfc_expr *fptr, gfc_expr *shape)
     }
 
   if (fptr->rank > 0 && !is_c_interoperable (fptr, &msg, false, true))
-    return gfc_notify_std (GFC_STD_F2008_TS, "Noninteroperable array FPTR "
+    return gfc_notify_std (GFC_STD_F2018, "Noninteroperable array FPTR "
 			   "at %L to C_F_POINTER: %s", &fptr->where, msg);
 
   return true;
@@ -4794,7 +4890,7 @@ gfc_check_c_f_procpointer (gfc_expr *cptr, gfc_expr *fptr)
     }
 
   if (!attr.is_bind_c)
-    return gfc_notify_std (GFC_STD_F2008_TS, "Noninteroperable procedure "
+    return gfc_notify_std (GFC_STD_F2018, "Noninteroperable procedure "
 			   "pointer at %L to C_F_PROCPOINTER", &fptr->where);
 
   return true;
@@ -4837,7 +4933,7 @@ gfc_check_c_funloc (gfc_expr *x)
     }
 
   if (!attr.is_bind_c)
-    return gfc_notify_std (GFC_STD_F2008_TS, "Noninteroperable procedure "
+    return gfc_notify_std (GFC_STD_F2018, "Noninteroperable procedure "
 			   "at %L to C_FUNLOC", &x->where);
   return true;
 }
@@ -4891,7 +4987,7 @@ gfc_check_c_loc (gfc_expr *x)
 	}
 
       if (x->rank
-	  && !gfc_notify_std (GFC_STD_F2008_TS,
+	  && !gfc_notify_std (GFC_STD_F2018,
 			      "Noninteroperable array at %L as"
 			      " argument to C_LOC: %s", &x->where, msg))
 	  return false;
@@ -5275,7 +5371,7 @@ gfc_check_num_images (gfc_expr *distance, gfc_expr *failed)
       if (!scalar_check (distance, 0))
 	return false;
 
-      if (!gfc_notify_std (GFC_STD_F2008_TS, "DISTANCE= argument to "
+      if (!gfc_notify_std (GFC_STD_F2018, "DISTANCE= argument to "
 			   "NUM_IMAGES at %L", &distance->where))
 	return false;
     }
@@ -5288,7 +5384,7 @@ gfc_check_num_images (gfc_expr *distance, gfc_expr *failed)
       if (!scalar_check (failed, 1))
 	return false;
 
-      if (!gfc_notify_std (GFC_STD_F2008_TS, "FAILED= argument to "
+      if (!gfc_notify_std (GFC_STD_F2018, "FAILED= argument to "
 			   "NUM_IMAGES at %L", &failed->where))
 	return false;
     }
@@ -5374,7 +5470,7 @@ gfc_check_this_image (gfc_expr *coarray, gfc_expr *dim, gfc_expr *distance)
       if (!scalar_check (distance, 2))
 	return false;
 
-      if (!gfc_notify_std (GFC_STD_F2008_TS, "DISTANCE= argument to "
+      if (!gfc_notify_std (GFC_STD_F2018, "DISTANCE= argument to "
 			   "THIS_IMAGE at %L", &distance->where))
 	return false;
 
@@ -5413,16 +5509,41 @@ gfc_calculate_transfer_sizes (gfc_expr *source, gfc_expr *mold, gfc_expr *size,
     return false;
 
   /* Calculate the size of the source.  */
-  *source_size = gfc_target_expr_size (source);
-  if (*source_size == 0)
+  if (!gfc_target_expr_size (source, source_size))
     return false;
 
   /* Determine the size of the element.  */
-  result_elt_size = gfc_element_size (mold);
-  if (result_elt_size == 0)
+  if (!gfc_element_size (mold, &result_elt_size))
     return false;
 
-  if (mold->expr_type == EXPR_ARRAY || mold->rank || size)
+  /* If the storage size of SOURCE is greater than zero and MOLD is an array,
+   * a scalar with the type and type parameters of MOLD shall not have a
+   * storage size equal to zero.
+   * If MOLD is a scalar and SIZE is absent, the result is a scalar.
+   * If MOLD is an array and SIZE is absent, the result is an array and of
+   * rank one. Its size is as small as possible such that its physical
+   * representation is not shorter than that of SOURCE.
+   * If SIZE is present, the result is an array of rank one and size SIZE.
+   */
+  if (result_elt_size == 0 && *source_size > 0 && !size
+      && mold->expr_type == EXPR_ARRAY)
+    {
+      gfc_error ("%<MOLD%> argument of %<TRANSFER%> intrinsic at %L is an "
+		 "array and shall not have storage size 0 when %<SOURCE%> "
+		 "argument has size greater than 0", &mold->where);
+      return false;
+    }
+
+  if (result_elt_size == 0 && *source_size == 0 && !size)
+    {
+      *result_size = 0;
+      if (result_length_p)
+	*result_length_p = 0;
+      return true;
+    }
+
+  if ((result_elt_size > 0 && (mold->expr_type == EXPR_ARRAY || mold->rank))
+      || size)
     {
       int result_length;
 
@@ -5452,6 +5573,26 @@ gfc_check_transfer (gfc_expr *source, gfc_expr *mold, gfc_expr *size)
   size_t source_size;
   size_t result_size;
 
+  /* SOURCE shall be a scalar or array of any type.  */
+  if (source->ts.type == BT_PROCEDURE
+      && source->symtree->n.sym->attr.subroutine == 1)
+    {
+      gfc_error ("%<SOURCE%> argument of %<TRANSFER%> intrinsic at %L "
+                 "must not be a %s", &source->where,
+		 gfc_basic_typename (source->ts.type));
+      return false;
+    }
+
+  /* MOLD shall be a scalar or array of any type.  */
+  if (mold->ts.type == BT_PROCEDURE
+      && mold->symtree->n.sym->attr.subroutine == 1)
+    {
+      gfc_error ("%<MOLD%> argument of %<TRANSFER%> intrinsic at %L "
+                 "must not be a %s", &mold->where,
+		 gfc_basic_typename (mold->ts.type));
+      return false;
+    }
+
   if (mold->ts.type == BT_HOLLERITH)
     {
       gfc_error ("%<MOLD%> argument of %<TRANSFER%> intrinsic at %L must not be"
@@ -5459,6 +5600,8 @@ gfc_check_transfer (gfc_expr *source, gfc_expr *mold, gfc_expr *size)
       return false;
     }
 
+  /* SIZE (optional) shall be an integer scalar.  The corresponding actual
+     argument shall not be an optional dummy argument.  */
   if (size != NULL)
     {
       if (!type_check (size, 2, BT_INTEGER))
@@ -5788,6 +5931,27 @@ gfc_check_mvbits (gfc_expr *from, gfc_expr *frompos, gfc_expr *len,
     return false;
 
   if (!less_than_bitsize2 ("to", to, "topos", topos, "len", len))
+    return false;
+
+  return true;
+}
+
+
+/* Check the arguments for RANDOM_INIT.  */
+
+bool
+gfc_check_random_init (gfc_expr *repeatable, gfc_expr *image_distinct)
+{
+  if (!type_check (repeatable, 0, BT_LOGICAL))
+    return false;
+
+  if (!scalar_check (repeatable, 0))
+    return false;
+
+  if (!type_check (image_distinct, 1, BT_LOGICAL))
+    return false;
+
+  if (!scalar_check (image_distinct, 1))
     return false;
 
   return true;
@@ -6412,6 +6576,23 @@ gfc_check_ttynam_sub (gfc_expr *unit, gfc_expr *name)
 
 
 bool
+gfc_check_is_contiguous (gfc_expr *array)
+{
+  if (array->expr_type == EXPR_NULL)
+    {
+      gfc_error ("Actual argument at %L of %qs intrinsic shall be an "
+		 "associated pointer", &array->where, gfc_current_intrinsic);
+      return false;
+    }
+
+  if (!array_check (array, 0))
+    return false;
+
+  return true;
+}
+
+
+bool
 gfc_check_isatty (gfc_expr *unit)
 {
   if (unit == NULL)
@@ -6614,6 +6795,12 @@ gfc_check_and (gfc_expr *i, gfc_expr *j)
 
   if (!scalar_check (j, 1))
     return false;
+
+  if (!boz_args_check (i, j))
+    return false;
+
+  if (i->is_boz) i->ts.kind = j->ts.kind;
+  if (j->is_boz) j->ts.kind = i->ts.kind;
 
   return true;
 }

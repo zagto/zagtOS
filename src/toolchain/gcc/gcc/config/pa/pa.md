@@ -1,5 +1,5 @@
 ;;- Machine description for HP PA-RISC architecture for GCC compiler
-;;   Copyright (C) 1992-2018 Free Software Foundation, Inc.
+;;   Copyright (C) 1992-2019 Free Software Foundation, Inc.
 ;;   Contributed by the Center for Software Science at the University
 ;;   of Utah.
 
@@ -84,6 +84,7 @@
    UNSPEC_TLSGD_PIC
    UNSPEC_TLSLDM_PIC
    UNSPEC_TLSIE_PIC
+   UNSPEC_MEMORY_BARRIER
   ])
 
 ;; UNSPEC_VOLATILE:
@@ -764,7 +765,7 @@
 
 (define_insn "scc"
   [(set (match_operand:SI 0 "register_operand" "=r")
-	(match_operator:SI 3 "comparison_operator"
+	(match_operator:SI 3 "ordered_comparison_operator"
 			   [(match_operand:SI 1 "reg_or_0_operand" "rM")
 			    (match_operand:SI 2 "arith11_operand" "rI")]))]
   ""
@@ -774,7 +775,7 @@
 
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=r")
-	(match_operator:DI 3 "comparison_operator"
+	(match_operator:DI 3 "ordered_comparison_operator"
 			   [(match_operand:DI 1 "reg_or_0_operand" "rM")
 			    (match_operand:DI 2 "arith11_operand" "rI")]))]
   "TARGET_64BIT"
@@ -784,10 +785,10 @@
 
 (define_insn "iorscc"
   [(set (match_operand:SI 0 "register_operand" "=r")
-	(ior:SI (match_operator:SI 3 "comparison_operator"
+	(ior:SI (match_operator:SI 3 "ordered_comparison_operator"
 				   [(match_operand:SI 1 "reg_or_0_operand" "rM")
 				    (match_operand:SI 2 "arith11_operand" "rI")])
-		(match_operator:SI 6 "comparison_operator"
+		(match_operator:SI 6 "ordered_comparison_operator"
 				   [(match_operand:SI 4 "reg_or_0_operand" "rM")
 				    (match_operand:SI 5 "arith11_operand" "rI")])))]
   ""
@@ -797,10 +798,10 @@
 
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=r")
-	(ior:DI (match_operator:DI 3 "comparison_operator"
+	(ior:DI (match_operator:DI 3 "ordered_comparison_operator"
 				   [(match_operand:DI 1 "reg_or_0_operand" "rM")
 				    (match_operand:DI 2 "arith11_operand" "rI")])
-		(match_operator:DI 6 "comparison_operator"
+		(match_operator:DI 6 "ordered_comparison_operator"
 				   [(match_operand:DI 4 "reg_or_0_operand" "rM")
 				    (match_operand:DI 5 "arith11_operand" "rI")])))]
   "TARGET_64BIT"
@@ -812,7 +813,7 @@
 ;; from an scc insn (negscc and incscc).
 (define_insn "negscc"
   [(set (match_operand:SI 0 "register_operand" "=r")
-	(neg:SI (match_operator:SI 3 "comparison_operator"
+	(neg:SI (match_operator:SI 3 "ordered_comparison_operator"
 	       [(match_operand:SI 1 "reg_or_0_operand" "rM")
 		(match_operand:SI 2 "arith11_operand" "rI")])))]
   ""
@@ -822,7 +823,7 @@
 
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=r")
-	(neg:DI (match_operator:DI 3 "comparison_operator"
+	(neg:DI (match_operator:DI 3 "ordered_comparison_operator"
 	       [(match_operand:DI 1 "reg_or_0_operand" "rM")
 		(match_operand:DI 2 "arith11_operand" "rI")])))]
   "TARGET_64BIT"
@@ -903,7 +904,7 @@
 
 (define_insn "incscc"
   [(set (match_operand:SI 0 "register_operand" "=r,r")
- 	(plus:SI (match_operator:SI 4 "comparison_operator"
+ 	(plus:SI (match_operator:SI 4 "ordered_comparison_operator"
 		    [(match_operand:SI 2 "register_operand" "r,r")
 		     (match_operand:SI 3 "arith11_operand" "rI,rI")])
 		 (match_operand:SI 1 "register_operand" "0,?r")))]
@@ -916,7 +917,7 @@
 
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=r,r")
- 	(plus:DI (match_operator:DI 4 "comparison_operator"
+ 	(plus:DI (match_operator:DI 4 "ordered_comparison_operator"
 		    [(match_operand:DI 2 "register_operand" "r,r")
 		     (match_operand:DI 3 "arith11_operand" "rI,rI")])
 		 (match_operand:DI 1 "register_operand" "0,?r")))]
@@ -1061,7 +1062,7 @@
 (define_insn "decscc"
   [(set (match_operand:SI 0 "register_operand" "=r,r")
 	(minus:SI (match_operand:SI 1 "register_operand" "0,?r")
-		  (match_operator:SI 4 "comparison_operator"
+		  (match_operator:SI 4 "ordered_comparison_operator"
 		     [(match_operand:SI 2 "register_operand" "r,r")
 		      (match_operand:SI 3 "arith11_operand" "rI,rI")])))]
   ""
@@ -1074,7 +1075,7 @@
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=r,r")
 	(minus:DI (match_operand:DI 1 "register_operand" "0,?r")
-		  (match_operator:DI 4 "comparison_operator"
+		  (match_operator:DI 4 "ordered_comparison_operator"
 		     [(match_operand:DI 2 "register_operand" "r,r")
 		      (match_operand:DI 3 "arith11_operand" "rI,rI")])))]
   "TARGET_64BIT"
@@ -1241,7 +1242,7 @@
 (define_expand "movsicc"
   [(set (match_operand:SI 0 "register_operand" "")
 	(if_then_else:SI
-	 (match_operand 1 "comparison_operator" "")
+	 (match_operand 1 "ordered_comparison_operator" "")
 	 (match_operand:SI 2 "reg_or_cint_move_operand" "")
 	 (match_operand:SI 3 "reg_or_cint_move_operand" "")))]
   ""
@@ -1263,7 +1264,7 @@
 (define_insn ""
   [(set (match_operand:SI 0 "register_operand" "=r,r,r,r")
 	(if_then_else:SI
-	 (match_operator 2 "comparison_operator"
+	 (match_operator 2 "ordered_comparison_operator"
 	    [(match_operand:SI 3 "register_operand" "r,r,r,r")
 	     (match_operand:SI 4 "arith11_operand" "rI,rI,rI,rI")])
 	 (match_operand:SI 1 "reg_or_cint_move_operand" "0,J,N,K")
@@ -1280,7 +1281,7 @@
 (define_insn ""
   [(set (match_operand:SI 0 "register_operand" "=r,r,r,r,r,r,r,r")
 	(if_then_else:SI
-	 (match_operator 5 "comparison_operator"
+	 (match_operator 5 "ordered_comparison_operator"
 	    [(match_operand:SI 3 "register_operand" "r,r,r,r,r,r,r,r")
 	     (match_operand:SI 4 "arith11_operand" "rI,rI,rI,rI,rI,rI,rI,rI")])
 	 (match_operand:SI 1 "reg_or_cint_move_operand" "0,0,0,0,r,J,N,K")
@@ -1301,7 +1302,7 @@
 (define_expand "movdicc"
   [(set (match_operand:DI 0 "register_operand" "")
 	(if_then_else:DI
-	 (match_operand 1 "comparison_operator" "")
+	 (match_operand 1 "ordered_comparison_operator" "")
 	 (match_operand:DI 2 "reg_or_cint_move_operand" "")
 	 (match_operand:DI 3 "reg_or_cint_move_operand" "")))]
   "TARGET_64BIT"
@@ -1317,7 +1318,7 @@
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=r,r,r,r,r")
 	(if_then_else:DI
-	 (match_operator 2 "comparison_operator"
+	 (match_operator 2 "ordered_comparison_operator"
 	    [(match_operand:DI 3 "register_operand" "r,r,r,r,r")
 	     (match_operand:DI 4 "arith11_operand" "rI,rI,rI,rI,rI")])
 	 (match_operand:DI 1 "reg_or_cint_move_operand" "0,r,J,N,K")
@@ -1335,7 +1336,7 @@
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=r,r,r,r,r,r,r,r")
 	(if_then_else:DI
-	 (match_operator 5 "comparison_operator"
+	 (match_operator 5 "ordered_comparison_operator"
 	    [(match_operand:DI 3 "register_operand" "r,r,r,r,r,r,r,r")
 	     (match_operand:DI 4 "arith11_operand" "rI,rI,rI,rI,rI,rI,rI,rI")])
 	 (match_operand:DI 1 "reg_or_cint_move_operand" "0,0,0,0,r,J,N,K")
@@ -1412,7 +1413,7 @@
 (define_insn ""
   [(set (pc)
 	(if_then_else
-	 (match_operator 3 "comparison_operator"
+	 (match_operator 3 "ordered_comparison_operator"
 			 [(match_operand:SI 1 "reg_or_0_operand" "rM")
 			  (match_operand:SI 2 "arith5_operand" "rL")])
 	 (label_ref (match_operand 0 "" ""))
@@ -1441,7 +1442,7 @@
 (define_insn ""
   [(set (pc)
 	(if_then_else
-	 (match_operator 3 "comparison_operator"
+	 (match_operator 3 "ordered_comparison_operator"
 			 [(match_operand:SI 1 "reg_or_0_operand" "rM")
 			  (match_operand:SI 2 "arith5_operand" "rL")])
 	 (pc)
@@ -1468,7 +1469,7 @@
 (define_insn ""
   [(set (pc)
 	(if_then_else
-	 (match_operator 3 "comparison_operator"
+	 (match_operator 3 "ordered_comparison_operator"
 			 [(match_operand:DI 1 "reg_or_0_operand" "rM")
 			  (match_operand:DI 2 "reg_or_0_operand" "rM")])
 	 (label_ref (match_operand 0 "" ""))
@@ -1497,7 +1498,7 @@
 (define_insn ""
   [(set (pc)
 	(if_then_else
-	 (match_operator 3 "comparison_operator"
+	 (match_operator 3 "ordered_comparison_operator"
 			 [(match_operand:DI 1 "reg_or_0_operand" "rM")
 			  (match_operand:DI 2 "reg_or_0_operand" "rM")])
 	 (pc)
@@ -5318,8 +5319,8 @@
 
 (define_insn "umulsidi3"
   [(set (match_operand:DI 0 "register_operand" "=f")
-	(mult:DI (zero_extend:DI (match_operand:SI 1 "nonimmediate_operand" "f"))
-		 (zero_extend:DI (match_operand:SI 2 "nonimmediate_operand" "f"))))]
+	(mult:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "f"))
+		 (zero_extend:DI (match_operand:SI 2 "register_operand" "f"))))]
   "TARGET_PA_11 && ! TARGET_DISABLE_FPREGS && ! TARGET_SOFT_FLOAT"
   "xmpyu %1,%2,%0"
   [(set_attr "type" "fpmuldbl")
@@ -5327,7 +5328,7 @@
 
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=f")
-	(mult:DI (zero_extend:DI (match_operand:SI 1 "nonimmediate_operand" "f"))
+	(mult:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "f"))
 		 (match_operand:DI 2 "uint32_operand" "f")))]
   "TARGET_PA_11 && ! TARGET_DISABLE_FPREGS && ! TARGET_SOFT_FLOAT && !TARGET_64BIT"
   "xmpyu %1,%R2,%0"
@@ -5336,7 +5337,7 @@
 
 (define_insn ""
   [(set (match_operand:DI 0 "register_operand" "=f")
-	(mult:DI (zero_extend:DI (match_operand:SI 1 "nonimmediate_operand" "f"))
+	(mult:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "f"))
 		 (match_operand:DI 2 "uint32_operand" "f")))]
   "TARGET_PA_11 && ! TARGET_DISABLE_FPREGS && ! TARGET_SOFT_FLOAT && TARGET_64BIT"
   "xmpyu %1,%2R,%0"
@@ -6903,20 +6904,23 @@
   rtx stack = operands[2];
   rtx fp = operands[3];
 
-  lab = copy_to_reg (lab);
-
   emit_clobber (gen_rtx_MEM (BLKmode, gen_rtx_SCRATCH (VOIDmode)));
   emit_clobber (gen_rtx_MEM (BLKmode, hard_frame_pointer_rtx));
 
-  /* Restore the frame pointer.  The virtual_stack_vars_rtx is saved
-     instead of the hard_frame_pointer_rtx in the save area.  As a
-     result, an extra instruction is needed to adjust for the offset
-     of the virtual stack variables and the hard frame pointer.  */
-  if (GET_CODE (fp) != REG)
-    fp = force_reg (Pmode, fp);
-  emit_move_insn (hard_frame_pointer_rtx, plus_constant (Pmode, fp, -8));
+  lab = copy_to_reg (lab);
 
+  /* Restore the stack and frame pointers.  The virtual_stack_vars_rtx
+     is saved instead of the hard_frame_pointer_rtx in the save area.
+     As a result, an extra instruction is needed to adjust for the offset
+     of the virtual stack variables and the hard frame pointer.  */
+  fp = copy_to_reg (fp);
   emit_stack_restore (SAVE_NONLOCAL, stack);
+
+  /* Ensure the frame pointer move is not optimized.  */
+  emit_insn (gen_blockage ());
+  emit_clobber (hard_frame_pointer_rtx);
+  emit_clobber (frame_pointer_rtx);
+  emit_move_insn (hard_frame_pointer_rtx, plus_constant (Pmode, fp, -8));
 
   emit_use (hard_frame_pointer_rtx);
   emit_use (stack_pointer_rtx);
@@ -8694,22 +8698,25 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
   emit_clobber (gen_rtx_MEM (BLKmode, gen_rtx_SCRATCH (VOIDmode)));
   emit_clobber (gen_rtx_MEM (BLKmode, hard_frame_pointer_rtx));
 
-  /* Restore the frame pointer.  The virtual_stack_vars_rtx is saved
-     instead of the hard_frame_pointer_rtx in the save area.  We need
-     to adjust for the offset between these two values.  */
-  if (GET_CODE (fp) != REG)
-    fp = force_reg (Pmode, fp);
-  emit_move_insn (hard_frame_pointer_rtx, plus_constant (Pmode, fp, -8));
-
-  /* This bit is the same as expand_builtin_longjmp.  */
-  emit_stack_restore (SAVE_NONLOCAL, stack);
-  emit_use (hard_frame_pointer_rtx);
-  emit_use (stack_pointer_rtx);
-
   /* Load the label we are jumping through into r1 so that we know
      where to look for it when we get back to setjmp's function for
      restoring the gp.  */
   emit_move_insn (pv, lab);
+
+  /* Restore the stack and frame pointers.  The virtual_stack_vars_rtx
+     is saved instead of the hard_frame_pointer_rtx in the save area.
+     We need to adjust for the offset between these two values.  */
+  fp = copy_to_reg (fp);
+  emit_stack_restore (SAVE_NONLOCAL, stack);
+
+  /* Ensure the frame pointer move is not optimized.  */
+  emit_insn (gen_blockage ());
+  emit_clobber (hard_frame_pointer_rtx);
+  emit_clobber (frame_pointer_rtx);
+  emit_move_insn (hard_frame_pointer_rtx, plus_constant (Pmode, fp, -8));
+
+  emit_use (hard_frame_pointer_rtx);
+  emit_use (stack_pointer_rtx);
 
   /* Prevent the insns above from being scheduled into the delay slot
      of the interspace jump because the space register could change.  */
@@ -9055,7 +9062,7 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
 (define_insn "decrement_and_branch_until_zero"
   [(set (pc)
 	(if_then_else
-	  (match_operator 2 "comparison_operator"
+	  (match_operator 2 "ordered_comparison_operator"
 	   [(plus:SI
 	      (match_operand:SI 0 "reg_before_reload_operand" "+!r,!*f,*Q")
 	      (match_operand:SI 1 "int5_operand" "L,L,L"))
@@ -9955,13 +9962,7 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
 ;; doubleword loads and stores are not guaranteed to be atomic
 ;; when referencing the I/O address space.
 
-;; The kernel cmpxchg operation on linux is not atomic with respect to
-;; memory stores on SMP machines, so we must do stores using a cmpxchg
-;; operation.
-
 ;; These patterns are at the bottom so the non atomic versions are preferred.
-
-;; Implement atomic QImode store using exchange.
 
 (define_expand "atomic_storeqi"
   [(match_operand:QI 0 "memory_operand")                ;; memory
@@ -10015,25 +10016,7 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
   FAIL;
 })
 
-;; Implement atomic SFmode store using exchange.
-
-(define_expand "atomic_storesf"
-  [(match_operand:SF 0 "memory_operand")                ;; memory
-   (match_operand:SF 1 "register_operand")              ;; val out
-   (match_operand:SI 2 "const_int_operand")]            ;; model
-  ""
-{
-  if (TARGET_SYNC_LIBCALL)
-    {
-      rtx mem = operands[0];
-      rtx val = operands[1];
-      if (pa_maybe_emit_compare_and_swap_exchange_loop (NULL_RTX, mem, val))
-	DONE;
-    }
-  FAIL;
-})
-
-;; Implement atomic DImode load using 64-bit floating point load.
+;; Implement atomic DImode load.
 
 (define_expand "atomic_loaddi"
   [(match_operand:DI 0 "register_operand")              ;; val out
@@ -10048,29 +10031,27 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
 
   model = memmodel_from_int (INTVAL (operands[2]));
   operands[1] = force_reg (SImode, XEXP (operands[1], 0));
-  expand_mem_thread_fence (model);
-  emit_insn (gen_atomic_loaddi_1 (operands[0], operands[1]));
   if (is_mm_seq_cst (model))
     expand_mem_thread_fence (model);
+  emit_insn (gen_atomic_loaddi_1 (operands[0], operands[1]));
+  expand_mem_thread_fence (model);
   DONE;
 })
 
 (define_insn "atomic_loaddi_1"
-  [(set (match_operand:DI 0 "register_operand" "=f,r")
-        (mem:DI (match_operand:SI 1 "register_operand" "r,r")))
-   (clobber (match_scratch:DI 2 "=X,f"))]
+  [(set (match_operand:DI 0 "register_operand" "=r")
+        (mem:DI (match_operand:SI 1 "register_operand" "r")))
+   (clobber (match_scratch:DI 2 "=f"))]
   "!TARGET_64BIT && !TARGET_DISABLE_FPREGS && !TARGET_SOFT_FLOAT"
-  "@
-   {fldds|fldd} 0(%1),%0
-   {fldds|fldd} 0(%1),%2\n\t{fstds|fstd} %2,-16(%%sp)\n\t{ldws|ldw} -16(%%sp),%0\n\t{ldws|ldw} -12(%%sp),%R0"
-  [(set_attr "type" "move,move")
-   (set_attr "length" "4,16")])
+  "{fldds|fldd} 0(%1),%2\n\t{fstds|fstd} %2,-16(%%sp)\n\t{ldws|ldw} -16(%%sp),%0\n\t{ldws|ldw} -12(%%sp),%R0"
+  [(set_attr "type" "move")
+   (set_attr "length" "16")])
 
 ;; Implement atomic DImode store.
 
 (define_expand "atomic_storedi"
   [(match_operand:DI 0 "memory_operand")                ;; memory
-   (match_operand:DI 1 "register_operand")              ;; val out
+   (match_operand:DI 1 "reg_or_cint_move_operand")      ;; val out
    (match_operand:SI 2 "const_int_operand")]            ;; model
   ""
 {
@@ -10089,6 +10070,8 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
 
   model = memmodel_from_int (INTVAL (operands[2]));
   operands[0] = force_reg (SImode, XEXP (operands[0], 0));
+  if (operands[1] != CONST0_RTX (DImode))
+    operands[1] = force_reg (DImode, operands[1]);
   expand_mem_thread_fence (model);
   emit_insn (gen_atomic_storedi_1 (operands[0], operands[1]));
   if (is_mm_seq_cst (model))
@@ -10098,87 +10081,65 @@ add,l %2,%3,%3\;bv,n %%r0(%3)"
 
 (define_insn "atomic_storedi_1"
   [(set (mem:DI (match_operand:SI 0 "register_operand" "r,r"))
-        (match_operand:DI 1 "register_operand" "f,r"))
+        (match_operand:DI 1 "reg_or_0_operand" "M,r"))
    (clobber (match_scratch:DI 2 "=X,f"))]
-  "!TARGET_64BIT && !TARGET_DISABLE_FPREGS
-   && !TARGET_SOFT_FLOAT && !TARGET_SYNC_LIBCALL"
-  "@
-   {fstds|fstd} %1,0(%0)
-   {stws|stw} %1,-16(%%sp)\n\t{stws|stw} %R1,-12(%%sp)\n\t{fldds|fldd} -16(%%sp),%2\n\t{fstds|fstd} %2,0(%0)"
-  [(set_attr "type" "move,move")
-   (set_attr "length" "4,16")])
-
-;; Implement atomic DFmode load using 64-bit floating point load.
-
-(define_expand "atomic_loaddf"
-  [(match_operand:DF 0 "register_operand")              ;; val out
-   (match_operand:DF 1 "memory_operand")                ;; memory
-   (match_operand:SI 2 "const_int_operand")]            ;; model
-  ""
-{
-  enum memmodel model;
-
-  if (TARGET_64BIT || TARGET_DISABLE_FPREGS || TARGET_SOFT_FLOAT)
-    FAIL;
-
-  model = memmodel_from_int (INTVAL (operands[2]));
-  operands[1] = force_reg (SImode, XEXP (operands[1], 0));
-  expand_mem_thread_fence (model);
-  emit_insn (gen_atomic_loaddf_1 (operands[0], operands[1]));
-  if (is_mm_seq_cst (model))
-    expand_mem_thread_fence (model);
-  DONE;
-})
-
-(define_insn "atomic_loaddf_1"
-  [(set (match_operand:DF 0 "register_operand" "=f,r")
-        (mem:DF (match_operand:SI 1 "register_operand" "r,r")))
-   (clobber (match_scratch:DF 2 "=X,f"))]
   "!TARGET_64BIT && !TARGET_DISABLE_FPREGS && !TARGET_SOFT_FLOAT"
   "@
-   {fldds|fldd} 0(%1),%0
-   {fldds|fldd} 0(%1),%2\n\t{fstds|fstd} %2,-16(%%sp)\n\t{ldws|ldw} -16(%%sp),%0\n\t{ldws|ldw} -12(%%sp),%R0"
-  [(set_attr "type" "move,move")
-   (set_attr "length" "4,16")])
-
-;; Implement atomic DFmode store using 64-bit floating point store.
-
-(define_expand "atomic_storedf"
-  [(match_operand:DF 0 "memory_operand")                ;; memory
-   (match_operand:DF 1 "register_operand")              ;; val out
-   (match_operand:SI 2 "const_int_operand")]            ;; model
-  ""
-{
-  enum memmodel model;
-
-  if (TARGET_SYNC_LIBCALL)
-    {
-      rtx mem = operands[0];
-      rtx val = operands[1];
-      if (pa_maybe_emit_compare_and_swap_exchange_loop (NULL_RTX, mem, val))
-	DONE;
-    }
-
-  if (TARGET_64BIT || TARGET_DISABLE_FPREGS || TARGET_SOFT_FLOAT)
-    FAIL;
-
-  model = memmodel_from_int (INTVAL (operands[2]));
-  operands[0] = force_reg (SImode, XEXP (operands[0], 0));
-  expand_mem_thread_fence (model);
-  emit_insn (gen_atomic_storedf_1 (operands[0], operands[1]));
-  if (is_mm_seq_cst (model))
-    expand_mem_thread_fence (model);
-  DONE;
-})
-
-(define_insn "atomic_storedf_1"
-  [(set (mem:DF (match_operand:SI 0 "register_operand" "r,r"))
-        (match_operand:DF 1 "register_operand" "f,r"))
-   (clobber (match_scratch:DF 2 "=X,f"))]
-  "!TARGET_64BIT && !TARGET_DISABLE_FPREGS
-   && !TARGET_SOFT_FLOAT && !TARGET_SYNC_LIBCALL"
-  "@
-   {fstds|fstd} %1,0(%0)
+   {fstds|fstd} %%fr0,0(%0)
    {stws|stw} %1,-16(%%sp)\n\t{stws|stw} %R1,-12(%%sp)\n\t{fldds|fldd} -16(%%sp),%2\n\t{fstds|fstd} %2,0(%0)"
   [(set_attr "type" "move,move")
    (set_attr "length" "4,16")])
+
+;; PA 2.0 hardware supports out-of-order execution of loads and stores, so
+;; we need memory barriers to enforce program order for memory references
+;; when the TLB and PSW O bits are not set.  We assume all PA 2.0 systems
+;; are weakly ordered since neither HP-UX or Linux set the PSW O bit.  Since
+;; we want PA 1.x code to be PA 2.0 compatible, we also need barriers when
+;; generating PA 1.x code even though all PA 1.x systems are strongly ordered.
+
+;; When barriers are needed, we use a strongly ordered ldcw instruction as
+;; the barrier.  Most PA 2.0 targets are cache coherent.  In that case, we
+;; can use the coherent cache control hint and avoid aligning the ldcw
+;; address.  In spite of its description, it is not clear that the sync
+;; instruction works as a barrier.
+
+(define_expand "memory_barrier"
+  [(parallel
+     [(set (match_dup 0) (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
+      (clobber (match_dup 1))])]
+  ""
+{
+  /* We don't need a barrier if the target uses ordered memory references.  */
+  if (TARGET_ORDERED)
+    FAIL;
+  operands[1] = gen_reg_rtx (Pmode);
+  operands[0] = gen_rtx_MEM (BLKmode, operands[1]);
+  MEM_VOLATILE_P (operands[0]) = 1;
+})
+
+(define_insn "*memory_barrier_coherent"
+  [(set (match_operand:BLK 0 "" "")
+        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
+   (clobber (match_operand 1 "pmode_register_operand" "=r"))]
+  "TARGET_PA_20 && TARGET_COHERENT_LDCW"
+  "ldcw,co 0(%%sp),%1"
+  [(set_attr "type" "binary")
+   (set_attr "length" "4")])
+
+(define_insn "*memory_barrier_64"
+  [(set (match_operand:BLK 0 "" "")
+        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
+    (clobber (match_operand 1 "pmode_register_operand" "=&r"))]
+  "TARGET_64BIT"
+  "ldo 15(%%sp),%1\n\tdepd %%r0,63,3,%1\n\tldcw 0(%1),%1"
+  [(set_attr "type" "binary")
+   (set_attr "length" "12")])
+
+(define_insn "*memory_barrier_32"
+  [(set (match_operand:BLK 0 "" "")
+        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
+    (clobber (match_operand 1 "pmode_register_operand" "=&r"))]
+  ""
+  "ldo 15(%%sp),%1\n\t{dep|depw} %%r0,31,3,%1\n\tldcw 0(%1),%1"
+  [(set_attr "type" "binary")
+   (set_attr "length" "12")])

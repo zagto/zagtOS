@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2018 Free Software Foundation, Inc.
+// Copyright (C) 2016-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -119,9 +119,11 @@ void test01()
   static_assert( ! is_nt_invocable_r< T,     F  >(), "call throws");
   static_assert( ! is_nt_invocable_r< NT,    F  >(), "call throws");
   static_assert( ! is_nt_invocable_r< Ex,    F  >(), "call throws");
+  static_assert( ! is_nt_invocable_r< void,  F  >(), "call throws");
   static_assert( ! is_nt_invocable_r< T,     CF >(), "conversion throws");
   static_assert(   is_nt_invocable_r< NT,    CF >(), "" );
   static_assert( ! is_nt_invocable_r< Ex,    CF >(), "conversion fails");
+  static_assert(   is_nt_invocable_r< void,  CF >(), "");
 
   static_assert( ! is_nt_invocable< F,   int >(), "call throws");
   static_assert(   is_nt_invocable< F&,  int >(), "");
@@ -140,12 +142,14 @@ void test01()
 
   static_assert(   is_nt_invocable_r< char&,  CF,  int >(), "");
   static_assert(   is_nt_invocable_r< char&,  CF&, int >(), "");
+  static_assert(   is_nt_invocable_r< void,   CF&, int >(), "");
 
   static_assert( ! is_nt_invocable_r< T,      CF&, int >(),
 		   "conversion throws");
   static_assert(   is_nt_invocable_r< NT,     CF&, int >(), "");
   static_assert( ! is_nt_invocable_r< Ex,     CF&, int >(),
 		   "conversion fails, would use explicit constructor");
+  static_assert(   is_nt_invocable_r< void,   CF&, int >(), "");
 
   static_assert( ! is_nt_invocable< F, int, int >(),
 		   "would call private member");

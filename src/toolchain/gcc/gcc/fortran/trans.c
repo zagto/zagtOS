@@ -1,5 +1,5 @@
 /* Code translation -- generate GCC trees from gfc_code.
-   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+   Copyright (C) 2002-2019 Free Software Foundation, Inc.
    Contributed by Paul Brook
 
 This file is part of GCC.
@@ -61,26 +61,6 @@ gfc_advance_chain (tree t, int n)
   return t;
 }
 
-
-/* Strip off a legitimate source ending from the input
-   string NAME of length LEN.  */
-
-static inline void
-remove_suffix (char *name, int len)
-{
-  int i;
-
-  for (i = 2; i < 8 && len > i; i++)
-    {
-      if (name[len - i] == '.')
-	{
-	  name[len - i] = '\0';
-	  break;
-	}
-    }
-}
-
-
 /* Creates a variable declaration with a given TYPE.  */
 
 tree
@@ -138,6 +118,19 @@ gfc_evaluate_now (tree expr, stmtblock_t * pblock)
   return gfc_evaluate_now_loc (input_location, expr, pblock);
 }
 
+/* Like gfc_evaluate_now, but add the created variable to the
+   function scope.  */
+
+tree
+gfc_evaluate_now_function_scope (tree expr, stmtblock_t * pblock)
+{
+  tree var;
+  var = gfc_create_var_np (TREE_TYPE (expr), NULL);
+  gfc_add_decl_to_function (var);
+  gfc_add_modify (pblock, var, expr);
+
+  return var;
+}
 
 /* Build a MODIFY_EXPR node and add it to a given statement block PBLOCK.
    A MODIFY_EXPR is an assignment:
@@ -310,6 +303,16 @@ get_array_span (tree type, tree decl)
 {
   tree span;
 
+  /* Component references are guaranteed to have a reliable value for
+     'span'. Likewise indirect references since they emerge from the
+     conversion of a CFI descriptor or the hidden dummy descriptor.  */
+  if (TREE_CODE (decl) == COMPONENT_REF
+      && GFC_DESCRIPTOR_TYPE_P (TREE_TYPE (decl)))
+    return gfc_conv_descriptor_span_get (decl);
+  else if (TREE_CODE (decl) == INDIRECT_REF
+	   && GFC_DESCRIPTOR_TYPE_P (TREE_TYPE (decl)))
+    return gfc_conv_descriptor_span_get (decl);
+
   /* Return the span for deferred character length array references.  */
   if (type && TREE_CODE (type) == ARRAY_TYPE
       && TYPE_MAX_VALUE (TYPE_DOMAIN (type)) != NULL_TREE
@@ -326,6 +329,15 @@ get_array_span (tree type, tree decl)
 			  fold_convert (gfc_array_index_type,
 					TYPE_SIZE_UNIT (TREE_TYPE (type))),
 			  span);
+    }
+  else if (type && TREE_CODE (type) == ARRAY_TYPE
+	   && TYPE_MAX_VALUE (TYPE_DOMAIN (type)) != NULL_TREE
+	   && integer_zerop (TYPE_MAX_VALUE (TYPE_DOMAIN (type))))
+    {
+      if (GFC_DESCRIPTOR_TYPE_P (TREE_TYPE (decl)))
+	span = gfc_conv_descriptor_span_get (decl);
+      else
+	span = NULL_TREE;
     }
   /* Likewise for class array or pointer array references.  */
   else if (TREE_CODE (decl) == FIELD_DECL
