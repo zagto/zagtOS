@@ -1,5 +1,5 @@
 /* Common definitions for remote server for GDB.
-   Copyright (C) 1993-2019 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -16,10 +16,18 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef GDBSERVER_SERVER_H
+#define GDBSERVER_SERVER_H
 
-#include "common-defs.h"
+#include "gdbsupport/common-defs.h"
+
+#undef PACKAGE
+#undef PACKAGE_NAME
+#undef PACKAGE_VERSION
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+
+#include <config.h>
 
 gdb_static_assert (sizeof (CORE_ADDR) >= sizeof (void *));
 
@@ -27,13 +35,7 @@ gdb_static_assert (sizeof (CORE_ADDR) >= sizeof (void *));
 #include "wincecompat.h"
 #endif
 
-#include "version.h"
-
-#if !HAVE_DECL_STRERROR
-#ifndef strerror
-extern char *strerror (int);	/* X3.159-1989  4.11.6.2 */
-#endif
-#endif
+#include "gdbsupport/version.h"
 
 #if !HAVE_DECL_PERROR
 #ifndef perror
@@ -54,13 +56,13 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 #  define PROG "gdbserver"
 #endif
 
-#include "buffer.h"
-#include "xml-utils.h"
+#include "gdbsupport/buffer.h"
+#include "gdbsupport/xml-utils.h"
 #include "regcache.h"
-#include "gdb_signals.h"
+#include "gdbsupport/gdb_signals.h"
 #include "target.h"
 #include "mem-break.h"
-#include "environ.h"
+#include "gdbsupport/environ.h"
 
 /* Target-specific functions */
 
@@ -68,15 +70,15 @@ void initialize_low ();
 
 /* Public variables in server.c */
 
-extern int server_waiting;
+extern bool server_waiting;
 
-extern int disable_packet_vCont;
-extern int disable_packet_Tthread;
-extern int disable_packet_qC;
-extern int disable_packet_qfThreadInfo;
+extern bool disable_packet_vCont;
+extern bool disable_packet_Tthread;
+extern bool disable_packet_qC;
+extern bool disable_packet_qfThreadInfo;
 
-extern int run_once;
-extern int non_stop;
+extern bool run_once;
+extern bool non_stop;
 
 #if USE_WIN32API
 #include <winsock2.h>
@@ -104,7 +106,7 @@ extern int in_queued_stop_replies (ptid_t ptid);
 
 #include "utils.h"
 #include "debug.h"
-#include "gdb_vecs.h"
+#include "gdbsupport/gdb_vecs.h"
 
 /* Maximum number of bytes to read/write at once.  The value here
    is chosen to fill up a packet (the headers account for the 32).  */
@@ -205,4 +207,4 @@ client_state &get_client_state ();
 #include "gdbthread.h"
 #include "inferiors.h"
 
-#endif /* SERVER_H */
+#endif /* GDBSERVER_SERVER_H */

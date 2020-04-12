@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 #include "python-internal.h"
 #include "varobj.h"
 #include "varobj-iter.h"
-#include "py-ref.h"
 
 /* A dynamic varobj iterator "class" for python pretty-printed
    varobjs.  This inherits struct varobj_iter.  */

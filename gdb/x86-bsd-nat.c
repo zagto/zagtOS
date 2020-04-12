@@ -1,6 +1,6 @@
 /* Native-dependent code for X86 BSD's.
 
-   Copyright (C) 2003-2019 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -122,6 +122,7 @@ x86bsd_dr_get_control (void)
 
 #endif /* PT_GETDBREGS */
 
+void _initialize_x86_bsd_nat ();
 void
 _initialize_x86_bsd_nat ()
 {

@@ -1,6 +1,6 @@
 /* TUI support I/O functions.
 
-   Copyright (C) 1998-2019 Free Software Foundation, Inc.
+   Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
    Contributed by Hewlett-Packard Company.
 
@@ -19,8 +19,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef TUI_IO_H
-#define TUI_IO_H
+#ifndef TUI_TUI_IO_H
+#define TUI_TUI_IO_H
 
 #include "gdb_curses.h"
 
@@ -46,9 +46,15 @@ extern void tui_initialize_io (void);
 extern void tui_redisplay_readline (void);
 
 /* Expand TABs into spaces.  */
-extern char *tui_expand_tabs (const char *, int);
+extern gdb::unique_xmalloc_ptr<char> tui_expand_tabs (const char *);
+
+/* Enter/leave reverse video mode.  */
+extern void tui_set_reverse_mode (WINDOW *w, bool reverse);
+
+/* Apply STYLE to the window.  */
+extern void tui_apply_style (WINDOW *w, ui_file_style style);
 
 extern struct ui_out *tui_out;
 extern cli_ui_out *tui_old_uiout;
 
-#endif
+#endif /* TUI_TUI_IO_H */

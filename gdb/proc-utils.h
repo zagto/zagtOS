@@ -1,5 +1,5 @@
 /* Machine independent support for SVR4 /proc (process file system) for GDB.
-   Copyright (C) 1999-2019 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -15,6 +15,9 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+
+#ifndef PROC_UTILS_H
+#define PROC_UTILS_H
 
 /* From proc-why.c */
 
@@ -113,3 +116,5 @@ extern  void  procfs_note      (const char *, const char *, int);
 /* Define the type (and more importantly the width) of the control
    word used to write to the /proc/PID/ctl file.  */
 typedef long procfs_ctl_t;
+
+#endif /* PROC_UTILS_H */

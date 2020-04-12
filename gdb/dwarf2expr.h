@@ -1,6 +1,6 @@
 /* DWARF 2 Expression Evaluator.
 
-   Copyright (C) 2001-2019 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
    Contributed by Daniel Berlin <dan@dberlin.org>.
 
@@ -139,7 +139,8 @@ struct dwarf_expr_context
      context and operations depending on DW_FORM_ref_addr are not allowed.  */
   int ref_addr_size;
 
-  /* Offset used to relocate DW_OP_addr and DW_OP_GNU_addr_index arguments.  */
+  /* Offset used to relocate DW_OP_addr, DW_OP_addrx, and
+     DW_OP_GNU_addr_index arguments.  */
   CORE_ADDR offset;
 
   /* The current depth of dwarf expression recursion, via DW_OP_call*,
@@ -242,7 +243,7 @@ struct dwarf_expr_context
 					   union call_site_parameter_u kind_u,
 					   int deref_size) = 0;
 
-  /* Return the address indexed by DW_OP_GNU_addr_index.
+  /* Return the address indexed by DW_OP_addrx or DW_OP_GNU_addr_index.
      This can throw an exception if the index is out of range.  */
   virtual CORE_ADDR get_addr_index (unsigned int index) = 0;
 

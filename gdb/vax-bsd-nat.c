@@ -1,6 +1,6 @@
 /* Native-dependent code for modern VAX BSD's.
 
-   Copyright (C) 2004-2019 Free Software Foundation, Inc.
+   Copyright (C) 2004-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -132,8 +132,9 @@ vaxbsd_supply_pcb (struct regcache *regcache, struct pcb *pcb)
   return 1;
 }
 
+void _initialize_vaxbsd_nat ();
 void
-_initialize_vaxbsd_nat (void)
+_initialize_vaxbsd_nat ()
 {
   add_inf_child_target (&the_vax_bsd_nat_target);
 

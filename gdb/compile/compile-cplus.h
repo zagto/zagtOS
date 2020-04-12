@@ -1,5 +1,5 @@
 /* Header file for GDB compile C++ language support.
-   Copyright (C) 2016-2019 Free Software Foundation, Inc.
+   Copyright (C) 2016-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,11 +14,12 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef GDB_COMPILE_CPLUS_H
-#define GDB_COMPILE_CPLUS_H
+#ifndef COMPILE_COMPILE_CPLUS_H
+#define COMPILE_COMPILE_CPLUS_H
 
-#include "common/enum-flags.h"
+#include "gdbsupport/enum-flags.h"
 #include "gcc-cp-plugin.h"
+#include "symtab.h"
 
 struct type;
 struct block;
@@ -202,4 +203,4 @@ private:
 enum gcc_cp_symbol_kind get_method_access_flag (const struct type *type,
 						int fni, int num);
 
-#endif /* GDB_COMPILE_CPLUS_H  */
+#endif /* COMPILE_COMPILE_CPLUS_H */

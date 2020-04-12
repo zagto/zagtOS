@@ -5,6 +5,9 @@
    */
 #undef CRAY_STACKSEG_END
 
+/* Define to 1 if std::thread works. */
+#undef CXX_STD_THREAD
+
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
@@ -51,10 +54,6 @@
    don't. */
 #undef HAVE_DECL_SNPRINTF
 
-/* Define to 1 if you have the declaration of `strerror', and to 0 if you
-   don't. */
-#undef HAVE_DECL_STRERROR
-
 /* Define to 1 if you have the declaration of `strstr', and to 0 if you don't.
    */
 #undef HAVE_DECL_STRSTR
@@ -90,6 +89,9 @@
 /* Define to 1 if you have the `dladdr' function. */
 #undef HAVE_DLADDR
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
 /* Define to 1 if the system has the type `Elf32_auxv_t'. */
 #undef HAVE_ELF32_AUXV_T
 
@@ -108,14 +110,29 @@
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
+/* Define if <sys/procfs.h> has fpregset_t. */
+#undef HAVE_FPREGSET_T
+
 /* Define to 1 if you have the `getauxval' function. */
 #undef HAVE_GETAUXVAL
+
+/* Define to 1 if you have the `getpagesize' function. */
+#undef HAVE_GETPAGESIZE
 
 /* Define to 1 if you have the `getrlimit' function. */
 #undef HAVE_GETRLIMIT
 
+/* Define to 1 if you have the `getrusage' function. */
+#undef HAVE_GETRUSAGE
+
+/* Define if <sys/procfs.h> has gregset_t. */
+#undef HAVE_GREGSET_T
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
+
+/* Define to 1 if your system has the kinfo_getfile function. */
+#undef HAVE_KINFO_GETFILE
 
 /* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
 #undef HAVE_LANGINFO_CODESET
@@ -123,8 +140,8 @@
 /* Define to 1 if you have the `dl' library (-ldl). */
 #undef HAVE_LIBDL
 
-/* Define to 1 if you have the `mcheck' library (-lmcheck). */
-#undef HAVE_LIBMCHECK
+/* Define if you have the ipt library. */
+#undef HAVE_LIBIPT
 
 /* Define if the target supports branch tracing. */
 #undef HAVE_LINUX_BTRACE
@@ -153,6 +170,9 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
+/* Define to 1 if you have a working `mmap' system call. */
+#undef HAVE_MMAP
+
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
 
@@ -180,6 +200,9 @@
 /* Define if <sys/procfs.h> has prfpregset_t. */
 #undef HAVE_PRFPREGSET_T
 
+/* Define if <sys/procfs.h> has prgregset32_t. */
+#undef HAVE_PRGREGSET32_T
+
 /* Define if <sys/procfs.h> has prgregset_t. */
 #undef HAVE_PRGREGSET_T
 
@@ -188,6 +211,18 @@
 
 /* Define if <thread_db.h> has psaddr_t. */
 #undef HAVE_PSADDR_T
+
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
+
+/* Define to 1 if you have the `pthread_setname_np' function. */
+#undef HAVE_PTHREAD_SETNAME_NP
+
+/* Define to 1 if you have the `pthread_sigmask' function. */
+#undef HAVE_PTHREAD_SIGMASK
+
+/* Define to 1 if you have the `ptrace64' function. */
+#undef HAVE_PTRACE64
 
 /* Define if the target supports PTRACE_GETFPXREGS for extended register
    access. */
@@ -199,17 +234,35 @@
 /* Define to 1 if you have the <ptrace.h> header file. */
 #undef HAVE_PTRACE_H
 
+/* Define to 1 if you have the `pt_insn_event' function. */
+#undef HAVE_PT_INSN_EVENT
+
 /* Define to 1 if you have the `pwrite' function. */
 #undef HAVE_PWRITE
+
+/* Define to 1 if you have the `sbrk' function. */
+#undef HAVE_SBRK
 
 /* Define to 1 if you have the `setns' function. */
 #undef HAVE_SETNS
 
+/* Define to 1 if you have the `setpgid' function. */
+#undef HAVE_SETPGID
+
+/* Define to 1 if you have the `setpgrp' function. */
+#undef HAVE_SETPGRP
+
 /* Define to 1 if you have the `sigaction' function. */
 #undef HAVE_SIGACTION
 
+/* Define to 1 if you have the `sigaltstack' function. */
+#undef HAVE_SIGALTSTACK
+
 /* Define to 1 if you have the <signal.h> header file. */
 #undef HAVE_SIGNAL_H
+
+/* Define to 1 if you have the `sigprocmask' function. */
+#undef HAVE_SIGPROCMASK
 
 /* Define if sigsetjmp is available. */
 #undef HAVE_SIGSETJMP
@@ -232,6 +285,12 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if `enabled' is a member of `struct pt_insn'. */
+#undef HAVE_STRUCT_PT_INSN_ENABLED
+
+/* Define to 1 if `resynced' is a member of `struct pt_insn'. */
+#undef HAVE_STRUCT_PT_INSN_RESYNCED
+
 /* Define to 1 if `st_blksize' is a member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
@@ -252,6 +311,9 @@
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #undef HAVE_SYS_IOCTL_H
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
 
 /* Define to 1 if you have the <sys/procfs.h> header file. */
 #undef HAVE_SYS_PROCFS_H
@@ -330,6 +392,10 @@
 
 /* Additional package description */
 #undef PKGVERSION
+
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
 
 /* Define to the type of arg 1 for ptrace. */
 #undef PTRACE_TYPE_ARG1

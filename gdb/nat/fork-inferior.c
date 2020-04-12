@@ -1,6 +1,6 @@
 /* Fork a Unix child process, and set up to debug it, for GDB and GDBserver.
 
-   Copyright (C) 1990-2019 Free Software Foundation, Inc.
+   Copyright (C) 1990-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,16 +17,16 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "common-defs.h"
+#include "gdbsupport/common-defs.h"
 #include "fork-inferior.h"
 #include "target/waitstatus.h"
-#include "filestuff.h"
+#include "gdbsupport/filestuff.h"
 #include "target/target.h"
-#include "common-inferior.h"
-#include "common-gdbthread.h"
-#include "common/pathstuff.h"
-#include "signals-state-save-restore.h"
-#include "gdb_tilde_expand.h"
+#include "gdbsupport/common-inferior.h"
+#include "gdbsupport/common-gdbthread.h"
+#include "gdbsupport/pathstuff.h"
+#include "gdbsupport/signals-state-save-restore.h"
+#include "gdbsupport/gdb_tilde_expand.h"
 #include <vector>
 
 extern char **environ;
@@ -425,7 +425,7 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
       for (i = 1; argv[i] != NULL; i++)
 	warning (" %s", argv[i]);
 
-      warning ("Error: %s\n", safe_strerror (save_errno));
+      warning ("Error: %s", safe_strerror (save_errno));
 
       _exit (0177);
     }
@@ -450,7 +450,7 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
 /* See nat/fork-inferior.h.  */
 
 ptid_t
-startup_inferior (pid_t pid, int ntraps,
+startup_inferior (process_stratum_target *proc_target, pid_t pid, int ntraps,
 		  struct target_waitstatus *last_waitstatus,
 		  ptid_t *last_ptid)
 {
@@ -502,7 +502,7 @@ startup_inferior (pid_t pid, int ntraps,
 	  case TARGET_WAITKIND_SYSCALL_ENTRY:
 	  case TARGET_WAITKIND_SYSCALL_RETURN:
 	    /* Ignore gracefully during startup of the inferior.  */
-	    switch_to_thread (event_ptid);
+	    switch_to_thread (proc_target, event_ptid);
 	    break;
 
 	  case TARGET_WAITKIND_SIGNALLED:
@@ -527,12 +527,12 @@ startup_inferior (pid_t pid, int ntraps,
 	    /* Handle EXEC signals as if they were SIGTRAP signals.  */
 	    xfree (ws.value.execd_pathname);
 	    resume_signal = GDB_SIGNAL_TRAP;
-	    switch_to_thread (event_ptid);
+	    switch_to_thread (proc_target, event_ptid);
 	    break;
 
 	  case TARGET_WAITKIND_STOPPED:
 	    resume_signal = ws.value.sig;
-	    switch_to_thread (event_ptid);
+	    switch_to_thread (proc_target, event_ptid);
 	    break;
 	}
 
@@ -580,7 +580,7 @@ trace_start_error (const char *fmt, ...)
   va_list ap;
 
   va_start (ap, fmt);
-  warning ("Could not trace the inferior process.\nError: ");
+  warning ("Could not trace the inferior process.");
   vwarning (fmt, ap);
   va_end (ap);
 

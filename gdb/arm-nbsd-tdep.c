@@ -1,6 +1,6 @@
 /* Target-dependent code for NetBSD/arm.
 
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -26,9 +26,9 @@
 
 /* Description of the longjmp buffer.  */
 #define ARM_NBSD_JB_PC 24
-#define ARM_NBSD_JB_ELEMENT_SIZE INT_REGISTER_SIZE
+#define ARM_NBSD_JB_ELEMENT_SIZE ARM_INT_REGISTER_SIZE
 
-/* For compatibility with previous implemenations of GDB on arm/NetBSD,
+/* For compatibility with previous implementations of GDB on arm/NetBSD,
    override the default little-endian breakpoint.  */
 static const gdb_byte arm_nbsd_arm_le_breakpoint[] = {0x11, 0x00, 0x00, 0xe6};
 static const gdb_byte arm_nbsd_arm_be_breakpoint[] = {0xe6, 0x00, 0x00, 0x11};
@@ -85,8 +85,9 @@ arm_netbsd_elf_init_abi (struct gdbarch_info info,
     (gdbarch, svr4_ilp32_fetch_link_map_offsets);
 }
 
+void _initialize_arm_netbsd_tdep ();
 void
-_initialize_arm_netbsd_tdep (void)
+_initialize_arm_netbsd_tdep ()
 {
   gdbarch_register_osabi (bfd_arch_arm, 0, GDB_OSABI_NETBSD,
                           arm_netbsd_elf_init_abi);

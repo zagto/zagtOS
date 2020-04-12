@@ -1,5 +1,5 @@
 /* Low level interface to ptrace, for the remote server for GDB.
-   Copyright (C) 1995-2019 Free Software Foundation, Inc.
+   Copyright (C) 1995-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,13 +19,13 @@
 #include "server.h"
 #include "linux-low.h"
 #include "nat/linux-osdata.h"
-#include "agent.h"
+#include "gdbsupport/agent.h"
 #include "tdesc.h"
-#include "rsp-low.h"
-#include "signals-state-save-restore.h"
+#include "gdbsupport/rsp-low.h"
+#include "gdbsupport/signals-state-save-restore.h"
 #include "nat/linux-nat.h"
 #include "nat/linux-waitpid.h"
-#include "gdb_wait.h"
+#include "gdbsupport/gdb_wait.h"
 #include "nat/gdb_ptrace.h"
 #include "nat/linux-ptrace.h"
 #include "nat/linux-procfs.h"
@@ -43,14 +43,15 @@
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <sys/uio.h>
-#include "filestuff.h"
+#include "gdbsupport/filestuff.h"
 #include "tracepoint.h"
 #include "hostio.h"
 #include <inttypes.h>
-#include "common-inferior.h"
+#include "gdbsupport/common-inferior.h"
 #include "nat/fork-inferior.h"
-#include "environ.h"
-#include "common/scoped_restore.h"
+#include "gdbsupport/environ.h"
+#include "gdbsupport/gdb-sigmask.h"
+#include "gdbsupport/scoped_restore.h"
 #ifndef ELFMAG0
 /* Don't include <linux/elf.h> here.  If it got included by gdb_proc_service.h
    then ELFMAG0 will have been defined.  If it didn't get included by
@@ -59,10 +60,6 @@
 #include <elf.h>
 #endif
 #include "nat/linux-namespaces.h"
-
-#ifndef SPUFS_MAGIC
-#define SPUFS_MAGIC 0x23c9b64e
-#endif
 
 #ifdef HAVE_PERSONALITY
 # include <sys/personality.h>
@@ -73,6 +70,10 @@
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
+#endif
+
+#ifndef AT_HWCAP2
+#define AT_HWCAP2 26
 #endif
 
 /* Some targets did not define these ptrace constants from the start,
@@ -101,7 +102,7 @@
 
 #ifdef HAVE_LINUX_BTRACE
 # include "nat/linux-btrace.h"
-# include "btrace-common.h"
+# include "gdbsupport/btrace-common.h"
 #endif
 
 #ifndef HAVE_ELF32_AUXV_T
@@ -1159,7 +1160,7 @@ attach_proc_task_lwp_callback (ptid_t ptid)
 	    {
 	      debug_printf ("Cannot attach to lwp %d: "
 			    "thread is gone (%d: %s)\n",
-			    lwpid, err, strerror (err));
+			    lwpid, err, safe_strerror (err));
 	    }
 	}
       else if (err != 0)
@@ -1188,17 +1189,18 @@ linux_attach (unsigned long pid)
   ptid_t ptid = ptid_t (pid, pid, 0);
   int err;
 
+  proc = linux_add_process (pid, 1);
+
   /* Attach to PID.  We will check for other threads
      soon.  */
   err = linux_attach_lwp (ptid);
   if (err != 0)
     {
-      std::string reason = linux_ptrace_attach_fail_reason_string (ptid, err);
+      remove_process (proc);
 
+      std::string reason = linux_ptrace_attach_fail_reason_string (ptid, err);
       error ("Cannot attach to process %ld: %s", pid, reason.c_str ());
     }
-
-  proc = linux_add_process (pid, 1);
 
   /* Don't ignore the initial SIGSTOP if we just attached to this
      process.  It will be collected by wait shortly.  */
@@ -1302,7 +1304,7 @@ linux_kill_one_lwp (struct lwp_info *lwp)
 
       debug_printf ("LKL:  kill_lwp (SIGKILL) %s, 0, 0 (%s)\n",
 		    target_pid_to_str (ptid_of (thr)),
-		    save_errno ? strerror (save_errno) : "OK");
+		    save_errno ? safe_strerror (save_errno) : "OK");
     }
 
   errno = 0;
@@ -1313,7 +1315,7 @@ linux_kill_one_lwp (struct lwp_info *lwp)
 
       debug_printf ("LKL:  PTRACE_KILL %s, 0, 0 (%s)\n",
 		    target_pid_to_str (ptid_of (thr)),
-		    save_errno ? strerror (save_errno) : "OK");
+		    save_errno ? safe_strerror (save_errno) : "OK");
     }
 }
 
@@ -1526,7 +1528,7 @@ linux_detach_one_lwp (struct lwp_info *lwp)
   /* Preparing to resume may try to write registers, and fail if the
      lwp is zombie.  If that happens, ignore the error.  We'll handle
      it below, when detach fails with ESRCH.  */
-  TRY
+  try
     {
       /* Flush any pending changes to the process's registers.  */
       regcache_invalidate_thread (thread);
@@ -1535,12 +1537,11 @@ linux_detach_one_lwp (struct lwp_info *lwp)
       if (the_low_target.prepare_to_resume != NULL)
 	the_low_target.prepare_to_resume (lwp);
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (!check_ptrace_stopped_lwp_gone (lwp))
-	throw_exception (ex);
+	throw;
     }
-  END_CATCH
 
   lwpid = lwpid_of (thread);
   if (ptrace (PTRACE_DETACH, lwpid, (PTRACE_TYPE_ARG3) 0,
@@ -1560,7 +1561,7 @@ linux_detach_one_lwp (struct lwp_info *lwp)
 	  if (ret == -1)
 	    {
 	      warning (_("Couldn't reap LWP %d while detaching: %s"),
-		       lwpid, strerror (errno));
+		       lwpid, safe_strerror (errno));
 	    }
 	  else if (!WIFEXITED (status) && !WIFSIGNALED (status))
 	    {
@@ -1573,7 +1574,7 @@ linux_detach_one_lwp (struct lwp_info *lwp)
 	{
 	  error (_("Can't detach %s: %s"),
 		 target_pid_to_str (ptid_of (thread)),
-		 strerror (save_errno));
+		 safe_strerror (save_errno));
 	}
     }
   else if (debug_threads)
@@ -1613,7 +1614,7 @@ linux_detach (process_info *process)
   complete_ongoing_step_over ();
 
   /* Stop all threads before detaching.  First, ptrace requires that
-     the thread is stopped to sucessfully detach.  Second, thread_db
+     the thread is stopped to successfully detach.  Second, thread_db
      may need to uninstall thread event breakpoints from memory, which
      only works with a stopped process anyway.  */
   stop_all_lwps (0, NULL);
@@ -1842,14 +1843,13 @@ num_lwps (int pid)
 
 struct lwp_info *
 iterate_over_lwps (ptid_t filter,
-		   iterate_over_lwps_ftype callback,
-		   void *data)
+		   gdb::function_view<iterate_over_lwps_ftype> callback)
 {
   thread_info *thread = find_thread (filter, [&] (thread_info *thr_arg)
     {
       lwp_info *lwp = get_thread_lwp (thr_arg);
 
-      return callback (lwp, data);
+      return callback (lwp);
     });
 
   if (thread == NULL)
@@ -2690,7 +2690,7 @@ linux_wait_for_event_filtered (ptid_t wait_ptid, ptid_t filter_ptid,
   /* Make sure SIGCHLD is blocked until the sigsuspend below.  Block
      all signals while here.  */
   sigfillset (&block_mask);
-  sigprocmask (SIG_BLOCK, &block_mask, &prev_mask);
+  gdb_sigmask (SIG_BLOCK, &block_mask, &prev_mask);
 
   /* Always pull all events out of the kernel.  We'll randomly select
      an event LWP out of all that have events, to prevent
@@ -2716,7 +2716,7 @@ linux_wait_for_event_filtered (ptid_t wait_ptid, ptid_t filter_ptid,
 
       if (debug_threads)
 	debug_printf ("LWFE: waitpid(-1, ...) returned %d, %s\n",
-		      ret, errno ? strerror (errno) : "ERRNO-OK");
+		      ret, errno ? safe_strerror (errno) : "ERRNO-OK");
 
       if (ret > 0)
 	{
@@ -2776,7 +2776,7 @@ linux_wait_for_event_filtered (ptid_t wait_ptid, ptid_t filter_ptid,
 	{
 	  if (debug_threads)
 	    debug_printf ("LLW: exit (no unwaited-for LWP)\n");
-	  sigprocmask (SIG_SETMASK, &prev_mask, NULL);
+	  gdb_sigmask (SIG_SETMASK, &prev_mask, NULL);
 	  return -1;
 	}
 
@@ -2786,7 +2786,7 @@ linux_wait_for_event_filtered (ptid_t wait_ptid, ptid_t filter_ptid,
 	  if (debug_threads)
 	    debug_printf ("WNOHANG set, no event found\n");
 
-	  sigprocmask (SIG_SETMASK, &prev_mask, NULL);
+	  gdb_sigmask (SIG_SETMASK, &prev_mask, NULL);
 	  return 0;
 	}
 
@@ -2795,11 +2795,11 @@ linux_wait_for_event_filtered (ptid_t wait_ptid, ptid_t filter_ptid,
 	debug_printf ("sigsuspend'ing\n");
 
       sigsuspend (&prev_mask);
-      sigprocmask (SIG_SETMASK, &prev_mask, NULL);
+      gdb_sigmask (SIG_SETMASK, &prev_mask, NULL);
       goto retry;
     }
 
-  sigprocmask (SIG_SETMASK, &prev_mask, NULL);
+  gdb_sigmask (SIG_SETMASK, &prev_mask, NULL);
 
   current_thread = event_thread;
 
@@ -2825,7 +2825,6 @@ linux_wait_for_event (ptid_t ptid, int *wstatp, int options)
 static void
 select_event_lwp (struct lwp_info **orig_lp)
 {
-  int random_selector;
   struct thread_info *event_thread = NULL;
 
   /* In all-stop, give preference to the LWP that is being
@@ -2859,39 +2858,13 @@ select_event_lwp (struct lwp_info **orig_lp)
       /* No single-stepping LWP.  Select one at random, out of those
          which have had events.  */
 
-      /* First see how many events we have.  */
-      int num_events = 0;
-      for_each_thread ([&] (thread_info *thread)
+      event_thread = find_thread_in_random ([&] (thread_info *thread)
 	{
 	  lwp_info *lp = get_thread_lwp (thread);
 
-	  /* Count only resumed LWPs that have an event pending. */
-	  if (thread->last_status.kind == TARGET_WAITKIND_IGNORE
-	      && lp->status_pending_p)
-	    num_events++;
-	});
-      gdb_assert (num_events > 0);
-
-      /* Now randomly pick a LWP out of those that have had
-	 events.  */
-      random_selector = (int)
-	((num_events * (double) rand ()) / (RAND_MAX + 1.0));
-
-      if (debug_threads && num_events > 1)
-	debug_printf ("SEL: Found %d SIGTRAP events, selecting #%d\n",
-		      num_events, random_selector);
-
-      event_thread = find_thread ([&] (thread_info *thread)
-	{
-	  lwp_info *lp = get_thread_lwp (thread);
-
-	  /* Select only resumed LWPs that have an event pending.  */
-	  if (thread->last_status.kind == TARGET_WAITKIND_IGNORE
-	      && lp->status_pending_p)
-	    if (random_selector-- == 0)
-	      return true;
-
-	  return false;
+	  /* Only resumed LWPs that have an event pending. */
+	  return (thread->last_status.kind == TARGET_WAITKIND_IGNORE
+		  && lp->status_pending_p);
 	});
     }
 
@@ -4504,16 +4477,15 @@ static void
 linux_resume_one_lwp (struct lwp_info *lwp,
 		      int step, int signal, siginfo_t *info)
 {
-  TRY
+  try
     {
       linux_resume_one_lwp_throw (lwp, step, signal, info);
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (!check_ptrace_stopped_lwp_gone (lwp))
-	throw_exception (ex);
+	throw;
     }
-  END_CATCH
 }
 
 /* This function is called once per thread via for_each_thread.
@@ -5358,10 +5330,11 @@ regsets_fetch_inferior_registers (struct regsets_info *regsets_info,
 #endif
       if (res < 0)
 	{
-	  if (errno == EIO)
+	  if (errno == EIO
+	      || (errno == EINVAL && regset->type == OPTIONAL_REGS))
 	    {
-	      /* If we get EIO on a regset, do not try it again for
-		 this process mode.  */
+	      /* If we get EIO on a regset, or an EINVAL and the regset is
+		 optional, do not try it again for this process mode.  */
 	      disable_regset (regsets_info, regset);
 	    }
 	  else if (errno == ENODATA)
@@ -5456,10 +5429,11 @@ regsets_store_inferior_registers (struct regsets_info *regsets_info,
 
       if (res < 0)
 	{
-	  if (errno == EIO)
+	  if (errno == EIO
+	      || (errno == EINVAL && regset->type == OPTIONAL_REGS))
 	    {
-	      /* If we get EIO on a regset, do not try it again for
-		 this process mode.  */
+	      /* If we get EIO on a regset, or an EINVAL and the regset is
+		 optional, do not try it again for this process mode.  */
 	      disable_regset (regsets_info, regset);
 	    }
 	  else if (errno == ESRCH)
@@ -5620,7 +5594,7 @@ store_register (const struct usrregs_info *usrregs,
 	    return;
 
 	  if ((*the_low_target.cannot_store_register) (regno) == 0)
-	    error ("writing register %d: %s", regno, strerror (errno));
+	    error ("writing register %d: %s", regno, safe_strerror (errno));
 	}
       regaddr += sizeof (PTRACE_XFER_TYPE);
     }
@@ -6208,10 +6182,9 @@ sigchld_handler (int signo)
     {
       do
 	{
-	  /* fprintf is not async-signal-safe, so call write
-	     directly.  */
-	  if (write (2, "sigchld_handler\n",
-		     sizeof ("sigchld_handler\n") - 1) < 0)
+	  /* Use the async signal safe debug function.  */
+	  if (debug_write ("sigchld_handler\n",
+			   sizeof ("sigchld_handler\n") - 1) < 0)
 	    break; /* just ignore */
 	} while (0);
     }
@@ -6243,7 +6216,7 @@ linux_async (int enable)
       sigemptyset (&mask);
       sigaddset (&mask, SIGCHLD);
 
-      sigprocmask (SIG_BLOCK, &mask, NULL);
+      gdb_sigmask (SIG_BLOCK, &mask, NULL);
 
       if (enable)
 	{
@@ -6251,7 +6224,7 @@ linux_async (int enable)
 	    {
 	      linux_event_pipe[0] = -1;
 	      linux_event_pipe[1] = -1;
-	      sigprocmask (SIG_UNBLOCK, &mask, NULL);
+	      gdb_sigmask (SIG_UNBLOCK, &mask, NULL);
 
 	      warning ("creating event pipe failed.");
 	      return previous;
@@ -6277,7 +6250,7 @@ linux_async (int enable)
 	  linux_event_pipe[1] = -1;
 	}
 
-      sigprocmask (SIG_UNBLOCK, &mask, NULL);
+      gdb_sigmask (SIG_UNBLOCK, &mask, NULL);
     }
 
   return previous;
@@ -6380,99 +6353,6 @@ linux_supports_range_stepping (void)
     return 0;
 
   return (*the_low_target.supports_range_stepping) ();
-}
-
-/* Enumerate spufs IDs for process PID.  */
-static int
-spu_enumerate_spu_ids (long pid, unsigned char *buf, CORE_ADDR offset, int len)
-{
-  int pos = 0;
-  int written = 0;
-  char path[128];
-  DIR *dir;
-  struct dirent *entry;
-
-  sprintf (path, "/proc/%ld/fd", pid);
-  dir = opendir (path);
-  if (!dir)
-    return -1;
-
-  rewinddir (dir);
-  while ((entry = readdir (dir)) != NULL)
-    {
-      struct stat st;
-      struct statfs stfs;
-      int fd;
-
-      fd = atoi (entry->d_name);
-      if (!fd)
-        continue;
-
-      sprintf (path, "/proc/%ld/fd/%d", pid, fd);
-      if (stat (path, &st) != 0)
-        continue;
-      if (!S_ISDIR (st.st_mode))
-        continue;
-
-      if (statfs (path, &stfs) != 0)
-        continue;
-      if (stfs.f_type != SPUFS_MAGIC)
-        continue;
-
-      if (pos >= offset && pos + 4 <= offset + len)
-        {
-          *(unsigned int *)(buf + pos - offset) = fd;
-          written += 4;
-        }
-      pos += 4;
-    }
-
-  closedir (dir);
-  return written;
-}
-
-/* Implements the to_xfer_partial interface for the TARGET_OBJECT_SPU
-   object type, using the /proc file system.  */
-static int
-linux_qxfer_spu (const char *annex, unsigned char *readbuf,
-		 unsigned const char *writebuf,
-		 CORE_ADDR offset, int len)
-{
-  long pid = lwpid_of (current_thread);
-  char buf[128];
-  int fd = 0;
-  int ret = 0;
-
-  if (!writebuf && !readbuf)
-    return -1;
-
-  if (!*annex)
-    {
-      if (!readbuf)
-	return -1;
-      else
-	return spu_enumerate_spu_ids (pid, readbuf, offset, len);
-    }
-
-  sprintf (buf, "/proc/%ld/fd/%s", pid, annex);
-  fd = open (buf, writebuf? O_WRONLY : O_RDONLY);
-  if (fd <= 0)
-    return -1;
-
-  if (offset != 0
-      && lseek (fd, (off_t) offset, SEEK_SET) != (off_t) offset)
-    {
-      close (fd);
-      return 0;
-    }
-
-  if (writebuf)
-    ret = write (fd, writebuf, (size_t) len);
-  else
-    ret = read (fd, readbuf, (size_t) len);
-
-  close (fd);
-  return ret;
 }
 
 #if defined PT_GETDSBT || defined PTRACE_GETFDPIC
@@ -7213,7 +7093,7 @@ linux_low_encode_raw (struct buffer *buffer, const gdb_byte *data,
   if (size == 0)
     return;
 
-  /* We use hex encoding - see common/rsp-low.h.  */
+  /* We use hex encoding - see gdbsupport/rsp-low.h.  */
   buffer_grow_str (buffer, "<raw>\n");
 
   while (size-- > 0)
@@ -7236,9 +7116,7 @@ linux_low_read_btrace (struct btrace_target_info *tinfo, struct buffer *buffer,
 		       enum btrace_read_type type)
 {
   struct btrace_data btrace;
-  struct btrace_block *block;
   enum btrace_error err;
-  int i;
 
   err = linux_read_btrace (&btrace, tinfo, type);
   if (err != BTRACE_ERR_NONE)
@@ -7261,11 +7139,9 @@ linux_low_read_btrace (struct btrace_target_info *tinfo, struct buffer *buffer,
       buffer_grow_str (buffer, "<!DOCTYPE btrace SYSTEM \"btrace.dtd\">\n");
       buffer_grow_str (buffer, "<btrace version=\"1.0\">\n");
 
-      for (i = 0;
-	   VEC_iterate (btrace_block_s, btrace.variant.bts.blocks, i, block);
-	   i++)
+      for (const btrace_block &block : *btrace.variant.bts.blocks)
 	buffer_xml_printf (buffer, "<block begin=\"0x%s\" end=\"0x%s\"/>\n",
-			   paddress (block->begin), paddress (block->end));
+			   paddress (block.begin), paddress (block.end));
 
       buffer_grow_str0 (buffer, "</btrace>\n");
       break;
@@ -7421,8 +7297,64 @@ linux_get_pc_64bit (struct regcache *regcache)
   return pc;
 }
 
+/* See linux-low.h.  */
 
-static struct target_ops linux_target_ops = {
+int
+linux_get_auxv (int wordsize, CORE_ADDR match, CORE_ADDR *valp)
+{
+  gdb_byte *data = (gdb_byte *) alloca (2 * wordsize);
+  int offset = 0;
+
+  gdb_assert (wordsize == 4 || wordsize == 8);
+
+  while ((*the_target->read_auxv) (offset, data, 2 * wordsize) == 2 * wordsize)
+    {
+      if (wordsize == 4)
+	{
+	  uint32_t *data_p = (uint32_t *) data;
+	  if (data_p[0] == match)
+	    {
+	      *valp = data_p[1];
+	      return 1;
+	    }
+	}
+      else
+	{
+	  uint64_t *data_p = (uint64_t *) data;
+	  if (data_p[0] == match)
+	    {
+	      *valp = data_p[1];
+	      return 1;
+	    }
+	}
+
+      offset += 2 * wordsize;
+    }
+
+  return 0;
+}
+
+/* See linux-low.h.  */
+
+CORE_ADDR
+linux_get_hwcap (int wordsize)
+{
+  CORE_ADDR hwcap = 0;
+  linux_get_auxv (wordsize, AT_HWCAP, &hwcap);
+  return hwcap;
+}
+
+/* See linux-low.h.  */
+
+CORE_ADDR
+linux_get_hwcap2 (int wordsize)
+{
+  CORE_ADDR hwcap2 = 0;
+  linux_get_auxv (wordsize, AT_HWCAP2, &hwcap2);
+  return hwcap2;
+}
+
+static process_stratum_target linux_target_ops = {
   linux_create_inferior,
   linux_post_create_inferior,
   linux_attach,
@@ -7464,7 +7396,6 @@ static struct target_ops linux_target_ops = {
 #else
   NULL,
 #endif
-  linux_qxfer_spu,
   hostio_last_error_from_errno,
   linux_qxfer_osdata,
   linux_xfer_siginfo,

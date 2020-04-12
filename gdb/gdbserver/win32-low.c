@@ -1,5 +1,5 @@
 /* Low level interface to Windows debugging, for gdbserver.
-   Copyright (C) 2006-2019 Free Software Foundation, Inc.
+   Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
    Contributed by Leo Zayas.  Based on "win32-nat.c" from GDB.
 
@@ -32,8 +32,9 @@
 #include <tlhelp32.h>
 #include <psapi.h>
 #include <process.h>
-#include "gdb_tilde_expand.h"
-#include "common-inferior.h"
+#include "gdbsupport/gdb_tilde_expand.h"
+#include "gdbsupport/common-inferior.h"
+#include "gdbsupport/gdb_wait.h"
 
 #ifndef USE_WIN32API
 #include <sys/cygwin.h>
@@ -146,7 +147,7 @@ win32_set_thread_context (win32_thread_info *th)
      will often not be true.  In those cases, the context returned by
      GetThreadContext will not be correct by the time the thread
      stops, hence we can't set that context back into the thread when
-     resuming - it will most likelly crash the inferior.
+     resuming - it will most likely crash the inferior.
      Unfortunately, there is no way to know when the thread will
      really stop.  To work around it, we'll only write the context
      back to the thread when either the user or GDB explicitly change
@@ -306,7 +307,7 @@ win32_stopped_data_address (void)
 /* Transfer memory from/to the debugged process.  */
 static int
 child_xfer_memory (CORE_ADDR memaddr, char *our, int len,
-		   int write, struct target_ops *target)
+		   int write, process_stratum_target *target)
 {
   BOOL success;
   SIZE_T done = 0;
@@ -1426,7 +1427,7 @@ get_child_debug_event (struct target_waitstatus *ourstatus)
   else
 #endif
     {
-      /* Keep the wait time low enough for confortable remote
+      /* Keep the wait time low enough for comfortable remote
 	 interruption, but high enough so gdbserver doesn't become a
 	 bottleneck.  */
       if (!WaitForDebugEvent (&current_event, 250))
@@ -1511,8 +1512,24 @@ get_child_debug_event (struct target_waitstatus *ourstatus)
 		"for pid=%u tid=%x\n",
 		(unsigned) current_event.dwProcessId,
 		(unsigned) current_event.dwThreadId));
-      ourstatus->kind = TARGET_WAITKIND_EXITED;
-      ourstatus->value.integer = current_event.u.ExitProcess.dwExitCode;
+      {
+	DWORD exit_status = current_event.u.ExitProcess.dwExitCode;
+	/* If the exit status looks like a fatal exception, but we
+	   don't recognize the exception's code, make the original
+	   exit status value available, to avoid losing information.  */
+	int exit_signal
+	  = WIFSIGNALED (exit_status) ? WTERMSIG (exit_status) : -1;
+	if (exit_signal == -1)
+	  {
+	    ourstatus->kind = TARGET_WAITKIND_EXITED;
+	    ourstatus->value.integer = exit_status;
+	  }
+	else
+	  {
+	    ourstatus->kind = TARGET_WAITKIND_SIGNALLED;
+	    ourstatus->value.sig = gdb_signal_from_host (exit_signal);
+	  }
+      }
       child_continue (DBG_CONTINUE, -1);
       CloseHandle (current_process_handle);
       current_process_handle = NULL;
@@ -1607,6 +1624,7 @@ win32_wait (ptid_t ptid, struct target_waitstatus *ourstatus, int options)
 	  win32_clear_inferiors ();
 	  return ptid_t (current_event.dwProcessId);
 	case TARGET_WAITKIND_STOPPED:
+	case TARGET_WAITKIND_SIGNALLED:
 	case TARGET_WAITKIND_LOADED:
 	  OUTMSG2 (("Child Stopped with signal = %d \n",
 		    ourstatus->value.sig));
@@ -1777,7 +1795,7 @@ win32_sw_breakpoint_from_kind (int kind, int *size)
   return the_low_target.breakpoint;
 }
 
-static struct target_ops win32_target_ops = {
+static process_stratum_target win32_target_ops = {
   win32_create_inferior,
   NULL,  /* post_create_inferior */
   win32_attach,
@@ -1809,7 +1827,6 @@ static struct target_ops win32_target_ops = {
   win32_stopped_data_address,
   NULL, /* read_offsets */
   NULL, /* get_tls_address */
-  NULL, /* qxfer_spu */
 #ifdef _WIN32_WCE
   wince_hostio_last_error,
 #else

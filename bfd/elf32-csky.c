@@ -1,5 +1,5 @@
 /* 32-bit ELF support for C-SKY.
-   Copyright (C) 1998-2019 Free Software Foundation, Inc.
+   Copyright (C) 1998-2020 Free Software Foundation, Inc.
    Contributed by C-SKY Microsystems and Mentor Graphics.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -28,6 +28,7 @@
 #include "opcode/csky.h"
 #include <assert.h>
 #include "libiberty.h"
+#include "elf32-csky.h"
 
 /* Data structures used for merging different arch variants.
    V1 (510/610) and V2 (8xx) processors are incompatible, but
@@ -2092,7 +2093,7 @@ csky_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  if (htab->elf.hplt != NULL)
 	    strip_section = FALSE;
 	}
-      else if (CONST_STRNEQ (bfd_get_section_name (dynobj, s), ".rel") )
+      else if (CONST_STRNEQ (bfd_section_name (s), ".rel") )
 	{
 	  if (s->size != 0 )
 	    relocs = TRUE;
@@ -2873,9 +2874,7 @@ csky_elf_check_relocs (bfd * abfd,
 	  /* This relocation describes which C++ vtable entries are actually
 	     used.  Record for later use during GC.  */
 	case R_CKCORE_GNU_VTENTRY:
-	  BFD_ASSERT (h != NULL);
-	  if (h != NULL
-	      && !bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
+	  if (!bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
 	    return FALSE;
 	  break;
 	}
@@ -3098,9 +3097,9 @@ group_sections (struct csky_elf_link_hash_table *htab,
 	continue;
 
       /* Reverse the list: we must avoid placing stubs at the
-         beginning of the section because the beginning of the text
-         section may be required for an interrupt vector in bare metal
-         code.  */
+	 beginning of the section because the beginning of the text
+	 section may be required for an interrupt vector in bare metal
+	 code.  */
 #define NEXT_SEC PREV_SEC
       head = NULL;
       while (tail != NULL)
@@ -4509,7 +4508,7 @@ csky_elf_relocate_section (bfd *                  output_bfd,
 			{
 			  h->got.offset |= 1;
 			  if (GENERATE_RELATIVE_RELOC_P (info, h))
-                            relative_reloc = TRUE;
+			    relative_reloc = TRUE;
 			}
 		    }
 		  bfd_put_32 (output_bfd, relocation,
@@ -5072,7 +5071,7 @@ csky_elf_relocate_section (bfd *                  output_bfd,
 		  if (name == NULL)
 		    break;
 		  if (*name == '\0')
-		    name = bfd_section_name (input_bfd, sec);
+		    name = bfd_section_name (sec);
 		}
 	      (*info->callbacks->reloc_overflow)
 		(info,

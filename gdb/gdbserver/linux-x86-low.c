@@ -1,6 +1,6 @@
 /* GNU/Linux/x86-64 specific low level interface, for the remote server
    for GDB.
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,7 +24,7 @@
 #include "linux-low.h"
 #include "i387-fp.h"
 #include "x86-low.h"
-#include "x86-xstate.h"
+#include "gdbsupport/x86-xstate.h"
 #include "nat/gdb_ptrace.h"
 
 #ifdef __x86_64__
@@ -38,7 +38,7 @@
 #include "elf/common.h"
 #endif
 
-#include "agent.h"
+#include "gdbsupport/agent.h"
 #include "tdesc.h"
 #include "tracepoint.h"
 #include "ax.h"
@@ -72,7 +72,6 @@ static const char *xmltarget_amd64_linux_no_xml = "@<target>\
 
 #include <sys/reg.h>
 #include <sys/procfs.h>
-#include "nat/gdb_ptrace.h"
 #include <sys/uio.h>
 
 #ifndef PTRACE_GET_THREAD_AREA
@@ -339,6 +338,21 @@ x86_fill_gregset (struct regcache *regcache, void *buf)
 
   collect_register_by_name (regcache, "orig_eax",
 			    ((char *) buf) + ORIG_EAX * REGSIZE);
+
+#ifdef __x86_64__
+  /* Sign extend EAX value to avoid potential syscall restart
+     problems. 
+
+     See amd64_linux_collect_native_gregset() in gdb/amd64-linux-nat.c
+     for a detailed explanation.  */
+  if (register_size (regcache->tdesc, 0) == 4)
+    {
+      void *ptr = ((gdb_byte *) buf
+                   + i386_regmap[find_regno (regcache->tdesc, "eax")]);
+
+      *(int64_t *) ptr = *(int32_t *) ptr;
+    }
+#endif
 }
 
 static void
@@ -898,9 +912,11 @@ x86_linux_process_qsupported (char **features, int count)
       if (startswith (feature, "xmlRegisters="))
 	{
 	  char *copy = xstrdup (feature + 13);
-	  char *p;
 
-	  for (p = strtok (copy, ","); p != NULL; p = strtok (NULL, ","))
+	  char *saveptr;
+	  for (char *p = strtok_r (copy, ",", &saveptr);
+	       p != NULL;
+	       p = strtok_r (NULL, ",", &saveptr))
 	    {
 	      if (strcmp (p, "i386") == 0)
 		{
@@ -945,7 +961,7 @@ static struct regs_info i386_linux_regs_info =
     &x86_regsets_info
   };
 
-const struct regs_info *
+static const struct regs_info *
 x86_linux_regs_info (void)
 {
 #ifdef __x86_64__
@@ -993,7 +1009,7 @@ x86_supports_tracepoints (void)
 static void
 append_insns (CORE_ADDR *to, size_t len, const unsigned char *buf)
 {
-  write_inferior_memory (*to, buf, len);
+  target_write_memory (*to, buf, len);
   *to += len;
 }
 
@@ -1371,7 +1387,7 @@ i386_install_fast_tracepoint_jump_pad (CORE_ADDR tpoint, CORE_ADDR tpaddr,
       offset = *jump_entry - (*trampoline + sizeof (jump_insn));
       memcpy (buf, jump_insn, sizeof (jump_insn));
       memcpy (buf + 1, &offset, 4);
-      write_inferior_memory (*trampoline, buf, sizeof (jump_insn));
+      target_write_memory (*trampoline, buf, sizeof (jump_insn));
 
       /* Use a 16-bit relative jump instruction to jump to the trampoline.  */
       offset = (*trampoline - (tpaddr + sizeof (small_jump_insn))) & 0xffff;
@@ -1467,7 +1483,7 @@ x86_get_min_fast_tracepoint_insn_len (void)
 	     mention that something has gone awry.  */
 	  if (!warned_about_fast_tracepoints)
 	    {
-	      warning ("4-byte fast tracepoints not available; %s\n", errbuf);
+	      warning ("4-byte fast tracepoints not available; %s", errbuf);
 	      warned_about_fast_tracepoints = 1;
 	    }
 	  return 5;
@@ -1766,7 +1782,7 @@ amd64_write_goto_address (CORE_ADDR from, CORE_ADDR to, int size)
     }
 
   memcpy (buf, &diff, sizeof (int));
-  write_inferior_memory (from, buf, sizeof (int));
+  target_write_memory (from, buf, sizeof (int));
 }
 
 static void
@@ -1954,7 +1970,7 @@ amd64_emit_void_call_2 (CORE_ADDR fn, int arg1)
 	    "pop %rax");
 }
 
-void
+static void
 amd64_emit_eq_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM (amd64_eq,
@@ -1974,7 +1990,7 @@ amd64_emit_eq_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 amd64_emit_ne_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM (amd64_ne,
@@ -1994,7 +2010,7 @@ amd64_emit_ne_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 amd64_emit_lt_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM (amd64_lt,
@@ -2014,7 +2030,7 @@ amd64_emit_lt_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 amd64_emit_le_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM (amd64_le,
@@ -2034,7 +2050,7 @@ amd64_emit_le_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 amd64_emit_gt_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM (amd64_gt,
@@ -2054,7 +2070,7 @@ amd64_emit_gt_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 amd64_emit_ge_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM (amd64_ge,
@@ -2384,7 +2400,7 @@ i386_write_goto_address (CORE_ADDR from, CORE_ADDR to, int size)
     }
 
   memcpy (buf, &diff, sizeof (int));
-  write_inferior_memory (from, buf, sizeof (int));
+  target_write_memory (from, buf, sizeof (int));
 }
 
 static void
@@ -2589,7 +2605,7 @@ i386_emit_void_call_2 (CORE_ADDR fn, int arg1)
 }
 
 
-void
+static void
 i386_emit_eq_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM32 (eq,
@@ -2614,7 +2630,7 @@ i386_emit_eq_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 i386_emit_ne_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM32 (ne,
@@ -2640,7 +2656,7 @@ i386_emit_ne_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 i386_emit_lt_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM32 (lt,
@@ -2666,7 +2682,7 @@ i386_emit_lt_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 i386_emit_le_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM32 (le,
@@ -2692,7 +2708,7 @@ i386_emit_le_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 i386_emit_gt_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM32 (gt,
@@ -2718,7 +2734,7 @@ i386_emit_gt_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-void
+static void
 i386_emit_ge_goto (int *offset_p, int *size_p)
 {
   EMIT_ASM32 (ge,
@@ -2895,10 +2911,6 @@ initialize_low_arch (void)
 			   amd64_linux_read_description (X86_XSTATE_SSE_MASK,
 							 false));
   tdesc_amd64_linux_no_xml->xmltarget = xmltarget_amd64_linux_no_xml;
-#endif
-
-#if GDB_SELF_TEST
-  initialize_low_tdesc ();
 #endif
 
   tdesc_i386_linux_no_xml = allocate_target_description ();

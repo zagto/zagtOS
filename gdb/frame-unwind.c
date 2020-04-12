@@ -1,6 +1,6 @@
 /* Definitions for frame unwinder, for GDB, the GNU debugger.
 
-   Copyright (C) 2003-2019 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -26,6 +26,7 @@
 #include "regcache.h"
 #include "gdb_obstack.h"
 #include "target.h"
+#include "gdbarch.h"
 
 static struct gdbarch_data *frame_unwind_data;
 
@@ -101,11 +102,11 @@ frame_unwind_try_unwinder (struct frame_info *this_frame, void **this_cache,
 
   frame_prepare_for_sniffer (this_frame, unwinder);
 
-  TRY
+  try
     {
       res = unwinder->sniffer (unwinder, this_frame, this_cache);
     }
-  CATCH (ex, RETURN_MASK_ALL)
+  catch (const gdb_exception &ex)
     {
       /* Catch all exceptions, caused by either interrupt or error.
 	 Reset *THIS_CACHE.  */
@@ -120,9 +121,8 @@ frame_unwind_try_unwinder (struct frame_info *this_frame, void **this_cache,
 	     should always accept the frame.  */
 	  return 0;
 	}
-      throw_exception (ex);
+      throw;
     }
-  END_CATCH
 
   if (res)
     return 1;
@@ -305,8 +305,9 @@ frame_unwind_got_address (struct frame_info *frame, int regnum,
   return reg_val;
 }
 
+void _initialize_frame_unwind ();
 void
-_initialize_frame_unwind (void)
+_initialize_frame_unwind ()
 {
   frame_unwind_data = gdbarch_data_register_pre_init (frame_unwind_init);
 }

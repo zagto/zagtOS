@@ -1,5 +1,5 @@
 /* C preprocessor macro expansion for GDB.
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
    This file is part of GDB.
@@ -19,7 +19,6 @@
 
 #include "defs.h"
 #include "gdb_obstack.h"
-#include "bcache.h"
 #include "macrotab.h"
 #include "macroexp.h"
 #include "c-lang.h"
@@ -130,7 +129,7 @@ struct macro_buffer
 
   /* Release the text of the buffer to the caller, which is now
      responsible for freeing it.  */
-  char *release ()
+  ATTRIBUTE_UNUSED_RESULT char *release ()
   {
     gdb_assert (! shared);
     gdb_assert (size);
@@ -1334,7 +1333,7 @@ expand (const char *id,
 
 
 /* If the single token in SRC_FIRST followed by the tokens in SRC_REST
-   constitute a macro invokation not forbidden in NO_LOOP, append its
+   constitute a macro invocation not forbidden in NO_LOOP, append its
    expansion to DEST and return non-zero.  Otherwise, return zero, and
    leave DEST unchanged.
 

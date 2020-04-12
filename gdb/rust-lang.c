@@ -1,6 +1,6 @@
 /* Rust language support routines for GDB, the GNU debugger.
 
-   Copyright (C) 2016-2019 Free Software Foundation, Inc.
+   Copyright (C) 2016-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include "cli/cli-style.h"
 
 /* See rust-lang.h.  */
 
@@ -226,6 +227,26 @@ rust_chartype_p (struct type *type)
 	  && TYPE_UNSIGNED (type));
 }
 
+/* Return true if TYPE is a string type.  */
+
+static bool
+rust_is_string_type_p (struct type *type)
+{
+  LONGEST low_bound, high_bound;
+
+  type = check_typedef (type);
+  return ((TYPE_CODE (type) == TYPE_CODE_STRING)
+	  || (TYPE_CODE (type) == TYPE_CODE_PTR
+	      && (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_ARRAY
+		  && rust_u8_type_p (TYPE_TARGET_TYPE (TYPE_TARGET_TYPE (type)))
+		  && get_array_bounds (TYPE_TARGET_TYPE (type), &low_bound,
+				       &high_bound)))
+	  || (TYPE_CODE (type) == TYPE_CODE_STRUCT
+	      && !rust_enum_p (type)
+	      && rust_slice_type_p (type)
+	      && strcmp (TYPE_NAME (type), "&str") == 0));
+}
+
 /* If VALUE represents a trait object pointer, return the underlying
    pointer with the correct (i.e., runtime) type.  Otherwise, return
    NULL.  */
@@ -358,6 +379,14 @@ val_print_struct (struct type *type, int embedded_offset,
 
   if (rust_slice_type_p (type) && strcmp (TYPE_NAME (type), "&str") == 0)
     {
+      /* If what we are printing here is actually a string within a
+	 structure then VAL will be the original parent value, while TYPE
+	 will be the type of the structure representing the string we want
+	 to print.
+	 However, RUST_VAL_PRINT_STR looks up the fields of the string
+	 inside VAL, assuming that VAL is the string.
+	 So, recreate VAL as a value representing just the string.  */
+      val = value_at_lazy (type, value_address (val) + embedded_offset);
       rust_val_print_str (stream, val, options);
       return;
     }
@@ -445,7 +474,9 @@ rust_print_enum (struct type *type, int embedded_offset,
   if (rust_empty_enum_p (type))
     {
       /* Print the enum type name here to be more clear.  */
-      fprintf_filtered (stream, _("%s {<No data fields>}"), TYPE_NAME (type));
+      fprintf_filtered (stream, _("%s {%p[<No data fields>%p]}"),
+			TYPE_NAME (type),
+			metadata_style.style ().ptr (), nullptr);
       return;
     }
 
@@ -798,9 +829,9 @@ rust_print_typedef (struct type *type,
 		    struct ui_file *stream)
 {
   type = check_typedef (type);
-  fprintf_filtered (stream, "type %s = ", SYMBOL_PRINT_NAME (new_symbol));
+  fprintf_filtered (stream, "type %s = ", new_symbol->print_name ());
   type_print (type, "", stream, 0);
-  fprintf_filtered (stream, ";\n");
+  fprintf_filtered (stream, ";");
 }
 
 /* la_print_type implementation for Rust.  */
@@ -1743,18 +1774,17 @@ tuple structs, and tuple-like enum variants"));
 		       field_name, TYPE_NAME (outer_type),
 		       rust_last_path_segment (TYPE_NAME (type)));
 
-	    TRY
+	    try
 	      {
 		result = value_struct_elt (&lhs, NULL, field_name,
 					   NULL, "structure");
 	      }
-	    CATCH (except, RETURN_MASK_ERROR)
+	    catch (const gdb_exception_error &except)
 	      {
 		error (_("Could not find field %s of struct variant %s::%s"),
 		       field_name, TYPE_NAME (outer_type),
 		       rust_last_path_segment (TYPE_NAME (type)));
 	      }
-	    END_CATCH
 	  }
 	else
 	  result = value_struct_elt (&lhs, NULL, field_name, NULL, "structure");
@@ -2020,7 +2050,7 @@ rust_lookup_symbol_nonlocal (const struct language_defn *langdef,
 			     const struct block *block,
 			     const domain_enum domain)
 {
-  struct block_symbol result = {NULL, NULL};
+  struct block_symbol result = {};
 
   if (symbol_lookup_debug)
     {
@@ -2135,7 +2165,6 @@ extern const struct language_defn rust_language_defn =
   rust_language_arch_info,
   default_print_array_index,
   default_pass_by_reference,
-  c_get_string,
   rust_watch_location_expression,
   NULL,				/* la_get_symbol_name_matcher */
   iterate_over_symbols,
@@ -2143,5 +2172,6 @@ extern const struct language_defn rust_language_defn =
   &default_varobj_ops,
   NULL,
   NULL,
-  LANG_MAGIC
+  rust_is_string_type_p,
+  "{...}"			/* la_struct_too_deep_ellipsis */
 };

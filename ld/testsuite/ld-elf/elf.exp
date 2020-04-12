@@ -1,5 +1,5 @@
 # Expect script for various ELF tests.
-#   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -91,7 +91,7 @@ run_ld_link_tests {
       {"PR ld/21703 -r"
 	"-r --allow-multiple-definition tmpdir/pr21703-3.o tmpdir/pr21703-4.o" "" "" \
 	{pr21703-3.s pr21703-4.s} {{readelf {-s} pr21703-r.sd}} "pr21703.o" }
-} "d30v-*-*" "dlx-*-*" "pj-*-*" "xgate-*-*"
+} \[is_generic\]
 
 if [is_underscore_target] {
     set ASFLAGS "$ASFLAGS --defsym UNDERSCORE=1"
@@ -112,14 +112,8 @@ foreach t $test_list {
 
 set ASFLAGS "$saved_ASFLAGS"
 
-# Targets using the generic linker backend don't support generating
-# an import library.
-set xfail_implib ""
-if [is_generic_elf] {
-    set xfail_implib "*-*-*"
-}
-
 # Check that the --out-implib option work correctly.
+# Targets that don't use elf.em won't support this.
 run_ld_link_tests [list \
     [list "Generate empty import library" \
 	"--out-implib=tmpdir/implib.lib" "" \
@@ -133,7 +127,7 @@ run_ld_link_tests [list \
 	{implib.s} \
 	{{readelf {-s tmpdir/implib.lib} implib.rd}} \
 	"implib" ] \
-] $xfail_implib
+] \[uses_genelf\]
 
 #v850 gas complains about .tbss.var section attributes.
 if { [check_gc_sections_available] && ![istarget "v850-*-*"] } {
@@ -182,7 +176,7 @@ set LDFLAGS $old_ldflags
 set ASFLAGS $old_asflags
 
 # Check to see if the C compiler works
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     return
 }
 
@@ -235,6 +229,56 @@ if { [istarget *-*-linux*]
      || [istarget *-*-gnu*] } {
     run_ld_link_exec_tests $array_tests_pie $xfails
 
+    if { $STATIC_PIE_LDFLAGS != "" } then {
+	run_ld_link_exec_tests [list \
+	    [list \
+		"Static PIE preinit array" \
+		"$STATIC_PIE_LDFLAGS" \
+		"" \
+		{preinit.c} \
+		"preinit-static-pie" \
+		"preinit.out" \
+		"-fPIE" \
+	    ] \
+	    [list \
+		"Static PIE init array" \
+		"$STATIC_PIE_LDFLAGS" \
+		"" \
+		{init.c} \
+		"init-static-pie" \
+		"init.out" \
+		"-fPIE" \
+	    ] \
+	    [list \
+		"Static PIE fini array" \
+		"$STATIC_PIE_LDFLAGS" \
+		"" \
+		{fini.c} \
+		"fini-static-pie" \
+		"fini.out" \
+		"-fPIE" \
+	    ] \
+	    [list \
+		"Static PIE init array mixed" \
+		"$STATIC_PIE_LDFLAGS" \
+		"" \
+		{init-mixed.c} \
+		"init-mixed-static-pie" \
+		"init-mixed.out" \
+		"-I.  -fPIE" \
+	    ] \
+	    [list \
+		"Static PIE PR ld/14525" \
+		"$STATIC_PIE_LDFLAGS" \
+		"" \
+		{pr14525.c} \
+		"pr14525-static-pie" \
+		"pr14525.out" \
+		"-fPIE" \
+	    ] \
+	]
+    }
+
     run_ld_link_exec_tests [list \
 	[list \
 	    "Run mbind2a" \
@@ -257,13 +301,6 @@ if { [istarget *-*-linux*]
     ]
 }
 
-# <http://www.gnu.org/software/hurd/open_issues/binutils.html#static>
-# Be cautious to not XFAIL for *-*-linux-gnu*, *-*-kfreebsd-gnu*, etc.
-switch -regexp $target_triplet {
-    ^\[^-\]*-\[^-\]*-gnu.*$ {
-	set xfails "*-*-*"
-    }
-}
 run_ld_link_exec_tests $array_tests_static $xfails
 
 catch "exec rm -f tmpdir/preinit tmpdir/init tmpdir/fini tmpdir/init-mixed" status

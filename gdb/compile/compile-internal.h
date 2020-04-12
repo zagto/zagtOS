@@ -1,5 +1,5 @@
 /* Header file for GDB compile command and supporting functions.
-   Copyright (C) 2014-2019 Free Software Foundation, Inc.
+   Copyright (C) 2014-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,14 +14,14 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef GDB_COMPILE_INTERNAL_H
-#define GDB_COMPILE_INTERNAL_H
+#ifndef COMPILE_COMPILE_INTERNAL_H
+#define COMPILE_COMPILE_INTERNAL_H
 
 #include "gcc-c-interface.h"
 
 /* Debugging flag for the "compile" family of commands.  */
 
-extern int compile_debug;
+extern bool compile_debug;
 
 struct block;
 
@@ -207,4 +207,4 @@ private:
   std::string m_object_file;
 };
 
-#endif /* GDB_COMPILE_INTERNAL_H */
+#endif /* COMPILE_COMPILE_INTERNAL_H */

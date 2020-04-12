@@ -1,6 +1,6 @@
 /* Definitions for values of C expressions, for GDB.
 
-   Copyright (C) 1986-2019 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,7 +22,7 @@
 
 #include "frame.h"		/* For struct frame_id.  */
 #include "extension.h"
-#include "common/gdb_ref_ptr.h"
+#include "gdbsupport/gdb_ref_ptr.h"
 
 struct block;
 struct expression;
@@ -80,6 +80,8 @@ struct value_print_options;
   chunks, and valid contents data are all considered different.  See
   value_contents_eq for more info.
 */
+
+extern bool overload_resolution;
 
 /* The structure which defines the type of a value.  It should never
    be possible for a program lval value to survive over a call to the
@@ -144,8 +146,8 @@ extern LONGEST value_bitsize (const struct value *);
 extern void set_value_bitsize (struct value *, LONGEST bit);
 
 /* Only used for bitfields; position of start of field.  For
-   gdbarch_bits_big_endian=0 targets, it is the position of the LSB.  For
-   gdbarch_bits_big_endian=1 targets, it is the position of the MSB.  */
+   little-endian targets, it is the position of the LSB.  For
+   big-endian targets, it is the position of the MSB.  */
 
 extern LONGEST value_bitpos (const struct value *);
 extern void set_value_bitpos (struct value *, LONGEST bit);
@@ -566,7 +568,7 @@ extern void mark_value_bits_unavailable (struct value *value,
    Optimized-out contents are equal to optimized-out contents, and are
    not equal to non-optimized-out contents.
 
-   Unavailable contente are equal to unavailable contents, and are not
+   Unavailable contents are equal to unavailable contents, and are not
    equal to non-unavailable contents.
 
    For example, if 'x's represent an unavailable byte, and 'V' and 'Z'
@@ -669,6 +671,7 @@ extern void pack_long (gdb_byte *buf, struct type *type, LONGEST num);
 extern struct value *value_from_longest (struct type *type, LONGEST num);
 extern struct value *value_from_ulongest (struct type *type, ULONGEST num);
 extern struct value *value_from_pointer (struct type *type, CORE_ADDR addr);
+extern struct value *value_from_host_double (struct type *type, double d);
 extern struct value *value_from_history_ref (const char *, const char **);
 extern struct value *value_from_component (struct value *, struct type *,
 					   LONGEST);
@@ -792,7 +795,10 @@ extern struct value *value_ptradd (struct value *arg1, LONGEST arg2);
 
 extern LONGEST value_ptrdiff (struct value *arg1, struct value *arg2);
 
-extern int value_must_coerce_to_target (struct value *arg1);
+/* Return true if VAL does not live in target memory, but should in order
+   to operate on it.  Otherwise return false.  */
+
+extern bool value_must_coerce_to_target (struct value *arg1);
 
 extern struct value *value_coerce_to_target (struct value *arg1);
 
@@ -1148,7 +1154,8 @@ extern struct value *find_function_in_inferior (const char *,
 extern struct value *value_allocate_space_in_inferior (int);
 
 extern struct value *value_subscripted_rvalue (struct value *array,
-					       LONGEST index, int lowerbound);
+					       LONGEST index,
+					       LONGEST lowerbound);
 
 /* User function handler.  */
 
@@ -1158,9 +1165,22 @@ typedef struct value *(*internal_function_fn) (struct gdbarch *gdbarch,
 					       int argc,
 					       struct value **argv);
 
-void add_internal_function (const char *name, const char *doc,
-			    internal_function_fn handler,
-			    void *cookie);
+/* Add a new internal function.  NAME is the name of the function; DOC
+   is a documentation string describing the function.  HANDLER is
+   called when the function is invoked.  COOKIE is an arbitrary
+   pointer which is passed to HANDLER and is intended for "user
+   data".  */
+
+extern void add_internal_function (const char *name, const char *doc,
+				   internal_function_fn handler,
+				   void *cookie);
+
+/* This overload takes an allocated documentation string.  */
+
+extern void add_internal_function (gdb::unique_xmalloc_ptr<char> &&name,
+				   gdb::unique_xmalloc_ptr<char> &&doc,
+				   internal_function_fn handler,
+				   void *cookie);
 
 struct value *call_internal_function (struct gdbarch *gdbarch,
 				      const struct language_defn *language,
@@ -1187,5 +1207,9 @@ extern struct value *call_xmethod (struct value *method,
 
 extern int value_union_variant (struct type *union_type,
 				const gdb_byte *contents);
+
+/* Destroy the values currently allocated.  This is called when GDB is
+   exiting (e.g., on quit_force).  */
+extern void finalize_values ();
 
 #endif /* !defined (VALUE_H) */

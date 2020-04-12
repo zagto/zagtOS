@@ -1,6 +1,6 @@
 /* Support for printing Fortran values for GDB, the GNU debugger.
 
-   Copyright (C) 1993-2019 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
    Contributed by Motorola.  Adapted from the C definitions by Farooq Butt
    (fmbutt@engage.sps.mot.com), additionally worked over by Stan Shebs.
@@ -33,6 +33,8 @@
 #include "command.h"
 #include "block.h"
 #include "dictionary.h"
+#include "cli/cli-style.h"
+#include "gdbarch.h"
 
 static void f77_get_dynamic_length_of_aggregate (struct type *);
 
@@ -41,7 +43,7 @@ int f77_array_offset_tbl[MAX_FORTRAN_DIMS + 1][2];
 /* Array which holds offsets to be applied to get a row's elements
    for a given array.  Array also holds the size of each subarray.  */
 
-int
+LONGEST
 f77_get_lowerbound (struct type *type)
 {
   if (TYPE_ARRAY_LOWER_BOUND_IS_UNDEFINED (type))
@@ -50,7 +52,7 @@ f77_get_lowerbound (struct type *type)
   return TYPE_ARRAY_LOWER_BOUND_VALUE (type);
 }
 
-int
+LONGEST
 f77_get_upperbound (struct type *type)
 {
   if (TYPE_ARRAY_UPPER_BOUND_IS_UNDEFINED (type))
@@ -119,7 +121,12 @@ f77_print_array_1 (int nss, int ndimensions, struct type *type,
 
   if (nss != ndimensions)
     {
-      size_t dim_size = TYPE_LENGTH (TYPE_TARGET_TYPE (type));
+      struct gdbarch *gdbarch = get_type_arch (type);
+      size_t dim_size = type_length_units (TYPE_TARGET_TYPE (type));
+      int unit_size = gdbarch_addressable_memory_unit_size (gdbarch);
+      size_t byte_stride = TYPE_ARRAY_BIT_STRIDE (type) / (unit_size * 8);
+      if (byte_stride == 0)
+	byte_stride = dim_size;
       size_t offs = 0;
 
       for (i = lowerbound;
@@ -136,7 +143,7 @@ f77_print_array_1 (int nss, int ndimensions, struct type *type,
 			     value_embedded_offset (subarray),
 			     value_address (subarray),
 			     stream, recurse, subarray, options, elts);
-	  offs += dim_size;
+	  offs += byte_stride;
 	  fprintf_filtered (stream, ") ");
 	}
       if (*elts >= options->print_max && i < upperbound)
@@ -199,7 +206,7 @@ static const struct generic_val_print_decorations f_decorations =
   ")",
   ".TRUE.",
   ".FALSE.",
-  "VOID",
+  "void",
   "{",
   "}"
 };
@@ -366,7 +373,6 @@ f_val_print (struct type *type, int embedded_offset,
 			 &f_decorations);
       break;
     }
-  gdb_flush (stream);
 }
 
 static void
@@ -387,17 +393,17 @@ info_common_command_for_block (const struct block *block, const char *comname,
 
 	gdb_assert (SYMBOL_CLASS (sym) == LOC_COMMON_BLOCK);
 
-	if (comname && (!SYMBOL_LINKAGE_NAME (sym)
-	                || strcmp (comname, SYMBOL_LINKAGE_NAME (sym)) != 0))
+	if (comname && (!sym->linkage_name ()
+	                || strcmp (comname, sym->linkage_name ()) != 0))
 	  continue;
 
 	if (*any_printed)
 	  putchar_filtered ('\n');
 	else
 	  *any_printed = 1;
-	if (SYMBOL_PRINT_NAME (sym))
+	if (sym->print_name ())
 	  printf_filtered (_("Contents of F77 COMMON block '%s':\n"),
-			   SYMBOL_PRINT_NAME (sym));
+			   sym->print_name ());
 	else
 	  printf_filtered (_("Contents of blank COMMON block:\n"));
 	
@@ -406,19 +412,20 @@ info_common_command_for_block (const struct block *block, const char *comname,
 	    struct value *val = NULL;
 
 	    printf_filtered ("%s = ",
-			     SYMBOL_PRINT_NAME (common->contents[index]));
+			     common->contents[index]->print_name ());
 
-	    TRY
+	    try
 	      {
 		val = value_of_variable (common->contents[index], block);
 		value_print (val, gdb_stdout, &opts);
 	      }
 
-	    CATCH (except, RETURN_MASK_ERROR)
+	    catch (const gdb_exception_error &except)
 	      {
-		printf_filtered ("<error reading variable: %s>", except.message);
+		fprintf_styled (gdb_stdout, metadata_style.style (),
+				"<error reading variable: %s>",
+				except.what ());
 	      }
-	    END_CATCH
 
 	    putchar_filtered ('\n');
 	  }
@@ -472,8 +479,9 @@ info_common_command (const char *comname, int from_tty)
     }
 }
 
+void _initialize_f_valprint ();
 void
-_initialize_f_valprint (void)
+_initialize_f_valprint ()
 {
   add_info ("common", info_common_command,
 	    _("Print out the values contained in a Fortran COMMON block."));

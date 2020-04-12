@@ -1,6 +1,6 @@
 /* Python interface to inferior events.
 
-   Copyright (C) 2009-2019 Free Software Foundation, Inc.
+   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,14 +17,13 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef GDB_PY_EVENT_H
-#define GDB_PY_EVENT_H
+#ifndef PYTHON_PY_EVENT_H
+#define PYTHON_PY_EVENT_H
 
 #include "py-events.h"
 #include "command.h"
 #include "python-internal.h"
 #include "inferior.h"
-#include "py-ref.h"
 
 /* Declare all event types.  */
 #define GDB_PY_DEFINE_EVENT_TYPE(name, py_name, doc, base) \
@@ -84,4 +83,4 @@ extern int evpy_add_attribute (PyObject *event,
 int gdbpy_initialize_event_generic (PyTypeObject *type, const char *name)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 
-#endif /* GDB_PY_EVENT_H */
+#endif /* PYTHON_PY_EVENT_H */

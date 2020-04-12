@@ -1,4 +1,4 @@
-/* Copyright (C) 1995-2019 Free Software Foundation, Inc.
+/* Copyright (C) 1995-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -15,8 +15,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef PPC_LINUX_H
-#define PPC_LINUX_H 1
+#ifndef NAT_PPC_LINUX_H
+#define NAT_PPC_LINUX_H
 
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
@@ -33,9 +33,6 @@
    If they aren't, we can provide them ourselves (their values are fixed
    because they are part of the kernel ABI).  They are used in the AT_HWCAP
    entry of the AUXV.  */
-#ifndef PPC_FEATURE_CELL
-#define PPC_FEATURE_CELL 0x00010000
-#endif
 #ifndef PPC_FEATURE_BOOKE
 #define PPC_FEATURE_BOOKE 0x00008000
 #endif
@@ -165,4 +162,4 @@
 /* Return the wordsize of the target, either 4 or 8 bytes.  */
 int ppc_linux_target_wordsize (int tid);
 
-#endif
+#endif /* NAT_PPC_LINUX_H */

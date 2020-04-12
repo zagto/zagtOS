@@ -1,6 +1,6 @@
 /* Self tests for lookup_name_info for GDB, the GNU debugger.
 
-   Copyright (C) 2017-2019 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,7 +18,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#include "selftest.h"
+#include "gdbsupport/selftest.h"
 #include "symtab.h"
 
 namespace selftests {
@@ -103,6 +103,7 @@ run_tests ()
 
 }} // namespace selftests::lookup_name
 
+void _initialize_lookup_name_info_selftests ();
 void
 _initialize_lookup_name_info_selftests ()
 {

@@ -1,5 +1,5 @@
 /* Data structures and functions associated with agent expressions in GDB.
-   Copyright (C) 2009-2019 Free Software Foundation, Inc.
+   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -16,13 +16,12 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#if !defined (AX_H)
-#define AX_H 1
+#ifndef GDBSERVER_AX_H
+#define GDBSERVER_AX_H
 
 #include "regcache.h"
 
 #ifdef IN_PROCESS_AGENT
-extern int debug_agent;
 #define debug_threads debug_agent
 #endif
 
@@ -142,4 +141,4 @@ struct emit_ops
 extern CORE_ADDR current_insn_ptr;
 extern int emit_error;
 
-#endif /* AX_H */
+#endif /* GDBSERVER_AX_H */

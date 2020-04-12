@@ -1,6 +1,6 @@
 /* Program and address space management, for GDB, the GNU debugger.
 
-   Copyright (C) 2009-2019 Free Software Foundation, Inc.
+   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,8 +23,10 @@
 #include "arch-utils.h"
 #include "gdbcore.h"
 #include "solib.h"
+#include "solist.h"
 #include "gdbthread.h"
 #include "inferior.h"
+#include <algorithm>
 
 /* The last program space number assigned.  */
 int last_program_space_num = 0;
@@ -145,12 +147,67 @@ program_space::~program_space ()
   no_shared_libraries (NULL, 0);
   exec_close ();
   free_all_objfiles ();
+  /* Defer breakpoint re-set because we don't want to create new
+     locations for this pspace which we're tearing down.  */
+  clear_symtab_users (SYMFILE_DEFER_BP_RESET);
   if (!gdbarch_has_shared_address_space (target_gdbarch ()))
     free_address_space (this->aspace);
   clear_section_table (&this->target_sections);
   clear_program_space_solib_cache (this);
     /* Discard any data modules have associated with the PSPACE.  */
   program_space_free_data (this);
+}
+
+/* See progspace.h.  */
+
+void
+program_space::free_all_objfiles ()
+{
+  struct so_list *so;
+
+  /* Any objfile reference would become stale.  */
+  for (so = master_so_list (); so; so = so->next)
+    gdb_assert (so->objfile == NULL);
+
+  while (!objfiles_list.empty ())
+    objfiles_list.front ()->unlink ();
+}
+
+/* See progspace.h.  */
+
+void
+program_space::add_objfile (std::shared_ptr<objfile> &&objfile,
+			    struct objfile *before)
+{
+  if (before == nullptr)
+    objfiles_list.push_back (std::move (objfile));
+  else
+    {
+      auto iter = std::find_if (objfiles_list.begin (), objfiles_list.end (),
+				[=] (const std::shared_ptr<::objfile> &objf)
+				{
+				  return objf.get () == before;
+				});
+      gdb_assert (iter != objfiles_list.end ());
+      objfiles_list.insert (iter, std::move (objfile));
+    }
+}
+
+/* See progspace.h.  */
+
+void
+program_space::remove_objfile (struct objfile *objfile)
+{
+  auto iter = std::find_if (objfiles_list.begin (), objfiles_list.end (),
+			    [=] (const std::shared_ptr<::objfile> &objf)
+			    {
+			      return objf.get () == objfile;
+			    });
+  gdb_assert (iter != objfiles_list.end ());
+  objfiles_list.erase (iter);
+
+  if (objfile == symfile_object_file)
+    symfile_object_file = NULL;
 }
 
 /* Copies program space SRC to DEST.  Copies the main executable file,
@@ -272,7 +329,7 @@ print_program_space (struct ui_out *uiout, int requested)
       else
 	uiout->field_skip ("current");
 
-      uiout->field_int ("id", pspace->num);
+      uiout->field_signed ("id", pspace->num);
 
       if (pspace->pspace_exec_filename)
 	uiout->field_string ("exec", pspace->pspace_exec_filename);
@@ -293,12 +350,12 @@ print_program_space (struct ui_out *uiout, int requested)
 		printed_header = 1;
 		printf_filtered ("\n\tBound inferiors: ID %d (%s)",
 				 inf->num,
-				 target_pid_to_str (ptid_t (inf->pid)));
+				 target_pid_to_str (ptid_t (inf->pid)).c_str ());
 	      }
 	    else
 	      printf_filtered (", ID %d (%s)",
 			       inf->num,
-			       target_pid_to_str (ptid_t (inf->pid)));
+			       target_pid_to_str (ptid_t (inf->pid)).c_str ());
 	  }
 
       uiout->text ("\n");

@@ -1,5 +1,5 @@
 /* Common things used by the various darwin files
-   Copyright (C) 1995-2019 Free Software Foundation, Inc.
+   Copyright (C) 1995-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef __DARWIN_NAT_H__
-#define __DARWIN_NAT_H__
+#ifndef DARWIN_NAT_H
+#define DARWIN_NAT_H
 
 #include "inf-child.h"
 #include <mach/mach.h>
@@ -45,7 +45,7 @@ class darwin_nat_target : public inf_child_target
 
   bool thread_alive (ptid_t ptid) override;
 
-  const char *pid_to_str (ptid_t) override;
+  std::string pid_to_str (ptid_t) override;
 
   char *pid_to_exec_file (int pid) override;
 
@@ -201,4 +201,4 @@ void darwin_set_sstep (thread_t thread, int enable);
 
 void darwin_check_osabi (darwin_inferior *inf, thread_t thread);
 
-#endif /* __DARWIN_NAT_H__ */
+#endif /* DARWIN_NAT_H */

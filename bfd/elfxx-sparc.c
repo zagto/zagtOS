@@ -1,5 +1,5 @@
 /* SPARC-specific support for ELF
-   Copyright (C) 2005-2019 Free Software Foundation, Inc.
+   Copyright (C) 2005-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -1263,15 +1263,14 @@ create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
 
   s = bfd_make_section_with_flags (abfd, ".iplt", pltflags);
   if (s == NULL
-      || ! bfd_set_section_alignment (abfd, s, bed->plt_alignment))
+      || !bfd_set_section_alignment (s, bed->plt_alignment))
     return FALSE;
   htab->iplt = s;
 
   s = bfd_make_section_with_flags (abfd, ".rela.iplt",
 				   flags | SEC_READONLY);
   if (s == NULL
-      || ! bfd_set_section_alignment (abfd, s,
-				      bed->s->log_file_align))
+      || !bfd_set_section_alignment (s, bed->s->log_file_align))
     return FALSE;
   htab->irelplt = s;
 
@@ -1837,9 +1836,7 @@ _bfd_sparc_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 
 	case R_SPARC_GNU_VTENTRY:
-	  BFD_ASSERT (h != NULL);
-	  if (h != NULL
-	      && !bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
+	  if (!bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
 	    return FALSE;
 	  break;
 
@@ -4166,8 +4163,7 @@ do_relocation:
 		     || r_type == R_SPARC_UA32
 		     || r_type == R_SPARC_DISP32)
 		    && (((input_section->flags & SEC_DEBUGGING) != 0
-			 && strcmp (bfd_section_name (input_bfd,
-						      input_section),
+			 && strcmp (bfd_section_name (input_section),
 				    ".stab") == 0)
 			|| _bfd_elf_section_offset (output_bfd, info,
 						    input_section,
@@ -4196,7 +4192,7 @@ do_relocation:
 		    if (name == NULL)
 		      return FALSE;
 		    if (*name == '\0')
-		      name = bfd_section_name (input_bfd, sec);
+		      name = bfd_section_name (sec);
 		  }
 		(*info->callbacks->reloc_overflow)
 		  (info, (h ? &h->root : NULL), name, howto->name,
@@ -4792,7 +4788,7 @@ _bfd_sparc_elf_finish_dynamic_sections (bfd *output_bfd, struct bfd_link_info *i
   htab = _bfd_sparc_elf_hash_table (info);
   BFD_ASSERT (htab != NULL);
   dynobj = htab->elf.dynobj;
-  
+
   /* We arranged in size_dynamic_sections to put the STT_REGISTER
      entries at the end of the dynlocal list, so they came at the end
      of the local symbols in the symtab.  Except that they aren't
@@ -4802,7 +4798,7 @@ _bfd_sparc_elf_finish_dynamic_sections (bfd *output_bfd, struct bfd_link_info *i
     {
       asection *dynsymsec = bfd_get_linker_section (dynobj, ".dynsym");
       struct elf_link_local_dynamic_entry *e;
-      
+
       for (e = elf_hash_table (info)->dynlocal; e ; e = e->next)
 	if (e->input_indx == -1)
 	  break;
@@ -4810,7 +4806,7 @@ _bfd_sparc_elf_finish_dynamic_sections (bfd *output_bfd, struct bfd_link_info *i
 	elf_section_data (dynsymsec->output_section)->this_hdr.sh_info
 	  = e->dynindx;
     }
-  
+
   sdyn = bfd_get_linker_section (dynobj, ".dynamic");
 
   if (elf_hash_table (info)->dynamic_sections_created)

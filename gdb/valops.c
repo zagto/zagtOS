@@ -1,6 +1,6 @@
 /* Perform non-arithmetic operations on values, for GDB.
 
-   Copyright (C) 1986-2019 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -39,9 +39,9 @@
 #include "observable.h"
 #include "objfiles.h"
 #include "extension.h"
-#include "byte-vector.h"
+#include "gdbtypes.h"
+#include "gdbsupport/byte-vector.h"
 
-extern unsigned int overload_debug;
 /* Local functions.  */
 
 static int typecmp (int staticp, int varargs, int nargs,
@@ -97,7 +97,7 @@ static CORE_ADDR allocate_space_in_inferior (int);
 
 static struct value *cast_into_complex (struct type *, struct value *);
 
-int overload_resolution = 0;
+bool overload_resolution = false;
 static void
 show_overload_resolution (struct ui_file *file, int from_tty,
 			  struct cmd_list_element *c, 
@@ -402,12 +402,12 @@ value_cast (struct type *type, struct value *arg2)
 		       "divide object size in cast"));
 	  /* FIXME-type-allocation: need a way to free this type when
 	     we are done with it.  */
-	  range_type = create_static_range_type ((struct type *) NULL,
+	  range_type = create_static_range_type (NULL,
 						 TYPE_TARGET_TYPE (range_type),
 						 low_bound,
 						 new_length + low_bound - 1);
 	  deprecated_set_value_type (arg2, 
-				     create_array_type ((struct type *) NULL,
+				     create_array_type (NULL,
 							element_type, 
 							range_type));
 	  return arg2;
@@ -483,7 +483,7 @@ value_cast (struct type *type, struct value *arg2)
       if (code2 == TYPE_CODE_PTR)
         longest = extract_unsigned_integer
 		    (value_contents (arg2), TYPE_LENGTH (type2),
-		     gdbarch_byte_order (get_type_arch (type2)));
+		     type_byte_order (type2));
       else
         longest = value_as_long (arg2);
       return value_from_longest (to_type, convert_to_boolean ?
@@ -555,8 +555,9 @@ value_cast (struct type *type, struct value *arg2)
     return value_at_lazy (to_type, value_address (arg2));
   else
     {
+      if (current_language->la_language == language_ada)
+	error (_("Invalid type conversion."));
       error (_("Invalid cast."));
-      return 0;
     }
 }
 
@@ -906,7 +907,7 @@ get_value_at (struct type *type, CORE_ADDR addr, int lazy)
 /* Return a value with type TYPE located at ADDR.
 
    Call value_at only if the data needs to be fetched immediately;
-   if we can be 'lazy' and defer the fetch, perhaps indefinately, call
+   if we can be 'lazy' and defer the fetch, perhaps indefinitely, call
    value_at_lazy instead.  value_at_lazy simply records the address of
    the data and sets the lazy-evaluation-required flag.  The lazy flag
    is tested in the value_contents macro, which is used if and when
@@ -1329,23 +1330,22 @@ address_of_variable (struct symbol *var, const struct block *b)
 
 	error (_("Address requested for identifier "
 		 "\"%s\" which is in register $%s"),
-	       SYMBOL_PRINT_NAME (var), regname);
+	       var->print_name (), regname);
 	break;
       }
 
     default:
       error (_("Can't take address of \"%s\" which isn't an lvalue."),
-	     SYMBOL_PRINT_NAME (var));
+	     var->print_name ());
       break;
     }
 
   return val;
 }
 
-/* Return one if VAL does not live in target memory, but should in order
-   to operate on it.  Otherwise return zero.  */
+/* See value.h.  */
 
-int
+bool
 value_must_coerce_to_target (struct value *val)
 {
   struct type *valtype;
@@ -1354,7 +1354,7 @@ value_must_coerce_to_target (struct value *val)
   if (VALUE_LVAL (val) != not_lval
       && VALUE_LVAL (val) != lval_internalvar
       && VALUE_LVAL (val) != lval_xcallable)
-    return 0;
+    return false;
 
   valtype = check_typedef (value_type (val));
 
@@ -1363,9 +1363,9 @@ value_must_coerce_to_target (struct value *val)
     case TYPE_CODE_ARRAY:
       return TYPE_VECTOR (valtype) ? 0 : 1;
     case TYPE_CODE_STRING:
-      return 1;
+      return true;
     default:
-      return 0;
+      return false;
     }
 }
 
@@ -2644,7 +2644,7 @@ find_overload_match (gdb::array_view<value *> args,
 
       if (fsym)
         {
-          qualified_name = SYMBOL_NATURAL_NAME (fsym);
+          qualified_name = fsym->natural_name ();
 
           /* If we have a function with a C++ name, try to extract just
 	     the function part.  Do not try this for non-functions (e.g.
@@ -2820,7 +2820,7 @@ find_overload_match (gdb::array_view<value *> args,
    contained in QUALIFIED_NAME until it either finds a good match or
    runs out of namespaces.  It stores the overloaded functions in
    *OLOAD_SYMS, and the badness vector in *OLOAD_CHAMP_BV.  If NO_ADL,
-   argument dependent lookup is not performned.  */
+   argument dependent lookup is not performed.  */
 
 static int
 find_oload_champ_namespace (gdb::array_view<value *> args,
@@ -3023,6 +3023,33 @@ find_oload_champ (gdb::array_view<value *> args,
       bv = rank_function (parm_types,
 			  args.slice (static_offset));
 
+      if (overload_debug)
+	{
+	  if (methods != NULL)
+	    fprintf_filtered (gdb_stderr,
+			      "Overloaded method instance %s, # of parms %d\n",
+			      methods[ix].physname, (int) parm_types.size ());
+	  else if (xmethods != NULL)
+	    fprintf_filtered (gdb_stderr,
+			      "Xmethod worker, # of parms %d\n",
+			      (int) parm_types.size ());
+	  else
+	    fprintf_filtered (gdb_stderr,
+			      "Overloaded function instance "
+			      "%s # of parms %d\n",
+			      functions[ix]->demangled_name (),
+			      (int) parm_types.size ());
+
+	  fprintf_filtered (gdb_stderr,
+			    "...Badness of length : {%d, %d}\n",
+			    bv[0].rank, bv[0].subrank);
+
+	  for (jj = 1; jj < bv.size (); jj++)
+	    fprintf_filtered (gdb_stderr,
+			      "...Badness of arg %d : {%d, %d}\n",
+			      jj, bv[jj].rank, bv[jj].subrank);
+	}
+
       if (oload_champ_bv->empty ())
 	{
 	  *oload_champ_bv = std::move (bv);
@@ -3048,29 +3075,9 @@ find_oload_champ (gdb::array_view<value *> args,
 	    break;
 	  }
       if (overload_debug)
-	{
-	  if (methods != NULL)
-	    fprintf_filtered (gdb_stderr,
-			      "Overloaded method instance %s, # of parms %d\n",
-			      methods[ix].physname, (int) parm_types.size ());
-	  else if (xmethods != NULL)
-	    fprintf_filtered (gdb_stderr,
-			      "Xmethod worker, # of parms %d\n",
-			      (int) parm_types.size ());
-	  else
-	    fprintf_filtered (gdb_stderr,
-			      "Overloaded function instance "
-			      "%s # of parms %d\n",
-			      SYMBOL_DEMANGLED_NAME (functions[ix]),
-			      (int) parm_types.size ());
-	  for (jj = 0; jj < args.size () - static_offset; jj++)
-	    fprintf_filtered (gdb_stderr,
-			      "...Badness @ %d : %d\n", 
-			      jj, bv[jj].rank);
-	  fprintf_filtered (gdb_stderr, "Overload resolution "
-			    "champion is %d, ambiguous? %d\n", 
-			    oload_champ, oload_ambiguous);
-	}
+	fprintf_filtered (gdb_stderr, "Overload resolution "
+			  "champion is %d, ambiguous? %d\n",
+			  oload_champ, oload_ambiguous);
     }
 
   return oload_champ;
@@ -3621,11 +3628,11 @@ value_rtti_indirect_type (struct value *v, int *full,
   else if (TYPE_CODE (type) == TYPE_CODE_PTR)
     {
 
-      TRY
+      try
         {
 	  target = value_ind (v);
         }
-      CATCH (except, RETURN_MASK_ERROR)
+      catch (const gdb_exception_error &except)
 	{
 	  if (except.error == MEMORY_ERROR)
 	    {
@@ -3634,9 +3641,8 @@ value_rtti_indirect_type (struct value *v, int *full,
 	         type.  */
 	      return NULL;
 	    }
-	  throw_exception (except);
+	  throw;
 	}
-      END_CATCH
     }
   else
     return NULL;
@@ -3774,14 +3780,13 @@ value_of_this_silent (const struct language_defn *lang)
 {
   struct value *ret = NULL;
 
-  TRY
+  try
     {
       ret = value_of_this (lang);
     }
-  CATCH (except, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &except)
     {
     }
-  END_CATCH
 
   return ret;
 }
@@ -3803,6 +3808,11 @@ value_slice (struct value *array, int lowbound, int length)
       && TYPE_CODE (array_type) != TYPE_CODE_STRING)
     error (_("cannot take slice of non-array"));
 
+  if (type_not_allocated (array_type))
+    error (_("array not allocated"));
+  if (type_not_associated (array_type))
+    error (_("array not associated"));
+
   range_type = TYPE_INDEX_TYPE (array_type);
   if (get_discrete_bounds (range_type, &lowerbound, &upperbound) < 0)
     error (_("slice from bad array or bitstring"));
@@ -3813,7 +3823,7 @@ value_slice (struct value *array, int lowbound, int length)
 
   /* FIXME-type-allocation: need a way to free this type when we are
      done with it.  */
-  slice_range_type = create_static_range_type ((struct type *) NULL,
+  slice_range_type = create_static_range_type (NULL,
 					       TYPE_TARGET_TYPE (range_type),
 					       lowbound,
 					       lowbound + length - 1);
@@ -3823,7 +3833,7 @@ value_slice (struct value *array, int lowbound, int length)
     LONGEST offset
       = (lowbound - lowerbound) * TYPE_LENGTH (check_typedef (element_type));
 
-    slice_type = create_array_type ((struct type *) NULL,
+    slice_type = create_array_type (NULL,
 				    element_type,
 				    slice_range_type);
     TYPE_CODE (slice_type) = TYPE_CODE (array_type);
@@ -3847,7 +3857,7 @@ value_slice (struct value *array, int lowbound, int length)
 /* Create a value for a FORTRAN complex number.  Currently most of the
    time values are coerced to COMPLEX*16 (i.e. a complex number
    composed of 2 doubles.  This really should be a smarter routine
-   that figures out precision inteligently as opposed to assuming
+   that figures out precision intelligently as opposed to assuming
    doubles.  FIXME: fmb  */
 
 struct value *
@@ -3899,8 +3909,9 @@ cast_into_complex (struct type *type, struct value *val)
     error (_("cannot cast non-number to complex"));
 }
 
+void _initialize_valops ();
 void
-_initialize_valops (void)
+_initialize_valops ()
 {
   add_setshow_boolean_cmd ("overload-resolution", class_support,
 			   &overload_resolution, _("\

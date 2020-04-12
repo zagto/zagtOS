@@ -1,6 +1,6 @@
 /* varobj support for Ada.
 
-   Copyright (C) 2012-2019 Free Software Foundation, Inc.
+   Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -624,6 +624,7 @@ ada_varobj_describe_simple_array_child (struct value *parent_value,
 	 of the array index type when such type qualification is
 	 needed.  */
       const char *index_type_name = NULL;
+      std::string decoded;
 
       /* If the index type is a range type, find the base type.  */
       while (TYPE_CODE (index_type) == TYPE_CODE_RANGE)
@@ -634,7 +635,10 @@ ada_varobj_describe_simple_array_child (struct value *parent_value,
 	{
 	  index_type_name = ada_type_name (index_type);
 	  if (index_type_name)
-	    index_type_name = ada_decode (index_type_name);
+	    {
+	      decoded = ada_decode (index_type_name);
+	      index_type_name = decoded.c_str ();
+	    }
 	}
 
       if (index_type_name != NULL)
@@ -934,6 +938,9 @@ ada_value_is_changeable_p (const struct varobj *var)
 {
   struct type *type = (var->value != nullptr
 		       ? value_type (var->value.get ()) : var->type);
+
+  if (TYPE_CODE (type) == TYPE_CODE_REF)
+    type = TYPE_TARGET_TYPE (type);
 
   if (ada_is_access_to_unconstrained_array (type))
     {

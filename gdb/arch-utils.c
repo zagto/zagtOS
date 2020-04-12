@@ -1,6 +1,6 @@
 /* Dynamic architecture support for GDB, the GNU debugger.
 
-   Copyright (C) 1998-2019 Free Software Foundation, Inc.
+   Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -32,7 +32,7 @@
 #include "language.h"
 #include "symtab.h"
 
-#include "version.h"
+#include "gdbsupport/version.h"
 
 #include "floatformat.h"
 
@@ -69,7 +69,7 @@ legacy_register_sim_regno (struct gdbarch *gdbarch, int regnum)
   gdb_assert (regnum >= 0 && regnum < gdbarch_num_regs (gdbarch));
   /* NOTE: cagney/2002-05-13: The old code did it this way and it is
      suspected that some GDB/SIM combinations may rely on this
-     behavour.  The default should be one2one_register_sim_regno
+     behaviour.  The default should be one2one_register_sim_regno
      (below).  */
   if (gdbarch_register_name (gdbarch, regnum) != NULL
       && gdbarch_register_name (gdbarch, regnum)[0] != '\0')
@@ -373,7 +373,7 @@ set_endian (const char *ignore_args, int from_tty, struct cmd_list_element *c)
 
    SELECTED may be NULL, in which case we return the architecture
    associated with TARGET_DESC.  If SELECTED specifies a variant
-   of the architecture associtated with TARGET_DESC, return the
+   of the architecture associated with TARGET_DESC, return the
    more specific of the two.
 
    If SELECTED is a different architecture, but it is accepted as
@@ -858,7 +858,7 @@ default_return_in_first_hidden_param_p (struct gdbarch *gdbarch,
   /* Usually, the return value's address is stored the in the "first hidden"
      parameter if the return value should be passed by reference, as
      specified in ABI.  */
-  return language_pass_by_reference (type);
+  return !(language_pass_by_reference (type).trivially_copyable);
 }
 
 int default_insn_is_call (struct gdbarch *gdbarch, CORE_ADDR addr)
@@ -903,11 +903,12 @@ default_infcall_munmap (CORE_ADDR addr, CORE_ADDR size)
 /* -mcmodel=large is used so that no GOT (Global Offset Table) is needed to be
    created in inferior memory by GDB (normally it is set by ld.so).  */
 
-char *
+std::string
 default_gcc_target_options (struct gdbarch *gdbarch)
 {
-  return xstrprintf ("-m%d%s", gdbarch_ptr_bit (gdbarch),
-		     gdbarch_ptr_bit (gdbarch) == 64 ? " -mcmodel=large" : "");
+  return string_printf ("-m%d%s", gdbarch_ptr_bit (gdbarch),
+			(gdbarch_ptr_bit (gdbarch) == 64
+			 ? " -mcmodel=large" : ""));
 }
 
 /* gdbarch gnu_triplet_regexp method.  */
@@ -969,13 +970,12 @@ gdbarch_skip_prologue_noexcept (gdbarch *gdbarch, CORE_ADDR pc) noexcept
 {
   CORE_ADDR new_pc = pc;
 
-  TRY
+  try
     {
       new_pc = gdbarch_skip_prologue (gdbarch, pc);
     }
-  CATCH (ex, RETURN_MASK_ALL)
+  catch (const gdb_exception &ex)
     {}
-  END_CATCH
 
   return new_pc;
 }
@@ -993,11 +993,20 @@ default_in_indirect_branch_thunk (gdbarch *gdbarch, CORE_ADDR pc)
 ULONGEST
 default_type_align (struct gdbarch *gdbarch, struct type *type)
 {
-  return type_length_units (check_typedef (type));
+  return 0;
 }
 
+/* See arch-utils.h.  */
+
+std::string
+default_get_pc_address_flags (frame_info *frame, CORE_ADDR pc)
+{
+  return "";
+}
+
+void _initialize_gdbarch_utils ();
 void
-_initialize_gdbarch_utils (void)
+_initialize_gdbarch_utils ()
 {
   add_setshow_enum_cmd ("endian", class_support,
 			endian_enum, &set_endian_string, 

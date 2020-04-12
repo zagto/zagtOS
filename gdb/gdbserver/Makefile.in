@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2019 Free Software Foundation, Inc.
+# Copyright (C) 1989-2020 Free Software Foundation, Inc.
 
 # This file is part of GDB.
 
@@ -103,11 +103,13 @@ ustinc = @ustinc@
 # gnulib
 GNULIB_BUILDDIR = build-gnulib-gdbserver
 LIBGNU = $(GNULIB_BUILDDIR)/import/libgnu.a
-INCGNU = -I$(srcdir)/../gnulib/import -I$(GNULIB_BUILDDIR)/import
+INCGNU = -I$(srcdir)/../../gnulib/import -I$(GNULIB_BUILDDIR)/import
 
 # Generated headers in the gnulib directory.  These must be listed
 # so that they are generated before other files are compiled.
 GNULIB_H = $(GNULIB_BUILDDIR)/import/string.h @GNULIB_STDINT_H@
+
+INCSUPPORT = -I$(srcdir)/../.. -I../..
 
 # All the includes used for CFLAGS and for lint.
 # -I. for config files.
@@ -118,9 +120,9 @@ GNULIB_H = $(GNULIB_BUILDDIR)/import/string.h @GNULIB_STDINT_H@
 # in those directories should be included with the subdirectory.
 # e.g.: "target/wait.h".
 #
-INCLUDE_CFLAGS = -I. -I${srcdir} -I$(srcdir)/../common \
+INCLUDE_CFLAGS = -I. -I${srcdir} \
 	-I$(srcdir)/../regformats -I$(srcdir)/.. -I$(INCLUDE_DIR) \
-	$(INCGNU)
+	$(INCGNU) $(INCSUPPORT)
 
 # M{H,T}_CFLAGS, if defined, has host- and target-dependent CFLAGS
 # from the config/ directory.
@@ -139,9 +141,12 @@ CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@
 
+PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
+PTHREAD_LIBS = @PTHREAD_LIBS@
+
 # INTERNAL_CFLAGS is the aggregate of all other *CFLAGS macros.
 INTERNAL_CFLAGS_BASE = ${CXXFLAGS} ${GLOBAL_CFLAGS} \
-	${PROFILE_CFLAGS} ${INCLUDE_CFLAGS} ${CPPFLAGS}
+	${PROFILE_CFLAGS} ${INCLUDE_CFLAGS} ${CPPFLAGS} $(PTHREAD_CFLAGS)
 INTERNAL_WARN_CFLAGS = ${INTERNAL_CFLAGS_BASE} $(WARN_CFLAGS)
 INTERNAL_CFLAGS = ${INTERNAL_WARN_CFLAGS} $(WERROR_CFLAGS) -DGDBSERVER
 
@@ -197,29 +202,33 @@ SFILES = \
 	$(srcdir)/arch/arm-get-next-pcs.c \
 	$(srcdir)/arch/arm-linux.c \
 	$(srcdir)/arch/ppc-linux-common.c \
-	$(srcdir)/common/btrace-common.c \
-	$(srcdir)/common/buffer.c \
-	$(srcdir)/common/cleanups.c \
-	$(srcdir)/common/common-debug.c \
-	$(srcdir)/common/common-exceptions.c \
-	$(srcdir)/common/common-regcache.c \
-	$(srcdir)/common/common-utils.c \
-	$(srcdir)/common/errors.c \
-	$(srcdir)/common/environ.c \
-	$(srcdir)/common/fileio.c \
-	$(srcdir)/common/filestuff.c \
-	$(srcdir)/common/job-control.c \
-	$(srcdir)/common/gdb_tilde_expand.c \
-	$(srcdir)/common/gdb_vecs.c \
-	$(srcdir)/common/netstuff.c \
-	$(srcdir)/common/new-op.c \
-	$(srcdir)/common/pathstuff.c \
-	$(srcdir)/common/print-utils.c \
-	$(srcdir)/common/ptid.c \
-	$(srcdir)/common/rsp-low.c \
-	$(srcdir)/common/tdesc.c \
-	$(srcdir)/common/vec.c \
-	$(srcdir)/common/xml-utils.c \
+	$(srcdir)/../alloc.c \
+	$(srcdir)/../../gdbsupport/btrace-common.c \
+	$(srcdir)/../../gdbsupport/buffer.c \
+	$(srcdir)/../../gdbsupport/cleanups.c \
+	$(srcdir)/../../gdbsupport/common-debug.c \
+	$(srcdir)/../../gdbsupport/common-exceptions.c \
+	$(srcdir)/../../gdbsupport/common-inferior.c \
+	$(srcdir)/../../gdbsupport/common-regcache.c \
+	$(srcdir)/../../gdbsupport/common-utils.c \
+	$(srcdir)/../../gdbsupport/errors.c \
+	$(srcdir)/../../gdbsupport/environ.c \
+	$(srcdir)/../../gdbsupport/fileio.c \
+	$(srcdir)/../../gdbsupport/filestuff.c \
+	$(srcdir)/../../gdbsupport/job-control.c \
+	$(srcdir)/../../gdbsupport/gdb-dlfcn.c \
+	$(srcdir)/../../gdbsupport/gdb_tilde_expand.c \
+	$(srcdir)/../../gdbsupport/gdb_vecs.c \
+	$(srcdir)/../../gdbsupport/gdb_wait.c \
+	$(srcdir)/../../gdbsupport/netstuff.c \
+	$(srcdir)/../../gdbsupport/new-op.c \
+	$(srcdir)/../../gdbsupport/pathstuff.c \
+	$(srcdir)/../../gdbsupport/print-utils.c \
+	$(srcdir)/../../gdbsupport/ptid.c \
+	$(srcdir)/../../gdbsupport/rsp-low.c \
+	$(srcdir)/../../gdbsupport/safe-strerror.c \
+	$(srcdir)/../../gdbsupport/tdesc.c \
+	$(srcdir)/../../gdbsupport/xml-utils.c \
 	$(srcdir)/nat/aarch64-sve-linux-ptrace.c \
 	$(srcdir)/nat/linux-btrace.c \
 	$(srcdir)/nat/linux-namespaces.c \
@@ -238,34 +247,38 @@ SOURCES = $(SFILES)
 TAGFILES = $(SOURCES) ${HFILES} ${ALLPARAM} ${POSSLIBS}
 
 OBS = \
+	alloc.o \
 	ax.o \
-	common/agent.o \
-	common/btrace-common.o \
-	common/buffer.o \
-	common/cleanups.o \
-	common/common-debug.o \
-	common/common-exceptions.o \
-	common/job-control.o \
-	common/common-regcache.o \
-	common/common-utils.o \
-	common/errors.o \
-	common/environ.o \
-	common/fileio.o \
-	common/filestuff.o \
-	common/format.o \
-	common/gdb_tilde_expand.o \
-	common/gdb_vecs.o \
-	common/netstuff.o \
-	common/new-op.o \
-	common/pathstuff.o \
-	common/print-utils.o \
-	common/ptid.o \
-	common/rsp-low.o \
-	common/signals.o \
-	common/signals-state-save-restore.o \
-	common/tdesc.o \
-	common/vec.o \
-	common/xml-utils.o \
+	gdbsupport/agent.o \
+	gdbsupport/btrace-common.o \
+	gdbsupport/buffer.o \
+	gdbsupport/cleanups.o \
+	gdbsupport/common-debug.o \
+	gdbsupport/common-exceptions.o \
+	gdbsupport/common-inferior.o \
+	gdbsupport/job-control.o \
+	gdbsupport/common-regcache.o \
+	gdbsupport/common-utils.o \
+	gdbsupport/errors.o \
+	gdbsupport/environ.o \
+	gdbsupport/fileio.o \
+	gdbsupport/filestuff.o \
+	gdbsupport/format.o \
+	gdbsupport/gdb-dlfcn.o \
+	gdbsupport/gdb_tilde_expand.o \
+	gdbsupport/gdb_vecs.o \
+	gdbsupport/gdb_wait.o \
+	gdbsupport/netstuff.o \
+	gdbsupport/new-op.o \
+	gdbsupport/pathstuff.o \
+	gdbsupport/print-utils.o \
+	gdbsupport/ptid.o \
+	gdbsupport/rsp-low.o \
+	gdbsupport/safe-strerror.o \
+	gdbsupport/signals.o \
+	gdbsupport/signals-state-save-restore.o \
+	gdbsupport/tdesc.o \
+	gdbsupport/xml-utils.o \
 	debug.o \
 	dll.o \
 	event-loop.o \
@@ -288,17 +301,19 @@ OBS = \
 	$(XML_BUILTIN)
 
 GDBREPLAY_OBS = \
-	common/cleanups.o \
-	common/common-exceptions.o \
-	common/common-utils.o \
-	common/errors.o \
-	common/netstuff.o \
-	common/print-utils.o \
+	gdbsupport/cleanups.o \
+	gdbsupport/common-exceptions.o \
+	gdbsupport/common-utils.o \
+	gdbsupport/rsp-low.o \
+	gdbsupport/errors.o \
+	gdbsupport/netstuff.o \
+	gdbsupport/print-utils.o \
+	gdbsupport/safe-strerror.o \
 	gdbreplay.o \
 	utils.o \
 	version.o
 
-GDBSERVER_LIBS = @GDBSERVER_LIBS@
+GDBSERVER_LIBS = @GDBSERVER_LIBS@ $(PTHREAD_LIBS)
 XM_CLIBS = @LIBS@
 CDEPS = $(srcdir)/proc-service.list
 
@@ -370,10 +385,10 @@ install-only:
 	if [ x$$n = x ]; then n=gdbserver; else true; fi; \
 	if [ x"$(IPA_DEPFILES)" != x ]; then \
 		$(SHELL) $(srcdir)/../../mkinstalldirs $(DESTDIR)$(libdir); \
-		$(INSTALL_PROGRAM) $(IPA_LIB) $(DESTDIR)$(libdir)/$(IPA_LIB); \
+		$(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $(IPA_LIB) $(DESTDIR)$(libdir)/$(IPA_LIB); \
 	fi; \
 	$(SHELL) $(srcdir)/../../mkinstalldirs $(DESTDIR)$(bindir); \
-	$(INSTALL_PROGRAM) gdbserver$(EXEEXT) $(DESTDIR)$(bindir)/$$n$(EXEEXT)
+	$(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) gdbserver$(EXEEXT) $(DESTDIR)$(bindir)/$$n$(EXEEXT)
 	# Note that we run install and not install-only, as the latter
 	# is not part of GNU standards and in particular not provided
 	# in libiberty.
@@ -413,14 +428,15 @@ gdbreplay$(EXEEXT): $(sort $(GDBREPLAY_OBS)) $(LIBGNU) $(LIBIBERTY)
 		$(LIBIBERTY)
 
 IPA_OBJS = \
+	alloc-ipa.o \
 	ax-ipa.o \
-	common/common-utils-ipa.o \
-	common/errors-ipa.o \
-	common/format-ipa.o \
-	common/print-utils-ipa.o \
-	common/rsp-low-ipa.o \
-	common/tdesc-ipa.o \
-	common/vec-ipa.o \
+	gdbsupport/common-utils-ipa.o \
+	gdbsupport/errors-ipa.o \
+	gdbsupport/format-ipa.o \
+	gdbsupport/print-utils-ipa.o \
+	gdbsupport/rsp-low-ipa.o \
+	gdbsupport/safe-strerror-ipa.o \
+	gdbsupport/tdesc-ipa.o \
 	regcache-ipa.o \
 	remote-utils-ipa.o \
 	tdesc-ipa.o \
@@ -491,12 +507,12 @@ subdir_do: force
 
 config.h: stamp-h ; @true
 stamp-h: config.in config.status
-	CONFIG_FILES="" CONFIG_HEADERS=config.h:config.in $(SHELL) ./config.status
+	$(SHELL) ./config.status config.h
 
 Makefile: Makefile.in config.status
-	CONFIG_HEADERS="" $(SHELL) ./config.status
+	$(SHELL) ./config.status $@
 
-$(GNULIB_BUILDDIR)/Makefile: $(srcdir)/../gnulib/Makefile.in config.status
+$(GNULIB_BUILDDIR)/Makefile: $(srcdir)/../../gnulib/Makefile.in config.status
 	  @cd $(GNULIB_BUILDDIR); CONFIG_FILES="Makefile" \
 	  CONFIG_COMMANDS="depfiles" \
 	  CONFIG_HEADERS= \
@@ -515,8 +531,8 @@ am--refresh:
 
 force:
 
-version-generated.c: Makefile $(srcdir)/../version.in $(srcdir)/../../bfd/version.h $(srcdir)/../common/create-version.sh
-	$(ECHO_GEN) $(SHELL) $(srcdir)/../common/create-version.sh $(srcdir)/.. \
+version-generated.c: Makefile $(srcdir)/../version.in $(srcdir)/../../bfd/version.h $(srcdir)/../../gdbsupport/create-version.sh
+	$(ECHO_GEN) $(SHELL) $(srcdir)/../../gdbsupport/create-version.sh $(srcdir)/.. \
 		$(host_alias) $(target_alias) $@
 
 xml-builtin-generated.c: stamp-xml; @true
@@ -544,9 +560,15 @@ regdat_sh = $(srcdir)/../regformats/regdat.sh
 
 UST_CFLAGS = $(ustinc) -DCONFIG_UST_GDB_INTEGRATION
 
+# Undo gnulib replacements for the IPA shared library build.
+# The gnulib headers are still needed, but gnulib is not linked
+# into the IPA lib so replacement apis don't work.
+UNDO_GNULIB_CFLAGS = -Drpl_strerror_r=strerror_r
+
 # Note, we only build the IPA if -fvisibility=hidden is supported in
 # the first place.
 IPAGENT_CFLAGS = $(INTERNAL_CFLAGS) $(UST_CFLAGS) \
+	$(UNDO_GNULIB_CFLAGS) \
 	-fPIC -DIN_PROCESS_AGENT \
 	-fvisibility=hidden
 
@@ -568,7 +590,7 @@ arch/%-ipa.o: ../arch/%.c
 	$(IPAGENT_COMPILE) $<
 	$(POSTCOMPILE)
 
-common/%-ipa.o: ../common/%.c
+gdbsupport/%-ipa.o: ../../gdbsupport/%.c
 	$(IPAGENT_COMPILE) $<
 	$(POSTCOMPILE)
 
@@ -577,6 +599,10 @@ common/%-ipa.o: ../common/%.c
 	$(POSTCOMPILE)
 
 %-ipa.o: %.c
+	$(IPAGENT_COMPILE) $<
+	$(POSTCOMPILE)
+
+%-ipa.o: ../%.c
 	$(IPAGENT_COMPILE) $<
 	$(POSTCOMPILE)
 
@@ -597,7 +623,7 @@ arch/%.o: ../arch/%.c
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 
-common/%.o: ../common/%.c
+gdbsupport/%.o: ../../gdbsupport/%.c
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 
@@ -617,19 +643,20 @@ common/%.o: ../common/%.c
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 
+%.o: ../%.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
 # Rules for register format descriptions.  Suffix destination files with
 # -generated to identify and clean them easily.
 
-%-generated.c: ../regformats/%.dat | $(regdat_sh)
+%-generated.c: ../regformats/%.dat $(regdat_sh)
 	$(ECHO_REGDAT) $(SHELL) $(regdat_sh) $< $@
 
-%-generated.c: ../regformats/arm/%.dat | $(regdat_sh)
+%-generated.c: ../regformats/arm/%.dat $(regdat_sh)
 	$(ECHO_REGDAT) $(SHELL) $(regdat_sh) $< $@
 
-%-generated.c: ../regformats/i386/%.dat | $(regdat_sh)
-	$(ECHO_REGDAT) $(SHELL) $(regdat_sh) $< $@
-
-%-generated.c: ../regformats/rs6000/%.dat | $(regdat_sh)
+%-generated.c: ../regformats/rs6000/%.dat $(regdat_sh)
 	$(ECHO_REGDAT) $(SHELL) $(regdat_sh) $< $@
 
 #

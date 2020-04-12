@@ -1,6 +1,6 @@
 /* Interface between gdb and its extension languages.
 
-   Copyright (C) 2014-2019 Free Software Foundation, Inc.
+   Copyright (C) 2014-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -153,6 +153,9 @@ get_ext_lang_of_file (const char *file)
 {
   int i;
   const struct extension_language_defn *extlang;
+
+  if (has_extension (file, extension_language_gdb.suffix))
+    return &extension_language_gdb;
 
   ALL_EXTENSION_LANGUAGES (i, extlang)
     {
@@ -931,8 +934,9 @@ ext_lang_before_prompt (const char *current_gdb_prompt)
     }
 }
 
+void _initialize_extension ();
 void
-_initialize_extension (void)
+_initialize_extension ()
 {
   gdb::observers::before_prompt.attach (ext_lang_before_prompt);
 }

@@ -1,6 +1,6 @@
 /* Cache and manage frames for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2019 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -42,6 +42,7 @@
 #include "tracepoint.h"
 #include "hashtab.h"
 #include "valprint.h"
+#include "cli/cli-option.h"
 
 /* The sentinel frame terminates the innermost end of the frame chain.
    If unwound, it returns the information needed to construct an
@@ -51,6 +52,9 @@
    sentinel_frame->prev.  */
 
 static struct frame_info *sentinel_frame;
+
+/* The values behind the global "set backtrace ..." settings.  */
+set_backtrace_options user_set_backtrace_options;
 
 static struct frame_info *get_prev_frame_raw (struct frame_info *this_frame);
 static const char *frame_stop_reason_symbol_string (enum unwind_stop_reason reason);
@@ -119,6 +123,8 @@ struct frame_info
   /* Cached copy of the previous frame's resume address.  */
   struct {
     enum cached_copy_status status;
+    /* Did VALUE require unmasking when being read.  */
+    bool masked;
     CORE_ADDR value;
   } prev_pc;
   
@@ -156,6 +162,25 @@ struct frame_info
      Only valid when PREV_P is set, but even then may still be NULL.  */
   const char *stop_string;
 };
+
+/* See frame.h.  */
+
+void
+set_frame_previous_pc_masked (struct frame_info *frame)
+{
+  frame->prev_pc.masked = true;
+}
+
+/* See frame.h.  */
+
+bool
+get_frame_pc_masked (const struct frame_info *frame)
+{
+  gdb_assert (frame->next != nullptr);
+  gdb_assert (frame->next->prev_pc.status == CC_VALUE);
+
+  return frame->next->prev_pc.masked;
+}
 
 /* A frame stash used to speed up frame lookups.  Create a hash table
    to stash frames previously accessed from the frame cache for
@@ -295,9 +320,8 @@ show_frame_debug (struct ui_file *file, int from_tty,
   fprintf_filtered (file, _("Frame debugging is %s.\n"), value);
 }
 
-/* Flag to indicate whether backtraces should stop at main et.al.  */
+/* Implementation of "show backtrace past-main".  */
 
-static int backtrace_past_main;
 static void
 show_backtrace_past_main (struct ui_file *file, int from_tty,
 			  struct cmd_list_element *c, const char *value)
@@ -308,7 +332,8 @@ show_backtrace_past_main (struct ui_file *file, int from_tty,
 		    value);
 }
 
-static int backtrace_past_entry;
+/* Implementation of "show backtrace past-entry".  */
+
 static void
 show_backtrace_past_entry (struct ui_file *file, int from_tty,
 			   struct cmd_list_element *c, const char *value)
@@ -318,7 +343,8 @@ show_backtrace_past_entry (struct ui_file *file, int from_tty,
 		    value);
 }
 
-static unsigned int backtrace_limit = UINT_MAX;
+/* Implementation of "show backtrace limit".  */
+
 static void
 show_backtrace_limit (struct ui_file *file, int from_tty,
 		      struct cmd_list_element *c, const char *value)
@@ -424,8 +450,11 @@ fprint_frame (struct ui_file *file, struct frame_info *fi)
   if (fi->next == NULL || fi->next->prev_pc.status == CC_UNKNOWN)
     fprintf_unfiltered (file, "<unknown>");
   else if (fi->next->prev_pc.status == CC_VALUE)
-    fprintf_unfiltered (file, "%s",
-			hex_string (fi->next->prev_pc.value));
+    {
+      fprintf_unfiltered (file, "%s", hex_string (fi->next->prev_pc.value));
+      if (fi->next->prev_pc.masked)
+	fprintf_unfiltered (file, "[PAC]");
+    }
   else if (fi->next->prev_pc.status == CC_NOT_SAVED)
     val_print_not_saved (file);
   else if (fi->next->prev_pc.status == CC_UNAVAILABLE)
@@ -717,7 +746,7 @@ frame_id_eq (struct frame_id l, struct frame_id r)
        if special addresses are different, the frames are different.  */
     eq = 0;
   else if (l.artificial_depth != r.artificial_depth)
-    /* If artifical depths are different, the frames must be different.  */
+    /* If artificial depths are different, the frames must be different.  */
     eq = 0;
   else
     /* Frames are equal.  */
@@ -894,12 +923,12 @@ frame_unwind_pc (struct frame_info *this_frame)
 	 different ways that a PC could be unwound.  */
       prev_gdbarch = frame_unwind_arch (this_frame);
 
-      TRY
+      try
 	{
 	  pc = gdbarch_unwind_pc (prev_gdbarch, this_frame);
 	  pc_p = 1;
 	}
-      CATCH (ex, RETURN_MASK_ERROR)
+      catch (const gdb_exception_error &ex)
 	{
 	  if (ex.error == NOT_AVAILABLE_ERROR)
 	    {
@@ -922,9 +951,8 @@ frame_unwind_pc (struct frame_info *this_frame)
 				    this_frame->level);
 	    }
 	  else
-	    throw_exception (ex);
+	    throw;
 	}
-      END_CATCH
 
       if (pc_p)
 	{
@@ -1894,7 +1922,7 @@ get_prev_frame_if_no_cycle (struct frame_info *this_frame)
   if (prev_frame->level == 0)
     return prev_frame;
 
-  TRY
+  try
     {
       compute_frame_id (prev_frame);
       if (!frame_stash_add (prev_frame))
@@ -1914,14 +1942,13 @@ get_prev_frame_if_no_cycle (struct frame_info *this_frame)
 	  prev_frame = NULL;
 	}
     }
-  CATCH (ex, RETURN_MASK_ALL)
+  catch (const gdb_exception &ex)
     {
       prev_frame->next = NULL;
       this_frame->prev = NULL;
 
-      throw_exception (ex);
+      throw;
     }
-  END_CATCH
 
   return prev_frame;
 }
@@ -2016,7 +2043,7 @@ get_prev_frame_always_1 (struct frame_info *this_frame)
       this_pc_in_block = get_frame_address_in_block (this_frame);
       morestack_msym = lookup_minimal_symbol_by_pc (this_pc_in_block).minsym;
       if (morestack_msym)
-	morestack_name = MSYMBOL_LINKAGE_NAME (morestack_msym);
+	morestack_name = morestack_msym->linkage_name ();
       if (!morestack_name || strcmp (morestack_name, "__morestack") != 0)
 	{
 	  if (frame_debug)
@@ -2092,11 +2119,11 @@ get_prev_frame_always (struct frame_info *this_frame)
 {
   struct frame_info *prev_frame = NULL;
 
-  TRY
+  try
     {
       prev_frame = get_prev_frame_always_1 (this_frame);
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (ex.error == MEMORY_ERROR)
 	{
@@ -2110,17 +2137,16 @@ get_prev_frame_always (struct frame_info *this_frame)
 	         Allocate using stack local STOP_STRING then assign the
 	         pointer to the frame, this allows the STOP_STRING on the
 	         frame to be of type 'const char *'.  */
-	      size = strlen (ex.message) + 1;
+	      size = ex.message->size () + 1;
 	      stop_string = (char *) frame_obstack_zalloc (size);
-	      memcpy (stop_string, ex.message, size);
+	      memcpy (stop_string, ex.what (), size);
 	      this_frame->stop_string = stop_string;
 	    }
 	  prev_frame = NULL;
 	}
       else
-	throw_exception (ex);
+	throw;
     }
-  END_CATCH
 
   return prev_frame;
 }
@@ -2279,7 +2305,7 @@ get_prev_frame (struct frame_info *this_frame)
      point inside the main function.  */
   if (this_frame->level >= 0
       && get_frame_type (this_frame) == NORMAL_FRAME
-      && !backtrace_past_main
+      && !user_set_backtrace_options.backtrace_past_main
       && frame_pc_p
       && inside_main_func (this_frame))
     /* Don't unwind past main().  Note, this is done _before_ the
@@ -2296,7 +2322,7 @@ get_prev_frame (struct frame_info *this_frame)
      being 1-based and the level being 0-based, and the other accounts for
      the level of the new frame instead of the level of the current
      frame.  */
-  if (this_frame->level + 2 > backtrace_limit)
+  if (this_frame->level + 2 > user_set_backtrace_options.backtrace_limit)
     {
       frame_debug_got_null_frame (this_frame, "backtrace limit exceeded");
       return NULL;
@@ -2326,7 +2352,7 @@ get_prev_frame (struct frame_info *this_frame)
      application.  */
   if (this_frame->level >= 0
       && get_frame_type (this_frame) == NORMAL_FRAME
-      && !backtrace_past_entry
+      && !user_set_backtrace_options.backtrace_past_entry
       && frame_pc_p
       && inside_entry_func (this_frame))
     {
@@ -2379,18 +2405,17 @@ get_frame_pc_if_available (struct frame_info *frame, CORE_ADDR *pc)
 
   gdb_assert (frame->next != NULL);
 
-  TRY
+  try
     {
       *pc = frame_unwind_pc (frame->next);
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (ex.error == NOT_AVAILABLE_ERROR)
 	return 0;
       else
-	throw_exception (ex);
+	throw;
     }
-  END_CATCH
 
   return 1;
 }
@@ -2462,17 +2487,16 @@ get_frame_address_in_block_if_available (struct frame_info *this_frame,
 					 CORE_ADDR *pc)
 {
 
-  TRY
+  try
     {
       *pc = get_frame_address_in_block (this_frame);
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (ex.error == NOT_AVAILABLE_ERROR)
 	return 0;
-      throw_exception (ex);
+      throw;
     }
-  END_CATCH
 
   return 1;
 }
@@ -2747,17 +2771,16 @@ get_frame_language (struct frame_info *frame)
        a PC that is guaranteed to be inside the frame's code
        block.  */
 
-  TRY
+  try
     {
       pc = get_frame_address_in_block (frame);
       pc_p = 1;
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (ex.error != NOT_AVAILABLE_ERROR)
-	throw_exception (ex);
+	throw;
     }
-  END_CATCH
 
   if (pc_p)
     {
@@ -2902,8 +2925,42 @@ show_backtrace_cmd (const char *args, int from_tty)
   cmd_show_list (show_backtrace_cmdlist, from_tty, "");
 }
 
+/* Definition of the "set backtrace" settings that are exposed as
+   "backtrace" command options.  */
+
+using boolean_option_def
+  = gdb::option::boolean_option_def<set_backtrace_options>;
+using uinteger_option_def
+  = gdb::option::uinteger_option_def<set_backtrace_options>;
+
+const gdb::option::option_def set_backtrace_option_defs[] = {
+
+  boolean_option_def {
+    "past-main",
+    [] (set_backtrace_options *opt) { return &opt->backtrace_past_main; },
+    show_backtrace_past_main, /* show_cmd_cb */
+    N_("Set whether backtraces should continue past \"main\"."),
+    N_("Show whether backtraces should continue past \"main\"."),
+    N_("Normally the caller of \"main\" is not of interest, so GDB will terminate\n\
+the backtrace at \"main\".  Set this if you need to see the rest\n\
+of the stack trace."),
+  },
+
+  boolean_option_def {
+    "past-entry",
+    [] (set_backtrace_options *opt) { return &opt->backtrace_past_entry; },
+    show_backtrace_past_entry, /* show_cmd_cb */
+    N_("Set whether backtraces should continue past the entry point of a program."),
+    N_("Show whether backtraces should continue past the entry point of a program."),
+    N_("Normally there are no callers beyond the entry point of a program, so GDB\n\
+will terminate the backtrace there.  Set this if you need to see\n\
+the rest of the stack trace."),
+  },
+};
+
+void _initialize_frame ();
 void
-_initialize_frame (void)
+_initialize_frame ()
 {
   obstack_init (&frame_cache_obstack);
 
@@ -2917,39 +2974,13 @@ Configure backtrace variables such as the backtrace limit"),
 		  &set_backtrace_cmdlist, "set backtrace ",
 		  0/*allow-unknown*/, &setlist);
   add_prefix_cmd ("backtrace", class_maintenance, show_backtrace_cmd, _("\
-Show backtrace specific variables\n\
-Show backtrace variables such as the backtrace limit"),
+Show backtrace specific variables.\n\
+Show backtrace variables such as the backtrace limit."),
 		  &show_backtrace_cmdlist, "show backtrace ",
 		  0/*allow-unknown*/, &showlist);
 
-  add_setshow_boolean_cmd ("past-main", class_obscure,
-			   &backtrace_past_main, _("\
-Set whether backtraces should continue past \"main\"."), _("\
-Show whether backtraces should continue past \"main\"."), _("\
-Normally the caller of \"main\" is not of interest, so GDB will terminate\n\
-the backtrace at \"main\".  Set this variable if you need to see the rest\n\
-of the stack trace."),
-			   NULL,
-			   show_backtrace_past_main,
-			   &set_backtrace_cmdlist,
-			   &show_backtrace_cmdlist);
-
-  add_setshow_boolean_cmd ("past-entry", class_obscure,
-			   &backtrace_past_entry, _("\
-Set whether backtraces should continue past the entry point of a program."),
-			   _("\
-Show whether backtraces should continue past the entry point of a program."),
-			   _("\
-Normally there are no callers beyond the entry point of a program, so GDB\n\
-will terminate the backtrace there.  Set this variable if you need to see\n\
-the rest of the stack trace."),
-			   NULL,
-			   show_backtrace_past_entry,
-			   &set_backtrace_cmdlist,
-			   &show_backtrace_cmdlist);
-
   add_setshow_uinteger_cmd ("limit", class_obscure,
-			    &backtrace_limit, _("\
+			    &user_set_backtrace_options.backtrace_limit, _("\
 Set an upper bound on the number of backtrace levels."), _("\
 Show the upper bound on the number of backtrace levels."), _("\
 No more than the specified number of frames can be displayed or examined.\n\
@@ -2958,6 +2989,10 @@ Literal \"unlimited\" or zero means no limit."),
 			    show_backtrace_limit,
 			    &set_backtrace_cmdlist,
 			    &show_backtrace_cmdlist);
+
+  gdb::option::add_setshow_cmds_for_options
+    (class_stack, &user_set_backtrace_options,
+     set_backtrace_option_defs, &set_backtrace_cmdlist, &show_backtrace_cmdlist);
 
   /* Debug this files internals.  */
   add_setshow_zuinteger_cmd ("frame", class_maintenance, &frame_debug,  _("\

@@ -1,6 +1,6 @@
 /* Handle lists of commands, their decoding and documentation, for GDB.
 
-   Copyright (C) 1986-2019 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,8 @@
 #include "ui-out.h"
 #include "cli/cli-cmds.h"
 #include "cli/cli-decode.h"
-#include "common/gdb_optional.h"
+#include "cli/cli-style.h"
+#include "gdbsupport/gdb_optional.h"
 
 /* Prototypes for local functions.  */
 
@@ -508,6 +509,9 @@ add_setshow_cmd_full (const char *name,
 			      full_show_doc, show_list);
   show->doc_allocated = 1;
   show->show_value_func = show_func;
+  /* Disable the default symbol completer.  Doesn't make much sense
+     for the "show" command to complete on anything.  */
+  set_cmd_completer (show, nullptr);
 
   if (set_result != NULL)
     *set_result = set;
@@ -547,6 +551,7 @@ add_setshow_enum_cmd (const char *name,
   set_cmd_context (show, context);
 }
 
+/* See cli-decode.h.  */
 const char * const auto_boolean_enums[] = { "on", "off", "auto", NULL };
 
 /* Add an auto-boolean command named NAME to both the set and show
@@ -574,12 +579,17 @@ add_setshow_auto_boolean_cmd (const char *name,
   c->enums = auto_boolean_enums;
 }
 
+/* See cli-decode.h.  */
+const char * const boolean_enums[] = { "on", "off", NULL };
+
 /* Add element named NAME to both the set and show command LISTs (the
    list for set/show or some sublist thereof).  CLASS is as in
    add_cmd.  VAR is address of the variable which will contain the
-   value.  SET_DOC and SHOW_DOC are the documentation strings.  */
-void
-add_setshow_boolean_cmd (const char *name, enum command_class theclass, int *var,
+   value.  SET_DOC and SHOW_DOC are the documentation strings.
+   Returns the new command element.  */
+
+cmd_list_element *
+add_setshow_boolean_cmd (const char *name, enum command_class theclass, bool *var,
 			 const char *set_doc, const char *show_doc,
 			 const char *help_doc,
 			 cmd_const_sfunc_ftype *set_func,
@@ -587,7 +597,6 @@ add_setshow_boolean_cmd (const char *name, enum command_class theclass, int *var
 			 struct cmd_list_element **set_list,
 			 struct cmd_list_element **show_list)
 {
-  static const char *boolean_enums[] = { "on", "off", NULL };
   struct cmd_list_element *c;
 
   add_setshow_cmd_full (name, theclass, var_boolean, var,
@@ -596,6 +605,8 @@ add_setshow_boolean_cmd (const char *name, enum command_class theclass, int *var
 			set_list, show_list,
 			&c, NULL);
   c->enums = boolean_enums;
+
+  return c;
 }
 
 /* Add element named NAME to both the set and show command LISTs (the
@@ -632,11 +643,16 @@ add_setshow_string_cmd (const char *name, enum command_class theclass,
 			struct cmd_list_element **set_list,
 			struct cmd_list_element **show_list)
 {
+  cmd_list_element *set_cmd;
+
   add_setshow_cmd_full (name, theclass, var_string, var,
 			set_doc, show_doc, help_doc,
 			set_func, show_func,
 			set_list, show_list,
-			NULL, NULL);
+			&set_cmd, NULL);
+
+  /* Disable the default symbol completer.  */
+  set_cmd_completer (set_cmd, nullptr);
 }
 
 /* Add element named NAME to both the set and show command LISTs (the
@@ -658,6 +674,10 @@ add_setshow_string_noescape_cmd (const char *name, enum command_class theclass,
 			set_func, show_func,
 			set_list, show_list,
 			&set_cmd, NULL);
+
+  /* Disable the default symbol completer.  */
+  set_cmd_completer (set_cmd, nullptr);
+
   return set_cmd;
 }
 
@@ -937,14 +957,42 @@ add_com_suppress_notification (const char *name, enum command_class theclass,
 					&cmdlist, suppress_notification);
 }
 
+/* If VERBOSE, print the full help for command C and highlight the
+   documentation parts matching HIGHLIGHT,
+   otherwise print only one-line help for command C.  */
+
+static void
+print_doc_of_command (struct cmd_list_element *c, const char *prefix,
+		      bool verbose, compiled_regex &highlight,
+		      struct ui_file *stream)
+{
+  /* When printing the full documentation, add a line to separate
+     this documentation from the previous command help, in the likely
+     case that apropos finds several commands.  */
+  if (verbose)
+    fputs_filtered ("\n", stream);
+
+  fprintf_styled (stream, title_style.style (),
+		  "%s%s", prefix, c->name);
+  fputs_filtered (" -- ", stream);
+  if (verbose)
+    fputs_highlighted (c->doc, highlight, stream);
+  else
+    print_doc_line (stream, c->doc, false);
+  fputs_filtered ("\n", stream);
+}
+
 /* Recursively walk the commandlist structures, and print out the
    documentation of commands that match our regex in either their
    name, or their documentation.
+   If VERBOSE, prints the complete documentation and highlight the
+   documentation parts matching REGEX, otherwise prints only
+   the first line.
 */
-void 
-apropos_cmd (struct ui_file *stream, 
+void
+apropos_cmd (struct ui_file *stream,
 	     struct cmd_list_element *commandlist,
-	     compiled_regex &regex, const char *prefix)
+	     bool verbose, compiled_regex &regex, const char *prefix)
 {
   struct cmd_list_element *c;
   int returnvalue;
@@ -960,10 +1008,7 @@ apropos_cmd (struct ui_file *stream,
 	  /* Try to match against the name.  */
 	  returnvalue = regex.search (c->name, name_len, 0, name_len, NULL);
 	  if (returnvalue >= 0)
-	    {
-	      print_help_for_command (c, prefix, 
-				      0 /* don't recurse */, stream);
-	    }
+	    print_doc_of_command (c, prefix, verbose, regex, stream);
 	}
       if (c->doc != NULL && returnvalue < 0)
 	{
@@ -971,10 +1016,7 @@ apropos_cmd (struct ui_file *stream,
 
 	  /* Try to match against documentation.  */
 	  if (regex.search (c->doc, doc_len, 0, doc_len, NULL) >= 0)
-	    {
-	      print_help_for_command (c, prefix, 
-				      0 /* don't recurse */, stream);
-	    }
+	    print_doc_of_command (c, prefix, verbose, regex, stream);
 	}
       /* Check if this command has subcommands and is not an
 	 abbreviation.  We skip listing subcommands of abbreviations
@@ -983,7 +1025,7 @@ apropos_cmd (struct ui_file *stream,
 	{
 	  /* Recursively call ourselves on the subcommand list,
 	     passing the right prefix in.  */
-	  apropos_cmd (stream,*c->prefixlist,regex,c->prefixname);
+	  apropos_cmd (stream, *c->prefixlist, verbose, regex, c->prefixname);
 	}
     }
 }
@@ -996,7 +1038,7 @@ apropos_cmd (struct ui_file *stream,
       command that requires subcommands.  Also called by saying just
       "help".)
 
-   I am going to split this into two seperate comamnds, help_cmd and
+   I am going to split this into two separate commands, help_cmd and
    help_list.  */
 
 void
@@ -1126,6 +1168,9 @@ Type \"help all\" for the list of all commands.");
   fputs_filtered ("documentation.\n", stream);
   fputs_filtered ("Type \"apropos word\" to search "
 		  "for commands related to \"word\".\n", stream);
+  fputs_filtered ("Type \"apropos -v word\" for full documentation", stream);
+  wrap_here ("");
+  fputs_filtered (" of commands related to \"word\".\n", stream);
   fputs_filtered ("Command name abbreviations are allowed if unambiguous.\n",
 		  stream);
 }
@@ -1172,9 +1217,11 @@ help_all (struct ui_file *stream)
 
 }
 
-/* Print only the first line of STR on STREAM.  */
+/* See cli-decode.h.  */
+
 void
-print_doc_line (struct ui_file *stream, const char *str)
+print_doc_line (struct ui_file *stream, const char *str,
+		bool for_value_prefix)
 {
   static char *line_buffer = 0;
   static int line_size;
@@ -1186,11 +1233,9 @@ print_doc_line (struct ui_file *stream, const char *str)
       line_buffer = (char *) xmalloc (line_size);
     }
 
-  /* Keep printing '.' or ',' not followed by a whitespace for embedded strings
-     like '.gdbinit'.  */
+  /* Searches for the first end of line or the end of STR.  */
   p = str;
-  while (*p && *p != '\n'
-	 && ((*p != '.' && *p != ',') || (p[1] && !isspace (p[1]))))
+  while (*p && *p != '\n')
     p++;
   if (p - str > line_size - 1)
     {
@@ -1199,9 +1244,18 @@ print_doc_line (struct ui_file *stream, const char *str)
       line_buffer = (char *) xmalloc (line_size);
     }
   strncpy (line_buffer, str, p - str);
-  line_buffer[p - str] = '\0';
-  if (islower (line_buffer[0]))
-    line_buffer[0] = toupper (line_buffer[0]);
+  if (for_value_prefix)
+    {
+      if (islower (line_buffer[0]))
+	line_buffer[0] = toupper (line_buffer[0]);
+      gdb_assert (p > str);
+      if (line_buffer[p - str - 1] == '.')
+	line_buffer[p - str - 1] = '\0';
+      else
+	line_buffer[p - str] = '\0';
+    }
+  else
+    line_buffer[p - str] = '\0';
   fputs_filtered (line_buffer, stream);
 }
 
@@ -1212,10 +1266,12 @@ static void
 print_help_for_command (struct cmd_list_element *c, const char *prefix,
 			int recurse, struct ui_file *stream)
 {
-  fprintf_filtered (stream, "%s%s -- ", prefix, c->name);
-  print_doc_line (stream, c->doc);
+  fprintf_styled (stream, title_style.style (),
+		  "%s%s", prefix, c->name);
+  fputs_filtered (" -- ", stream);
+  print_doc_line (stream, c->doc, false);
   fputs_filtered ("\n", stream);
-  
+
   if (recurse
       && c->prefixlist != 0
       && c->abbrev_flag == 0)
@@ -1311,12 +1367,12 @@ find_command_name_length (const char *text)
      Note that this is larger than the character set allowed when
      creating user-defined commands.  */
 
-  /* Recognize '!' as a single character command so that, e.g., "!ls"
+  /* Recognize the single character commands so that, e.g., "!ls"
      works as expected.  */
-  if (*p == '!')
+  if (*p == '!' || *p == '|')
     return 1;
 
-  while (isalnum (*p) || *p == '-' || *p == '_'
+  while (valid_cmd_char_p (*p)
 	 /* Characters used by TUI specific commands.  */
 	 || *p == '+' || *p == '<' || *p == '>' || *p == '$')
     p++;
@@ -1324,32 +1380,36 @@ find_command_name_length (const char *text)
   return p - text;
 }
 
-/* Return TRUE if NAME is a valid user-defined command name.
-   This is a stricter subset of all gdb commands,
-   see find_command_name_length.  */
+/* See command.h.  */
 
-int
+bool
+valid_cmd_char_p (int c)
+{
+  /* Alas "42" is a legitimate user-defined command.
+     In the interests of not breaking anything we preserve that.  */
+
+  return isalnum (c) || c == '-' || c == '_' || c == '.';
+}
+
+/* See command.h.  */
+
+bool
 valid_user_defined_cmd_name_p (const char *name)
 {
   const char *p;
 
   if (*name == '\0')
-    return FALSE;
-
-  /* Alas "42" is a legitimate user-defined command.
-     In the interests of not breaking anything we preserve that.  */
+    return false;
 
   for (p = name; *p != '\0'; ++p)
     {
-      if (isalnum (*p)
-	  || *p == '-'
-	  || *p == '_')
+      if (valid_cmd_char_p (*p))
 	; /* Ok.  */
       else
-	return FALSE;
+	return false;
     }
 
-  return TRUE;
+  return true;
 }
 
 /* This routine takes a line of TEXT and a CLIST in which to start the
@@ -1514,7 +1574,7 @@ undef_cmd_error (const char *cmdtype, const char *q)
    unless ALLOW_UNKNOWN is negative.
    CMDTYPE precedes the word "command" in the error message.
 
-   If INGNORE_HELP_CLASSES is nonzero, ignore any command list
+   If IGNORE_HELP_CLASSES is nonzero, ignore any command list
    elements which are actually help classes rather than commands (i.e.
    the function field of the struct cmd_list_element is 0).  */
 

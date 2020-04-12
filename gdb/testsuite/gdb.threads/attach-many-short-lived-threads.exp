@@ -1,4 +1,4 @@
-# Copyright 2008-2019 Free Software Foundation, Inc.
+# Copyright 2008-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -128,7 +128,7 @@ proc test {} {
 	    # detaching from the program and reattaching, we check that
 	    # the program doesn't die due to gdb leaving a pending
 	    # breakpoint hit on a new thread unprocessed.
-	    gdb_test "break break_fn" "Breakpoint.*" "break break_fn"
+	    gdb_test "break break_fn" "Breakpoint.*"
 
 	    # Wait a bit, to give time for most threads to hit the
 	    # breakpoint, including threads we might have failed to

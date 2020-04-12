@@ -1,5 +1,5 @@
 /* dwarf2dbg.c - DWARF2 debug support
-   Copyright (C) 1999-2019 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -442,7 +442,16 @@ set_or_check_view (struct line_entry *e, struct line_entry *p,
       gas_assert (r == p);
       /* Set or check views until we find a defined or absent view.  */
       do
-	set_or_check_view (r, r->next, NULL);
+	{
+	  /* Do not define the head of a (sub?)segment view while
+	     handling others.  It would be defined too early, without
+	     regard to the last view of other subsegments.
+	     set_or_check_view will be called for every head segment
+	     that needs it.  */
+	  if (r == h)
+	    break;
+	  set_or_check_view (r, r->next, NULL);
+	}
       while (r->next && r->next->loc.view && !S_IS_DEFINED (r->next->loc.view)
 	     && (r = r->next));
 
@@ -454,6 +463,11 @@ set_or_check_view (struct line_entry *e, struct line_entry *p,
 	 simplify the view expressions, until we do so to P.  */
       do
 	{
+	  /* The head view of a subsegment may remain undefined while
+	     handling other elements, before it is linked to the last
+	     view of the previous subsegment.  */
+	  if (r == h)
+	    continue;
 	  gas_assert (S_IS_DEFINED (r->loc.view));
 	  resolve_expression (symbol_get_value_expression (r->loc.view));
 	}
@@ -480,9 +494,11 @@ dwarf2_gen_line_info_1 (symbolS *label, struct dwarf2_line_info *loc)
 
   lss = get_line_subseg (now_seg, now_subseg, TRUE);
 
-  if (loc->view)
+  /* Subseg heads are chained to previous subsegs in
+     dwarf2_finish.  */
+  if (loc->view && lss->head)
     set_or_check_view (e,
-		       !lss->head ? NULL : (struct line_entry *)lss->ptail,
+		       (struct line_entry *)lss->ptail,
 		       lss->head);
 
   *lss->ptail = e;
@@ -579,7 +595,7 @@ dwarf2_emit_insn (int size)
 
   dwarf2_where (&loc);
 
-  dwarf2_gen_line_info (frag_now_fix () - size, &loc);
+  dwarf2_gen_line_info ((frag_now_fix_octets () - size) / OCTETS_PER_BYTE, &loc);
   dwarf2_consume_line_info ();
 }
 
@@ -641,7 +657,7 @@ dwarf2_emit_label (symbolS *label)
     return;
   if (S_GET_SEGMENT (label) != now_seg)
     return;
-  if (!(bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE))
+  if (!(bfd_section_flags (now_seg) & SEC_CODE))
     return;
   if (files_in_use == 0 && debug_type != DEBUG_DWARF2)
     return;
@@ -735,12 +751,18 @@ get_filenum (const char *filename, unsigned int num)
       unsigned int old = files_allocated;
 
       files_allocated = i + 32;
-      files = XRESIZEVEC (struct file_entry, files, files_allocated);
+      /* Catch wraparound.  */
+      if (files_allocated <= old)
+	{
+	  as_bad (_("file number %lu is too big"), (unsigned long) i);
+	  return 0;
+	}
 
+      files = XRESIZEVEC (struct file_entry, files, files_allocated);
       memset (files + old, 0, (i + 32 - old) * sizeof (struct file_entry));
     }
 
-  files[i].filename = num ? file : xstrdup (file);
+  files[i].filename = file;
   files[i].dir = dir;
   if (files_in_use < i + 1)
     files_in_use = i + 1;
@@ -759,7 +781,7 @@ get_filenum (const char *filename, unsigned int num)
 char *
 dwarf2_directive_filename (void)
 {
-  offsetT num;
+  valueT num;
   char *filename;
   int filename_len;
 
@@ -777,7 +799,7 @@ dwarf2_directive_filename (void)
     return NULL;
   demand_empty_rest_of_line ();
 
-  if (num < 1)
+  if ((offsetT) num < 1)
     {
       as_bad (_("file number less than one"));
       return NULL;
@@ -787,13 +809,19 @@ dwarf2_directive_filename (void)
      being supplied.  Turn off gas generated debug info.  */
   debug_type = DEBUG_NONE;
 
-  if (num < (int) files_in_use && files[num].filename != 0)
+  if (num != (unsigned int) num
+      || num >= (size_t) -1 / sizeof (struct file_entry) - 32)
     {
-      as_bad (_("file number %ld already allocated"), (long) num);
+      as_bad (_("file number %lu is too big"), (unsigned long) num);
+      return NULL;
+    }
+  if (num < files_in_use && files[num].filename != 0)
+    {
+      as_bad (_("file number %u already allocated"), (unsigned int) num);
       return NULL;
     }
 
-  get_filenum (filename, num);
+  get_filenum (filename, (unsigned int) num);
 
   return filename;
 }
@@ -1133,10 +1161,10 @@ scale_addr_delta (addressT *addr_delta)
   if (DWARF2_LINE_MIN_INSN_LENGTH > 1)
     {
       if (*addr_delta % DWARF2_LINE_MIN_INSN_LENGTH != 0  && !printed_this)
-        {
+	{
 	  as_bad("unaligned opcodes detected in executable segment");
-          printed_this = 1;
-        }
+	  printed_this = 1;
+	}
       *addr_delta /= DWARF2_LINE_MIN_INSN_LENGTH;
     }
 }
@@ -1164,7 +1192,7 @@ size_inc_line_addr (int line_delta, addressT addr_delta)
     {
       if (addr_delta == MAX_SPECIAL_ADDR_DELTA)
 	len = 1;
-      else
+      else if (addr_delta)
 	len = 1 + sizeof_leb128 (addr_delta, 0);
       return len + 3;
     }
@@ -1228,7 +1256,7 @@ emit_inc_line_addr (int line_delta, addressT addr_delta, char *p, int len)
     {
       if (addr_delta == MAX_SPECIAL_ADDR_DELTA)
 	*p++ = DW_LNS_const_add_pc;
-      else
+      else if (addr_delta)
 	{
 	  *p++ = DW_LNS_advance_pc;
 	  p += output_leb128 (p, addr_delta, 0);
@@ -1554,7 +1582,7 @@ process_entries (segT seg, struct line_entry *e)
 	 that all of the sub-sections are merged into a proper
 	 .debug_line section before a debugger sees them.  */
 
-      sec_name = bfd_get_section_name (stdoutput, seg);
+      sec_name = bfd_section_name (seg);
       if (strcmp (sec_name, ".text") != 0)
 	{
 	  name = concat (".debug_line", sec_name, (char *) NULL);
@@ -1711,10 +1739,10 @@ out_file_list (void)
       out_uleb128 (files[i].dir);	/* directory number */
       /* Output the last modification timestamp.  */
       out_uleb128 (DWARF2_FILE_TIME_NAME (files[i].filename,
-				          files[i].dir ? dirs [files [i].dir] : ""));
+					  files[i].dir ? dirs [files [i].dir] : ""));
       /* Output the filesize.  */
       out_uleb128 (DWARF2_FILE_SIZE_NAME (files[i].filename,
-				          files[i].dir ? dirs [files [i].dir] : ""));
+					  files[i].dir ? dirs [files [i].dir] : ""));
     }
 
   /* Terminate filename list.  */
@@ -1745,7 +1773,7 @@ out_header (asection *sec, expressionS *exp)
     }
   else
     {
-      start_sym = symbol_temp_new_now ();
+      start_sym = symbol_temp_new_now_octets ();
       end_sym = symbol_temp_make ();
     }
 
@@ -2103,7 +2131,7 @@ out_debug_str (segT str_seg, symbolS **name_sym, symbolS **comp_dir_sym,
      on the command line, so assume files[1] is the main input file.
      We're not supposed to get called unless at least one line number
      entry was emitted, so this should always be defined.  */
-  *name_sym = symbol_temp_new_now ();
+  *name_sym = symbol_temp_new_now_octets ();
   if (files_in_use == 0)
     abort ();
   if (files[1].dir)
@@ -2125,14 +2153,14 @@ out_debug_str (segT str_seg, symbolS **name_sym, symbolS **comp_dir_sym,
   memcpy (p, files[1].filename, len);
 
   /* DW_AT_comp_dir */
-  *comp_dir_sym = symbol_temp_new_now ();
+  *comp_dir_sym = symbol_temp_new_now_octets ();
   comp_dir = remap_debug_filename (getpwd ());
   len = strlen (comp_dir) + 1;
   p = frag_more (len);
   memcpy (p, comp_dir, len);
 
   /* DW_AT_producer */
-  *producer_sym = symbol_temp_new_now ();
+  *producer_sym = symbol_temp_new_now_octets ();
   sprintf (producer, "GNU AS %s", VERSION);
   len = strlen (producer) + 1;
   p = frag_more (len);
@@ -2143,6 +2171,17 @@ void
 dwarf2_init (void)
 {
   last_seg_ptr = &all_segs;
+
+  /* Select the default CIE version to produce here.  The global
+     starts with a value of -1 and will be modified to a valid value
+     either by the user providing a command line option, or some
+     targets will select their own default in md_after_parse_args.  If
+     we get here and the global still contains -1 then it is up to us
+     to pick a sane default.  The default we choose is 1, this is the
+     CIE version gas has produced for a long time, and there seems no
+     reason to change it yet.  */
+  if (flag_dwarf_cie_version == -1)
+    flag_dwarf_cie_version = 1;
 }
 
 
@@ -2187,7 +2226,7 @@ dwarf2_finish (void)
 
   /* Create and switch to the line number section.  */
   line_seg = subseg_new (".debug_line", 0);
-  bfd_set_section_flags (stdoutput, line_seg, SEC_READONLY | SEC_DEBUGGING);
+  bfd_set_section_flags (line_seg, SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
 
   /* For each subsection, chain the debug entries together.  */
   for (s = all_segs; s; s = s->next)
@@ -2195,8 +2234,19 @@ dwarf2_finish (void)
       struct line_subseg *lss = s->head;
       struct line_entry **ptail = lss->ptail;
 
+      /* Reset the initial view of the first subsection of the
+	 section.  */
+      if (lss->head && lss->head->loc.view)
+	set_or_check_view (lss->head, NULL, NULL);
+
       while ((lss = lss->next) != NULL)
 	{
+	  /* Link the first view of subsequent subsections to the
+	     previous view.  */
+	  if (lss->head && lss->head->loc.view)
+	    set_or_check_view (lss->head,
+			       !s->head ? NULL : (struct line_entry *)ptail,
+			       s->head ? s->head->head : NULL);
 	  *ptail = lss->head;
 	  ptail = lss->ptail;
 	}
@@ -2222,15 +2272,15 @@ dwarf2_finish (void)
       aranges_seg = subseg_new (".debug_aranges", 0);
       str_seg = subseg_new (".debug_str", 0);
 
-      bfd_set_section_flags (stdoutput, info_seg,
-			     SEC_READONLY | SEC_DEBUGGING);
-      bfd_set_section_flags (stdoutput, abbrev_seg,
-			     SEC_READONLY | SEC_DEBUGGING);
-      bfd_set_section_flags (stdoutput, aranges_seg,
-			     SEC_READONLY | SEC_DEBUGGING);
-      bfd_set_section_flags (stdoutput, str_seg,
-			     (SEC_READONLY | SEC_DEBUGGING
-			      | SEC_MERGE | SEC_STRINGS));
+      bfd_set_section_flags (info_seg,
+			      SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
+      bfd_set_section_flags (abbrev_seg,
+			      SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
+      bfd_set_section_flags (aranges_seg,
+			      SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
+      bfd_set_section_flags (str_seg,
+			      SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS
+				       | SEC_MERGE | SEC_STRINGS);
       str_seg->entsize = 1;
 
       record_alignment (aranges_seg, ffs (2 * sizeof_address) - 1);
@@ -2240,8 +2290,8 @@ dwarf2_finish (void)
       else
 	{
 	  ranges_seg = subseg_new (".debug_ranges", 0);
-	  bfd_set_section_flags (stdoutput, ranges_seg,
-				 SEC_READONLY | SEC_DEBUGGING);
+	  bfd_set_section_flags (ranges_seg,
+				 SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
 	  record_alignment (ranges_seg, ffs (2 * sizeof_address) - 1);
 	  out_debug_ranges (ranges_seg);
 	}

@@ -1,5 +1,5 @@
 /* Inferior process information for the remote server for GDB.
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -19,6 +19,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "server.h"
+#include "gdbsupport/common-inferior.h"
 #include "gdbthread.h"
 #include "dll.h"
 
@@ -213,16 +214,16 @@ current_process (void)
   return get_thread_process (current_thread);
 }
 
-/* See common/common-gdbthread.h.  */
+/* See gdbsupport/common-gdbthread.h.  */
 
 void
-switch_to_thread (ptid_t ptid)
+switch_to_thread (process_stratum_target *ops, ptid_t ptid)
 {
   gdb_assert (ptid != minus_one_ptid);
   current_thread = find_thread_ptid (ptid);
 }
 
-/* See common/common-inferior.h.  */
+/* See gdbsupport/common-inferior.h.  */
 
 const char *
 get_inferior_cwd ()
@@ -230,7 +231,7 @@ get_inferior_cwd ()
   return current_inferior_cwd;
 }
 
-/* See common/common-inferior.h.  */
+/* See gdbsupport/common-inferior.h.  */
 
 void
 set_inferior_cwd (const char *cwd)

@@ -1,6 +1,6 @@
 /* Native-dependent code for SPARC.
 
-   Copyright (C) 2003-2019 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,7 +24,7 @@
 
 #include <signal.h>
 #include <sys/ptrace.h>
-#include "gdb_wait.h"
+#include "gdbsupport/gdb_wait.h"
 #ifdef HAVE_MACHINE_REG_H
 #include <machine/reg.h>
 #endif
@@ -149,7 +149,7 @@ sparc_fetch_inferior_registers (struct regcache *regcache, int regnum)
      belong to the selected thread (the LWP could be in the middle of
      executing the thread switch code).
 
-     These functions should instead be paramaterized with an explicit
+     These functions should instead be parameterized with an explicit
      object (struct regcache, struct thread_info?) into which the LWPs
      registers can be written.  */
   pid = get_ptrace_pid (regcache->ptid ());
@@ -252,7 +252,7 @@ sparc_store_inferior_registers (struct regcache *regcache, int regnum)
    TARGET_OBJECT_WCOOKIE.  Fetch StackGhost Per-Process XOR cookie.  */
 
 enum target_xfer_status
-sparc_xfer_wcookie (struct target_ops *ops, enum target_object object,
+sparc_xfer_wcookie (enum target_object object,
 		    const char *annex, gdb_byte *readbuf,
 		    const gdb_byte *writebuf, ULONGEST offset, ULONGEST len,
 		    ULONGEST *xfered_len)
@@ -305,10 +305,11 @@ sparc_xfer_wcookie (struct target_ops *ops, enum target_object object,
 }
 
 
+void _initialize_sparc_nat ();
 void
-_initialize_sparc_nat (void)
+_initialize_sparc_nat ()
 {
-  /* Deafult to using SunOS 4 register sets.  */
+  /* Default to using SunOS 4 register sets.  */
   if (sparc_gregmap == NULL)
     sparc_gregmap = &sparc32_sunos4_gregmap;
   if (sparc_fpregmap == NULL)

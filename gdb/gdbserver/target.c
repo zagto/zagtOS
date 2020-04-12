@@ -1,5 +1,5 @@
 /* Target operations for the remote server for GDB.
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -20,8 +20,9 @@
 
 #include "server.h"
 #include "tracepoint.h"
+#include "gdbsupport/byte-vector.h"
 
-struct target_ops *the_target;
+process_stratum_target *the_target;
 
 int
 set_desired_thread ()
@@ -118,7 +119,7 @@ done_accessing_memory (void)
 
   /* Restore the previous selected thread.  */
   cs.general_thread = prev_general_thread;
-  switch_to_thread (cs.general_thread);
+  switch_to_thread (the_target, cs.general_thread);
 }
 
 int
@@ -146,35 +147,17 @@ target_read_uint32 (CORE_ADDR memaddr, uint32_t *result)
   return read_inferior_memory (memaddr, (gdb_byte *) result, sizeof (*result));
 }
 
-int
-write_inferior_memory (CORE_ADDR memaddr, const unsigned char *myaddr,
-		       int len)
-{
-  /* Lacking cleanups, there is some potential for a memory leak if the
-     write fails and we go through error().  Make sure that no more than
-     one buffer is ever pending by making BUFFER static.  */
-  static unsigned char *buffer = 0;
-  int res;
-
-  if (buffer != NULL)
-    free (buffer);
-
-  buffer = (unsigned char *) xmalloc (len);
-  memcpy (buffer, myaddr, len);
-  check_mem_write (memaddr, buffer, myaddr, len);
-  res = (*the_target->write_memory) (memaddr, buffer, len);
-  free (buffer);
-  buffer = NULL;
-
-  return res;
-}
-
 /* See target/target.h.  */
 
 int
-target_write_memory (CORE_ADDR memaddr, const gdb_byte *myaddr, ssize_t len)
+target_write_memory (CORE_ADDR memaddr, const unsigned char *myaddr,
+		     ssize_t len)
 {
-  return write_inferior_memory (memaddr, myaddr, len);
+  /* Make a copy of the data because check_mem_write may need to
+     update it.  */
+  gdb::byte_vector buffer (myaddr, myaddr + len);
+  check_mem_write (memaddr, buffer.data (), myaddr, len);
+  return (*the_target->write_memory) (memaddr, buffer.data (), len);
 }
 
 ptid_t
@@ -222,7 +205,7 @@ void
 target_stop_and_wait (ptid_t ptid)
 {
   struct target_waitstatus status;
-  int was_non_stop = non_stop;
+  bool was_non_stop = non_stop;
   struct thread_resume resume_info;
 
   resume_info.thread = ptid;
@@ -230,7 +213,7 @@ target_stop_and_wait (ptid_t ptid)
   resume_info.sig = GDB_SIGNAL_0;
   (*the_target->resume) (&resume_info, 1);
 
-  non_stop = 1;
+  non_stop = true;
   mywait (ptid, &status, 0, 0);
   non_stop = was_non_stop;
 }
@@ -301,9 +284,9 @@ start_non_stop (int nonstop)
 }
 
 void
-set_target_ops (struct target_ops *target)
+set_target_ops (process_stratum_target *target)
 {
-  the_target = XNEW (struct target_ops);
+  the_target = XNEW (process_stratum_target);
   memcpy (the_target, target, sizeof (*the_target));
 }
 

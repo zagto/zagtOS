@@ -1,6 +1,6 @@
 /* Self tests for disassembler for GDB, the GNU debugger.
 
-   Copyright (C) 2017-2019 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,8 +21,9 @@
 #include "disasm.h"
 
 #if GDB_SELF_TEST
-#include "selftest.h"
+#include "gdbsupport/selftest.h"
 #include "selftest-arch.h"
+#include "gdbarch.h"
 
 namespace selftests {
 
@@ -192,16 +193,15 @@ memory_error_test (struct gdbarch *gdbarch)
   gdb_disassembler_test di (gdbarch);
   bool saw_memory_error = false;
 
-  TRY
+  try
     {
       di.print_insn (0);
     }
-  CATCH (ex, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &ex)
     {
       if (ex.error == MEMORY_ERROR)
 	saw_memory_error = true;
     }
-  END_CATCH
 
   /* Expect MEMORY_ERROR.  */
   SELF_CHECK (saw_memory_error);
@@ -210,8 +210,9 @@ memory_error_test (struct gdbarch *gdbarch)
 } // namespace selftests
 #endif /* GDB_SELF_TEST */
 
+void _initialize_disasm_selftests ();
 void
-_initialize_disasm_selftests (void)
+_initialize_disasm_selftests ()
 {
 #if GDB_SELF_TEST
   selftests::register_test_foreach_arch ("print_one_insn",

@@ -1,6 +1,6 @@
 /* Machine independent variables that describe the core file under GDB.
 
-   Copyright (C) 1986-2019 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -137,7 +137,7 @@ extern void specify_exec_file_hook (void (*hook) (const char *filename));
 
 /* Whether to open exec and core files read-only or read-write.  */
 
-extern int write_files;
+extern bool write_files;
 
 /* Open and set up the core file bfd.  */
 
@@ -213,7 +213,7 @@ struct core_fns
        address X is at location core_reg_sect+x+reg_addr.  */
 
     void (*core_read_registers) (struct regcache *regcache,
-				 char *core_reg_sect,
+				 gdb_byte *core_reg_sect,
 				 unsigned core_reg_size,
 				 int which, CORE_ADDR reg_addr);
 

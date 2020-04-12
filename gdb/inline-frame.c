@@ -1,6 +1,6 @@
 /* Inline frame unwinder for GDB.
 
-   Copyright (C) 2008-2019 Free Software Foundation, Inc.
+   Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -27,7 +27,6 @@
 #include "gdbthread.h"
 #include "regcache.h"
 #include "symtab.h"
-#include "vec.h"
 #include "frame.h"
 #include <algorithm>
 
@@ -96,37 +95,54 @@ find_inline_frame_state (thread_info *thread)
   return &state;
 }
 
-/* Forget about any hidden inlined functions in PTID, which is new or
-   about to be resumed.  PTID may be minus_one_ptid (all processes)
-   or a PID (all threads in this process).  */
+/* See inline-frame.h.  */
 
 void
-clear_inline_frame_state (ptid_t ptid)
+clear_inline_frame_state (process_stratum_target *target, ptid_t filter_ptid)
 {
-  if (ptid == minus_one_ptid)
-    {
-      inline_states.clear ();
-      return;
-    }
+  gdb_assert (target != NULL);
 
-  if (ptid.is_pid ())
+  if (filter_ptid == minus_one_ptid || filter_ptid.is_pid ())
     {
-      int pid = ptid.pid ();
+      auto matcher = [target, &filter_ptid] (const inline_state &state)
+	{
+	  thread_info *t = state.thread;
+	  return (t->inf->process_target () == target
+		  && t->ptid.matches (filter_ptid));
+	};
+
       auto it = std::remove_if (inline_states.begin (), inline_states.end (),
-				[pid] (const inline_state &state)
-				  {
-				    return pid == state.thread->inf->pid;
-				  });
+				matcher);
 
       inline_states.erase (it, inline_states.end ());
 
       return;
     }
 
+
+  auto matcher = [target, &filter_ptid] (const inline_state &state)
+    {
+      thread_info *t = state.thread;
+      return (t->inf->process_target () == target
+	      && filter_ptid == t->ptid);
+    };
+
   auto it = std::find_if (inline_states.begin (), inline_states.end (),
-			  [&ptid] (const inline_state &state)
+			  matcher);
+
+  if (it != inline_states.end ())
+    unordered_remove (inline_states, it);
+}
+
+/* See inline-frame.h.  */
+
+void
+clear_inline_frame_state (thread_info *thread)
+{
+  auto it = std::find_if (inline_states.begin (), inline_states.end (),
+			  [thread] (const inline_state &state)
 			    {
-			      return ptid == state.thread->ptid;
+			      return thread == state.thread;
 			    });
 
   if (it != inline_states.end ())
@@ -266,13 +282,14 @@ static int
 block_starting_point_at (CORE_ADDR pc, const struct block *block)
 {
   const struct blockvector *bv;
-  struct block *new_block;
+  const struct block *new_block;
 
   bv = blockvector_for_pc (pc, NULL);
   if (BLOCKVECTOR_MAP (bv) == NULL)
     return 0;
 
-  new_block = (struct block *) addrmap_find (BLOCKVECTOR_MAP (bv), pc - 1);
+  new_block = (const struct block *) addrmap_find (BLOCKVECTOR_MAP (bv),
+						   pc - 1);
   if (new_block == NULL)
     return 1;
 

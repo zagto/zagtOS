@@ -1,4 +1,4 @@
-/* Copyright (C) 2012-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -122,7 +122,7 @@ current_target_desc (void)
   return current_process ()->tdesc;
 }
 
-/* See common/tdesc.h.  */
+/* See gdbsupport/tdesc.h.  */
 
 const char *
 tdesc_architecture_name (const struct target_desc *target_desc)
@@ -130,7 +130,7 @@ tdesc_architecture_name (const struct target_desc *target_desc)
   return target_desc->arch;
 }
 
-/* See common/tdesc.h.  */
+/* See gdbsupport/tdesc.h.  */
 
 void
 set_tdesc_architecture (struct target_desc *target_desc,
@@ -139,7 +139,7 @@ set_tdesc_architecture (struct target_desc *target_desc,
   target_desc->arch = xstrdup (name);
 }
 
-/* See common/tdesc.h.  */
+/* See gdbsupport/tdesc.h.  */
 
 const char *
 tdesc_osabi_name (const struct target_desc *target_desc)
@@ -147,7 +147,7 @@ tdesc_osabi_name (const struct target_desc *target_desc)
   return target_desc->osabi;
 }
 
-/* See common/tdesc.h.  */
+/* See gdbsupport/tdesc.h.  */
 
 void
 set_tdesc_osabi (struct target_desc *target_desc, const char *name)
@@ -155,7 +155,7 @@ set_tdesc_osabi (struct target_desc *target_desc, const char *name)
   target_desc->osabi = xstrdup (name);
 }
 
-/* See common/tdesc.h.  */
+/* See gdbsupport/tdesc.h.  */
 
 const char *
 tdesc_get_features_xml (const target_desc *tdesc)
@@ -177,7 +177,7 @@ tdesc_get_features_xml (const target_desc *tdesc)
 }
 #endif
 
-/* See common/tdesc.h.  */
+/* See gdbsupport/tdesc.h.  */
 
 struct tdesc_feature *
 tdesc_create_feature (struct target_desc *tdesc, const char *name)
@@ -185,4 +185,20 @@ tdesc_create_feature (struct target_desc *tdesc, const char *name)
   struct tdesc_feature *new_feature = new tdesc_feature (name);
   tdesc->features.emplace_back (new_feature);
   return new_feature;
+}
+
+/* See gdbsupport/tdesc.h.  */
+
+bool
+tdesc_contains_feature (const target_desc *tdesc, const std::string &feature)
+{
+  gdb_assert (tdesc != nullptr);
+
+  for (const tdesc_feature_up &f : tdesc->features)
+    {
+      if (f->name == feature)
+	return true;
+    }
+
+  return false;
 }

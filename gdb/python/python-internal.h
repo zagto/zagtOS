@@ -1,6 +1,6 @@
 /* Gdb/Python header for private use by Python module.
 
-   Copyright (C) 2008-2019 Free Software Foundation, Inc.
+   Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,8 +17,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef GDB_PYTHON_INTERNAL_H
-#define GDB_PYTHON_INTERNAL_H
+#ifndef PYTHON_PYTHON_INTERNAL_H
+#define PYTHON_PYTHON_INTERNAL_H
 
 #include "extension.h"
 #include "extension-priv.h"
@@ -51,8 +51,6 @@
 #define CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION
 #endif
 
-/* Python 2.4 doesn't include stdint.h soon enough to get {u,}intptr_t
-   needed by pyport.h.  */
 /* /usr/include/features.h on linux systems will define _POSIX_C_SOURCE
    if it sees _GNU_SOURCE (which config.h will define).
    pyconfig.h defines _POSIX_C_SOURCE to a different value than
@@ -109,26 +107,6 @@
 #define PyString_Check PyUnicode_Check
 #endif
 
-#if HAVE_LIBPYTHON2_4
-/* Py_ssize_t is not defined until 2.5.
-   Logical type for Py_ssize_t is Py_intptr_t, but that fails in 64-bit
-   compilation due to several apparent mistakes in python2.4 API, so we
-   use 'int' instead.  */
-typedef int Py_ssize_t;
-#endif
-
-#ifndef PyVarObject_HEAD_INIT
-/* Python 2.4 does not define PyVarObject_HEAD_INIT.  */
-#define PyVarObject_HEAD_INIT(type, size)       \
-    PyObject_HEAD_INIT(type) size,
-
-#endif
-
-#ifndef Py_TYPE
-/* Python 2.4 does not define Py_TYPE.  */
-#define Py_TYPE(ob)             (((PyObject*)(ob))->ob_type)
-#endif
-
 /* If Python.h does not define WITH_THREAD, then the various
    GIL-related functions will not be defined.  However,
    PyGILState_STATE will be.  */
@@ -183,40 +161,11 @@ typedef long Py_hash_t;
 static inline void
 gdb_Py_DECREF (void *op) /* ARI: editCase function */
 {
-  /* ... and Python 2.4 didn't cast OP to PyObject pointer on the
-     '(op)->ob_refcnt' references within the macro.  Cast it ourselves
-     too.  */
-  Py_DECREF ((PyObject *) op);
+  Py_DECREF (op);
 }
 
 #undef Py_DECREF
 #define Py_DECREF(op) gdb_Py_DECREF (op)
-
-/* The second argument to PyObject_GetAttrString was missing the 'const'
-   qualifier in Python-2.4.  Hence, we wrap it in a function to avoid errors
-   when compiled with -Werror.  */
-
-static inline PyObject *
-gdb_PyObject_GetAttrString (PyObject *obj,
-			    const char *attr) /* ARI: editCase function */
-{
-  return PyObject_GetAttrString (obj, (char *) attr);
-}
-
-#define PyObject_GetAttrString(obj, attr) gdb_PyObject_GetAttrString (obj, attr)
-
-/* The second argument to PyObject_HasAttrString was also missing the 'const'
-   qualifier in Python-2.4.  Hence, we wrap it also in a function to avoid
-   errors when compiled with -Werror.  */
-
-static inline int
-gdb_PyObject_HasAttrString (PyObject *obj,
-			    const char *attr)  /* ARI: editCase function */
-{
-  return PyObject_HasAttrString (obj, (char *) attr);
-}
-
-#define PyObject_HasAttrString(obj, attr) gdb_PyObject_HasAttrString (obj, attr)
 
 /* PyObject_CallMethod's 'method' and 'format' parameters were missing
    the 'const' qualifier before Python 3.4.  Hence, we wrap the
@@ -475,6 +424,10 @@ PyObject *gdbpy_frame_stop_reason_string (PyObject *, PyObject *);
 PyObject *gdbpy_lookup_symbol (PyObject *self, PyObject *args, PyObject *kw);
 PyObject *gdbpy_lookup_global_symbol (PyObject *self, PyObject *args,
 				      PyObject *kw);
+PyObject *gdbpy_lookup_static_symbol (PyObject *self, PyObject *args,
+				      PyObject *kw);
+PyObject *gdbpy_lookup_static_symbols (PyObject *self, PyObject *args,
+					   PyObject *kw);
 PyObject *gdbpy_start_recording (PyObject *self, PyObject *args);
 PyObject *gdbpy_current_recording (PyObject *self, PyObject *args);
 PyObject *gdbpy_stop_recording (PyObject *self, PyObject *args);
@@ -519,7 +472,7 @@ PyObject *gdbpy_lookup_objfile (PyObject *self, PyObject *args, PyObject *kw);
 
 PyObject *gdbarch_to_arch_object (struct gdbarch *gdbarch);
 
-thread_object *create_thread_object (struct thread_info *tp);
+gdbpy_ref<thread_object> create_thread_object (struct thread_info *tp);
 gdbpy_ref<> thread_to_thread_object (thread_info *thr);;
 gdbpy_ref<inferior_object> inferior_to_inferior_object (inferior *inf);
 
@@ -684,6 +637,31 @@ class gdbpy_enter_varobj : public gdbpy_enter
 
 };
 
+/* The opposite of gdb_enter: this releases the GIL around a region,
+   allowing other Python threads to run.  No Python APIs may be used
+   while this is active.  */
+class gdbpy_allow_threads
+{
+public:
+
+  gdbpy_allow_threads ()
+    : m_save (PyEval_SaveThread ())
+  {
+    gdb_assert (m_save != nullptr);
+  }
+
+  ~gdbpy_allow_threads ()
+  {
+    PyEval_RestoreThread (m_save);
+  }
+
+  DISABLE_COPY_AND_ASSIGN (gdbpy_allow_threads);
+
+private:
+
+  PyThreadState *m_save;
+};
+
 extern struct gdbarch *python_gdbarch;
 extern const struct language_defn *python_language;
 
@@ -755,7 +733,7 @@ extern PyObject *gdbpy_gdb_error;
 extern PyObject *gdbpy_gdb_memory_error;
 extern PyObject *gdbpy_gdberror_exc;
 
-extern void gdbpy_convert_exception (struct gdb_exception)
+extern void gdbpy_convert_exception (const struct gdb_exception &)
     CPYCHECKER_SETS_EXCEPTION;
 
 int get_addr_from_python (PyObject *obj, CORE_ADDR *addr)
@@ -776,4 +754,17 @@ struct varobj;
 struct varobj_iter *py_varobj_get_iterator (struct varobj *var,
 					    PyObject *printer);
 
-#endif /* GDB_PYTHON_INTERNAL_H */
+/* Deleter for Py_buffer unique_ptr specialization.  */
+
+struct Py_buffer_deleter
+{
+  void operator() (Py_buffer *b) const
+  {
+    PyBuffer_Release (b);
+  }
+};
+
+/* A unique_ptr specialization for Py_buffer.  */
+typedef std::unique_ptr<Py_buffer, Py_buffer_deleter> Py_buffer_up;
+
+#endif /* PYTHON_PYTHON_INTERNAL_H */

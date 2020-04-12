@@ -1,6 +1,6 @@
 /* DWARF 2 Expression Evaluator.
 
-   Copyright (C) 2001-2019 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
    Contributed by Daniel Berlin (dan@dberlin.org)
 
@@ -27,7 +27,8 @@
 #include "dwarf2.h"
 #include "dwarf2expr.h"
 #include "dwarf2loc.h"
-#include "common/underlying.h"
+#include "gdbsupport/underlying.h"
+#include "gdbarch.h"
 
 /* Cookie for gdbarch data.  */
 
@@ -634,6 +635,7 @@ dwarf_expr_context::execute_stack_op (const gdb_byte *op_ptr,
 	  result_val = value_from_ulongest (address_type, result);
 	  break;
 
+	case DW_OP_addrx:
 	case DW_OP_GNU_addr_index:
 	  op_ptr = safe_read_uleb128 (op_ptr, op_end, &uoffset);
 	  result = this->get_addr_index (uoffset);
@@ -1417,8 +1419,9 @@ dwarf_expr_context::execute_stack_op (const gdb_byte *op_ptr,
   gdb_assert (this->recursion_depth >= 0);
 }
 
+void _initialize_dwarf2expr ();
 void
-_initialize_dwarf2expr (void)
+_initialize_dwarf2expr ()
 {
   dwarf_arch_cookie
     = gdbarch_data_register_post_init (dwarf_gdbarch_types_init);

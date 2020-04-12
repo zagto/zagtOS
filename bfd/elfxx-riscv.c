@@ -1,5 +1,5 @@
 /* RISC-V-specific support for ELF.
-   Copyright (C) 2011-2019 Free Software Foundation, Inc.
+   Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on TILE-Gx and MIPS targets.
@@ -1300,7 +1300,7 @@ riscv_parse_sv_or_non_std_ext (riscv_parse_subset_t *rps,
 
       if (*p != '\0' && *p != '_')
 	{
-	  rps->error_handler ("-march=%s: %s must seperate with _",
+	  rps->error_handler ("-march=%s: %s must separate with _",
 			      march, ext_type_str);
 	  return NULL;
 	}
@@ -1542,9 +1542,9 @@ riscv_arch_str1 (riscv_subset_t *subset,
 
   snprintf (buf, bufsz, "%s%s%dp%d",
 	    underline,
-            subset->name,
-            subset->major_version,
-            subset->minor_version);
+	    subset->name,
+	    subset->major_version,
+	    subset->minor_version);
 
   strncat (attr_str, buf, bufsz);
 

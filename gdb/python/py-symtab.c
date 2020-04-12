@@ -1,6 +1,6 @@
 /* Python interface to symbol tables.
 
-   Copyright (C) 2008-2019 Free Software Foundation, Inc.
+   Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,7 +24,6 @@
 #include "python-internal.h"
 #include "objfiles.h"
 #include "block.h"
-#include "py-ref.h"
 
 typedef struct stpy_symtab_object {
   PyObject_HEAD
@@ -177,7 +176,7 @@ static PyObject *
 stpy_global_block (PyObject *self, PyObject *args)
 {
   struct symtab *symtab = NULL;
-  struct block *block = NULL;
+  const struct block *block = NULL;
   const struct blockvector *blockvector;
 
   STPY_REQUIRE_VALID (self, symtab);
@@ -193,7 +192,7 @@ static PyObject *
 stpy_static_block (PyObject *self, PyObject *args)
 {
   struct symtab *symtab = NULL;
-  struct block *block = NULL;
+  const struct block *block = NULL;
   const struct blockvector *blockvector;
 
   STPY_REQUIRE_VALID (self, symtab);
@@ -254,6 +253,7 @@ stpy_dealloc (PyObject *obj)
   if (symtab->next)
     symtab->next->prev = symtab->prev;
   symtab->symtab = NULL;
+  Py_TYPE (obj)->tp_free (obj);
 }
 
 

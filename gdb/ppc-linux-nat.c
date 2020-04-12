@@ -1,6 +1,6 @@
 /* PPC GNU/Linux native support.
 
-   Copyright (C) 1988-2019 Free Software Foundation, Inc.
+   Copyright (C) 1988-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -32,7 +32,7 @@
 #include <sys/user.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
-#include "gdb_wait.h"
+#include "gdbsupport/gdb_wait.h"
 #include <fcntl.h>
 #include <sys/procfs.h>
 #include "nat/gdb_ptrace.h"
@@ -51,6 +51,7 @@
 #include "arch/ppc-linux-common.h"
 #include "arch/ppc-linux-tdesc.h"
 #include "nat/ppc-linux.h"
+#include "linux-tdep.h"
 
 /* Similarly for the hardware watchpoint support.  These requests are used
    when the PowerPC HWDEBUG ptrace interface is not available.  */
@@ -615,7 +616,7 @@ fetch_register (struct regcache *regcache, int tid, int regno)
   if (altivec_register_p (gdbarch, regno))
     {
       /* If this is the first time through, or if it is not the first
-         time through, and we have comfirmed that there is kernel
+         time through, and we have confirmed that there is kernel
          support for such a ptrace request, then go and fetch the
          register.  */
       if (have_ptrace_getvrregs)
@@ -1084,7 +1085,7 @@ store_altivec_registers (const struct regcache *regcache, int tid,
     perror_with_name (_("Unable to store AltiVec registers"));
 }
 
-/* Assuming TID referrs to an SPE process, set the top halves of TID's
+/* Assuming TID refers to an SPE process, set the top halves of TID's
    general-purpose registers and its SPE-specific registers to the
    values in EVRREGSET.  If we don't support PTRACE_SETEVRREGS, do
    nothing.
@@ -1554,31 +1555,6 @@ store_ppc_registers (const struct regcache *regcache, int tid)
      function to fail most of the time, so we ignore them.  */
 }
 
-/* Fetch the AT_HWCAP entry from the aux vector.  */
-static CORE_ADDR
-ppc_linux_get_hwcap (void)
-{
-  CORE_ADDR field;
-
-  if (target_auxv_search (current_top_target (), AT_HWCAP, &field) != 1)
-    return 0;
-
-  return field;
-}
-
-/* Fetch the AT_HWCAP2 entry from the aux vector.  */
-
-static CORE_ADDR
-ppc_linux_get_hwcap2 (void)
-{
-  CORE_ADDR field;
-
-  if (target_auxv_search (current_top_target (), AT_HWCAP2, &field) != 1)
-    return 0;
-
-  return field;
-}
-
 /* The cached DABR value, to install in new threads.
    This variable is used when the PowerPC HWDEBUG ptrace
    interface is not available.  */
@@ -1599,10 +1575,10 @@ struct hw_break_tuple
   struct ppc_hw_breakpoint *hw_break;
 };
 
-/* This is an internal VEC created to store information about *points inserted
-   for each thread.  This is used when PowerPC HWDEBUG ptrace interface is
-   available.  */
-typedef struct thread_points
+/* This is an internal vector created to store information about *points
+   inserted for each thread.  This is used when PowerPC HWDEBUG ptrace
+   interface is available.  */
+struct thread_points
   {
     /* The TID to which this *point relates.  */
     int tid;
@@ -1613,10 +1589,9 @@ typedef struct thread_points
        size of these vector is MAX_SLOTS_NUMBER.  If the hw_break element of
        the tuple is NULL, then the position in the vector is free.  */
     struct hw_break_tuple *hw_breaks;
-  } *thread_points_p;
-DEF_VEC_P (thread_points_p);
+  };
 
-VEC(thread_points_p) *ppc_threads = NULL;
+static std::vector<thread_points *> ppc_threads;
 
 /* The version of the PowerPC HWDEBUG kernel interface that we will use, if
    available.  */
@@ -1735,7 +1710,7 @@ ppc_linux_nat_target::region_ok_for_hw_watchpoint (CORE_ADDR addr, int len)
          takes two hardware watchpoints though.  */
       if (len > 1
 	  && hwdebug_info.features & PPC_DEBUG_FEATURE_DATA_BP_RANGE
-	  && ppc_linux_get_hwcap () & PPC_FEATURE_BOOKE)
+	  && linux_get_hwcap (current_top_target ()) & PPC_FEATURE_BOOKE)
 	return 2;
       /* Check if the processor provides DAWR interface.  */
       if (hwdebug_info.features & PPC_DEBUG_FEATURE_DATA_BP_DAWR)
@@ -1755,7 +1730,7 @@ ppc_linux_nat_target::region_ok_for_hw_watchpoint (CORE_ADDR addr, int len)
      ptrace interface, DAC-based processors (i.e., embedded processors) will
      use addresses aligned to 4-bytes due to the way the read/write flags are
      passed in the old ptrace interface.  */
-  else if (((ppc_linux_get_hwcap () & PPC_FEATURE_BOOKE)
+  else if (((linux_get_hwcap (current_top_target ()) & PPC_FEATURE_BOOKE)
 	   && (addr + len) > (addr & ~3) + 4)
 	   || (addr + len) > (addr & ~7) + 8)
     return 0;
@@ -1782,14 +1757,13 @@ hwdebug_point_cmp (struct ppc_hw_breakpoint *a, struct ppc_hw_breakpoint *b)
 static struct thread_points *
 hwdebug_find_thread_points_by_tid (int tid, int alloc_new)
 {
-  int i;
-  struct thread_points *t;
+  for (thread_points *t : ppc_threads)
+    {
+      if (t->tid == tid)
+	return t;
+    }
 
-  for (i = 0; VEC_iterate (thread_points_p, ppc_threads, i, t); i++)
-    if (t->tid == tid)
-      return t;
-
-  t = NULL;
+  struct thread_points *t = NULL;
 
   /* Do we need to allocate a new point_item
      if the wanted one does not exist?  */
@@ -1798,7 +1772,7 @@ hwdebug_find_thread_points_by_tid (int tid, int alloc_new)
       t = XNEW (struct thread_points);
       t->hw_breaks = XCNEWVEC (struct hw_break_tuple, max_slots_number);
       t->tid = tid;
-      VEC_safe_push (thread_points_p, ppc_threads, t);
+      ppc_threads.push_back (t);
     }
 
   return t;
@@ -1828,12 +1802,14 @@ hwdebug_insert_point (struct ppc_hw_breakpoint *b, int tid)
 
   /* Find a free element in the hw_breaks vector.  */
   for (i = 0; i < max_slots_number; i++)
-    if (hw_breaks[i].hw_break == NULL)
-      {
-	hw_breaks[i].slot = slot;
-	hw_breaks[i].hw_break = p.release ();
-	break;
-      }
+    {
+      if (hw_breaks[i].hw_break == NULL)
+	{
+	  hw_breaks[i].slot = slot;
+	  hw_breaks[i].hw_break = p.release ();
+	  break;
+	}
+    }
 
   gdb_assert (i != max_slots_number);
 }
@@ -2294,7 +2270,7 @@ ppc_linux_nat_target::insert_watchpoint (CORE_ADDR addr, int len,
       long dabr_value;
       long read_mode, write_mode;
 
-      if (ppc_linux_get_hwcap () & PPC_FEATURE_BOOKE)
+      if (linux_get_hwcap (current_top_target ()) & PPC_FEATURE_BOOKE)
 	{
 	  /* PowerPC 440 requires only the read/write flags to be passed
 	     to the kernel.  */
@@ -2383,11 +2359,11 @@ ppc_linux_nat_target::low_new_thread (struct lwp_info *lp)
       struct thread_points *p;
       struct hw_break_tuple *hw_breaks;
 
-      if (VEC_empty (thread_points_p, ppc_threads))
+      if (ppc_threads.empty ())
 	return;
 
       /* Get a list of breakpoints from any thread.  */
-      p = VEC_last (thread_points_p, ppc_threads);
+      p = ppc_threads.back ();
       hw_breaks = p->hw_breaks;
 
       /* Copy that thread's breakpoints and watchpoints to the new thread.  */
@@ -2416,22 +2392,24 @@ ppc_linux_thread_exit (struct thread_info *tp, int silent)
   int i;
   int tid = tp->ptid.lwp ();
   struct hw_break_tuple *hw_breaks;
-  struct thread_points *t = NULL, *p;
+  struct thread_points *t = NULL;
 
   if (!have_ptrace_hwdebug_interface ())
     return;
 
-  for (i = 0; VEC_iterate (thread_points_p, ppc_threads, i, p); i++)
-    if (p->tid == tid)
-      {
-	t = p;
-	break;
-      }
+  for (i = 0; i < ppc_threads.size (); i++)
+    {
+      if (ppc_threads[i]->tid == tid)
+	{
+	  t = ppc_threads[i];
+	  break;
+	}
+    }
 
   if (t == NULL)
     return;
 
-  VEC_unordered_remove (thread_points_p, ppc_threads, i);
+  unordered_remove (ppc_threads, i);
 
   hw_breaks = t->hw_breaks;
 
@@ -2497,9 +2475,9 @@ ppc_linux_nat_target::watchpoint_addr_within_range (CORE_ADDR addr,
   int mask;
 
   if (have_ptrace_hwdebug_interface ()
-      && ppc_linux_get_hwcap () & PPC_FEATURE_BOOKE)
+      && linux_get_hwcap (current_top_target ()) & PPC_FEATURE_BOOKE)
     return start <= addr && start + length >= addr;
-  else if (ppc_linux_get_hwcap () & PPC_FEATURE_BOOKE)
+  else if (linux_get_hwcap (current_top_target ()) & PPC_FEATURE_BOOKE)
     mask = 3;
   else
     mask = 7;
@@ -2637,8 +2615,8 @@ ppc_linux_nat_target::read_description ()
 
   features.wordsize = ppc_linux_target_wordsize (tid);
 
-  CORE_ADDR hwcap = ppc_linux_get_hwcap ();
-  CORE_ADDR hwcap2 = ppc_linux_get_hwcap2 ();
+  CORE_ADDR hwcap = linux_get_hwcap (current_top_target ());
+  CORE_ADDR hwcap2 = linux_get_hwcap2 (current_top_target ());
 
   if (have_ptrace_getsetvsxregs
       && (hwcap & PPC_FEATURE_HAS_VSX))
@@ -2668,9 +2646,6 @@ ppc_linux_nat_target::read_description ()
 	perror_with_name (_("Unable to fetch AltiVec registers"));
     }
 
-  if (hwcap & PPC_FEATURE_CELL)
-    features.cell = true;
-
   features.isa205 = ppc_linux_has_isa205 (hwcap);
 
   if ((hwcap2 & PPC_FEATURE2_DSCR)
@@ -2696,8 +2671,9 @@ ppc_linux_nat_target::read_description ()
   return ppc_linux_match_description (features);
 }
 
+void _initialize_ppc_linux_nat ();
 void
-_initialize_ppc_linux_nat (void)
+_initialize_ppc_linux_nat ()
 {
   linux_target = &the_ppc_linux_nat_target;
 
