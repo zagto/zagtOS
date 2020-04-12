@@ -338,28 +338,33 @@ namespace zbon {
         uint8_t *_data;
         size_t _size;
         size_t _numHandles;
+        bool allocatedExternally;
 
         EncodedData(uint8_t *data, size_t size, size_t numHandles):
             _data{data},
             _size{size},
-            _numHandles{numHandles} {}
+            _numHandles{numHandles},
+            allocatedExternally{false} {}
 
     public:
         EncodedData():
             _data{nullptr},
             _size{0},
-            _numHandles{0} {}
+            _numHandles{0},
+            allocatedExternally{false} {}
         EncodedData(EncodedData &other) = delete;
         EncodedData(EncodedData &&other):
                 _data{other._data},
                 _size{other._size},
-                _numHandles{other._numHandles} {
+                _numHandles{other._numHandles},
+                allocatedExternally{other.allocatedExternally} {
             other._data = nullptr;
             other._size = 0;
             other._numHandles = 0;
+            other.allocatedExternally = false;
         }
         ~EncodedData() {
-            if (_data != nullptr) {
+            if (_data != nullptr && !allocatedExternally) {
                 delete[] _data;
             }
         }

@@ -55,4 +55,6 @@ struct UserMessageInfo {
     size_t address;
     size_t length;
     size_t numHandles;
+    /* externally for user = kernel */
+    bool allocatedExternally;
 };

@@ -29,14 +29,6 @@ int main() {
     auto msgInfo = port.receiveMessage();
 
     bool response;
-    std::cout << "encodedeData data: " << (void *)msgInfo->data.data() << std::endl;
-    std::cout << "encodedeData size: " << msgInfo->data.size() << std::endl;
-    std::cout << "encodedeData numHandles: " << msgInfo->data.numHandles() << std::endl;
-    std::cout << "message type ok: " << (!uuid_compare(msgInfo->type, StartHALResponse)) << std::endl;
-    std::cout << "message decode ok: " << zbon::decode(msgInfo->data, response) << std::endl;
-
-
-    /*
-    port.receiveMessage(StartHALResponse, response);*/
+    port.receiveMessage(StartHALResponse, response);
     std::cout << "HAL Start result: " << response << std::endl;
 }

@@ -84,7 +84,9 @@ void Message::transferMessageInfo() {
         destinationAddress().value(),
         numBytes,
         numHandles,
+        true,
     };
+
     destinationProcess->copyToUser(infoAddress().value(),
                                    reinterpret_cast<uint8_t *>(&msgInfo),
                                    sizeof(UserMessageInfo),
