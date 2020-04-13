@@ -39,6 +39,7 @@ static const uint32_t SYS_LOG = 1,
                       SYS_YIELD = 25,
                       SYS_SET_THREAD_AREA = 26,
                       SYS_GET_THREAD_AREA = 27,
+                      SYS_SET_THREAD_SCHEDULER = 28,
 
                       SYS_CLOCK_GETTIME = 30,
                       SYS_CLOCK_NANOSLEEP = 31,

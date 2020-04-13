@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <stddef.h>
 #include <unistd.h>
-#include <pwd.h>
 
 struct match
 {
@@ -202,17 +201,7 @@ static int expand_tilde(char **pat, char *buf, size_t *pos)
 
 	char *home = *p ? NULL : getenv("HOME");
 	if (!home) {
-		struct passwd pw, *res;
-		switch (*p ? getpwnam_r(p, &pw, buf, PATH_MAX, &res)
-			   : getpwuid_r(getuid(), &pw, buf, PATH_MAX, &res)) {
-		case ENOMEM:
-			return GLOB_NOSPACE;
-		case 0:
-			if (!res)
-		default:
-				return GLOB_NOMATCH;
-		}
-		home = pw.pw_dir;
+        return GLOB_NOMATCH;
 	}
 	while (i < PATH_MAX - 2 && *home)
 		buf[i++] = *home++;

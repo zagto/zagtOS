@@ -21,11 +21,13 @@ extern "C" {
 #include <bits/alltypes.h>
 
 struct stat {
+    ino_t st_ino;
+    ino_t st_dev;
     mode_t st_mode;
     off_t st_size;
-    // TODO: support these in future
-    //struct timespec st_mtim;
-    //struct timespec st_ctim;
+    nlink_t st_nlink;
+    struct timespec st_mtim;
+    struct timespec st_ctim;
 };
 
 #define st_atime st_atim.tv_sec
@@ -82,6 +84,9 @@ int lstat(const char *__restrict, struct stat *__restrict);
 int fstatat(int, const char *__restrict, struct stat *__restrict, int);
 int mkdir(const char *, mode_t);
 int mkdirat(int, const char *, mode_t);
+
+// not implemented, in header to make libstdc++ build
+int chmod(const char *, mode_t);
 
 #if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
 #define S_IREAD S_IRUSR

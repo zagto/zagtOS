@@ -282,7 +282,6 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	}
 	new->robust_list.head = &new->robust_list.head;
 	new->CANARY = self->CANARY;
-	new->sysinfo = self->sysinfo;
 
 	/* Setup argument structure for the new thread on its stack.
 	 * It's safe to access from the caller only until the thread
@@ -305,7 +304,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	if (ret < 0) {
 		ret = -EAGAIN;
 	} else if (attr._a_sched) {
-		ret = __syscall(SYS_sched_setscheduler,
+        ret = zagtos_syscall(SYS_SET_THREAD_SCHEDULER,
 			new->tid, attr._a_policy, &attr._a_prio);
 		if (a_swap(&args->control, ret ? 3 : 0)==2)
 			__wake(&args->control, 1, 1);

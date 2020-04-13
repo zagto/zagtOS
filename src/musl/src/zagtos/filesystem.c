@@ -8,8 +8,9 @@
 #include "../dirent/__dirent.h"
 
 
-struct __dirstream *zagtos_directory_to_dirstream(ZDirectory *zdir) {
-    DIR *dir = calloc(1, sizeof(DIR));
+struct __dirstream *zagtos_directory_to_dirstream(ZDirectory *x) {
+    assert(0);
+    /*DIR *dir = calloc(1, sizeof(DIR));
     if (!dir) {
         return 0;
     }
@@ -33,7 +34,7 @@ struct __dirstream *zagtos_directory_to_dirstream(ZDirectory *zdir) {
         };
         memcpy(dir->entries[i].d_name, zdir->entries[i].name, 256);
     }
-    return dir;
+    return dir;*/
 }
 
 
