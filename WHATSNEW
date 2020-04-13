@@ -2077,3 +2077,126 @@ bugs fixed:
 
 arch-specfic bugs fixed:
 - s390x had wrong values for POSIX_FADV_DONTNEED/_NOREUSE
+
+
+
+1.1.23 release notes
+
+new features:
+- riscv64 port
+- configure now allows customizing AR and RANLIB vars
+- header-level support for new linux features in 5.1
+
+major internal changes:
+- removed extern __syscall; syscall header code is now fully self-contained
+
+performance:
+- new math library implementation for log/exp/pow
+- aarch64 dynamic tlsdesc function is streamlined
+
+compatibility & conformance:
+- O_TTY_INIT is now defined
+- sys/types.h no longer pollutes namespace with sys/sysmacros.h in any profile
+- powerpc asm is now compatible with clang internal assembler
+
+changes for new POSIX interpretations:
+- fgetwc now sets stream error indicator on encoding errors
+- fmemopen no longer rejects 0 size
+
+bugs fixed:
+- static TLS for shared libraries was allocated wrong on "Variant I" archs
+- crash in dladdr reading through uninitialized pointer on non-match
+- sigaltstack wrongly errored out on invalid ss_size when doing SS_DISABLE
+- getdents function misbehaved with buffer length larger than INT_MAX
+- set*id could deadlock after fork from multithreaded process
+
+arch-specfic bugs fixed:
+- s390x SO_PEERSEC definition was wrong
+- passing of 64-bit syscall arguments was broken on microblaze
+- posix_fadvise was broken on mips due to missing 7-arg syscall support
+- vrregset_t layout and member naming was wrong on powerpc64
+
+
+
+1.1.24 release notes
+
+new features:
+- GLOB_TILDE extension to glob
+- non-stub catgets localization API, using netbsd binary catalog format
+- posix_spawn file actions for [f]chdir (extension, pending future standard)
+- secure_getenv function (extension)
+- copy_file_range syscall wrapper (Linux extension)
+- header-level support for new linux features in 5.2
+
+performance:
+- new fast path for lrint (generic C version) on 32-bit archs
+
+major internal changes:
+- functions involving time are overhauled to be time64-ready in 32-bit archs
+- x32 uses the new time64 code paths to replace nasty hacks in syscall glue
+
+compatibility & conformance:
+- support for powerpc[64] unaligned relocation types
+- powerpc[64] and sh sys/user.h no longer clash with kernel asm/ptrace.h
+- select no longer modifies timeout on failure (or at all)
+- mips64 stat results are no longer limited to 32-bit time range
+- optreset (BSD extension) now has a public declaration
+- support for clang inconsistencies in wchar_t type vs some 32-bit archs
+- mips r6 syscall asm no longer has invalid lo/hi register clobbers
+- vestigial asm declarations of __tls_get_new are removed (broke some tooling)
+- riscv64 mcontext_t mismatch glibc's member naming is corrected
+
+bugs fixed:
+- glob failed to match broken symlinks consistently
+- invalid use of interposed calloc to allocate initial TLS
+- various dlsym symbol resolution logic errors
+- semctl with SEM_STAT_ANY didn't work
+- pthread_create with explicit scheduling was subject to priority inversion
+- pthread_create failure path had data race for thread count
+- timer_create with SIGEV_THREAD notification had data race getting timer id
+- wide printf family failed to support l modifier for float formats
+
+arch-specific bugs fixed:
+- x87 floating point stack imbalance in math asm (i386-only CVE-2019-14697)
+- x32 clock_adjtime, getrusage, wait3, wait4 produced junk (struct mismatches)
+- lseek broken on x32 and mipsn32 with large file offsets
+- riscv64 atomics weren't compiler barriers
+- riscv64 atomics had broken asm constraints (missing earlyclobber flag)
+- arm clone() was broken when compiled as thumb if start function returned
+- mipsr6 setjmp/longjmp did not preserve fpu register state correctly
+
+
+
+1.2.0 release notes
+
+new features:
+- time_t is now 64-bit on all archs (not just 64-bit archs)
+- character type & case mapping data updated to Unicode 12.1.0
+- header-level support for new linux features in 5.3 and 5.4
+
+performance:
+- new O(1) wchar_t case mapping implementation
+- i386 now uses C math code for exp, faster than old asm
+- mips math asm
+
+compatibility & conformance:
+- endian.h now aims to conform to future POSIX definition
+- support older compilers that don't accept powerpc math asm constraints
+- fdpic code in ldso was incompatible with valid optimizations in gcc 9+
+- RLIMIT_RTTIME was missing from sys/resource.h
+
+bugs fixed:
+- wcwidth wrongly returned 0 for most of planes 4 and up
+- missing case mapping between U+03F3 and U+037F
+- wrong cacosh results for arguments with negative imaginary part
+- wrong catanf/catanl results for various classes of arguments
+- wrong return value for ungetc with argument outside [0,UCHAR_MAX]
+- posix_openpt with no ptys available produced wrong errno
+
+arch-specific bugs fixed:
+- sigcontext/regset definition mistakes & omissions on m68k, powerpc64
+- fesetenv(FE_DFL_ENV) crashed on riscv64
+- sh2 dynamic linker was broken since 1.1.21 (crash in stage 2b)
+- arm dynamic linker chose wrong tls/atomic variants since 1.1.21
+- some math library functions returned excess precision on i386
+- unconfirmed regression in fchmodat AT_SYMLINK_NOFOLLOW on mips*
