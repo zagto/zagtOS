@@ -65,9 +65,9 @@ _Noreturn void __pthread_exit(void *result)
 	 * joinable threads it's a valid usage that must be handled. */
 	LOCK(self->killlock);
 
-    /* The thread list lock must be AS-safe, and thus requires
-     * application signals to be blocked before it can be taken. */
-    __tl_lock();
+	/* The thread list lock must be AS-safe, and thus requires
+	 * application signals to be blocked before it can be taken. */
+	__tl_lock();
 
 	/* If this is the only thread in the list, don't proceed with
 	 * termination of the thread, but restore the previous lock and
@@ -87,24 +87,24 @@ _Noreturn void __pthread_exit(void *result)
 	self->prev->next = self->next;
 	self->prev = self->next = self;
 
-    /* Process robust list in userspace to handle non-pshared mutexes
-     * and the detached thread case where the robust list head will
-     * be invalid when the kernel would process it. */
-    __vm_lock();
-    volatile void *volatile *rp;
-    while ((rp=self->robust_list.head) && rp != &self->robust_list.head) {
-        pthread_mutex_t *m = (void *)((char *)rp
-            - offsetof(pthread_mutex_t, _m_next));
-        int waiters = m->_m_waiters;
-        int priv = (m->_m_type & 128) ^ 128;
-        self->robust_list.pending = rp;
-        self->robust_list.head = *rp;
-        int cont = a_swap(&m->_m_lock, 0x40000000);
-        self->robust_list.pending = 0;
-        if (cont < 0 || waiters)
-            __wake(&m->_m_lock, 1, priv);
-    }
-    __vm_unlock();
+	/* Process robust list in userspace to handle non-pshared mutexes
+	 * and the detached thread case where the robust list head will
+	 * be invalid when the kernel would process it. */
+	__vm_lock();
+	volatile void *volatile *rp;
+	while ((rp=self->robust_list.head) && rp != &self->robust_list.head) {
+		pthread_mutex_t *m = (void *)((char *)rp
+			- offsetof(pthread_mutex_t, _m_next));
+		int waiters = m->_m_waiters;
+		int priv = (m->_m_type & 128) ^ 128;
+		self->robust_list.pending = rp;
+		self->robust_list.head = *rp;
+		int cont = a_swap(&m->_m_lock, 0x40000000);
+		self->robust_list.pending = 0;
+		if (cont < 0 || waiters)
+			__wake(&m->_m_lock, 1, priv);
+	}
+	__vm_unlock();
 
     __do_orphaned_stdio_locks();
 
@@ -117,12 +117,12 @@ _Noreturn void __pthread_exit(void *result)
 		 * signals, since they will not have a stack in their last
 		 * moments of existence. */
 
-        /* Robust list will no longer be valid, and was already
-         * processed above, so unregister it with the kernel. */
-        if (self->robust_list.off)
-            zagtos_syscall(SYS_SET_ROBUST_LIST, 0, 3*sizeof(long));
+	/* Robust list will no longer be valid, and was already
+	 * processed above, so unregister it with the kernel. */
+	if (self->robust_list.off)
+		zagtos_syscall(SYS_SET_ROBUST_LIST, 0, 3*sizeof(long));
 
-        /* Since __unmapself bypasses the normal munmap code path,
+		/* Since __unmapself bypasses the normal munmap code path,
 		 * explicitly wait for vmlock holders first. */
 		__vm_wait();
 
@@ -137,10 +137,10 @@ _Noreturn void __pthread_exit(void *result)
 	/* After the kernel thread exits, its tid may be reused. Clear it
 	 * to prevent inadvertent use and inform functions that would use
 	 * it that it's no longer available. */
-    self->tid = 0;
+	self->tid = 0;
 	UNLOCK(self->killlock);
 
-    for (;;) zagtos_syscall(SYS_EXIT, 0);
+	for (;;) zagtos_syscall(SYS_EXIT, 0);
 }
 
 void __do_cleanup_push(struct __ptcb *cb)
@@ -158,14 +158,13 @@ void __do_cleanup_pop(struct __ptcb *cb)
 struct start_args {
 	void *(*start_func)(void *);
 	void *start_arg;
-	pthread_attr_t *attr;
-	volatile int *perr;
+	volatile int control;
 };
 
 static int start(void *p)
 {
 	struct start_args *args = p;
-    __pthread_exit(args->start_func(args->start_arg));
+	__pthread_exit(args->start_func(args->start_arg));
 	return 0;
 }
 
@@ -203,7 +202,6 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	unsigned char *map = 0, *stack = 0, *tsd = 0, *stack_limit;
 	pthread_attr_t attr = { 0 };
 	sigset_t set;
-	volatile int err = -1;
 
 	self = __pthread_self();
 	if (!libc.threaded) {
@@ -225,7 +223,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	}
 
 	if (attr._a_stackaddr) {
-        size_t need = libc.tls_size + pthread_struct_area_size + __pthread_tsd_size;
+		size_t need = libc.tls_size + pthread_struct_area_size + __pthread_tsd_size;
 		size = attr._a_stacksize;
 		stack = (void *)(attr._a_stackaddr & -16);
 		stack_limit = (void *)(attr._a_stackaddr - size);
@@ -234,7 +232,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		 * application's stack space. */
 		if (need < size/8 && need < 2048) {
 			tsd = stack - __pthread_tsd_size;
-            stack = tsd - libc.tls_size - pthread_struct_area_size;
+			stack = tsd - libc.tls_size - pthread_struct_area_size;
 			memset(stack, 0, need);
 		} else {
 			size = ROUND(need);
@@ -243,7 +241,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	} else {
 		guard = ROUND(attr._a_guardsize);
 		size = guard + ROUND(attr._a_stacksize
-            + libc.tls_size + pthread_struct_area_size +  __pthread_tsd_size);
+			+ libc.tls_size + pthread_struct_area_size +  __pthread_tsd_size);
 	}
 
 	if (!tsd) {
@@ -261,13 +259,13 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		}
 		tsd = map + size - __pthread_tsd_size;
 		if (!stack) {
-            stack = tsd - libc.tls_size - pthread_struct_area_size;
+			stack = tsd - libc.tls_size - pthread_struct_area_size;
 			stack_limit = map + guard;
 		}
 	}
 
-    new = (struct pthread *)(tsd - libc.tls_size - pthread_struct_area_size);
-    memcpy((char *)new + pthread_struct_area_size, (void *)libc.master_tls_base, libc.tls_size);
+	new = (struct pthread *)(tsd - libc.tls_size - pthread_struct_area_size);
+	memcpy((char *)new + pthread_struct_area_size, (void *)libc.master_tls_base, libc.tls_size);
 
 	new->map_base = map;
 	new->map_size = size;
@@ -284,6 +282,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	}
 	new->robust_list.head = &new->robust_list.head;
 	new->CANARY = self->CANARY;
+	new->sysinfo = self->sysinfo;
 
 	/* Setup argument structure for the new thread on its stack.
 	 * It's safe to access from the caller only until the thread
@@ -293,40 +292,41 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	struct start_args *args = (void *)stack;
 	args->start_func = entry;
 	args->start_arg = arg;
-	if (attr._a_sched) {
-		args->attr = &attr;
-		args->perr = &err;
-	} else {
-		args->attr = 0;
-		args->perr = 0;
-	}
+	args->control = attr._a_sched ? 1 : 0;
 
 	__tl_lock();
 	libc.threads_minus_1++;
-    ret = zagtos_syscall(SYS_CREATE_THREAD, c11 ? start_c11 : start, stack, args, new, &new->tid, &__thread_list_lock);
+	ret = zagtos_syscall(SYS_CREATE_THREAD, c11 ? start_c11 : start, stack, args, new, &new->tid, &__thread_list_lock);
 
-	/* If clone succeeded, new thread must be linked on the thread
-	 * list before unlocking it, even if scheduling may still fail. */
+	/* All clone failures translate to EAGAIN. If explicit scheduling
+	 * was requested, attempt it before unlocking the thread list so
+	 * that the failed thread is never exposed and so that we can
+	 * clean up all transient resource usage before returning. */
+	if (ret < 0) {
+		ret = -EAGAIN;
+	} else if (attr._a_sched) {
+		ret = __syscall(SYS_sched_setscheduler,
+			new->tid, attr._a_policy, &attr._a_prio);
+		if (a_swap(&args->control, ret ? 3 : 0)==2)
+			__wake(&args->control, 1, 1);
+		if (ret)
+			__wait(&args->control, 0, 3, 0);
+	}
+
 	if (ret >= 0) {
 		new->next = self->next;
 		new->prev = self;
 		new->next->prev = new;
 		new->prev->next = new;
+	} else {
+		libc.threads_minus_1--;
 	}
 	__tl_unlock();
 	__release_ptc();
 
 	if (ret < 0) {
-		libc.threads_minus_1--;
 		if (map) __munmap(map, size);
-		return EAGAIN;
-	}
-
-	if (attr._a_sched) {
-		if (a_cas(&err, -1, -2)==-1)
-			__wait(&err, 0, -2, 1);
-		ret = err;
-		if (ret) return ret;
+		return -ret;
 	}
 
 	*res = new;

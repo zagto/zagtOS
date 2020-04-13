@@ -3,10 +3,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "syscall.h"
+#include "kstat.h"
 
 const char unsigned *__map_file(const char *pathname, size_t *size)
 {
-	struct stat st;
+	struct kstat st;
 	const unsigned char *map = MAP_FAILED;
     int fd = open(pathname, O_RDONLY|O_CLOEXEC|O_NONBLOCK);
 	if (fd < 0) return 0;

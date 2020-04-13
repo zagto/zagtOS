@@ -1,3 +1,4 @@
+#define _BSD_SOURCE
 #include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -15,4 +16,6 @@ int fstat(int fd, struct stat *st)
     return __stat_common(&zfd->object->info, st);
 }
 
+#if !_REDIR_TIME64
 weak_alias(fstat, fstat64);
+#endif

@@ -34,8 +34,9 @@ int fcntl(int, int, ...);
 int open(const char *, int, ...);
 int openat(int, const char *, int, ...);
 
-#define O_SEARCH  O_PATH
-#define O_EXEC    O_PATH
+#define O_SEARCH   O_PATH
+#define O_EXEC     O_PATH
+#define O_TTY_INIT 0
 
 #define O_ACCMODE (03|O_SEARCH)
 #define O_RDONLY  00
@@ -97,6 +98,11 @@ int openat(int, const char *, int, ...);
 #if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
 #define AT_NO_AUTOMOUNT 0x800
 #define AT_EMPTY_PATH 0x1000
+#define AT_STATX_SYNC_TYPE 0x6000
+#define AT_STATX_SYNC_AS_STAT 0x0000
+#define AT_STATX_FORCE_SYNC 0x2000
+#define AT_STATX_DONT_SYNC 0x4000
+#define AT_RECURSIVE 0x8000
 
 #define FAPPEND O_APPEND
 #define FFSYNC O_SYNC
@@ -126,6 +132,7 @@ int openat(int, const char *, int, ...);
 #define F_SEAL_SHRINK	0x0002
 #define F_SEAL_GROW	0x0004
 #define F_SEAL_WRITE	0x0008
+#define F_SEAL_FUTURE_WRITE	0x0010
 
 #define F_GET_RW_HINT		1035
 #define F_SET_RW_HINT		1036

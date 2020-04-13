@@ -1,4 +1,3 @@
-#define SYSCALL_NO_TLS 1
 #include <limits.h>
 #include <sys/mman.h>
 #include <string.h>
@@ -7,7 +6,6 @@
 #include "libc.h"
 #include "atomic.h"
 #include "syscall.h"
-#include <stdio.h>
 
 volatile int __thread_list_lock;
 
@@ -25,4 +23,3 @@ static void static_init_tls(size_t thread_area_addr)
 }
 
 weak_alias(static_init_tls, __init_tls);
-

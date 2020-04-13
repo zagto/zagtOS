@@ -4,7 +4,7 @@
 #include "syscall.h"
 #include "lock.h"
 
-off_t lseek(int fd, off_t offset, int whence)
+off_t __lseek(int fd, off_t offset, int whence)
 {
     ZFileDescriptor *zfd = zagtos_get_file_descriptor_object(fd);
     if (!zfd) {
@@ -39,4 +39,5 @@ fail:
     return -1;
 }
 
-weak_alias(lseek, lseek64);
+weak_alias(__lseek, lseek);
+weak_alias(__lseek, lseek64);

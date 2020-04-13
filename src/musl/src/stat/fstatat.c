@@ -1,3 +1,4 @@
+#define _BSD_SOURCE
 #include <sys/stat.h>
 #include <limits.h>
 #include <errno.h>
@@ -39,4 +40,6 @@ int fstatat(int dir_fd, const char *restrict path, struct stat *restrict buf, in
     return result;
 }
 
+#if !_REDIR_TIME64
 weak_alias(fstatat, fstatat64);
+#endif

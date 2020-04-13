@@ -145,6 +145,7 @@ struct prctl_mm_map {
 #define PR_SPEC_ENABLE (1UL << 1)
 #define PR_SPEC_DISABLE (1UL << 2)
 #define PR_SPEC_FORCE_DISABLE (1UL << 3)
+#define PR_SPEC_DISABLE_NOEXEC (1UL << 4)
 
 #define PR_PAC_RESET_KEYS       54
 #define PR_PAC_APIAKEY (1UL << 0)
@@ -152,6 +153,10 @@ struct prctl_mm_map {
 #define PR_PAC_APDAKEY (1UL << 2)
 #define PR_PAC_APDBKEY (1UL << 3)
 #define PR_PAC_APGAKEY (1UL << 4)
+
+#define PR_SET_TAGGED_ADDR_CTRL 55
+#define PR_GET_TAGGED_ADDR_CTRL 56
+#define PR_TAGGED_ADDR_ENABLE (1UL << 0)
 
 int prctl (int, ...);
 

@@ -39,8 +39,10 @@ void __init_libc(char **envp, char *pn, size_t tls_base)
     __progname = pn;
     __progname_full = pn;
 
-    __init_tls(tls_base);
-    __init_ssp();
+	if (!pn) pn = (void*)aux[AT_EXECFN];
+	if (!pn) pn = "";
+	__progname = __progname_full = pn;
+	for (i=0; pn[i]; i++) if (pn[i]=='/') __progname = pn+i+1;
 
     libc.secure = 1;
 }

@@ -25,7 +25,7 @@ int __timedwait_cp(volatile int *addr, int val,
 		top = &to;
 	}
 
-    r = -zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT|priv, val, top);
+	r = -zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT|priv, val, top);
 	if (r != EINTR && r != ETIMEDOUT && r != ECANCELED) r = 0;
 	return r;
 }

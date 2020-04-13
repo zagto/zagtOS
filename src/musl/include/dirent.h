@@ -14,13 +14,8 @@ extern "C" {
 #endif
 
 #include <bits/alltypes.h>
-#include <zagtos/uuid.h>
 
-typedef struct __dirstream DIR;
-
-#define _DIRENT_HAVE_D_RECLEN
-#define _DIRENT_HAVE_D_OFF
-#define _DIRENT_HAVE_D_TYPE
+#include <bits/dirent.h>
 
 struct dirent {
 	ino_t d_ino;
@@ -28,7 +23,6 @@ struct dirent {
 	unsigned short d_reclen;
 	unsigned char d_type;
 	char d_name[256];
-    ZUUID d_objid;
 };
 
 #define d_fileno d_ino

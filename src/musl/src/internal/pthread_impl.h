@@ -21,7 +21,7 @@ struct pthread {
 	uintptr_t canary, canary2;
 
 	/* Part 2 -- implementation details, non-ABI. */
-    int tid;
+	int tid;
 	int errno_val;
 	volatile int detach_state;
 	volatile int cancel;
@@ -36,12 +36,12 @@ struct pthread {
 	void *result;
 	struct __ptcb *cancelbuf;
 	void **tsd;
-    struct {
-        volatile void *volatile head;
-        long off;
-        volatile void *volatile pending;
-    } robust_list;
-    volatile int timer_id;
+	struct {
+		volatile void *volatile head;
+		long off;
+		volatile void *volatile pending;
+	} robust_list;
+	volatile int timer_id;
 	locale_t locale;
 	volatile int killlock[1];
 	char *dlerror_buf;
@@ -148,14 +148,14 @@ static inline void __wake(volatile void *addr, int cnt, int priv)
 {
 	if (priv) priv = FUTEX_PRIVATE;
 	if (cnt<0) cnt = INT_MAX;
-    zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAKE|priv, cnt) != -ENOSYS ||
-    zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAKE, cnt);
+	zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAKE|priv, cnt) != -ENOSYS ||
+	zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAKE, cnt);
 }
 static inline void __futexwait(volatile void *addr, int val, int priv)
 {
 	if (priv) priv = FUTEX_PRIVATE;
-    zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT|priv, val, 0) != -ENOSYS ||
-    zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT, val, 0);
+	zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT|priv, val, 0) != -ENOSYS ||
+	zagtos_syscall(SYS_FUTEX, addr, FUTEX_WAIT, val, 0);
 }
 
 hidden void __acquire_ptc(void);
