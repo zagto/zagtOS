@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+mkdir -p "$SYSROOT/include"
+
+cd ../musl
+SRCDIR="$PWD"
+cd "$SHBUID_BUILD_DIR"
+export CC=gcc
+make install-headers
+
