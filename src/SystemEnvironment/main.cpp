@@ -25,10 +25,9 @@ int main() {
     std::cout << "num of handles in a port: " << zbon::encode(port.handle()).numHandles() << std::endl;
     environmentSpawn(ACPIHAL, Priority::BACKGROUND, StartHALMessage, zbon::encode(port.handle()));
 
-
-    auto msgInfo = port.receiveMessage();
-
     bool response;
     port.receiveMessage(StartHALResponse, response);
     std::cout << "HAL Start result: " << response << std::endl;
+
+    std::cout << "SytemEnvironment EXIT" << std::endl;
 }

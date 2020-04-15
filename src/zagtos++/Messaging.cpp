@@ -94,7 +94,7 @@ std::unique_ptr<MessageInfo> Port::receiveMessage() {
 void zagtos::sendMessage(const RemotePort &target, const uuid_t messageTypeID, zbon::EncodedData message) {
     zagtos_syscall5(SYS_SEND_MESSAGE,
                     target.handle().value,
-                    reinterpret_cast<size_t>(&messageTypeID),
+                    reinterpret_cast<size_t>(messageTypeID),
                     reinterpret_cast<size_t>(message.data()),
                     message.size(),
                     message.numHandles());

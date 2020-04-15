@@ -72,7 +72,12 @@ namespace zagtos {
         template<typename T> void receiveMessage(const uuid_t type, T &result) {
             while (true) {
                 std::unique_ptr<MessageInfo> msgInfo = receiveMessage();
-                if (uuid_compare(type, msgInfo->type) == 0 && zbon::decode(msgInfo->data, result)) {
+                if (uuid_compare(type, msgInfo->type) != 0) {
+                    std::cerr << "receiveMessage: invalid message type" << std::endl;
+                } else if (!zbon::decode(msgInfo->data, result)) {
+                    std::cerr << "receiveMessage: invalid data" << std::endl;
+                } else {
+                    result = 1;
                     return;
                 }
             }
