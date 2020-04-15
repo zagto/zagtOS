@@ -1,6 +1,6 @@
-.PHONY: system
+.PHONY: all
 
-system: build/buildtool
+all: build/buildtool
 	./build/buildtool
 
 build/buildtool: buildtool.cpp

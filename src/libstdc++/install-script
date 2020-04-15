@@ -6,5 +6,5 @@ set -e
 
 GCC_BUILD_DIR="$SHBUILD_ROOT/build/gcc/system-${ARCH}"
 cd "${GCC_BUILD_DIR}"
-make -j "$PARALLEL_JOBS" all-target-libstdc++-v3
+make install-target-libstdc++-v3
 

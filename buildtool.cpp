@@ -97,10 +97,6 @@ Module::Module(std::string moduleName, uint32_t _id) :
         lastBuilt = std::filesystem::file_time_type::min();
     }
 
-    std::time_t lastBuiltC = to_time_t(lastBuilt);
-    std::time_t lastModifiedC = to_time_t(lastModified);
-    std::cout << name << ": lastBuilt = " << lastBuiltC << ",  lastModified = " << lastModifiedC << std::endl;
-
     ModulesByName.insert({name, id});
 }
 
@@ -171,7 +167,13 @@ void Module::build() {
         assert(timestampFile.is_open());
         timestampFile << "!";
         timestampFile.close();
+
+        for (uint32_t dep: dependents) {
+            Modules[dep].dependenciesUpdated = true;
+        }
     }
+
+    std::filesystem::current_path(srcDir);
 
     install();
 
@@ -194,12 +196,12 @@ bool Module::hasBuildScripts() {
 
 void Module::compile() {
     if (hasBuildScripts()) {
-        if (system("./build-script")) {
+        if (system("./build-script > /dev/null")) {
             std::cerr << "Could not run build-script of module " << name << "." << std::endl;
             exit(1);
         }
     } else {
-        if (system("make")) {
+        if (system(("make -j" + ParallelJobsString + " > /dev/null").c_str())) {
             std::cerr << "Could not run Makefile of module " << name << "." << std::endl;
             exit(1);
         }
@@ -211,12 +213,12 @@ void Module::install() {
     std::cout << "buildtool: installing " << name << std::endl;
 
     if (hasBuildScripts()) {
-        if (system("./install-script")) {
+        if (system("./install-script > /dev/null")) {
             std::cerr << "Could not run install-script of module " << name << "." << std::endl;
             exit(1);
         }
     } else {
-        if (system("make install")) {
+        if (system(("make install -j" + ParallelJobsString + " > /dev/null").c_str())) {
             std::cerr << "Could not run Makefile Install target of module " << name << "." << std::endl;
             exit(1);
         }
@@ -255,7 +257,7 @@ void prepareEnvironment() {
 
 
 void createBootImage() {
-    if (!system("./create-boot-image.sh")) {
+    if (system("./create-boot-image.sh")) {
         std::cerr << "buildtool: error during create-boot-image.sh" << std::endl;
         exit(1);
     }

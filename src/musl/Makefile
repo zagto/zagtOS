@@ -4,7 +4,7 @@
 # This is how simple every makefile should be...
 # No, I take that back - actually most should be less than half this size.
 #
-# Use config.mak to override any of the following variables.
+# Use $(SHBUILD_BUILD_DIR)/config.mak to override any of the following variables.
 # Do not make changes here.
 #
 
@@ -25,16 +25,16 @@ ARCH_SRCS = $(sort $(wildcard $(ARCH_GLOBS)))
 BASE_OBJS = $(patsubst $(srcdir)/%,%.o,$(basename $(BASE_SRCS)))
 ARCH_OBJS = $(patsubst $(srcdir)/%,%.o,$(basename $(ARCH_SRCS)))
 REPLACED_OBJS = $(sort $(subst /$(ARCH)/,/,$(ARCH_OBJS)))
-ALL_OBJS = $(addprefix obj/, $(filter-out $(REPLACED_OBJS), $(sort $(BASE_OBJS) $(ARCH_OBJS))))
+ALL_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/obj/, $(filter-out $(REPLACED_OBJS), $(sort $(BASE_OBJS) $(ARCH_OBJS))))
 
-LIBC_OBJS = $(filter obj/src/%,$(ALL_OBJS)) $(filter obj/compat/%,$(ALL_OBJS))
-LDSO_OBJS = $(filter obj/ldso/%,$(ALL_OBJS:%.o=%.lo))
-CRT_OBJS = $(filter obj/crt/%,$(ALL_OBJS))
+LIBC_OBJS = $(filter $(SHBUILD_BUILD_DIR)/obj/src/%,$(ALL_OBJS)) $(filter $(SHBUILD_BUILD_DIR)/obj/compat/%,$(ALL_OBJS))
+LDSO_OBJS = $(filter $(SHBUILD_BUILD_DIR)/obj/ldso/%,$(ALL_OBJS:%.o=%.lo))
+CRT_OBJS = $(filter $(SHBUILD_BUILD_DIR)/obj/crt/%,$(ALL_OBJS))
 
 AOBJS = $(LIBC_OBJS)
 LOBJS = $(LIBC_OBJS:.o=.lo)
-GENH = obj/include/bits/alltypes.h
-GENH_INT = obj/src/internal/version.h
+GENH = $(SHBUILD_BUILD_DIR)/obj/include/bits/alltypes.h
+GENH_INT = $(SHBUILD_BUILD_DIR)/obj/src/internal/version.h
 IMPH = $(addprefix $(srcdir)/, src/internal/stdio_impl.h src/internal/pthread_impl.h src/internal/locale_impl.h src/internal/libc.h)
 
 LDFLAGS =
@@ -46,7 +46,7 @@ CFLAGS_AUTO = -Os -pipe
 CFLAGS_C99FSE = -std=c99 -ffreestanding -nostdinc 
 
 CFLAGS_ALL = $(CFLAGS_C99FSE)
-CFLAGS_ALL += -D_XOPEN_SOURCE=700 -I$(srcdir)/arch/$(ARCH) -I$(srcdir)/arch/generic -Iobj/src/internal -I$(srcdir)/src/include -I$(srcdir)/src/internal -Iobj/include -I$(srcdir)/include
+CFLAGS_ALL += -D_XOPEN_SOURCE=700 -I$(srcdir)/arch/$(ARCH) -I$(srcdir)/arch/generic -I$(SHBUILD_BUILD_DIR)/obj/src/internal -I$(srcdir)/src/include -I$(srcdir)/src/internal -I$(SHBUILD_BUILD_DIR)/obj/include -I$(srcdir)/include
 CFLAGS_ALL += $(CPPFLAGS) $(CFLAGS_AUTO) $(CFLAGS)
 
 LDFLAGS_ALL = $(LDFLAGS_AUTO) $(LDFLAGS)
@@ -58,56 +58,56 @@ INSTALL = $(srcdir)/tools/install.sh
 ARCH_INCLUDES = $(wildcard $(srcdir)/arch/$(ARCH)/bits/*.h)
 GENERIC_INCLUDES = $(wildcard $(srcdir)/arch/generic/bits/*.h)
 INCLUDES = $(wildcard $(srcdir)/include/*.h $(srcdir)/include/*/*.h)
-ALL_INCLUDES = $(sort $(INCLUDES:$(srcdir)/%=%) $(GENH:obj/%=%) $(ARCH_INCLUDES:$(srcdir)/arch/$(ARCH)/%=include/%) $(GENERIC_INCLUDES:$(srcdir)/arch/generic/%=include/%))
+ALL_INCLUDES = $(sort $(INCLUDES:$(srcdir)/%=%) $(GENH:$(SHBUILD_BUILD_DIR)/obj/%=%) $(ARCH_INCLUDES:$(srcdir)/arch/$(ARCH)/%=include/%) $(GENERIC_INCLUDES:$(srcdir)/arch/generic/%=include/%))
 
 EMPTY_LIB_NAMES = m rt pthread crypt util xnet resolv dl
-EMPTY_LIBS = $(EMPTY_LIB_NAMES:%=lib/lib%.a)
-CRT_LIBS = $(addprefix lib/,$(notdir $(CRT_OBJS)))
-STATIC_LIBS = lib/libc.a
-SHARED_LIBS = lib/libc.so
-TOOL_LIBS = lib/musl-gcc.specs
+EMPTY_LIBS = $(EMPTY_LIB_NAMES:%=$(SHBUILD_BUILD_DIR)/lib/lib%.a)
+CRT_LIBS = $(addprefix $(SHBUILD_BUILD_DIR)/lib/,$(notdir $(CRT_OBJS)))
+STATIC_LIBS = $(SHBUILD_BUILD_DIR)/lib/libc.a
+SHARED_LIBS = $(SHBUILD_BUILD_DIR)/lib/libc.so
+TOOL_LIBS = $(SHBUILD_BUILD_DIR)/lib/musl-gcc.specs
 ALL_LIBS = $(CRT_LIBS) $(STATIC_LIBS) $(SHARED_LIBS) $(EMPTY_LIBS) $(TOOL_LIBS)
-ALL_TOOLS = obj/musl-gcc
+ALL_TOOLS = $(SHBUILD_BUILD_DIR)/obj/musl-gcc
 
 WRAPCC_GCC = gcc
 WRAPCC_CLANG = clang
 
 LDSO_PATHNAME = $(syslibdir)/ld-musl-$(ARCH)$(SUBARCH).so.1
 
--include config.mak
+-include $(SHBUILD_BUILD_DIR)/config.mak
 -include $(srcdir)/arch/$(ARCH)/arch.mak
 
 ifeq ($(ARCH),)
 
 all:
-	@echo "Please set ARCH in config.mak before running make."
+	@echo "Please set ARCH in $(SHBUILD_BUILD_DIR)/config.mak before running make."
 	@exit 1
 
 else
 
 all: $(ALL_LIBS) $(ALL_TOOLS)
 
-OBJ_DIRS = $(sort $(patsubst %/,%,$(dir $(ALL_LIBS) $(ALL_TOOLS) $(ALL_OBJS) $(GENH) $(GENH_INT))) obj/include)
+OBJ_DIRS = $(sort $(patsubst %/,%,$(dir $(ALL_LIBS) $(ALL_TOOLS) $(ALL_OBJS) $(GENH) $(GENH_INT))) $(SHBUILD_BUILD_DIR)/obj/include)
 
 $(ALL_LIBS) $(ALL_TOOLS) $(ALL_OBJS) $(ALL_OBJS:%.o=%.lo) $(GENH) $(GENH_INT): | $(OBJ_DIRS)
 
 $(OBJ_DIRS):
 	mkdir -p $@
 
-obj/include/bits/alltypes.h: $(srcdir)/arch/$(ARCH)/bits/alltypes.h.in $(srcdir)/include/alltypes.h.in $(srcdir)/tools/mkalltypes.sed
+$(SHBUILD_BUILD_DIR)/obj/include/bits/alltypes.h: $(srcdir)/arch/$(ARCH)/bits/alltypes.h.in $(srcdir)/include/alltypes.h.in $(srcdir)/tools/mkalltypes.sed
 	sed -f $(srcdir)/tools/mkalltypes.sed $(srcdir)/arch/$(ARCH)/bits/alltypes.h.in $(srcdir)/include/alltypes.h.in > $@
 
-obj/include/bits/syscall.h: $(srcdir)/arch/$(ARCH)/bits/syscall.h.in
+$(SHBUILD_BUILD_DIR)/obj/include/bits/syscall.h: $(srcdir)/arch/$(ARCH)/bits/syscall.h.in
 	cp $< $@
 	sed -n -e s/__NR_/SYS_/p < $< >> $@
 
-obj/src/internal/version.h: $(wildcard $(srcdir)/VERSION $(srcdir)/.git)
+$(SHBUILD_BUILD_DIR)/obj/src/internal/version.h: $(wildcard $(srcdir)/VERSION $(srcdir)/.git)
 	printf '#define VERSION "%s"\n' "$$(cd $(srcdir); sh tools/version.sh)" > $@
 
-obj/src/internal/version.o obj/src/internal/version.lo: obj/src/internal/version.h
+$(SHBUILD_BUILD_DIR)/obj/src/internal/version.o $(SHBUILD_BUILD_DIR)/obj/src/internal/version.lo: $(SHBUILD_BUILD_DIR)/obj/src/internal/version.h
 
 OPTIMIZE_SRCS = $(wildcard $(OPTIMIZE_GLOBS:%=$(srcdir)/src/%))
-$(OPTIMIZE_SRCS:$(srcdir)/%.c=obj/%.o) $(OPTIMIZE_SRCS:$(srcdir)/%.c=obj/%.lo): CFLAGS += -O3
+$(OPTIMIZE_SRCS:$(srcdir)/%.c=$(SHBUILD_BUILD_DIR)/obj/%.o) $(OPTIMIZE_SRCS:$(srcdir)/%.c=$(SHBUILD_BUILD_DIR)/obj/%.lo): CFLAGS += -O3
 
 MEMOPS_OBJS = $(filter %/memcpy.o %/memmove.o %/memcmp.o %/memset.o, $(LIBC_OBJS))
 $(MEMOPS_OBJS) $(MEMOPS_OBJS:%.o=%.lo): CFLAGS_ALL += $(CFLAGS_MEMOPS)
@@ -131,29 +131,29 @@ else
 	AS_CMD = $(CC_CMD)
 endif
 
-obj/%.o: $(srcdir)/%.s
+$(SHBUILD_BUILD_DIR)/obj/%.o: $(srcdir)/%.s
 	$(AS_CMD)
 
-obj/%.o: $(srcdir)/%.S
+$(SHBUILD_BUILD_DIR)/obj/%.o: $(srcdir)/%.S
 	$(CC_CMD)
 
-obj/%.o: $(srcdir)/%.c $(GENH) $(IMPH)
+$(SHBUILD_BUILD_DIR)/obj/%.o: $(srcdir)/%.c $(GENH) $(IMPH)
 	$(CC_CMD)
 
-obj/%.lo: $(srcdir)/%.s
+$(SHBUILD_BUILD_DIR)/obj/%.lo: $(srcdir)/%.s
 	$(AS_CMD)
 
-obj/%.lo: $(srcdir)/%.S
+$(SHBUILD_BUILD_DIR)/obj/%.lo: $(srcdir)/%.S
 	$(CC_CMD)
 
-obj/%.lo: $(srcdir)/%.c $(GENH) $(IMPH)
+$(SHBUILD_BUILD_DIR)/obj/%.lo: $(srcdir)/%.c $(GENH) $(IMPH)
 	$(CC_CMD)
 
-lib/libc.so: $(LOBJS) $(LDSO_OBJS)
+$(SHBUILD_BUILD_DIR)/lib/libc.so: $(LOBJS) $(LDSO_OBJS)
 	$(CC) $(CFLAGS_ALL) $(LDFLAGS_ALL) -nostdlib -shared \
 	-Wl,-e,_dlstart -o $@ $(LOBJS) $(LDSO_OBJS) $(LIBCC)
 
-lib/libc.a: $(AOBJS)
+$(SHBUILD_BUILD_DIR)/lib/libc.a: $(AOBJS)
 	rm -f $@
 	$(AR) rc $@ $(AOBJS)
 	$(RANLIB) $@
@@ -162,30 +162,30 @@ $(EMPTY_LIBS):
 	rm -f $@
 	$(AR) rc $@
 
-lib/%.o: obj/crt/$(ARCH)/%.o
+$(SHBUILD_BUILD_DIR)/lib/%.o: $(SHBUILD_BUILD_DIR)/obj/crt/$(ARCH)/%.o
 	cp $< $@
 
-lib/%.o: obj/crt/%.o
+$(SHBUILD_BUILD_DIR)/lib/%.o: $(SHBUILD_BUILD_DIR)/obj/crt/%.o
 	cp $< $@
 
-lib/musl-gcc.specs: $(srcdir)/tools/musl-gcc.specs.sh config.mak
+$(SHBUILD_BUILD_DIR)/lib/musl-gcc.specs: $(srcdir)/tools/musl-gcc.specs.sh $(SHBUILD_BUILD_DIR)/config.mak
 	sh $< "$(includedir)" "$(libdir)" "$(LDSO_PATHNAME)" > $@
 
-obj/musl-gcc: config.mak
+$(SHBUILD_BUILD_DIR)/obj/musl-gcc: $(SHBUILD_BUILD_DIR)/config.mak
 	printf '#!/bin/sh\nexec "$${REALGCC:-$(WRAPCC_GCC)}" "$$@" -specs "%s/musl-gcc.specs"\n' "$(libdir)" > $@
 	chmod +x $@
 
-obj/%-clang: $(srcdir)/tools/%-clang.in config.mak
+$(SHBUILD_BUILD_DIR)/obj/%-clang: $(srcdir)/tools/%-clang.in $(SHBUILD_BUILD_DIR)/config.mak
 	sed -e 's!@CC@!$(WRAPCC_CLANG)!g' -e 's!@PREFIX@!$(prefix)!g' -e 's!@INCDIR@!$(includedir)!g' -e 's!@LIBDIR@!$(libdir)!g' -e 's!@LDSO@!$(LDSO_PATHNAME)!g' $< > $@
 	chmod +x $@
 
-$(DESTDIR)$(bindir)/%: obj/%
+$(DESTDIR)$(bindir)/%: $(SHBUILD_BUILD_DIR)/obj/%
 	$(INSTALL) -D $< $@
 
-$(DESTDIR)$(libdir)/%.so: lib/%.so
+$(DESTDIR)$(libdir)/%.so: $(SHBUILD_BUILD_DIR)/lib/%.so
 	$(INSTALL) -D -m 755 $< $@
 
-$(DESTDIR)$(libdir)/%: lib/%
+$(DESTDIR)$(libdir)/%: $(SHBUILD_BUILD_DIR)/lib/%
 	$(INSTALL) -D -m 644 $< $@
 
 $(DESTDIR)$(includedir)/bits/%: $(srcdir)/arch/$(ARCH)/bits/%
@@ -194,7 +194,7 @@ $(DESTDIR)$(includedir)/bits/%: $(srcdir)/arch/$(ARCH)/bits/%
 $(DESTDIR)$(includedir)/bits/%: $(srcdir)/arch/generic/bits/%
 	$(INSTALL) -D -m 644 $< $@
 
-$(DESTDIR)$(includedir)/bits/%: obj/include/bits/%
+$(DESTDIR)$(includedir)/bits/%: $(SHBUILD_BUILD_DIR)/obj/include/bits/%
 	$(INSTALL) -D -m 644 $< $@
 
 $(DESTDIR)$(includedir)/%: $(srcdir)/include/%
@@ -203,11 +203,11 @@ $(DESTDIR)$(includedir)/%: $(srcdir)/include/%
 $(DESTDIR)$(LDSO_PATHNAME): $(DESTDIR)$(libdir)/libc.so
 	$(INSTALL) -D -l $(libdir)/libc.so $@ || true
 
-install-libs: $(ALL_LIBS:lib/%=$(DESTDIR)$(libdir)/%) $(if $(SHARED_LIBS),$(DESTDIR)$(LDSO_PATHNAME),)
+install-libs: $(ALL_LIBS:$(SHBUILD_BUILD_DIR)/lib/%=$(DESTDIR)$(libdir)/%) $(if $(SHARED_LIBS),$(DESTDIR)$(LDSO_PATHNAME),)
 
 install-headers: $(ALL_INCLUDES:include/%=$(DESTDIR)$(includedir)/%)
 
-install-tools: $(ALL_TOOLS:obj/%=$(DESTDIR)$(bindir)/%)
+install-tools: $(ALL_TOOLS:$(SHBUILD_BUILD_DIR)/obj/%=$(DESTDIR)$(bindir)/%)
 
 install: install-libs install-headers install-tools
 
@@ -220,9 +220,9 @@ musl-%.tar.gz: .git
 endif
 
 clean:
-	rm -rf obj lib
+	rm -rf $(SHBUILD_BUILD_DIR)/obj $(SHBUILD_BUILD_DIR)/lib
 
 distclean: clean
-	rm -f config.mak
+	rm -f $(SHBUILD_BUILD_DIR)/config.mak
 
 .PHONY: all clean install install-libs install-headers install-tools
