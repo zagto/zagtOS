@@ -71,11 +71,7 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
     }
 
     cout << "Interrupt occured in User Mode (TODO: implement killing thread): " << *registerState << endl;
-    //Panic();
-
-    cout << "Halting System for Debugger" << endl;
-
-    returnFromInterruptForDebugger(registerState);
+    Panic();
 }
 
 
