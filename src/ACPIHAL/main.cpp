@@ -5,6 +5,7 @@
 extern "C" {
     #include <acpi.h>
     #include <findProcessors.h>
+    #include <PCI.h>
 }
 
 
@@ -15,59 +16,43 @@ int main() {
     std::cout << "received port handle " << envPort.handle().value << std::endl;
 
     if (AcpiInitializeSubsystem()) {
-        std::cout << "AcpiInitializeSubsystem failed" << std::endl;
-        return 1;
+        throw std::logic_error("AcpiInitializeSubsystem failed");
     }
     std::cout << "ACPI Subsystem initialized" << std::endl;
 
     if (AcpiInitializeTables(nullptr, 10, true)) {
-        std::cout << "AcpiInitializeTables failed" << std::endl;
-        return 1;
+        throw std::logic_error("AcpiInitializeTables failed");
     }
     std::cout << "ACPI Tables initialized" << std::endl;
 
-    ACPI_TABLE_MCFG *mcfg;
-    ACPI_STATUS result = AcpiGetTable(const_cast<ACPI_STRING>(ACPI_SIG_MCFG),
-                                      0,
-                                      reinterpret_cast<ACPI_TABLE_HEADER **>(&mcfg));
-    if (result == AE_NOT_FOUND) {
-        std::cout << "MCFG table does not exist" << std::endl;
-        mcfg = nullptr;
-    } else if (result) {
-        std::cout << "Getting MCFG table failed: " << result << std::endl;
-        return 1;
-    }
+
+    initPCI();
 
     findProcessors();
 
-    std::cout << "ACPI HAL initialized" << std::endl;
-
-    zagtos::sendMessage(envPort, zagtos::StartHALResponse, zbon::encode(true));
-    std::cout << "ACPI HAL EXIT" << std::endl;
-
-    /*
-     * TODO
-    result = AcpiLoadTables();
+    ACPI_STATUS result = AcpiLoadTables();
     if (result) {
-        std::cout << "AcpiLoadTables failed: %u\n", result);
+        throw std::logic_error("AcpiLoadTables failed: " + std::to_string(result));
         return 1;
     }
     std::cout << "ACPI Tables initialized" << std::endl;
 
-    result = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
+    /*result = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
     if (result) {
-        std::cout << "AcpiEnableSubsystem failed: %u\n", result);
-        return 1;
+        throw std::logic_error("AcpiEnableSubsystem failed: " + std::to_string(result));
     }
     std::cout << "ACPI Subsystem initialized" << std::endl;
 
     result = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
     if (result) {
-        std::cout << "AcpiInitializeObjects failed: %u\n", result);
-        return 1;
+        throw std::logic_error("AcpiInitializeObjects failed: " + std::to_string(result));
     }
-    std::cout << "ACPI Objects initialized" << std::endl;
-    */
+    std::cout << "ACPI Objects initialized" << std::endl;*/
+
+    std::cout << "ACPI HAL initialized" << std::endl;
+
+    zagtos::sendMessage(envPort, zagtos::StartHALResponse, zbon::encode(true));
+    std::cout << "ACPI HAL EXIT" << std::endl;
 
 }
 

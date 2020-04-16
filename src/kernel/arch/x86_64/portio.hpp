@@ -1,10 +1,18 @@
-#ifndef PORTIO_HPP
-#define PORTIO_HPP
+#pragma once
 
 #include <common/common.hpp>
 
+namespace portio {
+
 extern "C" uint8_t InB(uint16_t port);
 extern "C" void OutB(uint16_t port, uint8_t data);
+extern "C" uint16_t InW(uint16_t port);
+extern "C" void OutW(uint16_t port, uint16_t data);
+extern "C" uint32_t InD(uint16_t port);
+extern "C" void OutD(uint16_t port, uint32_t data);
+
+uint32_t read(uint16_t port, size_t size);
+void write(uint16_t port, size_t size, uint32_t data);
 
 inline void waitIO() {
     /*
@@ -14,4 +22,5 @@ inline void waitIO() {
     OutB(0x80, 0);
 }
 
-#endif // PORTIO_HPP
+}
+

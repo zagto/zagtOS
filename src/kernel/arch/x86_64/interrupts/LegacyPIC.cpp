@@ -1,6 +1,7 @@
 #include <interrupts/LegacyPIC.hpp>
 #include <portio.hpp>
 
+using namespace portio;
 
 static const uint16_t MASTER_PIC_COMMAND = 0x20;
 static const uint16_t MASTER_PIC_DATA    = 0x21;

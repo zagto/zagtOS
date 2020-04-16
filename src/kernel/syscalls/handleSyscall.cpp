@@ -7,6 +7,7 @@
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <syscalls/SyscallNumbers.hpp>
+#include <portio.hpp>
 
 
 bool Thread::handleSyscall() {
@@ -135,6 +136,20 @@ bool Thread::handleSyscall() {
     case SYS_GET_ACPI_ROOT: {
         /* TODO: permissions checking */
         registerState.setSyscallResult(CurrentSystem.ACPIRoot.value());
+        return true;
+    }
+    case SYS_IO_PORT_READ: {
+        /* TODO: permissions checking */
+        uint32_t result = portio::read(static_cast<uint16_t>(registerState.syscallParameter(0)),
+                                       registerState.syscallParameter(1));
+        registerState.setSyscallResult(result);
+        return true;
+    }
+    case SYS_IO_PORT_WRITE: {
+        /* TODO: permissions checking */
+        portio::write(static_cast<uint16_t>(registerState.syscallParameter(0)),
+                      registerState.syscallParameter(1),
+                      static_cast<uint32_t>(registerState.syscallParameter(2)));
         return true;
     }
     case SYS_ADD_PROCESSOR: {

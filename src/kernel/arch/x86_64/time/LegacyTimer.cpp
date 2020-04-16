@@ -1,6 +1,7 @@
 #include <portio.hpp>
 #include <time/LegacyTimer.hpp>
 
+using namespace portio;
 
 void LegacyTimer::setReloadValue(uint16_t value) {
     OutB(DATA_PORT, value & 0xff);

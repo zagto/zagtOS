@@ -2,6 +2,7 @@
 #include <log/SerialBackend.hpp>
 #include <portio.hpp>
 
+using namespace portio;
 
 static const uint16_t SERIAL_PORT = 0x3f8;
 

@@ -14,7 +14,7 @@
 #include <zagtos/memory.h>
 #include <zagtos/interrupt.h>
 #include <acpi.h>
-#include <pci.h>
+#include <PCI.h>
 
 
 /* ACPIA OS Layer
@@ -331,7 +331,7 @@ ACPI_STATUS AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId,
                                        UINT32 Reg,
                                        UINT64 *Value,
                                        UINT32 Width) {
-    size_t base = pci_get_config_address(PciId);
+    size_t base = getPCIConfigAddress(PciId);
     return AcpiOsReadMemory(base + Reg, Value, Width);
 }
 
@@ -339,7 +339,7 @@ ACPI_STATUS AcpiOsWritePciConfiguration(ACPI_PCI_ID *PciId,
                                         UINT32 Reg,
                                         UINT64 Value,
                                         UINT32 Width) {
-    size_t base = pci_get_config_address(PciId);
+    size_t base = getPCIConfigAddress(PciId);
     return AcpiOsWriteMemory(base + Reg, Value, Width);
 }
 
