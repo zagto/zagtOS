@@ -33,7 +33,7 @@ uint64_t getPCIConfigAddress(ACPI_PCI_ID *PciId) {
 }
 
 extern "C"
-void initPCI(void) {
+void initPCIForACPI(void) {
     ACPI_TABLE_MCFG *mcfg;
     ACPI_STATUS result = AcpiGetTable(const_cast<ACPI_STRING>(ACPI_SIG_MCFG),
                                       0,

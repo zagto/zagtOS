@@ -162,6 +162,10 @@ void Module::build() {
 
         compile();
 
+        std::filesystem::current_path(srcDir);
+
+        install();
+
         std::ofstream timestampFile(buildDir.string() + "/timestamp",
                                     std::ios_base::openmode::_S_out | std::ios_base::openmode::_S_trunc);
         assert(timestampFile.is_open());
@@ -173,9 +177,6 @@ void Module::build() {
         }
     }
 
-    std::filesystem::current_path(srcDir);
-
-    install();
 
     std::filesystem::current_path(BuildRoot);
     setenv("SHBUILD_BUILD_DIR", "", 1);
@@ -247,10 +248,9 @@ void prepareEnvironment() {
     setenv("ARCH", TargetArchitecture.c_str(), 1);
 
     try {
-        std::filesystem::remove_all("out");
-        std::filesystem::create_directories("out/sysroot");
+        std::filesystem::remove_all("out/esp");
     }  catch (std::filesystem::filesystem_error) {
-        std::cerr << "unable to clear Sysroot" << std::endl;
+        std::cerr << "unable to clear out/" << std::endl;
         exit(1);
     }
 }

@@ -14,7 +14,7 @@ function check_toolchain() {
     if [ "$NOHEADERS" = "yes" ]; then
         EXTRA_FLAGS_GCC=
     else
-        EXTRA_FLAGS_GCC="--with-sysroot=$SYSROOT"
+        EXTRA_FLAGS_GCC="--with-sysroot=$SYSROOT --enable-threads=posix"
     fi
 
     mkdir -p "$GCC_BUILD_DIR"

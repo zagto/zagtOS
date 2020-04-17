@@ -900,6 +900,7 @@ case ${target} in
   gnu_ld=yes
   default_use_cxa_atexit=yes
   native_system_header_dir=/include
+  thread_file='posix'
   ;;
 *-*-solaris2*)
   # i?86-*-solaris2* needs to insert headers between cpu default and
