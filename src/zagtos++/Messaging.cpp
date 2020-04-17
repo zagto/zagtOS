@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 #include <limits.h>
 
-using namespace zagtos;
+namespace zagtos {
 
 HandleObject::HandleObject() {}
 
@@ -91,7 +91,7 @@ std::unique_ptr<MessageInfo> Port::receiveMessage() {
 }
 
 
-void zagtos::sendMessage(const RemotePort &target, const uuid_t messageTypeID, zbon::EncodedData message) {
+void sendMessage(const RemotePort &target, const uuid_t messageTypeID, zbon::EncodedData message) {
     zagtos_syscall5(SYS_SEND_MESSAGE,
                     target.handle().value,
                     reinterpret_cast<size_t>(messageTypeID),
@@ -100,16 +100,17 @@ void zagtos::sendMessage(const RemotePort &target, const uuid_t messageTypeID, z
                     message.numHandles());
 }
 
-extern MessageInfo *__run_message;
+extern "C" MessageInfo *__run_message;
 
-const MessageInfo &zagtos::receiveRunMessageInfo() {
+const MessageInfo &receiveRunMessageInfo() {
     return *__run_message;
 }
 
-void zagtos::receiveRunMessage(const uuid_t type) {
+void receiveRunMessage(const uuid_t type) {
     if (uuid_compare(type, __run_message->type) != 0) {
         std::cout << "invalid run message type" << std::endl;
         exit(1);
     }
 }
 
+}

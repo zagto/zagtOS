@@ -122,6 +122,7 @@ void Module::loadDependencies() {
         if (it == ModulesByName.end()) {
             std::cerr << "Module " << name << " has dependency '" << entry
                       << "' which is not an enabled module." << std::endl;
+            exit(1);
         }
 
         numDependencies++;

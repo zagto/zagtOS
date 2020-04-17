@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 #include <uuid/uuid.h>
-#include <zagtos/zbon.hpp>
+#include <zagtos/ZBON.hpp>
 #include <cstdint>
 
 namespace zagtos {
@@ -29,9 +29,10 @@ namespace zagtos {
 
         Handle _handle{INVALID_HANDLE};
 
+        HandleObject(const Handle handle);
+
     public:
         HandleObject();
-        HandleObject(const Handle handle);
 
         Handle handle() const;
 

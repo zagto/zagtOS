@@ -2,7 +2,7 @@
 #define ENVIRONMENTSPAWN_HPP
 
 #include <vector>
-#include <zagtos/zbon.hpp>
+#include <zagtos/ZBON.hpp>
 #include <zagtos/Messaging.hpp>
 #include <zagtos/ExternalBinary.hpp>
 

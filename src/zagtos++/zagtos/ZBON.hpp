@@ -1,5 +1,4 @@
-#ifndef ZBON_HPP
-#define ZBON_HPP
+#pragma once
 
 #include <cstdint>
 #include <cstddef>
@@ -10,7 +9,9 @@
 #include <limits>
 #include <iostream>
 
+namespace zagtos {
 namespace zbon {
+
 enum class Type : uint8_t {
     OBJECT, NOTHING, ARRAY, STRING, BOOLEAN,
     INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64,
@@ -22,54 +23,21 @@ static const size_t HANDLE_SIZE = 4;
 struct Size {
     size_t numRegularBytes{0};
     size_t numHandles{0};
+
+    Size operator+(const Size &b) const {
+        return {numRegularBytes + b.numRegularBytes, numHandles + b.numHandles};
+    }
+    Size operator+=(const Size &b) {
+        numRegularBytes += b.numRegularBytes;
+        numHandles += b.numHandles;
+        return *this;
+    }
 };
 
-static Size operator+(const Size &a, const Size &b) {
-    return {a.numRegularBytes + b.numRegularBytes, a.numHandles + b.numHandles};
-}
-static Size operator+=(Size &a, const Size &b) {
-    a = {a.numRegularBytes + b.numRegularBytes, a.numHandles + b.numHandles};
-    return a;
-}
 
 
-static std::ostream &operator<<(std::ostream &stream, Type type) {
-    switch (type) {
-    case Type::OBJECT:
-        return stream << "Object";
-    case Type::NOTHING:
-        return stream << "Nothing";
-    case Type::ARRAY:
-        return stream << "Array";
-    case Type::STRING:
-        return stream << "String";
-    case Type::BOOLEAN:
-        return stream << "Boolean";
-    case Type::INT8:
-        return stream << "8-bit Signed Integer";
-    case Type::UINT8:
-        return stream << "8-bit Unsigned Integer";
-    case Type::INT16:
-        return stream << "16-bit Signed Integer";
-    case Type::UINT16:
-        return stream << "16-bit Unsigned Integer";
-    case Type::INT32:
-        return stream << "32-bit Signed Integer";
-    case Type::UINT32:
-        return stream << "32-bit Unsigned Integer";
-    case Type::INT64:
-        return stream << "64-bit Signed Integer";
-    case Type::UINT64:
-        return stream << "64-bit Unsigned Integer";
-    case Type::FLOAT:
-        return stream << "Single-Precision Float";
-    case Type::DOUBLE:
-        return stream << "Single-Precision Float";
-    case Type::HANDLE:
-        return stream << "Handle";
-    }
-    assert(false);
-}
+
+std::ostream &operator<<(std::ostream &stream, Type type);
 
 /* typeFor is a class and not a function to allow partial specialization */
 template<typename T> class typeFor {
@@ -217,30 +185,15 @@ static const size_t COUNT_SIZE = 8;
 static const size_t TYPE_SIZE = 1;
 static const size_t HEADER_SIZE = TYPE_SIZE + COUNT_SIZE;
 
-extern "C" void *memcpy(void *dest, const void *src, size_t len);
-
-static void copyConvertEndianness(void *destination, const void *source, size_t length) {
-    if constexpr (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) {
-        memcpy(destination, source, length);
-    } else {
-        for (size_t i = 0; i < length; i++) {
-            static_cast<uint8_t *>(destination)[i] =
-                    static_cast<const uint8_t *>(source)[length - i - 1];
-        }
-    }
-}
-
-static Size sizeFor(bool) {
+static constexpr Size sizeFor(bool) {
     return {1};
 }
 template<typename T>
-static Size sizeFor(const T& object) {
+Size sizeFor(const T& object) {
     return object.ZBONSize();
 }
-static Size sizeFor(std::string string) {
-    return {TYPE_SIZE + COUNT_SIZE + string.size()};
-}
-#define NUMBER_TYPE(T) static Size sizeFor(const T) { return {sizeof(T)}; }
+Size sizeFor(std::string string);
+#define NUMBER_TYPE(T) constexpr Size sizeFor(const T) { return {sizeof(T)}; }
 INSERT_NUMBER_TYPES
 #undef NUMBER_TYPE
 
@@ -372,6 +325,8 @@ Type nthType() {
         return nthType<position - 1, Tail...>();
     }
 }
+
+void copyConvertEndianness(void *destination, const void *source, size_t length);
 
 class Encoder {
 private:
@@ -586,9 +541,9 @@ private:
         if (!decodeType(type)) {
             return false;
         }
-        if (typeFor<HeadType>() != type) {
+        if (typeFor<HeadType>::type() != type) {
             std::cerr << "ZBON: requested decode of Tuple element of type "
-                      << typeFor<HeadType>() << " but ZBON Object holds " << type
+                      << typeFor<HeadType>::type() << " but ZBON Object holds " << type
                       << std::endl;
             return false;
         }
@@ -794,6 +749,7 @@ public:
     bool decodeCArray(T *&pointer, size_t &length) {
         Type type;
         pointer = nullptr;
+        length = 0;
         if (!decodeType(type)) {
             goto fail;
         }
@@ -808,6 +764,7 @@ public:
             goto fail;
         }
         pointer = new T[numElements];
+        length = static_cast<size_t>(numElements);
 
         uint64_t bytesSize;
         size_t positionBeforeData;
@@ -835,6 +792,7 @@ public:
             delete[] pointer;
             pointer = nullptr;
         }
+        length = 0;
         return false;
     }
 
@@ -897,16 +855,6 @@ public:
     }
 };
 
-void EncodedData::ZBONEncode(Encoder &encoder) const {
-    encoder.encodeCArray(Type::UINT8, _data, _size);
-}
-
-bool EncodedData::ZBONDecode(Decoder &decoder) {
-    assert(_data == nullptr);
-    _numHandles = 0;
-    return decoder.decodeCArray(_data, _size);
-}
-
 template<typename T>
 static EncodedData encode(const T &cppData) {
     Encoder e;
@@ -920,5 +868,4 @@ static bool decode(const EncodedData &encodedData, T &result) {
 }
 
 }
-
-#endif // ZBON_HPP
+}
