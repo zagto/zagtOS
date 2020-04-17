@@ -7,6 +7,7 @@ extern "C" {
     #include <PCI.h>
 }
 
+
 static std::vector<zagtos::pci::SegmentGroup> segmentGroups;
 
 extern "C"
@@ -16,7 +17,7 @@ uint64_t getPCIConfigAddress(ACPI_PCI_ID *PciId) {
     }
 
     for (const auto &group: segmentGroups) {
-        if (group.segementNumber == PciId->Segment) {
+        if (group.segmentNumber == PciId->Segment) {
             if (PciId->Bus < group.busStart || PciId->Bus > group.busEnd) {
                 throw std::logic_error("getPCIConfigAddress called for non existing segment group"
                                        + std::to_string(PciId->Segment));

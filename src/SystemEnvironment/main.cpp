@@ -1,7 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <tuple>
-#include <zagtos/zbon.hpp>
+#include <zagtos/ZBON.hpp>
 #include <zagtos/Messaging.hpp>
 #include <zagtos/HAL.hpp>
 #include <zagtos/ExternalBinary.hpp>

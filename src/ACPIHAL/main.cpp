@@ -51,7 +51,7 @@ int main() {
 
     std::cout << "ACPI HAL initialized" << std::endl;
 
-    zagtos::sendMessage(envPort, zagtos::MSG_START_HAL_RESULT, zbon::encode(true));
+    zagtos::sendMessage(envPort, zagtos::MSG_START_HAL_RESULT, zagtos::zbon::encode(true));
     std::cout << "ACPI HAL EXIT" << std::endl;
 
 }

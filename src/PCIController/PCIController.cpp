@@ -9,13 +9,11 @@ using namespace zagtos::pci;
 
 
 int main() {
-    auto msg = decodeRunMessage<std::tuple<RemotePort, zbon::EncodedData>>(MSG_START_CONTROLLER);
+    auto [envPort, data] = decodeRunMessage<std::tuple<RemotePort, zbon::EncodedData>>(MSG_START_CONTROLLER);
     std::vector<SegmentGroup> segmentGroups;
-    if (!zbon::decode(std::get<1>(msg), segmentGroups)) {
+    if (!zbon::decode(data, segmentGroups)) {
         throw new std::logic_error("Got malformed segment group info.");
     }
-    RemotePort envPort = std::move(std::get<0>(msg));
 
     std::cout << "Starting PCI Controller..." << std::endl;
-
 }

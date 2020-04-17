@@ -15,7 +15,7 @@ C_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(C_SOURCES:.c=.o))
 ASM_SOURCES = $(shell find arch/$(ARCH) -type f -name '*.asm')
 ASM_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(ASM_SOURCES:.asm=.o))
 
-EMBEDDED_BINARIES = $(SHBUILD_ROOT)/build/ACPIHAL/ACPIHAL $(SHBUILD_ROOT)/build/ACPIHAL/PCIController
+EMBEDDED_BINARIES = $(SHBUILD_ROOT)/build/ACPIHAL/ACPIHAL $(SHBUILD_ROOT)/build/PCIController/PCIController
 BINARY_OBJS = $(SHBUILD_BUILD_DIR)/binaries.o
 #$(addsuffix .o, $(addprefix $(SHBUILD_BUILD_DIR)/, $(notdir $(EMBEDDED_BINARIES))))
 

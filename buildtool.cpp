@@ -80,11 +80,11 @@ Module::Module(std::string moduleName, uint32_t _id) :
         }
 
         while(sourceDirsFile.good()) {
-            std::string entry;
-            sourceDirsFile >> entry;
+            std::string sourceDir;
+            sourceDirsFile >> sourceDir;
 
             for (const std::filesystem::directory_entry& entry:
-                    std::filesystem::recursive_directory_iterator("src/" + entry)) {
+                    std::filesystem::recursive_directory_iterator("src/" + sourceDir)) {
 
                 lastModified = max(lastModified, entry.last_write_time());
             }
