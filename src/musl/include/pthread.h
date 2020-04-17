@@ -27,6 +27,7 @@ extern "C" {
 
 #include <bits/alltypes.h>
 
+#include <sched.h>
 #include <time.h>
 
 #define PTHREAD_CREATE_JOINABLE 0
