@@ -2,10 +2,10 @@
 #include <zagtos/syscall.h>
 #include <zagtos/Messaging.hpp>
 #include <zagtos/HAL.hpp>
+#include <PCI.hpp>
 extern "C" {
     #include <acpi.h>
     #include <findProcessors.h>
-    #include <PCI.h>
 }
 
 
@@ -48,6 +48,8 @@ int main() {
         throw std::logic_error("AcpiInitializeObjects failed: " + std::to_string(result));
     }
     std::cout << "ACPI Objects initialized" << std::endl;*/
+
+    initPCIForOS(envPort);
 
     std::cout << "ACPI HAL initialized" << std::endl;
 

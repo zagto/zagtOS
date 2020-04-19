@@ -14,7 +14,6 @@
 #include <zagtos/memory.h>
 #include <zagtos/interrupt.h>
 #include <acpi.h>
-#include <PCI.h>
 
 
 /* ACPIA OS Layer
@@ -327,6 +326,10 @@ ACPI_STATUS AcpiOsWritePort(ACPI_IO_ADDRESS Address, UINT32 Value, UINT32 Width)
 /*
  * PCI Configuration Space Access
  */
+
+// from PCI.cpp
+uint64_t getPCIConfigAddress(ACPI_PCI_ID *PciId);
+
 ACPI_STATUS AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId,
                                        UINT32 Reg,
                                        UINT64 *Value,

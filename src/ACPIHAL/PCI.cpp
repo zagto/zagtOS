@@ -2,9 +2,10 @@
 #include <iostream>
 #include <stdexcept>
 #include <zagtos/PCI.hpp>
+#include <zagtos/HAL.hpp>
+#include <PCI.hpp>
 extern "C" {
     #include <acpi.h>
-    #include <PCI.h>
 }
 
 
@@ -33,8 +34,7 @@ uint64_t getPCIConfigAddress(ACPI_PCI_ID *PciId) {
                            + std::to_string(PciId->Segment));
 }
 
-extern "C"
-void initPCIForACPI(void) {
+void initPCIForACPI() {
     ACPI_TABLE_MCFG *mcfg;
     ACPI_STATUS result = AcpiGetTable(const_cast<ACPI_STRING>(ACPI_SIG_MCFG),
                                       0,
@@ -66,3 +66,13 @@ void initPCIForACPI(void) {
         };
     }
 }
+
+void initPCIForOS(zagtos::RemotePort &envPort) {
+    if (segmentGroups.empty()) {
+        /* no PCI support */
+        return;
+    }
+
+    zagtos::sendMessage(envPort, zagtos::MSG_FOUND_CONTROLLER, zagtos::zbon::encode(segmentGroups));
+}
+

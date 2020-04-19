@@ -18,7 +18,7 @@ struct SegmentGroup {
     zbon::Size ZBONSize() const {
         return zbon::sizeFor(std::make_tuple(configBase, segmentNumber, busStart, busEnd));
     }
-    void ZBONEncode(zbon::Encoder &encoder) {
+    void ZBONEncode(zbon::Encoder &encoder) const {
         encoder.encodeValue(std::make_tuple(configBase, segmentNumber, busStart, busEnd));
     }
     bool ZBONDecode(zbon::Decoder &decoder) {
