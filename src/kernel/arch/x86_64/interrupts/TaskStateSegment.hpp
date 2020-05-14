@@ -4,6 +4,7 @@
 #include <common/common.hpp>
 
 class Thread;
+template<typename T> class shared_ptr;
 
 class __attribute__((__packed__)) TaskStateSegment
 {
@@ -16,7 +17,7 @@ public:
     uint16_t ioBase{0};
 
 public:
-    void update(Thread *thread);
+    void update(const shared_ptr<Thread> &thread);
 };
 
 #endif // TASKSTATESEGMENT_HPP

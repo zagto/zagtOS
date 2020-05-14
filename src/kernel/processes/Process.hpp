@@ -15,9 +15,11 @@ private:
     friend class PagingContext;
     friend class Thread;
     friend class MMap;
+    friend class MProtect;
     friend class MUnmap;
     friend class Message;
-    vector<Thread *>threads;
+    /* For returnToUserMode - TODO: review if there is a better design for this */
+    friend class Interrupts;
     MappedAreaVector mappedAreas;
     HandleManager handleManager;
 
@@ -31,7 +33,8 @@ public:
     mutex pagingLock;
     mutex threadsLock;
     /*needed ? mutex portsLock;*/
-    PagingContext *masterPageTable;
+    PagingContext *pagingContext;
+    volatile bool onExit;
 
     Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage);
     ~Process();
@@ -40,7 +43,6 @@ public:
                                   Permissions permissions);
     void freeFrame(UserVirtualAddress address);
     bool handlePageFault(UserVirtualAddress address);
-    void removeThread(Thread *thread);
 
     bool copyFromOhterUserSpace(size_t destinationAddress,
                                 Process &sourceProcess,
@@ -52,6 +54,5 @@ public:
     bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
     bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
 
-    //void receiveMessage(Message *msg);
     size_t runMessageAddress();
 };

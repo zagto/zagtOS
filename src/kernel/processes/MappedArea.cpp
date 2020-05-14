@@ -11,14 +11,13 @@ MappedArea::MappedArea(Process *process, Region region, Permissions permissions)
     assert(UserVirtualAddress::checkInRegion(region.start));
     assert(UserVirtualAddress::checkInRegion(region.end() - 1));
     assert(region.isPageAligned());
-    assert(permissions != Permissions::WRITE_AND_EXECUTE);
+    assert(permissions != Permissions::READ_WRITE_EXECUTE && permissions != Permissions::INVALID);
 }
 
 
 MappedArea::MappedArea(Process *process,
                        Region region,
-                       Permissions
-                       permissions,
+                       Permissions permissions,
                        PhysicalAddress pyhsicalStart) :
         process{process},
         source{Source::PHYSICAL_MEMORY},
@@ -28,7 +27,18 @@ MappedArea::MappedArea(Process *process,
     assert(UserVirtualAddress::checkInRegion(region.start));
     assert(UserVirtualAddress::checkInRegion(region.end() - 1));
     assert(region.isPageAligned());
-    assert(permissions != Permissions::WRITE_AND_EXECUTE);
+    assert(permissions != Permissions::READ_WRITE_EXECUTE && permissions != Permissions::INVALID);
+}
+
+
+MappedArea::MappedArea(Process *process, Region region) :
+        process{process},
+        source{Source::MEMORY},
+        region{region},
+        permissions{Permissions::INVALID} {
+    assert(UserVirtualAddress::checkInRegion(region.start));
+    assert(UserVirtualAddress::checkInRegion(region.end() - 1));
+    assert(region.isPageAligned());
 }
 
 
@@ -39,16 +49,21 @@ MappedArea::~MappedArea() {
 
 bool MappedArea::handlePageFault(UserVirtualAddress address) {
     assert(process->pagingLock.isLocked());
-    if (process->masterPageTable->isMapped(address)) {
-        process->masterPageTable->invalidateLocally(address);
+    if (process->pagingContext->isMapped(address)) {
+        process->pagingContext->invalidateLocally(address);
     } else {
-        if (source == Source::MEMORY) {
+        switch (source) {
+        case Source::MEMORY:
             process->allocateFrame(address, permissions);
-        } else if (source == Source::PHYSICAL_MEMORY) {
-            process->masterPageTable->map(address,
+            break;
+        case Source::PHYSICAL_MEMORY:
+            process->pagingContext->map(address,
                                        physicalStart + (address.value() - region.start),
                                        permissions);
-        } else {
+            break;
+        case Source::GUARD:
+            return false;
+        default:
             Panic();
         }
     }
@@ -60,10 +75,13 @@ void MappedArea::unmapRange(Region range) {
 
     switch (source) {
     case Source::MEMORY:
-        process->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, true);
+        process->pagingContext->unmapRange(range.start, range.length / PAGE_SIZE, true);
         break;
     case Source::PHYSICAL_MEMORY:
-        process->masterPageTable->unmapRange(range.start, range.length / PAGE_SIZE, false);
+        process->pagingContext->unmapRange(range.start, range.length / PAGE_SIZE, false);
+        break;
+    case Source::GUARD:
+        /* do nothing */
         break;
     default:
         Panic();
@@ -84,6 +102,25 @@ void MappedArea::shrinkBack(size_t amount) {
     unmapRange(Region(region.end() - amount, amount));
     region.length -= amount;
 }
+
+void MappedArea::changePermissions(Permissions newPermissions) {
+    if (source == Source::GUARD) {
+        if (newPermissions != Permissions::INVALID) {
+            source = Source::MEMORY;
+        }
+    } else {
+        if (newPermissions == Permissions::INVALID) {
+            unmapRange(region);
+            source = Source::GUARD;
+        } else {
+            process->pagingContext->changeRangePermissions(region.start,
+                                                           region.length / PAGE_SIZE,
+                                                           newPermissions);
+        }
+    }
+    permissions = newPermissions;
+}
+
 
 bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress address,
                                                        size_t &resultIndex,
@@ -253,10 +290,11 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
 
     size_t newElementIndex = index + numAddBetween + 1;
     Region newElementRegion(removeRegion.end(), oldElement.region.end() - removeRegion.end());
-    _data[newElementIndex] = new MappedArea(process, newElementRegion, oldElement.permissions);
+    _data[newElementIndex] = new MappedArea(oldElement);
+    _data[newElementIndex]->region = newElementRegion;
 
     /* oldElement will still be responsible for the first part */
-    oldElement.region.length -= removeRegion.start - oldElement.region.end();
+    oldElement.region.length -= oldElement.region.end() - removeRegion.start;
     assert(oldElement.region.end() == removeRegion.start);
 
     for (size_t i = index + 1; i < newElementIndex; i++) {
@@ -326,3 +364,90 @@ size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
 
     return index;
 }
+
+
+bool MappedAreaVector::isRegionFullyMapped(Region range, size_t &index) {
+    if (isRegionFree(range, index)) {
+        return false;
+    }
+
+    assert(index < numElements);
+
+    MappedArea &firstMA = *_data[index];
+    if (firstMA.region.start > range.start) {
+        /* unmapped at start */
+        return false;
+    }
+
+    size_t endIndex = index + 1;
+    while (endIndex < numElements && _data[endIndex]->region.end() <= range.end()) {
+        if (_data[endIndex]->region.start != _data[endIndex-1]->region.end()) {
+            /* gap */
+            return false;
+        }
+        endIndex++;
+    }
+
+    if (_data[endIndex-1]->region.end() < range.end()) {
+        /* unmapped at end */
+        return false;
+    }
+
+    return true;
+}
+
+
+
+/*
+ * Unmaps all MappedAreas that are inside range. MappedAreas crossing range boundaries will be
+ * truncated.
+ * The method will add numAddInstead of new slots for MappedAreas to the vector in place of the
+ * removed range. No MappedArea object will be created for these, they will be initialized to
+ * nullptr. The index of the first of theses slots is returned
+ */
+bool MappedAreaVector::changeRangePermissions(Region range, Permissions newPermissions) {
+    size_t index;
+    if (!isRegionFullyMapped(range, index)) {
+        cout << "warning: attempt to change permissions of area that is not fully mapped" << endl;
+        return false;
+    }
+
+    assert(index < numElements);
+
+    MappedArea &firstMA = *_data[index];
+
+    if (firstMA.region.start < range.start) {
+        /* first area overlaps the start of range to reprotect */
+        assert(firstMA.region.end() > range.start);
+
+        splitElement(index, Region(range.start, 0), 0);
+
+        if (firstMA.region.end() > range.end()) {
+            /* range is fully contained in mapped area. -> split it twice! */
+            splitElement(index + 1, Region(range.end(), 0), 0);
+            _data[index + 1]->changePermissions(newPermissions);
+            return true;
+        }
+
+        _data[index + 1]->changePermissions(newPermissions);
+        assert(firstMA.region.end() == range.start);
+
+        /* exclude the first area from being changed as a whole */
+        index++;
+    }
+    size_t endIndex = index;
+
+    while (endIndex < numElements && _data[endIndex]->region.end() <= range.end()) {
+        _data[endIndex]->changePermissions(newPermissions);
+        endIndex++;
+    }
+
+    if (endIndex < numElements && _data[endIndex]->region.start < range.end()) {
+        /* MappedArea at endIndex is partially in range */
+        splitElement(endIndex, Region(range.end(), 0), 0);
+        _data[endIndex + 1]->changePermissions(newPermissions);
+    }
+
+    return true;
+}
+

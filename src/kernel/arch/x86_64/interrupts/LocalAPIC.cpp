@@ -26,7 +26,7 @@ void LocalAPIC::setupMap(PhysicalAddress base) {
         PhysicalAddress physical = PagingContext::resolve(mapAddress);
         PagingContext::unmap(mapAddress);
         CurrentSystem.memory.freePhysicalFrame(physical);
-        PagingContext::map(mapAddress, apicFrame, Permissions::WRITE, true);
+        PagingContext::map(mapAddress, apicFrame, Permissions::READ_WRITE, true);
         PagingContext::invalidateLocally(mapAddress);
     }
     map = mapAddress.asPointer<uint8_t>();

@@ -1,42 +1,44 @@
 #include <processes/Scheduler.hpp>
 #include <system/System.hpp>
 #include <interrupts/util.hpp>
+#include <processes/Process.hpp>
 
 
 Scheduler::Scheduler(Processor *processor)
 {
-    idleThread = new Thread({},
-                            VirtualAddress(reinterpret_cast<size_t>(&idleEntry)),
-                            Thread::Priority::IDLE,
-                            0,
-                            0,
-                            0,
-                            0);
+    idleThread = make_shared<Thread>(shared_ptr<Process>{},
+                                     VirtualAddress(reinterpret_cast<size_t>(&idleEntry)),
+                                     Thread::Priority::IDLE,
+                                     0,
+                                     0,
+                                     0,
+                                     0);
     _currentThread = idleThread;
     _currentThread->currentProcessor = processor;
 }
 
 
-Thread *Scheduler::currentThread() {
+shared_ptr<Thread> Scheduler::currentThread() {
     return _currentThread;
 }
 
 
-void Scheduler::add(Thread *thread) {
-    if (thread->currentPriority > _currentThread->currentPriority) {
+void Scheduler::add(shared_ptr<Thread> thread) {
+    shared_ptr<Thread> current = currentThread();
 
-        thread->currentProcessor = _currentThread->currentProcessor;
-        _currentThread->currentProcessor = nullptr;
-        threads[_currentThread->currentPriority].pushBack(_currentThread);
+    if (thread->currentPriority > current->currentPriority) {
+        thread->currentProcessor = current->currentProcessor;
+        current->currentProcessor = nullptr;
+        threads[current->currentPriority].push_back(_currentThread);
         _currentThread = thread;
     } else {
-        threads[thread->currentPriority].pushBack(thread);
+        threads[thread->currentPriority].push_back(thread);
     }
 }
 
-void Scheduler::remove(Thread *thread) {
-    if (thread == _currentThread) {
-        _currentThread = nullptr;
+void Scheduler::remove(shared_ptr<Thread> thread) {
+    if (thread == currentThread()) {
+        _currentThread = {};
         thread->currentProcessor = nullptr;
         scheduleNext();
     } else {
@@ -45,14 +47,19 @@ void Scheduler::remove(Thread *thread) {
 }
 
 void Scheduler::scheduleNext() {
-    assert(_currentThread == nullptr);
+    assert(!_currentThread);
 
-    for (ssize_t prio = Thread::NUM_PRIORITIES; prio >= 0; prio--) {
-        if (!threads[prio].isEmpty()) {
-            _currentThread = threads[prio].popFront();
-            _currentThread->currentProcessor = CurrentProcessor;
-            return;
+    for (ssize_t prio = Thread::NUM_PRIORITIES - 1; prio >= 0; prio--) {
+        while (!_currentThread) {
+            if (threads[prio].empty()) {
+                goto out;
+            }
+            _currentThread = threads[prio].top().lock();
+            threads[prio].pop();
         }
+        currentThread()->currentProcessor = CurrentProcessor;
+        return;
+    out:;
     }
 
     cout << "Help! Where is the idle thread???" << endl;

@@ -5,9 +5,9 @@
 Port::Port(const shared_ptr<Process> process) :
     process{process} {}
 
-unique_ptr<Message> Port::getMessageOrMakeThreadWait(Thread *thread) {
+unique_ptr<Message> Port::getMessageOrMakeThreadWait(shared_ptr<Thread> thread) {
     /* only one thread can wait on a port at a given time */
-    assert(waitingThread == nullptr);
+    assert(!waitingThread.lock());
 
     scoped_lock sl(lock);
 
@@ -25,12 +25,13 @@ unique_ptr<Message> Port::getMessageOrMakeThreadWait(Thread *thread) {
 void Port::addMessage(unique_ptr<Message> message) {
     scoped_lock sl(lock);
 
-    if (waitingThread) {
+    shared_ptr<Thread> thread = waitingThread.lock();
+    if (thread) {
         cout << "waking thread wainting for message. TODO: processor assignment" << endl;
 
-        waitingThread->registerState.setSyscallResult(message->infoAddress().value());
-        CurrentProcessor->scheduler.add(waitingThread);
-        waitingThread = nullptr;
+        thread->registerState.setSyscallResult(message->infoAddress().value());
+        CurrentProcessor->scheduler.add(thread);
+        waitingThread = {};
     } else {
         messages.push_back(move(message));
     }

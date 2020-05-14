@@ -34,7 +34,7 @@ bool Process::accessUserSpace(uint8_t *buffer,
         return false;
     }
 
-    if (requireWritePermissions && area->permissions != Permissions::WRITE) {
+    if (requireWritePermissions && area->permissions != Permissions::READ_WRITE) {
         cout << "accessUserSpace address " << start << ": no write permissions\n";
         return false;
     }
@@ -42,7 +42,7 @@ bool Process::accessUserSpace(uint8_t *buffer,
     if (accOp != PagingContext::AccessOperation::VERIFY_ONLY) {
         size_t pagePrefix = start - alignedStart;
 
-        masterPageTable->accessRange(UserVirtualAddress(alignedStart),
+        pagingContext->accessRange(UserVirtualAddress(alignedStart),
                                      alignedLength / PAGE_SIZE,
                                      pagePrefix,
                                      alignedLength - length - pagePrefix,

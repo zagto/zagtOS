@@ -11,7 +11,7 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
         mappedAreas(this) {
     scoped_lock lg(pagingLock);
 
-    masterPageTable = new PagingContext(this);
+    pagingContext = new PagingContext(this);
 
     for (size_t index = 0; index < elf.numSegments(); index++) {
         elf::Segment segment = elf.segment(index);
@@ -25,7 +25,7 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
         }
     }
 
-    mappedAreas.insert(new MappedArea(this, UserStackRegion, Permissions::WRITE));
+    mappedAreas.insert(new MappedArea(this, UserStackRegion, Permissions::READ_WRITE));
 
     UserVirtualAddress masterTLSBase{0};
     size_t tlsSize{0};
@@ -34,7 +34,7 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
         masterTLSBase = elf.tlsSegment().address();
     }
 
-    MappedArea *tlsArea = mappedAreas.addNew(tlsSize + THREAD_STRUCT_AREA_SIZE, Permissions::WRITE);
+    MappedArea *tlsArea = mappedAreas.addNew(tlsSize + THREAD_STRUCT_AREA_SIZE, Permissions::READ_WRITE);
     if (tlsArea == nullptr) {
         cout << "TODO: whatever should happen if there is no memory" << endl;
         Panic();
@@ -49,15 +49,15 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
     bool success = runMessage.transfer();
     assert(success);
 
-    Thread *mainThread = new Thread(shared_ptr<Process>(this),
-                                    elf.entry(),
-                                    initialPrioriy,
-                                    runMessage.infoAddress(),
-                                    tlsBase,
-                                    masterTLSBase,
-                                    tlsSize);
+    auto mainThread = make_shared<Thread>(shared_ptr<Process>(this),
+                                          elf.entry(),
+                                          initialPrioriy,
+                                          runMessage.infoAddress(),
+                                          tlsBase,
+                                          masterTLSBase,
+                                          tlsSize);
 
-    threads.push_back(mainThread);
+    handleManager.addThread(mainThread);
     CurrentProcessor->scheduler.add(mainThread);
 }
 
@@ -74,18 +74,18 @@ void Process::activate() {
     if (CurrentProcessor->currentProcess == this) {
         return;
     }
-    masterPageTable->activate();
+    pagingContext->activate();
     CurrentProcessor->currentProcess = this;
 }
 
 PhysicalAddress Process::allocateFrame(UserVirtualAddress address,
                                     Permissions permissions) {
-    assert(permissions == Permissions::WRITE
-           || permissions == Permissions::EXECUTE
-           || permissions == Permissions::NONE);
+    assert(permissions == Permissions::READ_WRITE
+           || permissions == Permissions::READ_EXECUTE
+           || permissions == Permissions::READ);
 
     PhysicalAddress physical = CurrentSystem.memory.allocatePhysicalFrame();
-    masterPageTable->map(address, physical, permissions);
+    pagingContext->map(address, physical, permissions);
     return physical;
 }
 
@@ -100,19 +100,3 @@ bool Process::handlePageFault(UserVirtualAddress address) {
         return false;
     }
 }
-
-void Process::removeThread(Thread *thread) {
-    scoped_lock sl(threadsLock);
-    threads.remove(thread);
-}
-
-/*bool Process::receiveMessage(Message *msg) {
-    assert(pagingLock.isLocked());
-
-    bool valid;
-    size_t index;
-    Region region = mappedAreas.findFreeRegion(size, valid, index);
-    if (!valid) {
-        return false;
-    }
-}*/

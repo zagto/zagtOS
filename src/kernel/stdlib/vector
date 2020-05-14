@@ -129,7 +129,7 @@ public:
         _data[index] = element;
     }
 
-    void remove(ElementType element) {
+    void remove(const ElementType &element) {
         size_t index;
         for (index = 0; index < numElements; index++) {
             if (_data[index] == element) {
@@ -141,6 +141,8 @@ public:
             cout << "Tried to remove Element that is not in vector" << endl;
             Panic();
         }
+
+        _data[index] = {};
 
         numElements--;
         for (size_t moveIndex = index; moveIndex < numElements; moveIndex++) {

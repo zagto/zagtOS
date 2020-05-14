@@ -6,11 +6,13 @@
 #include <processes/Port.hpp>
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/SpawnProcess.hpp>
+#include <syscalls/Time.hpp>
 #include <syscalls/SyscallNumbers.hpp>
 #include <portio.hpp>
+#include <system/Processor.hpp>
 
 
-bool Thread::handleSyscall() {
+bool Thread::handleSyscall(shared_ptr<Thread> self) {
     switch (registerState.syscallNumber()) {
     case SYS_LOG: {
         scoped_lock lg(process->pagingLock);
@@ -39,8 +41,8 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_EXIT:
-        cout << "Thread Exit" << endl;
-        delete this;
+        cout << "Process Exit" << endl;
+        process->onExit = true;
         return true;
     case SYS_CREATE_PORT: {
         shared_ptr<Port> port = make_shared<Port>(process);
@@ -99,7 +101,7 @@ bool Thread::handleSyscall() {
             return false;
         }
 
-        unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(this);
+        unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(self);
         if (msg) {
             registerState.setSyscallResult(msg->infoAddress().value());
         }
@@ -116,6 +118,15 @@ bool Thread::handleSyscall() {
         // 1 = length
         return true;
 
+    case SYS_MPROTECT: {
+        scoped_lock lg(process->pagingLock);
+        MProtect mprotect(registerState.syscallParameter(0),
+                          registerState.syscallParameter(1),
+                          registerState.syscallParameter(2));
+        mprotect.perform(*process);
+        registerState.setSyscallResult(mprotect.error);
+        return true;
+    }
     case SYS_MMAP: {
         scoped_lock lg(process->pagingLock);
         UserSpaceObject<MMap, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
@@ -132,6 +143,33 @@ bool Thread::handleSyscall() {
         munmap.perform(*process);
         registerState.setSyscallResult(munmap.error);
         return true;
+    }
+    case SYS_CREATE_THREAD: {
+        scoped_lock lg(process->pagingLock);
+        size_t entry = registerState.syscallParameter(0);
+        size_t stack = registerState.syscallParameter(1);
+        uint32_t priority = registerState.syscallParameter(2);
+        size_t tls = registerState.syscallParameter(3);
+
+        Thread::Priority actualPriority;
+        if (priority == Thread::KEEP_PRIORITY) {
+            actualPriority = ownPriority;
+        } else if (priority >= Thread::NUM_PRIORITIES) {
+            cout << "SYS_CREATE_THREAD: invalid priority " << priority << endl;
+            return true;
+        } else {
+            actualPriority = static_cast<Thread::Priority>(priority);
+        }
+
+        auto newThread = make_shared<Thread>(process, entry, actualPriority, stack, tls);
+        uint32_t handle = process->handleManager.addThread(newThread);
+        CurrentProcessor->scheduler.add(newThread);
+        registerState.setSyscallResult(handle);
+        cout << "Created Thread" << endl;
+        return true;
+    }
+    case SYS_CLOCK_GETTIME: {
+        return GetTime(registerState, process);
     }
     case SYS_GET_ACPI_ROOT: {
         /* TODO: permissions checking */

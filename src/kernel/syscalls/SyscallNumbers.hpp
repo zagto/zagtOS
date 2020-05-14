@@ -1,5 +1,4 @@
-#ifndef SYSCALLNUMBERS_HPP
-#define SYSCALLNUMBERS_HPP
+#pragma once
 
 #include <common/inttypes.hpp>
 
@@ -40,4 +39,3 @@ static const uint32_t SYS_LOG = 1,
 
                       SYS_SPAWN_PROCESS = 50;
 
-#endif // SYSCALLNUMBERS_HPP

@@ -8,6 +8,7 @@
 #include <tuple>
 #include <limits>
 #include <iostream>
+#include <uuid/uuid.h>
 
 namespace zagtos {
 namespace zbon {
@@ -33,8 +34,6 @@ struct Size {
         return *this;
     }
 };
-
-
 
 
 std::ostream &operator<<(std::ostream &stream, Type type);
@@ -427,8 +426,8 @@ public:
      * are a special case because of the unknown size and having to use new[]. Keep this
      * method for symmetry */
     template<typename T>
-    void encodeCArray(Type elementType, const T *array, size_t length) {
-        encodeArray(elementType, array, length);
+    void encodeCArray(const T *array, size_t length) {
+        encodeArray(typeFor<T>::type(), array, length);
     }
 
     Encoder():
@@ -866,6 +865,27 @@ static bool decode(const EncodedData &encodedData, T &result) {
     Decoder d(encodedData);
     return d.decode(result);
 }
+
+
+class ZBONUIID {
+public:
+    uuid_t value;
+    ZBONUIID(const uuid_t &uuid) {
+        uuid_copy(value, uuid);
+    }
+    static zbon::Type ZBONType() {
+        return zbon::Type::ARRAY;
+    }
+    zbon::Size ZBONSize() const {
+        return zbon::sizeForArray(value, 16);
+    }
+    void ZBONEncode(zbon::Encoder &encoder) const {
+        encoder.encodeCArray(value, 16);
+    }
+    bool ZBONDecode(zbon::Decoder &decoder) {
+        return decoder.decodeValue(value);
+    }
+};
 
 }
 }

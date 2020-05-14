@@ -31,7 +31,7 @@ PageTableEntry *PagingContext::partialWalkEntries(VirtualAddress address,
                 return nullptr;
             case MissingStrategy::CREATE: {
                 PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
-                *entry = PageTableEntry(frame, Permissions::WRITE_AND_EXECUTE, true, false);
+                *entry = PageTableEntry(frame, Permissions::READ_WRITE_EXECUTE, true, false);
                 break;
             }
             }
@@ -119,6 +119,10 @@ void PagingContext::accessRange(UserVirtualAddress address,
     assert(endOffset < PAGE_SIZE);
     assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
 
+    if (numPages == 0) {
+        return;
+    }
+
     WalkData walkData(masterPageTable);
     size_t indexes[NUM_LEVELS];
 
@@ -181,6 +185,10 @@ void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool
     assert(process == nullptr || process->pagingLock.isLocked());
     assert(address.isPageAligned());
 
+    if (numPages == 0) {
+        return;
+    }
+
     WalkData walkData(masterPageTable);
     size_t indexes[NUM_LEVELS];
 
@@ -222,6 +230,51 @@ void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool
         address = address.value() + PAGE_SIZE;
     }
 }
+
+
+void PagingContext::changeRangePermissions(UserVirtualAddress address, size_t numPages, Permissions newPermissions) {
+    assert(process == nullptr || process->pagingLock.isLocked());
+    assert(address.isPageAligned());
+
+    if (numPages == 0) {
+        return;
+    }
+
+    WalkData walkData(masterPageTable);
+    size_t indexes[NUM_LEVELS];
+
+    for (size_t i = 0; i < NUM_LEVELS; i++) {
+        indexes[i] = PageTable::indexFor(address, i);
+    }
+
+    size_t changedLevel = MASTER_LEVEL;
+
+    while (true) {
+        PageTableEntry *entry = partialWalkEntries(address,
+                                                   MissingStrategy::CREATE,
+                                                   changedLevel,
+                                                   walkData);
+
+        if (entry != nullptr && entry->present()) {
+            entry->setPermissions(newPermissions);
+        }
+
+        /* TODO: jumps can be made in entry == nullptr case */
+        changedLevel = 0;
+        while (indexes[changedLevel] == PageTable::NUM_ENTRIES) {
+            assert(changedLevel < MASTER_LEVEL);
+            indexes[changedLevel] = 0;
+            indexes[changedLevel + 1]++;
+            changedLevel++;
+        }
+        numPages--;
+        if (numPages == 0) {
+            return;
+        }
+        address = address.value() + PAGE_SIZE;
+    }
+}
+
 
 
 

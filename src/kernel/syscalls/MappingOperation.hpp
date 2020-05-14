@@ -28,6 +28,16 @@ public:
         MappingOperation(address, _length) {}
 };
 
+class MProtect : public MappingOperation {
+private:
+    uint32_t protection;
+public:
+    void perform(Process &process);
+    MProtect(size_t address, size_t _length, uint32_t protection) :
+        MappingOperation(address, _length),
+        protection{protection} {}
+};
+
 class MMap : public MappingOperation {
     uint32_t flags;
     size_t offset;

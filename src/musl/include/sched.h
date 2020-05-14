@@ -40,12 +40,12 @@ int    sched_setscheduler(pid_t, int, const struct sched_param *);
 int     sched_yield(void);
 
 #define SCHED_OTHER 0
-#define SCHED_FIFO 1
+/*#define SCHED_FIFO 1
 #define SCHED_RR 2
 #define SCHED_BATCH 3
 #define SCHED_IDLE 5
 #define SCHED_DEADLINE 6
-#define SCHED_RESET_ON_FORK 0x40000000
+#define SCHED_RESET_ON_FORK 0x40000000*/
 
 #ifdef _GNU_SOURCE
 #define CSIGNAL		0x000000ff

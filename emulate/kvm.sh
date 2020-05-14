@@ -8,6 +8,7 @@ qemu-system-x86_64 \
     -hda out/disk.img \
     -serial stdio \
     -smp 2 \
+    -machine q35 \
     -no-reboot \
      -no-reboot -no-shutdown   -d guest_errors,cpu_reset \
     -s

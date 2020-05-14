@@ -6,6 +6,7 @@
 #include <sys/mman.h>
 #include <string.h>
 #include <stddef.h>
+#include <sched.h>
 
 static int tl_lock_count;
 static int tl_lock_waiters;
@@ -140,7 +141,8 @@ _Noreturn void __pthread_exit(void *result)
 	self->tid = 0;
 	UNLOCK(self->killlock);
 
-	for (;;) zagtos_syscall(SYS_EXIT, 0);
+    zagtos_syscall(SYS_DELETE_HANDLE, self->tid);
+    for (;;);
 }
 
 void __do_cleanup_push(struct __ptcb *cb)
@@ -158,18 +160,21 @@ void __do_cleanup_pop(struct __ptcb *cb)
 struct start_args {
 	void *(*start_func)(void *);
 	void *start_arg;
-	volatile int control;
 };
 
 static int start(void *p)
 {
-	struct start_args *args = p;
+    __tl_lock();
+    __tl_unlock();
+    struct start_args *args = p;
 	__pthread_exit(args->start_func(args->start_arg));
 	return 0;
 }
 
 static int start_c11(void *p)
 {
+    __tl_lock();
+    __tl_unlock();
 	struct start_args *args = p;
 	int (*start)(void*) = (int(*)(void*)) args->start_func;
 	__pthread_exit((void *)(uintptr_t)start(args->start_arg));
@@ -215,6 +220,10 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		libc.threaded = 1;
 	}
 	if (attrp && !c11) attr = *attrp;
+
+    if (attr._a_sched && attr._a_policy != SCHED_OTHER) {
+        return EINVAL;
+    }
 
 	__acquire_ptc();
 	if (!attrp || c11) {
@@ -291,36 +300,20 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	struct start_args *args = (void *)stack;
 	args->start_func = entry;
 	args->start_arg = arg;
-	args->control = attr._a_sched ? 1 : 0;
 
-	__tl_lock();
+    __tl_lock();
 	libc.threads_minus_1++;
-	ret = zagtos_syscall(SYS_CREATE_THREAD, c11 ? start_c11 : start, stack, args, new, &new->tid, &__thread_list_lock);
+    new->tid = zagtos_syscall(SYS_CREATE_THREAD,
+                             c11 ? start_c11 : start,
+                             stack,
+                             attr._a_sched ? attr._a_prio : 0xffffffff,
+                             tsd - libc.tls_size);
 
-	/* All clone failures translate to EAGAIN. If explicit scheduling
-	 * was requested, attempt it before unlocking the thread list so
-	 * that the failed thread is never exposed and so that we can
-	 * clean up all transient resource usage before returning. */
-	if (ret < 0) {
-		ret = -EAGAIN;
-	} else if (attr._a_sched) {
-        ret = zagtos_syscall(SYS_SET_THREAD_SCHEDULER,
-			new->tid, attr._a_policy, &attr._a_prio);
-		if (a_swap(&args->control, ret ? 3 : 0)==2)
-			__wake(&args->control, 1, 1);
-		if (ret)
-			__wait(&args->control, 0, 3, 0);
-	}
-
-	if (ret >= 0) {
-		new->next = self->next;
-		new->prev = self;
-		new->next->prev = new;
-		new->prev->next = new;
-	} else {
-		libc.threads_minus_1--;
-	}
-	__tl_unlock();
+    new->next = self->next;
+    new->prev = self;
+    new->next->prev = new;
+    new->prev->next = new;
+    __tl_unlock();
 	__release_ptc();
 
 	if (ret < 0) {

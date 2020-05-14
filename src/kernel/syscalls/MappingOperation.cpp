@@ -80,11 +80,13 @@ void MMap::perform(Process &process) {
 
     Permissions permissions;
     if (protection == PROTECTION_READ) {
-        permissions = Permissions::NONE;
+        permissions = Permissions::READ;
     } else if (protection == (PROTECTION_WRITE | PROTECTION_READ)) {
-        permissions = Permissions::WRITE;
+        permissions = Permissions::READ_WRITE;
     } else if (protection == (PROTECTION_READ | PROTECTION_EXECUTE)) {
-        permissions = Permissions::EXECUTE;
+        permissions = Permissions::READ_EXECUTE;
+    } else if (protection == 0) {
+        permissions = Permissions::INVALID;
     } else {
         cout << "mmap: unsupported protection " << static_cast<uint64_t>(protection) << "\n";
         error = EINVAL;
@@ -123,7 +125,10 @@ void MMap::perform(Process &process) {
     }
 
     MappedArea *ma;
-    if (flags & FLAG_ANONYMOUS) {
+    if (protection == 0) {
+        /* guard area */
+        ma = new MappedArea(&process, actualRegion);
+    } else if (flags & FLAG_ANONYMOUS) {
         ma = new MappedArea(&process, actualRegion, permissions);
     } else if (flags & FLAG_PHYSICAL) {
         ma = new MappedArea(&process, actualRegion, permissions, offset);
@@ -138,6 +143,46 @@ void MMap::perform(Process &process) {
         process.mappedAreas.insert2(ma, insertIndex);
     }
     result = ma->region.start;
+}
+
+
+void MProtect::perform(Process &process) {
+    assert(process.pagingLock.isLocked());
+
+    error = 0;
+
+    length = align(length, PAGE_SIZE, AlignDirection::UP);
+    if (length == 0) {
+        cout << "MProtect of length 0" << endl;
+        error = EINVAL;
+        return;
+    }
+
+    if (!addressLengthValid()) {
+        cout << "MProtect with invalid address " << startAddress << " length " << length << endl;
+        error = EINVAL;
+        return;
+    }
+
+    Permissions permissions;
+    if (protection == PROTECTION_READ) {
+        permissions = Permissions::READ;
+    } else if (protection == (PROTECTION_WRITE | PROTECTION_READ)) {
+        permissions = Permissions::READ_WRITE;
+    } else if (protection == (PROTECTION_READ | PROTECTION_EXECUTE)) {
+        permissions = Permissions::READ_EXECUTE;
+    } else if (protection == 0) {
+        permissions = Permissions::INVALID;
+    } else {
+        cout << "MProtect: unsupported protection " << static_cast<uint64_t>(protection) << "\n";
+        error = EINVAL;
+        return;
+    }
+    if (!process.mappedAreas.changeRangePermissions(Region(startAddress, length), permissions)) {
+        cout << "MProtect at address " << startAddress << " length " << length
+             << " which contains non-mapped pages" << endl;
+        error = ENOMEM;
+    }
 }
 
 

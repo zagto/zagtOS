@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <zagtos/PCI.hpp>
 #include <zagtos/HAL.hpp>
+#include <zagtos/Controller.hpp>
 #include <PCI.hpp>
 extern "C" {
     #include <acpi.h>
@@ -68,11 +69,14 @@ void initPCIForACPI() {
 }
 
 void initPCIForOS(zagtos::RemotePort &envPort) {
+    using namespace zagtos;
+
     if (segmentGroups.empty()) {
         /* no PCI support */
         return;
     }
 
-    zagtos::sendMessage(envPort, zagtos::MSG_FOUND_CONTROLLER, zagtos::zbon::encode(segmentGroups));
+    auto msg = zbon::encode(std::make_tuple(zbon::ZBONUIID(CONTROLLER_TYPE_PCI), zbon::encode(segmentGroups)));
+    zagtos::sendMessage(envPort, zagtos::MSG_FOUND_CONTROLLER, std::move(msg));
 }
 

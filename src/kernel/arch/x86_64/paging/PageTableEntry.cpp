@@ -25,18 +25,7 @@ PageTableEntry::PageTableEntry(PhysicalAddress addressValue,
         data |= DISABLE_CACHE_BIT;
     }
 
-    switch (permissions) {
-    case Permissions::WRITE:
-        data |= WRITEABLE_BIT | NON_EXECUTABLE_BIT;
-        break;
-    case Permissions::WRITE_AND_EXECUTE:
-        data |= WRITEABLE_BIT;
-        break;
-    case Permissions::EXECUTE:
-        break; // do nothing
-    case Permissions::NONE:
-        data |= NON_EXECUTABLE_BIT;
-    }
+    setPermissions(permissions);
 }
 
 bool PageTableEntry::present() {
@@ -53,4 +42,23 @@ void PageTableEntry::setAddressValue(PhysicalAddress addressValue) {
     assert(addressValue.isPageAligned());
 
     data = (data & ~ADDRESS_MASK) | (addressValue.value() & ADDRESS_MASK);
+}
+
+void PageTableEntry::setPermissions(Permissions newPermissions) {
+    switch (newPermissions) {
+    case Permissions::READ_WRITE:
+        data |= WRITEABLE_BIT | NON_EXECUTABLE_BIT;
+        break;
+    case Permissions::READ_WRITE_EXECUTE:
+        data |= WRITEABLE_BIT;
+        break;
+    case Permissions::READ_EXECUTE:
+        break; // do nothing
+    case Permissions::READ:
+        data |= NON_EXECUTABLE_BIT;
+        break;
+    default:
+        cout << "invalid permissions for PageTableEntry" << endl;
+        Panic();
+    }
 }

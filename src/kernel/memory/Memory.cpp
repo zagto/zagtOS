@@ -79,7 +79,7 @@ KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
             scoped_lock lg(kernelPagingLock);
             PagingContext::map(heapEnd + index * PAGE_SIZE,
                                allocatePhysicalFrame(),
-                               Permissions::WRITE,
+                               Permissions::READ_WRITE,
                                false);
         }
     } else {

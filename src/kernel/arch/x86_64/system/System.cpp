@@ -26,7 +26,7 @@ void System::setupSecondaryProcessorEntry(BootInfo *bootInfo) {
     /* identity-map the entry code so it continues to work when it enables paging */
     CurrentSystem.kernelOnlyPagingContext.map(UserVirtualAddress(secondaryProcessorEntry.value()),
                                               secondaryProcessorEntry,
-                                              Permissions::EXECUTE);
+                                              Permissions::READ_EXECUTE);
 }
 
 

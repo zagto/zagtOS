@@ -69,7 +69,7 @@ bool Message::prepareMemoryArea() {
      * required size is the combined size of both. */
     size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
 
-    messageArea = destinationProcess->mappedAreas.addNew(messageRegionSize, Permissions::NONE);
+    messageArea = destinationProcess->mappedAreas.addNew(messageRegionSize, Permissions::READ);
     if (messageArea == nullptr) {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
         Panic();

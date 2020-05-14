@@ -20,6 +20,7 @@ public:
         buffer.push_back(newElement);
     }
     bool empty() const {
+        assert(firstIndex <= buffer.size());
         return firstIndex == buffer.size();
     }
     T& top() {
@@ -28,6 +29,7 @@ public:
     }
     void pop() {
         buffer[firstIndex] = T();
+        firstIndex++;
 
         if (firstIndex * 2 >= buffer.size()) {
             vector<T> newBuffer(buffer.size() - firstIndex);
@@ -35,6 +37,11 @@ public:
                 newBuffer[index] = move(buffer[index]);
             }
             buffer = move(newBuffer);
+            firstIndex = 0;
         }
+    }
+    /* non-standard */
+    void remove(const T &element) {
+        buffer.remove(element);
     }
 };

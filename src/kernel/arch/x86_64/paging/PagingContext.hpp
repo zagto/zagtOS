@@ -67,6 +67,9 @@ public:
                      AccessOperation accOp,
                      Permissions newPagesPermissions);
     void unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames);
+    void changeRangePermissions(UserVirtualAddress address,
+                                size_t numPages,
+                                Permissions newPermissions);
     void unmap(UserVirtualAddress address);
     bool isMapped(UserVirtualAddress address);
     void invalidateLocally(UserVirtualAddress address);

@@ -18,6 +18,11 @@ Handle::Handle(weak_ptr<Port> &port) {
     new (&data.remotePort) weak_ptr<Port>(port);
 }
 
+Handle::Handle(shared_ptr<Thread> &thread) {
+    type = Type::PORT;
+    new (&data.thread) shared_ptr<Thread>(thread);
+}
+
 Handle::Handle(const Handle &other) {
     type = other.type;
     switch (type) {
@@ -31,6 +36,9 @@ Handle::Handle(const Handle &other) {
         break;
     case Type::REMOTE_PORT:
         new (&data.remotePort) weak_ptr<Port>(other.data.remotePort);
+        break;
+    case Type::THREAD:
+        new (&data.thread) shared_ptr<Thread>(other.data.thread);
         break;
     }
 }
@@ -54,6 +62,9 @@ void Handle::destructData() {
         break;
     case Type::REMOTE_PORT:
         data.remotePort.~weak_ptr();
+        break;
+    case Type::THREAD:
+        data.thread.~shared_ptr();
         break;
     }
     type = Type::INVALID;
@@ -88,6 +99,14 @@ uint32_t HandleManager::addPort(shared_ptr<Port> &port) {
     return handle;
 }
 
+uint32_t HandleManager::addThread(shared_ptr<Thread> &thread) {
+    scoped_lock sl(lock);
+
+    uint32_t handle = grabFreeHandle();
+    handles[handle] = Handle(thread);
+    return handle;
+}
+
 /* unlike the above, this is for internal use and expects the lock to be already hold. Nobody else
  * should create their own remote ports as they wouldn't be remote. */
 uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
@@ -116,6 +135,14 @@ optional<weak_ptr<Port>> HandleManager::lookupRemotePort(uint32_t handle) {
         return {};
     }
     return handles[handle].data.remotePort;
+}
+
+optional<shared_ptr<Thread>> HandleManager::lookupThread(uint32_t handle) {
+    scoped_lock sl(lock);
+    if (!handleValidFor(handle, Type::THREAD)) {
+        return {};
+    }
+    return handles[handle].data.thread;
 }
 
 bool HandleManager::removeHandle(uint32_t handle) {
@@ -160,5 +187,10 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
     return true;
 }
 
+void HandleManager::removeAllHandles() {
+    scoped_lock sl(lock);
+    handles.resize(0);
+    nextFreeHandle = 0;
+}
 
 }

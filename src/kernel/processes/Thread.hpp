@@ -21,9 +21,11 @@ protected:
 
 public:
     enum Priority {
-        IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND
+        IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND,
     };
     static const size_t NUM_PRIORITIES = 4;
+    static const size_t KEEP_PRIORITY = 0xffff'ffff;
+
 
 public:
     RegisterState registerState;
@@ -44,9 +46,17 @@ public:
         tlsBase{tlsBase},
         ownPriority{priority},
         currentPriority{priority} {}
+    /* shorter constructor for non-first threads, which don't want to know info about master TLS */
+    Thread(shared_ptr<Process> process,
+           VirtualAddress entry,
+           Priority priority,
+           UserVirtualAddress stackPointer,
+           UserVirtualAddress tlsBase) :
+        Thread(process, entry, priority, stackPointer, tlsBase, 0, 0) {}
+
     ~Thread();
 
-    UserVirtualAddress userThreadStruct() {
+    UserVirtualAddress threadLocalStorage() {
         // having a TLS is optional, otherwise tlsBase is null
         if (tlsBase.value()) {
             return UserVirtualAddress(tlsBase.value() - THREAD_STRUCT_AREA_SIZE);
@@ -54,7 +64,7 @@ public:
             return {};
         }
     }
-    bool handleSyscall();
+    bool handleSyscall(shared_ptr<Thread> self);
 };
 
 #endif

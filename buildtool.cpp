@@ -152,7 +152,8 @@ void Module::build() {
                       << " (changed dependencies)" << std::endl;
 
             try {
-                std::filesystem::remove_all("build/" + name);
+                std::filesystem::remove_all(buildDir);
+                std::filesystem::create_directories(buildDir);
             }  catch (std::filesystem::filesystem_error) {
                 std::cerr << "unable to remove build/" << name << std::endl;
                 exit(1);

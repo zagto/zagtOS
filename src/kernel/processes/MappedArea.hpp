@@ -10,7 +10,7 @@ class Process;
 class MappedArea {
 private:
     enum class Source {
-        MEMORY = 1, PHYSICAL_MEMORY = 2,
+        MEMORY = 1, PHYSICAL_MEMORY = 2, GUARD = 3
     };
     Process *process;
     Source source;
@@ -22,12 +22,14 @@ public:
 
     MappedArea(Process *process, Region region, Permissions permissions);
     MappedArea(Process *process, Region region, Permissions permissions, PhysicalAddress physicalStart);
+    MappedArea(Process *process, Region region);
     ~MappedArea();
 
     bool handlePageFault(UserVirtualAddress address);
     void unmapRange(Region range);
     void shrinkFront(size_t amount);
     void shrinkBack(size_t amount);
+    void changePermissions(Permissions newPermissions);
 
     static inline bool compare(MappedArea *a, MappedArea *b) {
         return a->region.start < b->region.start;
@@ -52,6 +54,8 @@ public:
     bool isRegionFree(Region region, size_t &insertIndex);
     void splitElement(size_t index, Region removeRegion, size_t numAddBetween);
     size_t unmapRange(Region range, size_t numAddInstead = 0);
+    bool isRegionFullyMapped(Region range, size_t &index);
+    bool changeRangePermissions(Region range, Permissions newPermissions);
 };
 
 #endif // MAPPEDAREA_HPP

@@ -37,6 +37,7 @@ public:
         assert(*this);
         return internalPointer;
     }
+    bool operator==(unique_ptr &) = delete;
 };
 
 
@@ -138,6 +139,9 @@ public:
         reset();
         internalPointer = new InternalPointer(newPointer);
     }
+    bool operator==(const shared_ptr &other) {
+        return internalPointer == other.internalPointer;
+    }
 };
 
 template<typename T> class weak_ptr {
@@ -167,9 +171,11 @@ public:
     }
     void operator=(const weak_ptr &other) {
         reset();
-        scoped_lock lg(other.internalPointer->lock);
-        internalPointer = other.internalPointer;
-        internalPointer->weakReferenceCount++;
+        if (other.internalPointer) {
+            scoped_lock lg(other.internalPointer->lock);
+            internalPointer = other.internalPointer;
+            internalPointer->weakReferenceCount++;
+        }
     }
 
     void reset() {
@@ -179,14 +185,27 @@ public:
             if (internalPointer->referenceCount == 0 && internalPointer->weakReferenceCount == 0) {
                 delete internalPointer;
             }
+            internalPointer = nullptr;
         }
     }
     shared_ptr<T> lock() {
-        shared_ptr<T> result;
-        scoped_lock lg(internalPointer->lock);
-        internalPointer->referenceCount++;
-        result.internalPointer = internalPointer;
-        return move(result);
+        if (internalPointer) {
+            shared_ptr<T> result;
+            scoped_lock lg(internalPointer->lock);
+            if (internalPointer->valid) {
+                internalPointer->referenceCount++;
+                result.internalPointer = internalPointer;
+                return move(result);
+            }
+        }
+        return {};
+    }
+    bool operator==(const weak_ptr &other) const {
+        return internalPointer == other.internalPointer;
+    }
+    /* non-standard */
+    bool empty() {
+        return internalPointer == nullptr;
     }
 };
 

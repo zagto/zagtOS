@@ -56,7 +56,7 @@ void copyConvertEndianness(void *destination, const void *source, size_t length)
 }
 
 void EncodedData::ZBONEncode(Encoder &encoder) const {
-    encoder.encodeCArray(Type::UINT8, _data, _size);
+    encoder.encodeCArray(_data, _size);
 }
 
 bool EncodedData::ZBONDecode(Decoder &decoder) {

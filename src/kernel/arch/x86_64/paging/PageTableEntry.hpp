@@ -29,6 +29,7 @@ public:
     bool present();
     PhysicalAddress addressValue();
     void setAddressValue(PhysicalAddress addressValue);
+    void setPermissions(Permissions newPermissions);
 };
 
 #endif // PAGETABLEENTRY_HPP

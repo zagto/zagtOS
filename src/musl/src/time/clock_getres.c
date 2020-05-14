@@ -3,7 +3,9 @@
 
 int clock_getres(clockid_t clk, struct timespec *ts)
 {
-    /* Zagtos clocks have Microsecond-resolution */
-    ts->tv_sec = 0;
-    ts->tv_nsec = 1000;
+    if (ts) {
+        /* Zagtos clocks have highest resolution */
+        ts->tv_sec = 0;
+        ts->tv_nsec = 1;
+    }
 }

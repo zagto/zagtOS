@@ -57,8 +57,6 @@ int main() {
             }
 
             if (uuid_compare(std::get<0>(msg), CONTROLLER_TYPE_PCI) == 0) {
-                std::cout << "SPAWNING PCI A..." << std::endl;
-
                 new std::thread(ControllerServer, PCIController, std::move(std::get<1>(msg)));
             } else {
                 std::cout << "Received MSG_START_CONTROLLER message for unsupported controller "

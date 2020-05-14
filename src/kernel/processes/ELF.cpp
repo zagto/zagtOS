@@ -151,11 +151,11 @@ Region Segment::regionInMemory() {
 
 Permissions Segment::permissions() {
     if (header.flags & FLAG_EXECUTABLE) {
-        return Permissions::EXECUTE;
+        return Permissions::READ_EXECUTE;
     } else if (header.flags & FLAG_WRITEABLE) {
-        return Permissions::WRITE;
+        return Permissions::READ_WRITE;
     } else {
-        return Permissions::NONE;
+        return Permissions::READ;
     }
 }
 

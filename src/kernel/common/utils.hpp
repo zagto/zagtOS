@@ -9,7 +9,7 @@ enum class AlignDirection {
 };
 
 enum class Permissions {
-    WRITE = 1, EXECUTE = 2, WRITE_AND_EXECUTE = 3, NONE = 4
+    READ_WRITE = 1, READ_EXECUTE = 2, READ_WRITE_EXECUTE = 3, READ = 4, INVALID = 5
 };
 
 
@@ -41,6 +41,10 @@ void swap(T &a, T&b) {
     b = move(tmp);
 }
 
+struct timespec {
+    uint64_t tv_sec;
+    uint32_t tv_nsec;
+};
 
 // used by dlmalloc
 extern "C" {
