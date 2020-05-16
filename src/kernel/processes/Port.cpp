@@ -12,7 +12,7 @@ unique_ptr<Message> Port::getMessageOrMakeThreadWait(shared_ptr<Thread> thread) 
     scoped_lock sl(lock);
 
     if (messages.empty()) {
-        CurrentProcessor->scheduler.remove(thread);
+        thread->removeFromScheduler();
         waitingThread = thread;
         return nullptr;
     } else {

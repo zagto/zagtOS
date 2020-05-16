@@ -16,6 +16,8 @@ static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
 class Thread {
 protected:
     friend class Scheduler;
+    shared_ptr<Thread> previous;
+    shared_ptr<Thread> next;
     Processor *currentProcessor{nullptr};
     bool usesFloatingPoint{false};
 
@@ -23,6 +25,10 @@ public:
     enum Priority {
         IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND,
     };
+    enum Status {
+        RUNNING, WAITING, MESSAGE, FUTEX_PUBLIC, FUTEX_PRIVATE, EXIT
+    };
+
     static const size_t NUM_PRIORITIES = 4;
     static const size_t KEEP_PRIORITY = 0xffff'ffff;
 
@@ -33,6 +39,7 @@ public:
     UserVirtualAddress tlsBase;
     Priority ownPriority;
     Priority currentPriority;
+    Status status;
 
     Thread(shared_ptr<Process> process,
            VirtualAddress entry,
@@ -45,7 +52,8 @@ public:
         process{process},
         tlsBase{tlsBase},
         ownPriority{priority},
-        currentPriority{priority} {}
+        currentPriority{priority},
+        status {Status::WAITING} {}
     /* shorter constructor for non-first threads, which don't want to know info about master TLS */
     Thread(shared_ptr<Process> process,
            VirtualAddress entry,

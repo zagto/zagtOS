@@ -1,5 +1,4 @@
-#ifndef INTTYPES_HPP
-#define INTTYPES_HPP
+#pragma once
 
 typedef char int8_t;
 typedef short int16_t;
@@ -16,5 +15,5 @@ typedef __uint128_t uint128_t;
 typedef uint64_t size_t;
 
 static const size_t PAGE_SIZE = 0x1000;
-
-#endif // INTTYPES_HPP
+static const size_t PAGE_SHIFT = 12u;
+static const size_t PLATFORM_BITS = 64;

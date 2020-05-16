@@ -12,6 +12,11 @@ public:
     /* not implemented for now, but there is nothing wrong with copying/moving queues
      * implement this if you need it */
     void operator=(queue &) = delete;
+    void operator=(queue &&other) {
+        buffer = move(other.buffer);
+        firstIndex = other.firstIndex;
+        other.firstIndex = 0;
+    }
 
     void push_back(T &&newElement) {
         buffer.push_back(move(newElement));

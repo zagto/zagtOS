@@ -1,6 +1,9 @@
 #pragma once
 
 #include <mutex>
+#include <queue>
+#include <memory>
+#include <utility>
 #include <paging/PagingContext.hpp>
 #include <processes/ELF.hpp>
 #include <processes/Thread.hpp>
@@ -32,7 +35,6 @@ private:
 public:
     mutex pagingLock;
     mutex threadsLock;
-    /*needed ? mutex portsLock;*/
     PagingContext *pagingContext;
     volatile bool onExit;
 
@@ -55,4 +57,5 @@ public:
     bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
 
     size_t runMessageAddress();
+    void crash(const char *reason);
 };

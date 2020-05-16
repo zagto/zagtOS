@@ -18,13 +18,9 @@ Scheduler::Scheduler(Processor *processor)
 }
 
 
-shared_ptr<Thread> Scheduler::currentThread() {
-    return _currentThread;
-}
-
 
 void Scheduler::add(shared_ptr<Thread> thread) {
-    shared_ptr<Thread> current = currentThread();
+    shared_ptr<Thread> current = _currentThread;
 
     if (thread->currentPriority > current->currentPriority) {
         thread->currentProcessor = current->currentProcessor;
@@ -34,6 +30,11 @@ void Scheduler::add(shared_ptr<Thread> thread) {
     } else {
         threads[thread->currentPriority].push_back(thread);
     }
+}
+
+void Scheduler::schedule(shared_ptr<Thread> thread) {
+    // TODO
+    CurrentSystem.processors[0]->scheduler.add(thread);
 }
 
 void Scheduler::remove(shared_ptr<Thread> thread) {

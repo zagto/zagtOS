@@ -1,0 +1,12 @@
+#pragma once
+
+template<typename A, typename B>
+struct pair {
+    A first;
+    B second;
+};
+
+template<typename A, typename B>
+pair<A, B> make_pair(A a, B b) {
+    return pair{a, b};
+}

@@ -1,5 +1,4 @@
-#ifndef SORTEDVECTOR_HPP
-#define SORTEDVECTOR_HPP
+#pragma once
 
 #include <vector>
 
@@ -39,5 +38,3 @@ public:
         static_cast<vector<ElementType> *>(this)->insert(element, findIndexFor(element));
     }
 };
-
-#endif // SORTEDVECTOR_HPP

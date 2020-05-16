@@ -163,10 +163,13 @@ bool Thread::handleSyscall(shared_ptr<Thread> self) {
 
         auto newThread = make_shared<Thread>(process, entry, actualPriority, stack, tls);
         uint32_t handle = process->handleManager.addThread(newThread);
-        CurrentProcessor->scheduler.add(newThread);
+        Scheduler::schedule(newThread);
         registerState.setSyscallResult(handle);
         cout << "Created Thread" << endl;
         return true;
+    }
+    case SYS_FUTEX: {
+
     }
     case SYS_CLOCK_GETTIME: {
         return GetTime(registerState, process);

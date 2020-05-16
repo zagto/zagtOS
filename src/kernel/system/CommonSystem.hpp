@@ -1,5 +1,4 @@
-#ifndef COMMONSYSTEM_HPP
-#define COMMONSYSTEM_HPP
+#pragma once
 
 #include <common/common.hpp>
 #include <vector>
@@ -9,17 +8,18 @@
 #include <common/globalregisters.hpp>
 #include <time/Time.hpp>
 #include <paging/PagingContext.hpp>
-#include <processes/HandleManager.hpp>
+#include <processes/FutexManager.hpp>
 
 
 class CommonSystem {
 public:
     Memory memory;
     Time time;
-    /* Memory and the MasterPageTable must be initialized before dynamic memory can be used */
+    /* Memory and the PaginContext must be initialized before dynamic memory can be used */
     PagingContext kernelOnlyPagingContext;
     vector<Processor *> processors;
     mutex processorsLock;
+    FutexManager futexManager;
 
     CommonSystem(BootInfo *bootInfo) :
         memory(bootInfo),
@@ -28,5 +28,3 @@ public:
 
     void addBootProcessor();
 };
-
-#endif // COMMONSYSTEM_HPP
