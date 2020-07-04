@@ -187,10 +187,10 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
     return true;
 }
 
-void HandleManager::removeAllHandles() {
+/*void HandleManager::removeAllHandles() {
     scoped_lock sl(lock);
     handles.resize(0);
     nextFreeHandle = 0;
-}
+}*/
 
 }

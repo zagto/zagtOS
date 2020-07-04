@@ -3,6 +3,7 @@
 #include <common/common.hpp>
 
 extern "C" void basicLock(volatile size_t &value);
+extern "C" bool basicTrylock(volatile size_t &value);
 extern "C" void basicUnlock(volatile size_t &value);
 
 class mutex {
@@ -17,6 +18,9 @@ public:
     void lock() {
         basicLock(value);
     }
+    bool trylock() {
+        return basicTrylock(value);
+    }
     void unlock() {
         if (!value) {
             cout << "Attempt to unlock non-locked lock" << endl;
@@ -24,7 +28,7 @@ public:
         }
         basicUnlock(value);
     }
-    bool isLocked() {
+    bool isLocked() const {
         return value;
     }
 };

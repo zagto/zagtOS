@@ -4,7 +4,7 @@
 #include <processes/Thread.hpp>
 
 
-void TaskStateSegment::update(const shared_ptr<Thread> &thread)
+void TaskStateSegment::update(Thread *thread)
 {
     size_t rsp = reinterpret_cast<size_t>(&thread->registerState) + sizeof(RegisterState);
     rspLow = static_cast<uint32_t>(rsp);

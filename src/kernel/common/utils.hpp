@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common/inttypes.hpp>
+#include <common/addresses.hpp>
 
 #ifdef __cplusplus
 enum class AlignDirection {

@@ -4,42 +4,92 @@
 #include <interrupts/RegisterState.hpp>
 #include <memory>
 #include <vector>
+#include <utility>
 
 class Processor;
 class Scheduler;
 class Process;
 class Port;
+class FutexManager;
 
 static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
 
 
 class Thread {
-protected:
-    friend class Scheduler;
-    shared_ptr<Thread> previous;
-    shared_ptr<Thread> next;
-    Processor *currentProcessor{nullptr};
-    bool usesFloatingPoint{false};
-
 public:
     enum Priority {
         IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND,
     };
-    enum Status {
-        RUNNING, WAITING, MESSAGE, FUTEX_PUBLIC, FUTEX_PRIVATE, EXIT
+    enum {
+        ACTIVE, RUNNING, MESSAGE, FUTEX_PUBLIC, FUTEX_PRIVATE, TRANSITION, EXIT
     };
+    class State {
+    private:
+        uint32_t _kind;
+        size_t relatedObject;
+
+        State(uint32_t kind, size_t _relatedObject):
+            _kind{kind},
+            relatedObject{_relatedObject} {}
+
+    public:
+        static State Active(Processor *processor) {
+            return State(Thread::ACTIVE, reinterpret_cast<size_t>(processor));
+        }
+        static State Running(Processor *processor) {
+            return State(Thread::RUNNING, reinterpret_cast<size_t>(processor));
+        }
+        static State WaitMessage(Port *port) {
+            return State(Thread::MESSAGE, reinterpret_cast<size_t>(port));
+        }
+        static State PublicFutex(PhysicalAddress address) {
+            return State(Thread::FUTEX_PUBLIC, address.value());
+        }
+        static State Transition() {
+            return State(Thread::TRANSITION, 0);
+        }
+
+        uint32_t kind() const {
+            return _kind;
+        }
+        Processor *currentProcessor() {
+            assert(_kind == ACTIVE || _kind == RUNNING);
+            return reinterpret_cast<Processor *>(relatedObject);
+        }
+        pair<FutexManager &, PhysicalAddress> currentFutex();
+        Port &currentPort();
+        bool operator==(const State &other) const {
+            return _kind == other._kind && relatedObject == other.relatedObject;
+        }
+    };
+
+    /* Owners:
+     * - RUNNING, WAITING: Scheduler->lock
+     * - FUTEX*: FutexManager->lock
+     * - MESSAGE: Port*/
 
     static const size_t NUM_PRIORITIES = 4;
     static const size_t KEEP_PRIORITY = 0xffff'ffff;
 
+protected:
+    /* State */
+    friend class Scheduler;
+    Processor *_currentProcessor{nullptr};
+
+    /* stuff only to be changed with stateLock aquired */
+    Thread *previous;
+    Thread *next;
+private:
+    Priority _ownPriority;
+    Priority _currentPriority;
+    State _state;
+
+    mutex stateLock;
 
 public:
     RegisterState registerState;
     shared_ptr<Process> process;
     UserVirtualAddress tlsBase;
-    Priority ownPriority;
-    Priority currentPriority;
-    Status status;
 
     Thread(shared_ptr<Process> process,
            VirtualAddress entry,
@@ -48,12 +98,14 @@ public:
            UserVirtualAddress tlsBase,
            UserVirtualAddress masterTLSBase,
            size_t tlsSize) :
+        previous{nullptr},
+        next{nullptr},
+        _ownPriority{priority},
+        _currentPriority{priority},
+        _state {State::Transition()},
         registerState(entry, stackPointer, tlsBase, masterTLSBase, tlsSize),
         process{process},
-        tlsBase{tlsBase},
-        ownPriority{priority},
-        currentPriority{priority},
-        status {Status::WAITING} {}
+        tlsBase{tlsBase} {}
     /* shorter constructor for non-first threads, which don't want to know info about master TLS */
     Thread(shared_ptr<Process> process,
            VirtualAddress entry,
@@ -72,7 +124,18 @@ public:
             return {};
         }
     }
-    bool handleSyscall(shared_ptr<Thread> self);
+    bool handleSyscall();
+
+    Priority ownPriority() const;
+    Priority currentPriority() const;
+    void setCurrentPriority(Priority newValue);
+    State state();
+    void setState(State newValue);
+    Processor *currentProcessor() const;
+
+    /* danger zone - only call this while holding no locks on potential owners. This is for
+     * scenarios, like exit, kill ... and puts the thread in EXIT state. */
+    bool removeFromOwner() noexcept;
 };
 
 #endif

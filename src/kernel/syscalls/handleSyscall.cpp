@@ -12,7 +12,7 @@
 #include <system/Processor.hpp>
 
 
-bool Thread::handleSyscall(shared_ptr<Thread> self) {
+bool Thread::handleSyscall() {
     switch (registerState.syscallNumber()) {
     case SYS_LOG: {
         scoped_lock lg(process->pagingLock);
@@ -42,7 +42,8 @@ bool Thread::handleSyscall(shared_ptr<Thread> self) {
     }
     case SYS_EXIT:
         cout << "Process Exit" << endl;
-        process->onExit = true;
+        /* Danger - the current thread (this) will be deleted */
+        process->exit();
         return true;
     case SYS_CREATE_PORT: {
         shared_ptr<Port> port = make_shared<Port>(process);
@@ -101,7 +102,7 @@ bool Thread::handleSyscall(shared_ptr<Thread> self) {
             return false;
         }
 
-        unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(self);
+        unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(this);
         if (msg) {
             registerState.setSyscallResult(msg->infoAddress().value());
         }
@@ -145,7 +146,8 @@ bool Thread::handleSyscall(shared_ptr<Thread> self) {
         return true;
     }
     case SYS_CREATE_THREAD: {
-        scoped_lock lg(process->pagingLock);
+        scoped_lock lg1(process->pagingLock);
+        scoped_lock lg2(stateLock);
         size_t entry = registerState.syscallParameter(0);
         size_t stack = registerState.syscallParameter(1);
         uint32_t priority = registerState.syscallParameter(2);
@@ -153,7 +155,7 @@ bool Thread::handleSyscall(shared_ptr<Thread> self) {
 
         Thread::Priority actualPriority;
         if (priority == Thread::KEEP_PRIORITY) {
-            actualPriority = ownPriority;
+            actualPriority = _ownPriority;
         } else if (priority >= Thread::NUM_PRIORITIES) {
             cout << "SYS_CREATE_THREAD: invalid priority " << priority << endl;
             return true;
@@ -163,7 +165,7 @@ bool Thread::handleSyscall(shared_ptr<Thread> self) {
 
         auto newThread = make_shared<Thread>(process, entry, actualPriority, stack, tls);
         uint32_t handle = process->handleManager.addThread(newThread);
-        Scheduler::schedule(newThread);
+        Scheduler::schedule(newThread.get());
         registerState.setSyscallResult(handle);
         cout << "Created Thread" << endl;
         return true;

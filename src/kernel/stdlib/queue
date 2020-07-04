@@ -37,13 +37,16 @@ public:
         firstIndex++;
 
         if (firstIndex * 2 >= buffer.size()) {
-            vector<T> newBuffer(buffer.size() - firstIndex);
-            for (size_t index = 0; index < newBuffer.size(); index++) {
-                newBuffer[index] = move(buffer[index]);
+            /* move elements to front and shrink vector */
+            for (size_t index = 0; index < size(); index++) {
+                buffer[index] = move(buffer[index + firstIndex]);
             }
-            buffer = move(newBuffer);
+            buffer.resize(size());
             firstIndex = 0;
         }
+    }
+    size_t size() {
+        return buffer.size() - firstIndex;
     }
     /* non-standard */
     void remove(const T &element) {

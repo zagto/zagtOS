@@ -22,6 +22,8 @@ private:
     void moveData(vector<Futex> &newData);
     void grow();
     void shrink();
+    size_t indexForNew(size_t address);
+    void removeElement(size_t index);
 
 public:
     mutex lock;
@@ -32,8 +34,8 @@ public:
 
     /* These addresses can be physical addresses in the system-wide futex manger or virtual in the
      * process-wide one, so just use size_t */
-    void wait(size_t address, shared_ptr<Thread> &thread);
-    size_t wake(size_t address, size_t numWake, bool wakeAll);
-    void cancelWaiting(size_t address, shared_ptr<Thread> &thread);
+    void wait(PhysicalAddress address, Thread *&thread);
+    size_t wake(PhysicalAddress address, size_t numWake);
+    void cancelWaiting(PhysicalAddress address, Thread *&thread);
     void ensureNoFutexOnPage(PhysicalAddress page);
 };

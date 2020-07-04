@@ -33,6 +33,7 @@ protected:
     size_t numAllocated{0};
 
     void changeAllocatedSize(size_t newNumAllocated) {
+        /* TODO: make sure making it smaller never goes OOM */
         if (newNumAllocated == numAllocated) {
             return;
         }

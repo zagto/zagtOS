@@ -12,6 +12,7 @@
 #include <processes/UUID.hpp>
 #include <processes/Message.hpp>
 #include <processes/HandleManager.hpp>
+#include <processes/FutexManager.hpp>
 
 class Process {
 private:
@@ -36,6 +37,7 @@ public:
     mutex pagingLock;
     mutex threadsLock;
     PagingContext *pagingContext;
+    FutexManager futexManager;
     volatile bool onExit;
 
     Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage);
@@ -57,5 +59,5 @@ public:
     bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
 
     size_t runMessageAddress();
-    void crash(const char *reason);
+    void exit();
 };

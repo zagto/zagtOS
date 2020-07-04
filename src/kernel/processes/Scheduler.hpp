@@ -9,16 +9,23 @@
 class Scheduler
 {
 private:
-    class List {
-        shared_ptr<Thread> head;
-        shared_ptr<Thread> tail;
+    struct List {
+        Thread *head;
+        Thread *tail;
+
+        void append(Thread *thread);
+        void remove(Thread *thread);
+        Thread *pop();
+        bool empty();
     };
 
-    shared_ptr<Thread> idleThread;
-    shared_ptr<Thread> _currentThread;
+    Thread *idleThread;
+    Thread *_activeThread;
     List threads[Thread::NUM_PRIORITIES];
+    Processor *processor;
 
-    void add(shared_ptr<Thread> thread);
+    void add(Thread *thread);
+    void scheduleNext();
 
 public:
     mutex lock;
@@ -26,9 +33,9 @@ public:
     Scheduler(Processor *processor);
     ~Scheduler();
     /* new threads should be added to any scheduler in the system for even load distribution */
-    static void schedule(shared_ptr<Thread> thread);
-    void remove(shared_ptr<Thread> thread);
-    void scheduleNext();
+    static void schedule(Thread *thread);
+    void remove(Thread *thread);
+    Thread *activeThread() const;
 };
 
 #endif // SCHEDULER_HPP

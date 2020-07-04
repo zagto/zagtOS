@@ -41,12 +41,12 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
     bool handled = false;
 
     {
-        shared_ptr<Thread> currentThread = CurrentProcessor->scheduler.currentThread();
-        assert(&currentThread->registerState == registerState);
+        Thread *activeThread = CurrentProcessor->scheduler.activeThread();
+        assert(&activeThread->registerState == registerState);
 
         switch (registerState->intNr) {
         case SYSCALL_INTERRUPT:
-            if (currentThread->handleSyscall(currentThread)) {
+            if (activeThread->handleSyscall()) {
                 handled = true;
             }
             break;
@@ -65,7 +65,7 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
             size_t errorFlags{registerState->errorCode & PAGING_ERROR_FLAGS};
             if (errorFlags == PAGING_ERROR_USER
                     || errorFlags == (PAGING_ERROR_USER | PAGING_ERROR_WRITE)) {
-                if (currentThread->process->handlePageFault(UserVirtualAddress(readCR2()))) {
+                if (activeThread->process->handlePageFault(UserVirtualAddress(readCR2()))) {
                     handled = true;
                 }
             }
@@ -87,25 +87,14 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
 
 
 __attribute__((noreturn)) void Interrupts::returnToUserMode() {
-    UserVirtualAddress threadLocalStorage;
-    {
-        shared_ptr<Thread> thread = CurrentProcessor->scheduler.currentThread();
-        while (thread->process && thread->process->onExit) {
-            cout << "removing current thread " << thread.get() << " from scheduler because its process " <<thread->process.get()<< " exited" << endl;
-            thread->process->handleManager.removeAllHandles();
-            CurrentProcessor->scheduler.remove(thread);
-            thread = CurrentProcessor->scheduler.currentThread();
-        }
-        // Idle thread does not have a process
-        if (thread->process) {
-            thread->process->activate();
-        }
-        globalDescriptorTable.resetTaskStateSegment();
-        taskStateSegment.update(thread);
-        threadLocalStorage = thread->threadLocalStorage();
+    Thread *thread = CurrentProcessor->scheduler.activeThread();
+    // Idle thread does not have a process
+    if (thread->process) {
+        thread->process->activate();
     }
-    returnFromInterrupt(&CurrentProcessor->scheduler.currentThread()->registerState,
-                        threadLocalStorage);
+    globalDescriptorTable.resetTaskStateSegment();
+    taskStateSegment.update(thread);
+    returnFromInterrupt(&thread->registerState, thread->threadLocalStorage());
 }
 
 

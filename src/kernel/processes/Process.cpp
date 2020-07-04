@@ -58,7 +58,7 @@ Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
                                           tlsSize);
 
     handleManager.addThread(mainThread);
-    CurrentProcessor->scheduler.add(mainThread);
+    Scheduler::schedule(mainThread.get());
 }
 
 Process::~Process() {
@@ -98,5 +98,18 @@ bool Process::handlePageFault(UserVirtualAddress address) {
         return ma->handlePageFault(pageAddress);
     } else {
         return false;
+    }
+}
+
+void Process::exit() {
+    // TODO: this is not very efficient
+    onExit =  true;
+    while (true) {
+        auto thread = handleManager.extractThread();
+        if (!thread) {
+            return;
+        }
+
+        thread
     }
 }

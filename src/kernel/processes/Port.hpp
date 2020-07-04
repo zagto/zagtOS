@@ -14,7 +14,7 @@ class Tag {};
 
 class Port {
     mutex lock;
-    weak_ptr<Thread> waitingThread{};
+    Thread *waitingThread{nullptr};
     queue<unique_ptr<Message>> messages;
 
 public:
@@ -22,8 +22,9 @@ public:
 
     Port(const shared_ptr<Process> process);
     Port(Port &) = delete;
+    ~Port();
 
-    unique_ptr<Message> getMessageOrMakeThreadWait(shared_ptr<Thread> thread);
+    unique_ptr<Message> getMessageOrMakeThreadWait(Thread *thread);
     void addMessage(unique_ptr<Message> message);
 };
 

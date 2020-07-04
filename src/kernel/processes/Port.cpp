@@ -5,14 +5,23 @@
 Port::Port(const shared_ptr<Process> process) :
     process{process} {}
 
-unique_ptr<Message> Port::getMessageOrMakeThreadWait(shared_ptr<Thread> thread) {
+Port::~Port() {
+    assert(waitingThread == nullptr);
+    if (!messages.empty()) {
+        cout << "TODO: deallocate messages" << endl;
+        Panic();
+    }
+}
+
+unique_ptr<Message> Port::getMessageOrMakeThreadWait(Thread *thread) {
     /* only one thread can wait on a port at a given time */
-    assert(!waitingThread.lock());
+    assert(waitingThread == nullptr);
 
     scoped_lock sl(lock);
 
     if (messages.empty()) {
-        thread->removeFromScheduler();
+        thread->currentProcessor()->scheduler.remove(thread);
+        thread->setState(Thread::State::WaitMessage(this));
         waitingThread = thread;
         return nullptr;
     } else {
@@ -25,13 +34,10 @@ unique_ptr<Message> Port::getMessageOrMakeThreadWait(shared_ptr<Thread> thread) 
 void Port::addMessage(unique_ptr<Message> message) {
     scoped_lock sl(lock);
 
-    shared_ptr<Thread> thread = waitingThread.lock();
-    if (thread) {
-        cout << "waking thread wainting for message. TODO: processor assignment" << endl;
-
-        thread->registerState.setSyscallResult(message->infoAddress().value());
-        CurrentProcessor->scheduler.add(thread);
-        waitingThread = {};
+    if (waitingThread) {
+        waitingThread->registerState.setSyscallResult(message->infoAddress().value());
+        Scheduler::schedule(waitingThread);
+        waitingThread = nullptr;
     } else {
         messages.push_back(move(message));
     }

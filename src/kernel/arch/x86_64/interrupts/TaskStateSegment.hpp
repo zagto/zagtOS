@@ -17,7 +17,7 @@ public:
     uint16_t ioBase{0};
 
 public:
-    void update(const shared_ptr<Thread> &thread);
+    void update(Thread *thread);
 };
 
 #endif // TASKSTATESEGMENT_HPP

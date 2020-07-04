@@ -61,7 +61,7 @@ public:
     bool transferHandles(vector<uint32_t> &handles,
                          HandleManager &destination);
     uint32_t numFreeHandles();
-    void removeAllHandles();
+    optional<shared_ptr<Thread>> extractThread();
 };
 
 }

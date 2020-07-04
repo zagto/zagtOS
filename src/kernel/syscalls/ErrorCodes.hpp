@@ -1,10 +1,8 @@
-#ifndef ERRORCODES_HPP
-#define ERRORCODES_HPP
+#pragma once
 
 #include <common/inttypes.hpp>
 
-static const uint32_t ENOMEM = 12,
-                 EINVAL = 22,
-                 EOPNOTSUPP = 95;
-
-#endif // ERRORCODES_HPP
+static const uint32_t EAGAIN = 11,
+                      ENOMEM = 12,
+                      EINVAL = 22,
+                      EOPNOTSUPP = 95;
