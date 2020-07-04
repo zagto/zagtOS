@@ -3,33 +3,35 @@
 
 namespace handleManager {
 
-Handle::Handle(uint32_t next) {
+// TODO: naming different things differntly
+
+Element::Element(uint32_t next) {
     type = Type::FREE;
-    data.nextFreeHandle = next;
+    data.nextFreeNumber = next;
 }
 
-Handle::Handle(shared_ptr<Port> &port) {
+Element::Element(shared_ptr<Port> &port) {
     type = Type::PORT;
     new (&data.port) shared_ptr<Port>(port);
 }
 
-Handle::Handle(weak_ptr<Port> &port) {
+Element::Element(weak_ptr<Port> &port) {
     type = Type::REMOTE_PORT;
     new (&data.remotePort) weak_ptr<Port>(port);
 }
 
-Handle::Handle(shared_ptr<Thread> &thread) {
+Element::Element(shared_ptr<Thread> &thread) {
     type = Type::PORT;
     new (&data.thread) shared_ptr<Thread>(thread);
 }
 
-Handle::Handle(const Handle &other) {
+Element::Element(const Element &other) {
     type = other.type;
     switch (type) {
     case Type::INVALID:
         break;
     case Type::FREE:
-        data.nextFreeHandle = other.data.nextFreeHandle;
+        data.nextFreeNumber = other.data.nextFreeNumber;
         break;
     case Type::PORT:
         new (&data.port) shared_ptr<Port>(other.data.port);
@@ -43,16 +45,16 @@ Handle::Handle(const Handle &other) {
     }
 }
 
-Handle::~Handle() {
+Element::~Element() {
     destructData();
 }
 
-void Handle::operator=(const Handle &other) {
+void Element::operator=(const Element &other) {
     destructData();
-    new (this) Handle(other);
+    new (this) Element(other);
 }
 
-void Handle::destructData() {
+void Element::destructData() {
     switch (type) {
     case Type::FREE:
     case Type::INVALID:
@@ -71,39 +73,39 @@ void Handle::destructData() {
 }
 
 
-uint32_t HandleManager::grabFreeHandle() {
+uint32_t HandleManager::grabFreeNumber() {
     /* should go out of kernel memory way before this happens */
-    assert(handles.size() < HANDLE_END);
+    assert(elements.size() < NUMBER_END);
 
-    if (nextFreeHandle == HANDLE_END) {
-        handles.resize(handles.size() + 1);
-        return static_cast<uint32_t>(handles.size() - 1);
+    if (nextFreeNumber == NUMBER_END) {
+        elements.resize(elements.size() + 1);
+        return static_cast<uint32_t>(elements.size() - 1);
     } else {
-        uint32_t handle = nextFreeHandle;
-        assert(handles[handle].type == Type::FREE);
-        nextFreeHandle = handles[handle].data.nextFreeHandle;
+        uint32_t handle = nextFreeNumber;
+        assert(elements[handle].type == Type::FREE);
+        nextFreeNumber = elements[handle].data.nextFreeNumber;
         return handle;
     }
 }
 
-bool HandleManager::handleValidFor(uint32_t handle, Type type) {
-    return handle < handles.size() && handles[handle].type == type;
+bool HandleManager::handleValidFor(uint32_t number, Type type) {
+    return number < elements.size() && elements[number].type == type;
 }
 
 /* generate a new handle for the given pointer */
 uint32_t HandleManager::addPort(shared_ptr<Port> &port) {
     scoped_lock sl(lock);
 
-    uint32_t handle = grabFreeHandle();
-    handles[handle] = Handle(port);
+    uint32_t handle = grabFreeNumber();
+    elements[handle] = Element(port);
     return handle;
 }
 
 uint32_t HandleManager::addThread(shared_ptr<Thread> &thread) {
     scoped_lock sl(lock);
 
-    uint32_t handle = grabFreeHandle();
-    handles[handle] = Handle(thread);
+    uint32_t handle = grabFreeNumber();
+    elements[handle] = Element(thread);
     return handle;
 }
 
@@ -112,8 +114,8 @@ uint32_t HandleManager::addThread(shared_ptr<Thread> &thread) {
 uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
     assert(lock.isLocked());
 
-    uint32_t handle = grabFreeHandle();
-    handles[handle] = Handle(remotePort);
+    uint32_t handle = grabFreeNumber();
+    elements[handle] = Element(remotePort);
     return handle;
 }
 
@@ -121,39 +123,51 @@ uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
  * returns no value if given handle is bogus
  * returns true and sets result to the pointer, which may be null if the object the handle was
  * referring to no longer exists */
-optional<shared_ptr<Port>> HandleManager::lookupPort(uint32_t handle) {
+optional<shared_ptr<Port>> HandleManager::lookupPort(uint32_t number) {
     scoped_lock sl(lock);
-    if (!handleValidFor(handle, Type::PORT)) {
+    if (!handleValidFor(number, Type::PORT)) {
         return {};
     }
-    return handles[handle].data.port;
+    return elements[number].data.port;
 }
 
-optional<weak_ptr<Port>> HandleManager::lookupRemotePort(uint32_t handle) {
+optional<weak_ptr<Port>> HandleManager::lookupRemotePort(uint32_t number) {
     scoped_lock sl(lock);
-    if (!handleValidFor(handle, Type::REMOTE_PORT)) {
+    if (!handleValidFor(number, Type::REMOTE_PORT)) {
         return {};
     }
-    return handles[handle].data.remotePort;
+    return elements[number].data.remotePort;
 }
 
-optional<shared_ptr<Thread>> HandleManager::lookupThread(uint32_t handle) {
+optional<shared_ptr<Thread>> HandleManager::lookupThread(uint32_t number) {
     scoped_lock sl(lock);
-    if (!handleValidFor(handle, Type::THREAD)) {
+    if (!handleValidFor(number, Type::THREAD)) {
         return {};
     }
-    return handles[handle].data.thread;
+    return elements[number].data.thread;
 }
 
-bool HandleManager::removeHandle(uint32_t handle) {
+shared_ptr<Thread> HandleManager::extractThread() {
     scoped_lock sl(lock);
-    if (handles[handle].type == Type::FREE) {
+    for (uint32_t number = 0; number < elements.size(); number++) {
+        if (elements[number].type == Type::THREAD) {
+            shared_ptr<Thread> result = move(elements[number].data.thread);
+            removeHandle(number);
+            return result;
+        }
+    }
+    return {};
+}
+
+bool HandleManager::removeHandle(uint32_t number) {
+    scoped_lock sl(lock);
+    if (elements[number].type == Type::FREE) {
         return false;
     }
-    assert(handles[handle].type != Type::INVALID);
+    assert(elements[number].type != Type::INVALID);
 
-    handles[handle] = nextFreeHandle;
-    nextFreeHandle = handle;
+    elements[number] = nextFreeNumber;
+    nextFreeNumber = number;
     return true;
 }
 
@@ -162,20 +176,20 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
     scoped_lock sl(lock, destination.lock);
 
     for (uint32_t &handle: handleValues) {
-        if (handle >= handles.size() || handles[handle].type == Type::FREE) {
+        if (handle >= elements.size() || elements[handle].type == Type::FREE) {
             cout << "transferHandles: attempt to transfer non-existing handle." << endl;
             return false;
         }
 
         /* Check each possible handle type as they all need to be treated differently */
-        switch(handles[handle].type) {
+        switch(elements[handle].type) {
         case Type::PORT: {
-            weak_ptr<Port> port(handles[handle].data.port);
+            weak_ptr<Port> port(elements[handle].data.port);
             handle = destination._addRemotePort(port);
             break;
         }
         case Type::REMOTE_PORT: {
-            weak_ptr<Port> port = handles[handle].data.remotePort;
+            weak_ptr<Port> port = elements[handle].data.remotePort;
             handle = destination._addRemotePort(port);
             break;
         }

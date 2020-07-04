@@ -23,7 +23,7 @@ private:
     friend class MUnmap;
     friend class Message;
     /* For returnToUserMode - TODO: review if there is a better design for this */
-    friend class Interrupts;
+    //friend class Interrupts;
     MappedAreaVector mappedAreas;
     HandleManager handleManager;
 
@@ -59,5 +59,6 @@ public:
     bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
 
     size_t runMessageAddress();
+    void crash(const char *message);
     void exit();
 };

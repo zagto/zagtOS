@@ -10,9 +10,9 @@ extern "C" void basicInvalidate(VirtualAddress address);
 
 
 PageTableEntry *PagingContext::partialWalkEntries(VirtualAddress address,
-                                                    MissingStrategy missingStrategy,
-                                                    size_t startLevel,
-                                                    WalkData &data) {
+                                                  MissingStrategy missingStrategy,
+                                                  size_t startLevel,
+                                                  WalkData &data) {
     assert(!address.isInRegion(IdentityMapping));
 
     for (size_t level = startLevel; level > 0; level--) {

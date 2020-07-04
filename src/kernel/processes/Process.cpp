@@ -70,14 +70,6 @@ Process::~Process() {
     cout << "Process terminated" << endl;
 }
 
-void Process::activate() {
-    if (CurrentProcessor->currentProcess == this) {
-        return;
-    }
-    pagingContext->activate();
-    CurrentProcessor->currentProcess = this;
-}
-
 PhysicalAddress Process::allocateFrame(UserVirtualAddress address,
                                     Permissions permissions) {
     assert(permissions == Permissions::READ_WRITE
@@ -101,15 +93,19 @@ bool Process::handlePageFault(UserVirtualAddress address) {
     }
 }
 
+void Process::crash(const char *message) {
+    cout << "Terminating process for reason: " << message << endl;
+    exit();
+}
+
 void Process::exit() {
     // TODO: this is not very efficient
     onExit =  true;
     while (true) {
-        auto thread = handleManager.extractThread();
+        shared_ptr<Thread> thread = handleManager.extractThread();
         if (!thread) {
             return;
         }
-
-        thread
+        thread->terminate();
     }
 }

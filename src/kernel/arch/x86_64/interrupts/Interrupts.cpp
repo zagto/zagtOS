@@ -90,7 +90,7 @@ __attribute__((noreturn)) void Interrupts::returnToUserMode() {
     Thread *thread = CurrentProcessor->scheduler.activeThread();
     // Idle thread does not have a process
     if (thread->process) {
-        thread->process->activate();
+        thread->process->pagingContext->activate();
     }
     globalDescriptorTable.resetTaskStateSegment();
     taskStateSegment.update(thread);

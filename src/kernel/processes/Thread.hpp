@@ -21,16 +21,18 @@ public:
         IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND,
     };
     enum {
-        ACTIVE, RUNNING, MESSAGE, FUTEX_PUBLIC, FUTEX_PRIVATE, TRANSITION, EXIT
+        ACTIVE, RUNNING, MESSAGE, FUTEX, TRANSITION, TERMINATED
     };
     class State {
     private:
         uint32_t _kind;
         size_t relatedObject;
+        size_t relatedObject2;
 
-        State(uint32_t kind, size_t _relatedObject):
+        State(uint32_t kind, size_t _relatedObject = 0, size_t _relatedObject2 = 0):
             _kind{kind},
-            relatedObject{_relatedObject} {}
+            relatedObject{_relatedObject},
+            relatedObject2{_relatedObject2} {}
 
     public:
         static State Active(Processor *processor) {
@@ -42,11 +44,14 @@ public:
         static State WaitMessage(Port *port) {
             return State(Thread::MESSAGE, reinterpret_cast<size_t>(port));
         }
-        static State PublicFutex(PhysicalAddress address) {
-            return State(Thread::FUTEX_PUBLIC, address.value());
+        static State Futex(FutexManager *manager, PhysicalAddress address) {
+            return State(Thread::FUTEX, reinterpret_cast<size_t>(manager), address.value());
         }
         static State Transition() {
-            return State(Thread::TRANSITION, 0);
+            return State(Thread::TRANSITION);
+        }
+        static State Terminated() {
+            return State(Thread::TERMINATED);
         }
 
         uint32_t kind() const {
@@ -59,7 +64,7 @@ public:
         pair<FutexManager &, PhysicalAddress> currentFutex();
         Port &currentPort();
         bool operator==(const State &other) const {
-            return _kind == other._kind && relatedObject == other.relatedObject;
+            return _kind == other._kind && relatedObject == other.relatedObject && relatedObject2 == other.relatedObject2;
         }
     };
 
@@ -135,7 +140,7 @@ public:
 
     /* danger zone - only call this while holding no locks on potential owners. This is for
      * scenarios, like exit, kill ... and puts the thread in EXIT state. */
-    bool removeFromOwner() noexcept;
+    void terminate() noexcept;
 };
 
 #endif

@@ -4,6 +4,7 @@
 #include <processes/Thread.hpp>
 #include <processes/Process.hpp>
 #include <processes/Scheduler.hpp>
+#include <system/Processor.hpp>
 
 
 struct Futex {
@@ -123,8 +124,8 @@ FutexManager::~FutexManager() {
 void FutexManager::wait(PhysicalAddress address, Thread *&thread) {
     assert(lock.isLocked());
 
-    scoped_lock sl(thread->stateLock);
-    assert(thread->state() == Thread::State::RUNNING);
+    /* Thread can only do the syscall if it's active. */
+    assert(thread->state().kind() == Thread::ACTIVE);
 
     uint32_t hash = getHash(address.value());
     size_t index = reduceHash(hash);
@@ -133,6 +134,9 @@ void FutexManager::wait(PhysicalAddress address, Thread *&thread) {
         if (data[index].address == address.value()) {
             /* found - add thread to queue */
             data[index].threads.push_back(thread);
+
+            thread->currentProcessor()->scheduler.remove(thread);
+            thread->setState(Thread::State::Futex(this, address));
             return;
         }
         index = (index + 1) % numAllocated();
@@ -143,6 +147,9 @@ void FutexManager::wait(PhysicalAddress address, Thread *&thread) {
     Futex &element = data[index];
     assert(element.threads.empty());
     element.threads.push_back(thread);
+
+    thread->currentProcessor()->scheduler.remove(thread);
+    thread->setState(Thread::State::Futex(this, address));
 
     element.active = true;
     element.address = address.value();
@@ -165,10 +172,7 @@ size_t FutexManager::wake(PhysicalAddress address, size_t numWake) {
             for (size_t i = 0; i < numWake; i++) {
                 Thread *thread = element.threads.top();
 
-                scoped_lock sl(thread->stateLock);
-                assert(thread->state() == Thread::State::FUTEX_PUBLIC
-                       || thread->state() == Thread::State::FUTEX_PRIVATE);
-
+                assert(thread->state().kind() == Thread::FUTEX);
                 Scheduler::schedule(thread);
 
                 element.threads.pop();

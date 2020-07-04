@@ -39,26 +39,35 @@ void Thread::setState(Thread::State newValue) {
 }
 
 Processor *Thread::currentProcessor() const {
-    assert(stateLock.isLocked());
     return _currentProcessor;
 }
 
-bool Thread::removeFromOwner() noexcept {
+void Thread::terminate() noexcept {
     while (true) {
         State localState = state();
         switch (localState.kind()) {
         case ACTIVE:
             cout << "TODO: send IPI to terminate active thread" << endl;
             break;
-        case RUNNING:
+        case RUNNING: {
             Scheduler &scheduler = localState.currentProcessor()->scheduler;
             if (scheduler.lock.trylock()) {
                 if (state() == localState) {
                     scheduler.remove(this);
                     scheduler.lock.unlock();
-                    return true;
+                    return;
                 }
             }
+            break;
         }
+        case TERMINATED:
+            /* nothing to do here */
+            return;
+        default:
+            cout << "TODO\n";
+            Panic();
+        }
+        // TODO: find good time
+        CurrentSystem.time.delayMilliseconds(1);
     }
 }

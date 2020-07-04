@@ -14,12 +14,12 @@ enum class Type : uint32_t {
     INVALID, FREE, PORT, REMOTE_PORT, THREAD
 };
 
-static const uint32_t HANDLE_END = static_cast<uint32_t>(-1);
+static const uint32_t NUMBER_END = static_cast<uint32_t>(-1);
 
-struct Handle {
+struct Element {
     Type type{Type::INVALID};
     union HandleData {
-        uint32_t nextFreeHandle;
+        uint32_t nextFreeNumber;
         shared_ptr<Port> port;
         weak_ptr<Port> remotePort;
         shared_ptr<Thread> thread;
@@ -27,25 +27,25 @@ struct Handle {
         HandleData() {}
     } data;
 
-    Handle() {}
-    Handle(uint32_t next);
-    Handle(shared_ptr<Port> &port);
-    Handle(weak_ptr<Port> &port);
-    Handle(shared_ptr<Thread> &thread);
-    Handle(const Handle &other);
-    ~Handle();
-    void operator=(const Handle &other);
+    Element() {}
+    Element(uint32_t next);
+    Element(shared_ptr<Port> &port);
+    Element(weak_ptr<Port> &port);
+    Element(shared_ptr<Thread> &thread);
+    Element(const Element &other);
+    ~Element();
+    void operator=(const Element &other);
     void destructData();
 };
 
 class HandleManager {
 private:
-    vector<Handle> handles;
-    uint32_t nextFreeHandle{HANDLE_END};
+    vector<Element> elements;
+    uint32_t nextFreeNumber{NUMBER_END};
     mutex lock;
 
-    uint32_t grabFreeHandle();
-    bool handleValidFor(uint32_t handle, Type type);
+    uint32_t grabFreeNumber();
+    bool handleValidFor(uint32_t number, Type type);
     uint32_t _addRemotePort(weak_ptr<Port> &port);
 
 public:
@@ -54,14 +54,14 @@ public:
 
     uint32_t addPort(shared_ptr<Port> &port);
     uint32_t addThread(shared_ptr<Thread> &thread);
-    optional<shared_ptr<Port>> lookupPort(uint32_t handle);
-    optional<weak_ptr<Port>> lookupRemotePort(uint32_t handle);
-    optional<shared_ptr<Thread>> lookupThread(uint32_t handle);
-    bool removeHandle(uint32_t handle);
-    bool transferHandles(vector<uint32_t> &handles,
+    optional<shared_ptr<Port>> lookupPort(uint32_t number);
+    optional<weak_ptr<Port>> lookupRemotePort(uint32_t number);
+    optional<shared_ptr<Thread>> lookupThread(uint32_t number);
+    shared_ptr<Thread> extractThread();
+    bool removeHandle(uint32_t number);
+    bool transferHandles(vector<uint32_t> &elements,
                          HandleManager &destination);
     uint32_t numFreeHandles();
-    optional<shared_ptr<Thread>> extractThread();
 };
 
 }
