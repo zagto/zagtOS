@@ -100,7 +100,6 @@ void Process::crash(const char *message) {
 
 void Process::exit() {
     // TODO: this is not very efficient
-    onExit =  true;
     while (true) {
         shared_ptr<Thread> thread = handleManager.extractThread();
         if (!thread) {

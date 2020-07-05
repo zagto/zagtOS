@@ -75,9 +75,9 @@ commonISR:
     cmp qword [rsp+(18*8)], 0x18|3
     jne alreadyOnKernelStack
 
-    ; currentProcessor is the field two before registerState (which is align(16))
+    ; currentProcessor is the field three before registerState (which is align(16))
     ; this pointer is put in r15 (as the CurrentProcessor variable)
-    mov r15, [rdi - 16]
+    mov r15, [rdi - 8*3]
     ; kernelStack is the first field of Processor class
     mov rsp, [r15]
     ; start at the end of kernelStack region

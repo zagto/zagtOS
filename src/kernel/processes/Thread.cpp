@@ -10,17 +10,15 @@ Thread::~Thread() {
 }
 
 Thread::Priority Thread::ownPriority() const {
-    assert(stateLock.isLocked());
     return _ownPriority;
 }
 
 Thread::Priority Thread::currentPriority() const {
-    assert(stateLock.isLocked());
+
     return _currentPriority;
 }
 
 void Thread::setCurrentPriority(Thread::Priority newValue) {
-    assert(stateLock.isLocked());
     _currentPriority = newValue;
 }
 

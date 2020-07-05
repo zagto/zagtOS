@@ -36,6 +36,7 @@ void Port::addMessage(unique_ptr<Message> message) {
 
     if (waitingThread) {
         waitingThread->registerState.setSyscallResult(message->infoAddress().value());
+        waitingThread->setState(Thread::State::Transition());
         Scheduler::schedule(waitingThread);
         waitingThread = nullptr;
     } else {

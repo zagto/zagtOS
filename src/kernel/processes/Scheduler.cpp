@@ -7,7 +7,6 @@
 void Scheduler::List::append(Thread *thread) {
     assert(!thread->previous);
     assert(!thread->next);
-    assert(thread->stateLock.isLocked());
 
     if (tail) {
         tail->next = thread;
@@ -52,7 +51,7 @@ Thread *Scheduler::List::pop() {
 }
 
 bool Scheduler::List::empty() {
-    return head;
+    return head == nullptr;
 }
 
 Scheduler::Scheduler(Processor *_processor)
@@ -70,12 +69,9 @@ Scheduler::Scheduler(Processor *_processor)
 void Scheduler::add(Thread *thread) {
     // TODO: ensure current processor
     assert(thread->_currentProcessor == nullptr);
+    scoped_lock sl(lock);
 
-    /* The stateLock should always either be aquired by the owner, which is locked by itself, or a
-     * program not locking any potential owners at the same time (read-only). This means we can
-     * safely read and lock currentThread, which is owned by us, here without deadlocks */
-    scoped_lock sl1(lock);
-    scoped_lock sl2(_activeThread->stateLock);
+    thread->_currentProcessor = processor;
 
     if (thread->currentPriority() > _activeThread->currentPriority()) {
         /* new thread has heigher proirity - switch */
@@ -87,7 +83,6 @@ void Scheduler::add(Thread *thread) {
         threads[thread->currentPriority()].append(thread);
         thread->setState(Thread::State::Running(processor));
     }
-    thread->_currentProcessor = processor;
 }
 
 void Scheduler::schedule(Thread *thread) {
@@ -96,6 +91,11 @@ void Scheduler::schedule(Thread *thread) {
 }
 
 void Scheduler::remove(Thread *thread) {
+    scoped_lock sl(lock);
+    removeLocked(thread);
+}
+
+void Scheduler::removeLocked(Thread *thread) {
     // TODO: ensure current processor
     assert(lock.isLocked());
 
@@ -106,6 +106,7 @@ void Scheduler::remove(Thread *thread) {
         threads[thread->currentPriority()].remove(thread);
     }
     thread->setState(Thread::State::Transition());
+    thread->_currentProcessor = nullptr;
 }
 
 Thread *Scheduler::activeThread() const {
@@ -118,9 +119,8 @@ void Scheduler::scheduleNext() {
 
     for (ssize_t prio = Thread::NUM_PRIORITIES - 1; prio >= 0; prio--) {
         if (!threads[prio].empty()) {
-            scoped_lock sl(threads[prio].head->stateLock);
             _activeThread = threads[prio].pop();
-            _activeThread->setState(Thread::State::Running(processor));
+            _activeThread->setState(Thread::State::Active(processor));
             return;
         }
     }

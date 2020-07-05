@@ -10,8 +10,8 @@ class Scheduler
 {
 private:
     struct List {
-        Thread *head;
-        Thread *tail;
+        Thread *head{nullptr};
+        Thread *tail{nullptr};
 
         void append(Thread *thread);
         void remove(Thread *thread);
@@ -35,6 +35,8 @@ public:
     /* new threads should be added to any scheduler in the system for even load distribution */
     static void schedule(Thread *thread);
     void remove(Thread *thread);
+    /* TODO: figure out if this is sufficient */
+    void removeLocked(Thread *thread);
     Thread *activeThread() const;
 };
 

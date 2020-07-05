@@ -7,6 +7,7 @@
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <syscalls/Time.hpp>
+#include <syscalls/Futex.hpp>
 #include <syscalls/SyscallNumbers.hpp>
 #include <portio.hpp>
 #include <system/Processor.hpp>
@@ -171,11 +172,10 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_FUTEX: {
-
+        return Futex(this, registerState);
     }
-    case SYS_CLOCK_GETTIME: {
+    case SYS_CLOCK_GETTIME:
         return GetTime(registerState, process);
-    }
     case SYS_GET_ACPI_ROOT: {
         /* TODO: permissions checking */
         registerState.setSyscallResult(CurrentSystem.ACPIRoot.value());

@@ -38,7 +38,6 @@ public:
     mutex threadsLock;
     PagingContext *pagingContext;
     FutexManager futexManager;
-    volatile bool onExit;
 
     Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage);
     ~Process();

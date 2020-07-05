@@ -1,5 +1,4 @@
-#ifndef USERSPACEOBJECT_HPP
-#define USERSPACEOBJECT_HPP
+#pragma once
 
 #include <common/common.hpp>
 #include <processes/Process.hpp>
@@ -30,11 +29,9 @@ public:
         }
     }
     ~UserSpaceObject() {
-        if (op != USOOperation::READ) {
+        if (op != USOOperation::READ && valid) {
             bool result = process->copyToUser(address, reinterpret_cast<uint8_t *>(&object), sizeof(T), true);
             assert(result);
         }
     }
 };
-
-#endif // USERSPACEOBJECT_HPP

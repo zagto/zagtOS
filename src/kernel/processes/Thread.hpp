@@ -76,20 +76,21 @@ public:
     static const size_t NUM_PRIORITIES = 4;
     static const size_t KEEP_PRIORITY = 0xffff'ffff;
 
-protected:
-    /* State */
-    friend class Scheduler;
-    Processor *_currentProcessor{nullptr};
-
-    /* stuff only to be changed with stateLock aquired */
-    Thread *previous;
-    Thread *next;
 private:
     Priority _ownPriority;
     Priority _currentPriority;
     State _state;
 
     mutex stateLock;
+
+protected:
+    /* State */
+    friend class Scheduler;
+    Processor *_currentProcessor{nullptr};
+
+    /* stuff only to be changed with stateLock aquired */
+    Thread *previous{nullptr};
+    Thread *next{nullptr};
 
 public:
     RegisterState registerState;
@@ -103,8 +104,6 @@ public:
            UserVirtualAddress tlsBase,
            UserVirtualAddress masterTLSBase,
            size_t tlsSize) :
-        previous{nullptr},
-        next{nullptr},
         _ownPriority{priority},
         _currentPriority{priority},
         _state {State::Transition()},

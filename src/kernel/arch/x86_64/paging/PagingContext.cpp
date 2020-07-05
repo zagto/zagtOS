@@ -86,8 +86,10 @@ void PagingContext::map(KernelVirtualAddress from,
 PhysicalAddress PagingContext::resolve(KernelVirtualAddress address) {
     assert(CurrentSystem.memory.kernelPagingLock.isLocked());
 
-    return CurrentSystem.kernelOnlyPagingContext.walkEntries(address,
-                                                                MissingStrategy::NONE)->addressValue();
+    size_t offset = address.value() % PAGE_SIZE;
+    return CurrentSystem.kernelOnlyPagingContext.walkEntries(
+                address - offset,
+                MissingStrategy::NONE)->addressValue() + offset;
 }
 
 
@@ -102,7 +104,8 @@ void PagingContext::unmap(KernelVirtualAddress address) {
 PhysicalAddress PagingContext::resolve(UserVirtualAddress address) {
     assert(process == nullptr || process->pagingLock.isLocked());
 
-    return walkEntries(address, MissingStrategy::NONE)->addressValue();
+    size_t offset = address.value() % PAGE_SIZE;
+    return walkEntries(address - offset, MissingStrategy::NONE)->addressValue() + offset;
 }
 
 
