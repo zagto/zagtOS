@@ -23,9 +23,9 @@ struct __libc {
 extern hidden struct __libc __libc;
 #define libc __libc
 
-hidden void __init_libc(char **envp, char *pn, size_t tls_base);
+hidden void __init_libc(char **envp, char *pn, size_t tls_base, uint32_t main_thread_handle);
 hidden void __init_ssp(void);
-hidden void __init_tls(size_t);
+hidden void __init_tls(size_t, uint32_t);
 hidden void __libc_start_init(void);
 hidden void __funcs_on_exit(void);
 hidden void __funcs_on_quick_exit(void);

@@ -138,10 +138,11 @@ _Noreturn void __pthread_exit(void *result)
 	/* After the kernel thread exits, its tid may be reused. Clear it
 	 * to prevent inadvertent use and inform functions that would use
 	 * it that it's no longer available. */
-	self->tid = 0;
+    uint32_t tid = self->tid;
+    self->tid = 0;
 	UNLOCK(self->killlock);
 
-    zagtos_syscall(SYS_DELETE_HANDLE, self->tid);
+    zagtos_syscall(SYS_DELETE_HANDLE, tid);
     for (;;);
 }
 

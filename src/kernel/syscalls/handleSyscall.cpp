@@ -110,8 +110,8 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_DELETE_HANDLE: {
-        cout << "SYS_DELETE_HANDLE" << endl;
         uint32_t handle = static_cast<uint32_t>(registerState.syscallParameter(0));
+        cout << "SYS_DELETE_HANDLE " << handle << endl;
         shared_ptr<Thread> removedThread;
         bool success = process->handleManager.removeHandle(handle, removedThread);
         if (!success) {
@@ -176,7 +176,7 @@ bool Thread::handleSyscall() {
         uint32_t handle = process->handleManager.addThread(newThread);
         Scheduler::schedule(newThread.get());
         registerState.setSyscallResult(handle);
-        cout << "Created Thread" << endl;
+        cout << "Created Thread " << handle << endl;
         return true;
     }
     case SYS_FUTEX: {

@@ -45,6 +45,8 @@ Thread *Scheduler::List::pop() {
     head = head->next;
     if (!head) {
         tail = nullptr;
+    } else {
+        head->previous = nullptr;
     }
     result->next = nullptr;
     return result;

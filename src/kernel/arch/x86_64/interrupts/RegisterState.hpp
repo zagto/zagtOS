@@ -1,6 +1,4 @@
-#ifndef REGISTERSTATE_HPP
-#define REGISTERSTATE_HPP
-
+#pragma once
 #include <common/inttypes.hpp>
 #include <common/addresses.hpp>
 #include <common/panic.hpp>
@@ -48,6 +46,7 @@ public:
     inline void setSyscallResult(size_t value) {
         rax = value;
     }
+    inline void setThreadHandle(uint32_t value) {
+        r8 = value;
+    }
 };
-
-#endif // REGISTERSTATE_HPP

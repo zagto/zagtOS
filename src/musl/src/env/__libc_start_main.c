@@ -32,7 +32,7 @@ weak void _init();
 #ifdef __GNUC__
 __attribute__((__noinline__))
 #endif
-void __init_libc(char **envp, char *pn, size_t tls_base)
+void __init_libc(char **envp, char *pn, size_t tls_base, uint32_t main_thread_handle)
 
 {
     __environ = envp;
@@ -41,7 +41,7 @@ void __init_libc(char **envp, char *pn, size_t tls_base)
     int i;
     for (i=0; pn[i]; i++) if (pn[i]=='/') __progname = pn+i+1;
 
-    __init_tls(tls_base);
+    __init_tls(tls_base, main_thread_handle);
     __init_ssp();
 
     libc.secure = 1;
@@ -65,7 +65,8 @@ int __libc_start_main(int (*main)(int,char **,char **),
                       struct zagtos_run_message_info *run_msg,
                       size_t tls_base,
                       size_t master_tls_base,
-                      size_t tls_size)
+                      size_t tls_size,
+                      uint32_t main_thread_handle)
 {
     int argc;
     char **argv;
@@ -118,7 +119,7 @@ int __libc_start_main(int (*main)(int,char **,char **),
 	 * persisting for the entire process lifetime. */
     libc.master_tls_base = master_tls_base;
     libc.tls_size = tls_size;
-    __init_libc(envp, argv[0], tls_base);
+    __init_libc(envp, argv[0], tls_base, main_thread_handle);
 
 	/* Barrier against hoisting application code or anything using ssp
 	 * or thread pointer prior to its initialization above. */

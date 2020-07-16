@@ -47,6 +47,7 @@ void Thread::setHandle(uint32_t handle) {
     assert(handle != INVALID_HANDLE);
 
     _handle = handle;
+    registerState.setThreadHandle(handle);
 }
 
 Processor *Thread::currentProcessor() const {
@@ -54,6 +55,7 @@ Processor *Thread::currentProcessor() const {
 }
 
 void Thread::terminate() noexcept {
+    cout << "Thread::terminate" << endl;
     while (true) {
         State localState = state();
         switch (localState.kind()) {
@@ -85,6 +87,7 @@ void Thread::terminate() noexcept {
         }
         case TERMINATED:
             /* nothing to do here */
+            cout << "Warning: one thread terminated multiple times" << endl;
             return;
         default:
             cout << "TODO\n";

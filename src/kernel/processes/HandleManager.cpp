@@ -21,7 +21,7 @@ Element::Element(weak_ptr<Port> &port) {
 }
 
 Element::Element(shared_ptr<Thread> &thread) {
-    type = Type::PORT;
+    type = Type::THREAD;
     new (&data.thread) shared_ptr<Thread>(thread);
 }
 
@@ -78,7 +78,9 @@ uint32_t HandleManager::grabFreeNumber() {
     assert(elements.size() < NUMBER_END);
 
     if (nextFreeNumber == NUMBER_END) {
-        elements.resize(elements.size() + 1);
+        /* Avoid giving out handle 0. This is because handles of Zagtos may be used like Linux
+         * Thread IDs, where the handle expected to be non-zero */
+        elements.resize(elements.size() > 0 ? elements.size() + 1 : 2);
         return static_cast<uint32_t>(elements.size() - 1);
     } else {
         uint32_t handle = nextFreeNumber;
@@ -89,7 +91,7 @@ uint32_t HandleManager::grabFreeNumber() {
 }
 
 bool HandleManager::handleValidFor(uint32_t number, Type type) {
-    return number < elements.size() && elements[number].type == type;
+    return number > 0 && number < elements.size() && elements[number].type == type;
 }
 
 /* generate a new handle for the given pointer */
@@ -168,12 +170,13 @@ shared_ptr<Thread> HandleManager::extractThread() {
  * argument */
 bool HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
     scoped_lock sl(lock);
-    if (elements[number].type == Type::FREE) {
+    if (number == 0 || elements[number].type == Type::FREE) {
         return false;
     }
     assert(elements[number].type != Type::INVALID);
 
     if (elements[number].type == Type::THREAD) {
+        cout << "removed thread" << endl;
         removedThread = move(elements[number].data.thread);
     } else {
         removedThread = {};
@@ -189,7 +192,7 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
     scoped_lock sl(lock, destination.lock);
 
     for (uint32_t &handle: handleValues) {
-        if (handle >= elements.size() || elements[handle].type == Type::FREE) {
+        if (handle == 0 || handle >= elements.size() || elements[handle].type == Type::FREE) {
             cout << "transferHandles: attempt to transfer non-existing handle." << endl;
             return false;
         }
