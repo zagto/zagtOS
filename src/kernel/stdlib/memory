@@ -64,10 +64,10 @@ protected:
 
     InternalPointer *internalPointer{nullptr};
 
-    void checkReferenceCounts() {
+    void checkReferenceCounts(bool &shouldDelete) {
         if (internalPointer->referenceCount == 0) {
             if (internalPointer->weakReferenceCount == 0) {
-                delete internalPointer;
+                shouldDelete = true;
             } else {
                 delete internalPointer->rawPointer;
                 internalPointer->valid = false;
@@ -128,11 +128,15 @@ public:
         return *internalPointer->rawPointer;
     }
     void reset() {
+        bool shouldDelete{false};
         if (internalPointer) {
             scoped_lock lg(internalPointer->lock);
             assert(internalPointer->referenceCount > 0);
             internalPointer->referenceCount--;
-            checkReferenceCounts();
+            checkReferenceCounts(shouldDelete);
+        }
+        if (shouldDelete) {
+            delete internalPointer;
         }
     }
     void reset(T *newPointer) {
@@ -179,13 +183,17 @@ public:
     }
 
     void reset() {
+        bool shouldDelete{false};
         if (internalPointer) {
             scoped_lock lg(internalPointer->lock);
             internalPointer->weakReferenceCount--;
             if (internalPointer->referenceCount == 0 && internalPointer->weakReferenceCount == 0) {
-                delete internalPointer;
+                shouldDelete = true;
             }
             internalPointer = nullptr;
+        }
+        if (shouldDelete) {
+            delete internalPointer;
         }
     }
     shared_ptr<T> lock() {
