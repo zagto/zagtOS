@@ -36,6 +36,19 @@ void Thread::setState(Thread::State newValue) {
     _state = newValue;
 }
 
+uint32_t Thread::handle() const {
+    assert(_handle != INVALID_HANDLE);
+    return _handle;
+}
+
+void Thread::setHandle(uint32_t handle) {
+    /* setHandle should only happen once, directly after thread creation */
+    assert(_handle == INVALID_HANDLE);
+    assert(handle != INVALID_HANDLE);
+
+    _handle = handle;
+}
+
 Processor *Thread::currentProcessor() const {
     return _currentProcessor;
 }
@@ -45,13 +58,25 @@ void Thread::terminate() noexcept {
         State localState = state();
         switch (localState.kind()) {
         case ACTIVE:
-            cout << "TODO: send IPI to terminate active thread" << endl;
+            if (localState.currentProcessor() == CurrentProcessor) {
+                Scheduler &scheduler = localState.currentProcessor()->scheduler;
+                if (scheduler.lock.trylock()) {
+                    if (state() == localState) {
+                        scheduler.removeLocked(this);
+                        scheduler.lock.unlock();
+                        return;
+                    }
+                }
+            } else {
+                cout << "TODO: send IPI to terminate active thread" << endl;
+                Panic();
+            }
             break;
         case RUNNING: {
             Scheduler &scheduler = localState.currentProcessor()->scheduler;
             if (scheduler.lock.trylock()) {
                 if (state() == localState) {
-                    scheduler.remove(this);
+                    scheduler.removeLocked(this);
                     scheduler.lock.unlock();
                     return;
                 }

@@ -14,7 +14,8 @@ enum class Type : uint32_t {
     INVALID, FREE, PORT, REMOTE_PORT, THREAD
 };
 
-static const uint32_t NUMBER_END = static_cast<uint32_t>(-1);
+/* FUTEX_LOCK_PI wants to or a bit with a handle so make sure upmost bit is reserved */
+static const uint32_t NUMBER_END = 0x3fffffff;
 
 struct Element {
     Type type{Type::INVALID};
@@ -58,7 +59,7 @@ public:
     optional<weak_ptr<Port>> lookupRemotePort(uint32_t number);
     optional<shared_ptr<Thread>> lookupThread(uint32_t number);
     shared_ptr<Thread> extractThread();
-    bool removeHandle(uint32_t number);
+    bool removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
     bool transferHandles(vector<uint32_t> &elements,
                          HandleManager &destination);
     uint32_t numFreeHandles();

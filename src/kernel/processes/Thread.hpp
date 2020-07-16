@@ -75,13 +75,14 @@ public:
 
     static const size_t NUM_PRIORITIES = 4;
     static const size_t KEEP_PRIORITY = 0xffff'ffff;
+    static const uint32_t INVALID_HANDLE = -1;
 
 private:
     Priority _ownPriority;
     Priority _currentPriority;
     State _state;
-
     mutex stateLock;
+    uint32_t _handle{INVALID_HANDLE};
 
 protected:
     /* State */
@@ -136,6 +137,8 @@ public:
     State state();
     void setState(State newValue);
     Processor *currentProcessor() const;
+    void setHandle(uint32_t handle);
+    uint32_t handle() const;
 
     /* danger zone - only call this while holding no locks on potential owners. This is for
      * scenarios, like exit, kill ... and puts the thread in EXIT state. */

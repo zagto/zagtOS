@@ -77,7 +77,7 @@ commonISR:
 
     ; currentProcessor is the field three before registerState (which is align(16))
     ; this pointer is put in r15 (as the CurrentProcessor variable)
-    mov r15, [rdi - 8*3]
+    mov r15, [rdi - 8*4]
     ; kernelStack is the first field of Processor class
     mov rsp, [r15]
     ; start at the end of kernelStack region

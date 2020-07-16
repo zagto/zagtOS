@@ -110,9 +110,17 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_DELETE_HANDLE: {
-        cout << "destroyPort" << endl;
-        uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
-        return process->handleManager.removeHandle(portHandle);
+        cout << "SYS_DELETE_HANDLE" << endl;
+        uint32_t handle = static_cast<uint32_t>(registerState.syscallParameter(0));
+        shared_ptr<Thread> removedThread;
+        bool success = process->handleManager.removeHandle(handle, removedThread);
+        if (!success) {
+            return false;
+        }
+        if (removedThread) {
+            removedThread->terminate();
+        }
+        return true;
     }
     case SYS_RANDOM:
         // todo: should write to memory here

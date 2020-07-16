@@ -106,6 +106,7 @@ uint32_t HandleManager::addThread(shared_ptr<Thread> &thread) {
 
     uint32_t handle = grabFreeNumber();
     elements[handle] = Element(thread);
+    thread->setHandle(handle);
     return handle;
 }
 
@@ -151,20 +152,32 @@ shared_ptr<Thread> HandleManager::extractThread() {
     scoped_lock sl(lock);
     for (uint32_t number = 0; number < elements.size(); number++) {
         if (elements[number].type == Type::THREAD) {
-            shared_ptr<Thread> result = move(elements[number].data.thread);
-            removeHandle(number);
+            shared_ptr<Thread> result;
+            removeHandle(number, result);
             return result;
         }
     }
     return {};
 }
 
-bool HandleManager::removeHandle(uint32_t number) {
+/* Returns true if the handle was removed successfully. If number is an in-use handle, this call
+ * always succeeds. Otherwise it returns false.
+ * If the removed handle was referring to a local Thread (a Thread of the Process associated with
+ * this handleManager, not a REMOTE_THREAD type), removing it's handle leads to thread termination,
+ * which requires further action by the caller. Such a thread is returned in the removedThread
+ * argument */
+bool HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
     scoped_lock sl(lock);
     if (elements[number].type == Type::FREE) {
         return false;
     }
     assert(elements[number].type != Type::INVALID);
+
+    if (elements[number].type == Type::THREAD) {
+        removedThread = move(elements[number].data.thread);
+    } else {
+        removedThread = {};
+    }
 
     elements[number] = nextFreeNumber;
     nextFreeNumber = number;
