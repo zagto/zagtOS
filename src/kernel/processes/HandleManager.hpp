@@ -48,6 +48,7 @@ private:
     uint32_t grabFreeNumber();
     bool handleValidFor(uint32_t number, Type type);
     uint32_t _addRemotePort(weak_ptr<Port> &port);
+    bool _removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
 
 public:
     HandleManager() {}

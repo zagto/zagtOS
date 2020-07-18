@@ -155,7 +155,7 @@ shared_ptr<Thread> HandleManager::extractThread() {
     for (uint32_t number = 0; number < elements.size(); number++) {
         if (elements[number].type == Type::THREAD) {
             shared_ptr<Thread> result;
-            removeHandle(number, result);
+            _removeHandle(number, result);
             return result;
         }
     }
@@ -168,8 +168,7 @@ shared_ptr<Thread> HandleManager::extractThread() {
  * this handleManager, not a REMOTE_THREAD type), removing it's handle leads to thread termination,
  * which requires further action by the caller. Such a thread is returned in the removedThread
  * argument */
-bool HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
-    scoped_lock sl(lock);
+bool HandleManager::_removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
     if (number == 0 || elements[number].type == Type::FREE) {
         return false;
     }
@@ -185,6 +184,11 @@ bool HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThr
     elements[number] = nextFreeNumber;
     nextFreeNumber = number;
     return true;
+}
+
+bool HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
+    scoped_lock sl(lock);
+    return _removeHandle(number, removedThread);
 }
 
 bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
