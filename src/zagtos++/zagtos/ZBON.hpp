@@ -404,10 +404,13 @@ public:
     }
     template<typename ...Types>
     void encodeValue(const std::tuple<Types...> &tuple) {
-        encodeValue(static_cast<uint64_t>(sizeof(tuple)));
+        encodeValue(static_cast<uint64_t>(sizeof...(Types)));
         /* insert bytesSize (64bit) later */
         size_t bytesSizePosition = position;
         position += COUNT_SIZE;
+
+        std::cout << "encoding tuple of " << sizeof...(Types) << std::endl;
+
 
         encodeTupleElements<0, Types...>(tuple);
 
@@ -568,8 +571,8 @@ public:
     bool decodeValue(std::tuple<Types...> &tuple) {
         uint64_t numElements;
         decodeValue(numElements);
-        if (numElements != sizeof(tuple)) {
-            std::cerr << "ZBON: requested decode of Tuple of " << sizeof(tuple)
+        if (numElements != sizeof...(Types)) {
+            std::cerr << "ZBON: requested decode of Tuple of " << sizeof...(Types)
                       << " elements but ZBON Object holds " << numElements << " elements."
                       << std::endl;
         }
@@ -598,10 +601,12 @@ public:
     bool decodeFromTuple(Types &...result) {
         uint64_t numElements;
         decodeValue(numElements);
+        std::cout << "decoding tuple of " << sizeof...(result) << std::endl;
         if (numElements != sizeof...(result)) {
             std::cerr << "ZBON: requested decode of Tuple of " << sizeof...(result)
                       << " elements but ZBON Object holds " << numElements << " elements."
                       << std::endl;
+            return false;
         }
         uint64_t bytesSize;
         if (!decodeValue(bytesSize)) {
