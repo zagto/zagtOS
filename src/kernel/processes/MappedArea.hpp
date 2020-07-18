@@ -9,14 +9,14 @@ class Process;
 
 class MappedArea {
 private:
-    enum class Source {
-        MEMORY = 1, PHYSICAL_MEMORY = 2, GUARD = 3
-    };
     Process *process;
-    Source source;
     PhysicalAddress physicalStart;
 
 public:
+    enum class Source {
+        MEMORY = 1, PHYSICAL_MEMORY = 2, GUARD = 3
+    };
+    Source source;
     Region region;
     Permissions permissions;
 
@@ -54,7 +54,7 @@ public:
     bool isRegionFree(Region region, size_t &insertIndex);
     void splitElement(size_t index, Region removeRegion, size_t numAddBetween);
     size_t unmapRange(Region range, size_t numAddInstead = 0);
-    bool isRegionFullyMapped(Region range, size_t &index);
+    bool isRegionFullyMapped(Region range, size_t &index) const;
     bool changeRangePermissions(Region range, Permissions newPermissions);
 };
 

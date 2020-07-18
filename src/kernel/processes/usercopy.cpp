@@ -30,7 +30,13 @@ bool Process::accessUserSpace(uint8_t *buffer,
     size_t areaPrefix = alignedStart - area->region.start;
     if (area->region.length - areaPrefix < alignedLength) {
         cout << "accessUserSpace address " << start << ", length " << length << " too long for "
-            << "area " << area->region.start << ", length: " << area->region.length <<"\n";
+            << "area " << area->region.start << ", length: " << area->region.length << endl;
+        return false;
+    }
+
+    if (area->source != MappedArea::Source::MEMORY) {
+        cout << "accessUserSpace at address " << start
+             << ", which is not a standard memory mapping" << endl;
         return false;
     }
 
