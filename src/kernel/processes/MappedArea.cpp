@@ -20,8 +20,8 @@ MappedArea::MappedArea(Process *process,
                        Permissions permissions,
                        PhysicalAddress pyhsicalStart) :
         process{process},
-        source{Source::PHYSICAL_MEMORY},
         physicalStart{pyhsicalStart},
+        source{Source::PHYSICAL_MEMORY},
         region{region},
         permissions{permissions} {
     assert(UserVirtualAddress::checkInRegion(region.start));
@@ -124,7 +124,7 @@ void MappedArea::changePermissions(Permissions newPermissions) {
 
 bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress address,
                                                        size_t &resultIndex,
-                                                       size_t &freeLength) {
+                                                       size_t &freeLength) const {
     assert(process->pagingLock.isLocked());
 
     if (size() == 0) {
@@ -174,7 +174,7 @@ bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress addres
     }
 }
 
-MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
+MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) const {
     size_t index, unused;
     bool mapped = findMappedAreaIndexOrFreeLength(address, index, unused);
 
@@ -185,7 +185,7 @@ MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) {
     }
 }
 
-Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newIndex) {
+Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newIndex) const {
     assert(process->pagingLock.isLocked());
 
     valid = false;
@@ -254,7 +254,7 @@ MappedArea *MappedAreaVector::addNew(size_t length, Permissions permissions) {
     return ma;
 }
 
-bool MappedAreaVector::isRegionFree(Region region, size_t &insertIndex) {
+bool MappedAreaVector::isRegionFree(Region region, size_t &insertIndex) const {
     size_t freeLength;
     bool mapped = findMappedAreaIndexOrFreeLength(UserVirtualAddress(region.start),
                                                   insertIndex,
@@ -366,7 +366,7 @@ size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
 }
 
 
-bool MappedAreaVector::isRegionFullyMapped(Region range, size_t &index) {
+bool MappedAreaVector::isRegionFullyMapped(Region range, size_t &index) const {
     if (isRegionFree(range, index)) {
         return false;
     }

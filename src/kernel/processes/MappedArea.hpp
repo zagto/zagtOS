@@ -1,5 +1,4 @@
-#ifndef MAPPEDAREA_HPP
-#define MAPPEDAREA_HPP
+#pragma once
 
 #include <common/common.hpp>
 #include <common/Region.hpp>
@@ -42,20 +41,18 @@ private:
 
     bool findMappedAreaIndexOrFreeLength(UserVirtualAddress address,
                                          size_t &resultIndex,
-                                         size_t &freeLength);
+                                         size_t &freeLength) const;
 
 public:
     MappedAreaVector(Process *process):
         process{process} {}
-    Region findFreeRegion(size_t length, bool &valid, size_t &index);
-    MappedArea *findMappedArea(UserVirtualAddress address);
+    Region findFreeRegion(size_t length, bool &valid, size_t &index) const;
+    MappedArea *findMappedArea(UserVirtualAddress address) const;
     void insert2(MappedArea *ma, size_t index);
     MappedArea *addNew(size_t length, Permissions permissions);
-    bool isRegionFree(Region region, size_t &insertIndex);
+    bool isRegionFree(Region region, size_t &insertIndex) const;
     void splitElement(size_t index, Region removeRegion, size_t numAddBetween);
     size_t unmapRange(Region range, size_t numAddInstead = 0);
     bool isRegionFullyMapped(Region range, size_t &index) const;
     bool changeRangePermissions(Region range, Permissions newPermissions);
 };
-
-#endif // MAPPEDAREA_HPP
