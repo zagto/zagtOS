@@ -1455,9 +1455,8 @@ DLMALLOC_EXPORT int mspace_mallopt(int, int);
 #include <assert.h>
 #endif /* ABORT_ON_ASSERT_FAILURE */
 #else  /* DEBUG */
-#ifndef assert
+#undef assert
 #define assert(x)
-#endif
 #define DEBUG 0
 #endif /* DEBUG */
 #if !defined(WIN32) && !defined(LACKS_TIME_H)

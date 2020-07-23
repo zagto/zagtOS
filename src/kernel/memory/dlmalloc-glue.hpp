@@ -1,7 +1,6 @@
 #ifndef DLMALLOCGLUE_HPP
 #define DLMALLOCGLUE_HPP
 
-#include <common/inttypes.hpp>
 #include <common/utils.hpp>
 
 #ifdef __cplusplus

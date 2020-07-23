@@ -43,7 +43,7 @@ $(SHBUILD_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
 	mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 
-$(SHBUILD_BUILD_DIR)/%.o: %.c $(C_HEADERS)
+$(SHBUILD_BUILD_DIR)/%.o: %.c $(CXX_HEADERS)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
