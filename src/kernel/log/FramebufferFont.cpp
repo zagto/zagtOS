@@ -1,6 +1,6 @@
 #include <common/common.hpp>
 #include <log/FramebufferFont.hpp>
-#include <log/BeautifulFont.xbm>
+#include <log/Font.xbm>
 
 
 bool Font::getPixel(char character, uint32_t x, uint32_t y) {
@@ -13,8 +13,8 @@ bool Font::getPixel(char character, uint32_t x, uint32_t y) {
         Halt();
     }
 
-    size_t bit = y * beautifulfont_width + static_cast<uint32_t>(character) * characterWidth + x;
+    size_t bit = (static_cast<uint32_t>(character) * characterHeight + y) * font_width + x;
     size_t byte = bit / 8;
     size_t bitInByte = bit % 8;
-    return (beautifulfont_bits[byte] >> bitInByte) & 1;
+    return (font_bits[byte] >> bitInByte) & 1;
 }
