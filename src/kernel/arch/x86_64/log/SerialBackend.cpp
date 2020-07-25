@@ -30,15 +30,42 @@ void SerialBackend::init() {
 
     // IRQs enabled, RTS/DSR set
     OutB(SERIAL_PORT + 4, 0x0b);
-}
 
+    // reset terminal text attributes
+    write(27);
+    write('[');
+    write('m');
+}
 
 bool SerialBackend::isTransmitEmpty() {
     return InB(SERIAL_PORT + 5) & 0x20;
 }
 
-
 void SerialBackend::write(char character) {
     while (!isTransmitEmpty());
     OutB(SERIAL_PORT, static_cast<uint8_t>(character));
+}
+
+void SerialBackend::setKernelColor() {
+    write(27);
+    write('[');
+    write('3');
+    write('4');
+    write('m');
+}
+
+void SerialBackend::setProgramNameColor() {
+    write(27);
+    write('[');
+    write('3');
+    write('1');
+    write('m');
+}
+
+void SerialBackend::setProgramColor() {
+    write(27);
+    write('[');
+    write('3');
+    write('0');
+    write('m');
 }

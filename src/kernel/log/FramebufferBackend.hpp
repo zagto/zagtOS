@@ -1,5 +1,4 @@
-#ifndef FRAMEBUFFERBACKEND_HPP
-#define FRAMEBUFFERBACKEND_HPP
+#pragma once
 
 #include <setup/BootInfo.hpp>
 
@@ -17,7 +16,7 @@ struct Color {
 class FramebufferBackend {
 private:
     constexpr static const Color backgroundColor{0xff, 0xff, 0xff};
-    constexpr static const Color foregroundColor{0x33, 0x33, 0x66};
+    Color foregroundColor;
 
     volatile uint8_t *frontBuffer;
     uint8_t *backBuffer;
@@ -41,7 +40,7 @@ private:
 public:
     void init(const BootInfo::FramebufferInfo *framebufferInfo);
     void write(char character);
+    void setKernelColor();
+    void setProgramNameColor();
+    void setProgramColor();
 };
-
-
-#endif // FRAMEBUFFERBACKEND_HPP

@@ -1,5 +1,4 @@
-#ifndef LOGGER_HPP
-#define LOGGER_HPP
+#pragma once
 
 #include <common/inttypes.hpp>
 #include <interrupts/RegisterState.hpp>
@@ -10,6 +9,9 @@ class Logger {
 public:
     void init(const BootInfo *bootInfo);
     void flush();
+    void setKernelColor();
+    void setProgramNameColor();
+    void setProgramColor();
     Logger operator<<(char character);
     Logger operator<<(const char *string);
     Logger operator<<(uint32_t value);
@@ -22,5 +24,3 @@ public:
 
 extern Logger cout;
 static const char endl = '\n';
-
-#endif

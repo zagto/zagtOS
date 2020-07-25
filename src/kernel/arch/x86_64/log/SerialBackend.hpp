@@ -1,5 +1,4 @@
-#ifndef SERIALBACKEND_HPP
-#define SERIALBACKEND_HPP
+#pragma once
 
 class SerialBackend {
 private:
@@ -8,6 +7,7 @@ private:
 public:
     void init();
     void write(char character);
+    void setKernelColor();
+    void setProgramNameColor();
+    void setProgramColor();
 };
-
-#endif // SERIALBACKEND_HPP

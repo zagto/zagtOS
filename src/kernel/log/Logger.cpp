@@ -16,6 +16,7 @@ static mutex logLock;
 void Logger::init(const BootInfo *bootInfo) {
     serialBackend.init();
     framebufferBackend.init(&bootInfo->framebufferInfo);
+    setKernelColor();
 }
 
 
@@ -28,6 +29,22 @@ void Logger::flush() {
         framebufferBackend.write(buffer[i]);
     }
     CurrentProcessor->logBufferIndex = 0;
+}
+
+
+void Logger::setKernelColor() {
+    serialBackend.setKernelColor();
+    framebufferBackend.setKernelColor();
+}
+
+void Logger::setProgramNameColor() {
+    serialBackend.setProgramNameColor();
+    framebufferBackend.setProgramNameColor();
+}
+
+void Logger::setProgramColor() {
+    serialBackend.setProgramColor();
+    framebufferBackend.setProgramColor();
 }
 
 

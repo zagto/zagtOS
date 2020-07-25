@@ -1,6 +1,7 @@
+#pragma GCC optimize("O3")
+
 #include <log/FramebufferBackend.hpp>
 #include <log/FramebufferFont.hpp>
-
 
 void FramebufferBackend::writePixel(uint32_t x, uint32_t y, Color color) {
     volatile uint8_t *pixel = &backBuffer[y * bytesPerLine + x * bytesPerPixel];
@@ -100,4 +101,16 @@ void FramebufferBackend::flip() {
             frontBuffer[y * bytesPerLine + x] = backBuffer[srcY * bytesPerLine + x];
         }
     }
+}
+
+void FramebufferBackend::setKernelColor() {
+    foregroundColor = {0, 0, 255};
+}
+
+void FramebufferBackend::setProgramNameColor() {
+    foregroundColor = {255, 0, 0};
+}
+
+void FramebufferBackend::setProgramColor() {
+    foregroundColor = {0, 0, 0};
 }
