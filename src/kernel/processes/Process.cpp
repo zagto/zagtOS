@@ -7,8 +7,12 @@
 #include <processes/Message.hpp>
 
 
-Process::Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage):
-        mappedAreas(this) {
+Process::Process(ELF elf,
+                 Thread::Priority initialPrioriy,
+                 Message &runMessage,
+                 vector<uint8_t> logName):
+        mappedAreas(this),
+        logName{move(logName)} {
     scoped_lock lg(pagingLock);
 
     pagingContext = new PagingContext(this);

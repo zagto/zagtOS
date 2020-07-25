@@ -56,7 +56,12 @@ __attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
         const UUID beInitMessage(uuidData);
 
         Message runMessage(nullptr, nullptr, 0, beInitMessage, 0, 0);
-        new Process(initELF, Thread::Priority::FOREGROUND, runMessage);
+        vector<uint8_t> initStr(4);
+        initStr[0] = 'I';
+        initStr[1] = 'N';
+        initStr[2] = 'I';
+        initStr[3] = 'T';
+        new Process(initELF, Thread::Priority::FOREGROUND, runMessage, move(initStr));
 
         /* the ELF data is the last thing we wanted to read from loader memory */
         //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();

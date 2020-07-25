@@ -1,5 +1,4 @@
-#ifndef ENVIRONMENTSPAWN_HPP
-#define ENVIRONMENTSPAWN_HPP
+#pragma once
 
 #include <vector>
 #include <zagtos/ZBON.hpp>
@@ -17,4 +16,3 @@ namespace zagtos {
                           zbon::EncodedData runMessage);
 }
 
-#endif // ENVIRONMENTSPAWN_HPP

@@ -1,3 +1,4 @@
+#include <cstring>
 #include <zagtos/EnvironmentSpawn.hpp>
 #include <zagtos/ExternalBinary.hpp>
 #include <zagtos/syscall.h>
@@ -15,6 +16,9 @@ struct SpawnProcessArgs {
     size_t messageSize;
     uint32_t numMessageHandles;
 
+    const char* logName;
+    size_t logNameSize;
+
     uint32_t result;
 };
 
@@ -30,6 +34,8 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
         runMessage.data(),
         runMessage.size(),
         static_cast<uint32_t>(runMessage.numHandles()),
+        binary.logName(),
+        strlen(binary.logName()),
         0
     };
 

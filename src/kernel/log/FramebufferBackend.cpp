@@ -83,7 +83,6 @@ void FramebufferBackend::write(char character) {
         newLine();
         return;
     }
-
     for (uint32_t y = 0; y < Font::characterHeight; y++) {
         for (uint32_t x = 0; x < Font::characterWidth; x++) {
             writePixel(currentColumn * Font::characterWidth + x,
@@ -108,7 +107,7 @@ void FramebufferBackend::setKernelColor() {
 }
 
 void FramebufferBackend::setProgramNameColor() {
-    foregroundColor = {255, 0, 0};
+    foregroundColor = {255, 128, 128};
 }
 
 void FramebufferBackend::setProgramColor() {

@@ -36,9 +36,19 @@ bool Thread::handleSyscall() {
             cout << "SYS_LOG: invalid buffer\n";
             return false;
         }
-        cout.setProgramColor();
-        for (size_t index = 0; index < buffer.size(); index++) {
-            cout << static_cast<char>(buffer[index]);
+        /* attempt to print program name only at beginning of line */
+        if (CurrentProcessor->logBufferIndex == 0) {
+            cout.setProgramNameColor();
+            for (uint8_t character: process->logName) {
+                cout << static_cast<char>(character);
+            }
+            cout.setProgramColor();
+            cout << ": ";
+        } else {
+            cout.setProgramColor();
+        }
+        for (uint8_t character: buffer) {
+            cout << static_cast<char>(character);
         }
         cout.setKernelColor();
         return true;

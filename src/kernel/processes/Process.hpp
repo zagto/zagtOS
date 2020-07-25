@@ -26,6 +26,7 @@ private:
     //friend class Interrupts;
     MappedAreaVector mappedAreas;
     HandleManager handleManager;
+    vector<uint8_t> logName;
 
     bool accessUserSpace(uint8_t *buffer,
                          size_t start,
@@ -39,7 +40,7 @@ public:
     PagingContext *pagingContext;
     FutexManager futexManager;
 
-    Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage);
+    Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage, vector<uint8_t> logName);
     ~Process();
     void activate();
     PhysicalAddress allocateFrame(UserVirtualAddress address,

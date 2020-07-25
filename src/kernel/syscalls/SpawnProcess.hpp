@@ -17,6 +17,9 @@ private:
     size_t messageSize;
     uint32_t numMessageHandles;
 
+    size_t logNameAddress;
+    size_t logNameSize;
+
     uint32_t result;
 public:
 

@@ -1,7 +1,5 @@
-#ifndef GLOBALREGISTERS_HPP
-#define GLOBALREGISTERS_HPP
+#pragma once
 
 class Processor;
 register Processor *CurrentProcessor asm("r15");
 
-#endif // GLOBALREGISTERS_HPP

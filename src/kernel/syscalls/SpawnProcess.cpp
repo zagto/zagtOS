@@ -23,6 +23,13 @@ bool SpawnProcess::perform(const shared_ptr<Process> &process) {
         return true;
     }
 
+    vector<uint8_t> logNameBuffer(logNameSize);
+    valid = process->copyFromUser(&logNameBuffer[0], logNameAddress, logNameSize, false);
+    if (!valid) {
+        cout << "SYS_SPAWN_PROCESS: invalid log name buffer\n";
+        return true;
+    }
+
     ELF elf{Slice<vector, uint8_t>(&buffer)};
     if (!valid) {
         cout << "SYS_SPAWN_PROCESS: invalid ELF\n";
@@ -39,7 +46,7 @@ bool SpawnProcess::perform(const shared_ptr<Process> &process) {
                        messageType,
                        messageSize,
                        numMessageHandles);
-    new Process(elf, static_cast<Thread::Priority>(priority), runMessage);
+    new Process(elf, static_cast<Thread::Priority>(priority), runMessage, move(logNameBuffer));
 
     result = 1;
     return true;

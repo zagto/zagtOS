@@ -25,30 +25,42 @@ void Logger::flush() {
 
     char *buffer = CurrentProcessor->logBuffer;
     for (size_t i = 0; i < CurrentProcessor->logBufferIndex; i++) {
-        serialBackend.write(buffer[i]);
-        framebufferBackend.write(buffer[i]);
+        switch (buffer[i]) {
+        case 1:
+            serialBackend.setKernelColor();
+            framebufferBackend.setKernelColor();
+            break;
+        case 2:
+            serialBackend.setProgramNameColor();
+            framebufferBackend.setProgramNameColor();
+            break;
+        case 3:
+            serialBackend.setProgramColor();
+            framebufferBackend.setProgramColor();
+            break;
+        default:
+            serialBackend.write(buffer[i]);
+            framebufferBackend.write(buffer[i]);
+        }
     }
     CurrentProcessor->logBufferIndex = 0;
 }
 
 
 void Logger::setKernelColor() {
-    serialBackend.setKernelColor();
-    framebufferBackend.setKernelColor();
+    basicWrite(1);
 }
 
 void Logger::setProgramNameColor() {
-    serialBackend.setProgramNameColor();
-    framebufferBackend.setProgramNameColor();
+    basicWrite(2);
 }
 
 void Logger::setProgramColor() {
-    serialBackend.setProgramColor();
-    framebufferBackend.setProgramColor();
+    basicWrite(3);
 }
 
 
-Logger Logger::operator<<(char character) {
+void Logger::basicWrite(char character) {
     /* On early boot there is no Processor object, write unbuffered in this case */
     if (CurrentProcessor == nullptr) {
         scoped_lock lg(logLock);
@@ -65,9 +77,14 @@ Logger Logger::operator<<(char character) {
             flush();
         }
     }
-    return *this;
 }
 
+Logger Logger::operator<<(char character) {
+    if (character >= ' ' || character == '\n') {
+        basicWrite(character);
+    }
+    return *this;
+}
 
 Logger Logger::operator<<(const char *string) {
     while (*string != '\0') {
@@ -76,7 +93,6 @@ Logger Logger::operator<<(const char *string) {
     }
     return *this;
 }
-
 
 Logger Logger::operator<<(uint64_t value) {
     *this << "0x";
@@ -91,7 +107,6 @@ Logger Logger::operator<<(uint64_t value) {
     return *this;
 }
 
-
 Logger Logger::operator<<(uint32_t value) {
     *this << "0x";
     for (int shift = sizeof(uint32_t) * 2 - 1; shift >= 0; shift--) {
@@ -105,16 +120,13 @@ Logger Logger::operator<<(uint32_t value) {
     return *this;
 }
 
-
 Logger Logger::operator<<(volatile void *pointer) {
     return *this << reinterpret_cast<size_t>(pointer);
 }
 
-
 Logger Logger::operator<<(const void *pointer) {
     return *this << reinterpret_cast<size_t>(pointer);
 }
-
 
 Logger Logger::operator<<(void *pointer) {
     return *this << reinterpret_cast<size_t>(pointer);
