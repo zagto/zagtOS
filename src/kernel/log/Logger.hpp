@@ -13,6 +13,7 @@ public:
     void setProgramNameColor();
     void setProgramColor();
     void basicWrite(char character);
+    void output(char character);
     Logger operator<<(char character);
     Logger operator<<(const char *string);
     Logger operator<<(uint32_t value);

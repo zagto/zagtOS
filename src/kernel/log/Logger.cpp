@@ -25,27 +25,30 @@ void Logger::flush() {
 
     char *buffer = CurrentProcessor->logBuffer;
     for (size_t i = 0; i < CurrentProcessor->logBufferIndex; i++) {
-        switch (buffer[i]) {
-        case 1:
-            serialBackend.setKernelColor();
-            framebufferBackend.setKernelColor();
-            break;
-        case 2:
-            serialBackend.setProgramNameColor();
-            framebufferBackend.setProgramNameColor();
-            break;
-        case 3:
-            serialBackend.setProgramColor();
-            framebufferBackend.setProgramColor();
-            break;
-        default:
-            serialBackend.write(buffer[i]);
-            framebufferBackend.write(buffer[i]);
-        }
+        output(buffer[i]);
     }
     CurrentProcessor->logBufferIndex = 0;
 }
 
+void Logger::output(char character) {
+    switch (character) {
+    case 1:
+        serialBackend.setKernelColor();
+        framebufferBackend.setKernelColor();
+        break;
+    case 2:
+        serialBackend.setProgramNameColor();
+        framebufferBackend.setProgramNameColor();
+        break;
+    case 3:
+        serialBackend.setProgramColor();
+        framebufferBackend.setProgramColor();
+        break;
+    default:
+        serialBackend.write(character);
+        framebufferBackend.write(character);
+    }
+}
 
 void Logger::setKernelColor() {
     basicWrite(1);
@@ -64,8 +67,7 @@ void Logger::basicWrite(char character) {
     /* On early boot there is no Processor object, write unbuffered in this case */
     if (CurrentProcessor == nullptr) {
         scoped_lock lg(logLock);
-        serialBackend.write(character);
-        framebufferBackend.write(character);
+        output(character);
     } else {
         char *buffer = CurrentProcessor->logBuffer;
         size_t &index = CurrentProcessor->logBufferIndex;
