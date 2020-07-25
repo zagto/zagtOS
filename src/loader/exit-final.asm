@@ -27,6 +27,12 @@ section .text
 %define MSR_EFER 0xc0000080
 %define EFER_NXE 0x800
 
+%define MSR_PAT 0x277
+%define PAT_WRITE_BACK 6
+%define PAT_UNCACHABLE 0
+%define PAT_WRITE_COMBINING 1
+%define PAT_WRITE_THROUGH 4
+
 %define CR0_COPROCESSOR_EMULATION 4
 %define CR0_COPROCESSOR_MONITORING 2
 
@@ -57,6 +63,10 @@ ExitFinalize:
     or rax, EFER_NXE
     wrmsr
 
+    ; set up PAT to correspond to the cache types defined in paging.h
+    mov rcx, MSR_PAT
+    mov rax, (PAT_WRITE_BACK) | (PAT_UNCACHABLE << 8) | (PAT_WRITE_THROUGH << 16) | (PAT_WRITE_COMBINING << 24)
+    wrmsr
 
     ; switch to new master page table
     mov cr3, rsi

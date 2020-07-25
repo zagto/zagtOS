@@ -31,7 +31,10 @@ PageTableEntry *PagingContext::partialWalkEntries(VirtualAddress address,
                 return nullptr;
             case MissingStrategy::CREATE: {
                 PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
-                *entry = PageTableEntry(frame, Permissions::READ_WRITE_EXECUTE, true, false);
+                *entry = PageTableEntry(frame,
+                                        Permissions::READ_WRITE_EXECUTE,
+                                        true,
+                                        CacheType::NORMAL_WRITE_BACK);
                 break;
             }
             }
@@ -72,13 +75,13 @@ PagingContext::PagingContext(Process *process, PhysicalAddress masterPageTableAd
 void PagingContext::map(KernelVirtualAddress from,
                           PhysicalAddress to,
                           Permissions permissions,
-                          bool disableCache) {
+                          CacheType cacheType) {
     assert(CurrentSystem.memory.kernelPagingLock.isLocked());
 
     PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
 
-    *entry = PageTableEntry(to, permissions, false, disableCache);
+    *entry = PageTableEntry(to, permissions, false, cacheType);
     basicInvalidate(from);
 }
 
@@ -142,7 +145,7 @@ void PagingContext::accessRange(UserVirtualAddress address,
                                                    walkData);
         if (!entry->present()) {
             PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
-            *entry = PageTableEntry(frame, newPagesPermissions, true, false);
+            *entry = PageTableEntry(frame, newPagesPermissions, true, CacheType::NORMAL_WRITE_BACK);
         }
 
         size_t lengthInPage = PAGE_SIZE - startOffset;
@@ -289,7 +292,7 @@ void PagingContext::map(UserVirtualAddress from,
     PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
 
-    *entry = PageTableEntry(to, permissions, true, false);
+    *entry = PageTableEntry(to, permissions, true, CacheType::NORMAL_WRITE_BACK);
     if (isActive()) {
         basicInvalidate(from);
     }

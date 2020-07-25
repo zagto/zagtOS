@@ -5,6 +5,9 @@
 
 class PageTable;
 
+enum class CacheType {
+    NORMAL_WRITE_BACK, NONE, WRITE_THROUGH, WRITE_COMBINING
+};
 
 class PageTableEntry {
 public:
@@ -13,7 +16,7 @@ private:
     static const size_t PRESENT_BIT        = 1;
     static const size_t WRITEABLE_BIT      = 1 << 1;
     static const size_t USER_BIT           = 1 << 2;
-    static const size_t DISABLE_CACHE_BIT  = 1 << 4;
+    static const size_t CACHE_TYPE_SHIFT   = 3;
     static const size_t GLOBAL_BIT         = 1 << 8;
     static const size_t NON_EXECUTABLE_BIT = 1ul << 63;
 
@@ -24,7 +27,7 @@ public:
     PageTableEntry(PhysicalAddress addressValue,
                    Permissions permissions,
                    bool user,
-                   bool disableCache);
+                   CacheType cacheType);
 
     bool present();
     PhysicalAddress addressValue();

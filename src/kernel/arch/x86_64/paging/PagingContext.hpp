@@ -50,7 +50,7 @@ public:
     static void map(KernelVirtualAddress from,
                     PhysicalAddress to,
                     Permissions permissions,
-                    bool disableCache);
+                    CacheType cacheType);
     static PhysicalAddress resolve(KernelVirtualAddress address);
     static void unmap(KernelVirtualAddress address);
     static void invalidateLocally(KernelVirtualAddress address);

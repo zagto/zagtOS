@@ -13,6 +13,12 @@ section .data
 %define EFER_LME 0x100
 %define EFER_NXE 0x800
 
+%define MSR_PAT 0x277
+%define PAT_WRITE_BACK 6
+%define PAT_UNCACHABLE 0
+%define PAT_WRITE_COMBINING 1
+%define PAT_WRITE_THROUGH 4
+
 %define CR0_PROTECTED_MODE 1
 %define CR0_COPROCESSOR_EMULATION 4
 %define CR0_COPROCESSOR_MONITORING 2
@@ -70,11 +76,17 @@ flushCS:
     mov cr3, ecx
 
 
-; set bits in EFER MSR to enable Long Mode and Non-Execute feature
+    ; set bits in EFER MSR to enable Long Mode and Non-Execute feature
     mov ecx, MSR_EFER
     rdmsr
     or eax, EFER_NXE | EFER_LME
     wrmsr
+
+    ; set up PAT to correspond to the cache types defined in CacheType
+    mov ecx, MSR_PAT
+    mov eax, (PAT_WRITE_BACK) | (PAT_UNCACHABLE << 8) | (PAT_WRITE_THROUGH << 16) | (PAT_WRITE_COMBINING << 24)
+    wrmsr
+    xor eax, eax
 
     mov ecx, cr0
     and ecx, ~CR0_COPROCESSOR_EMULATION

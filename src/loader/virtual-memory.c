@@ -6,5 +6,5 @@
 
 
 void InitVirtualMemory() {
-    MapAddress(SystemInfo, (EFI_PHYSICAL_ADDRESS)AllocatePhysicalFrame(), TRUE, FALSE, FALSE, FALSE);
+    MapAddress(SystemInfo, (EFI_PHYSICAL_ADDRESS)AllocatePhysicalFrame(), TRUE, FALSE, FALSE, CACHE_NORMAL_WRITE_BACK);
 }

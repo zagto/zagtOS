@@ -10,7 +10,8 @@ PageTable *MasterPageTable = NULL;
 #define PAGE_PRESENT        0x0000000000000001
 #define PAGE_WRITEABLE      0x0000000000000002
 #define PAGE_USER           0x0000000000000004
-#define PAGE_CAHCE_DISABLE  0x0000000000000010
+#define PAGE_PAT_LOW        0x0000000000000008
+#define PAGE_PAT_MID        0x0000000000000010
 #define PAGE_LARGE_2MIB     0x0000000000000080
 #define PAGE_GLOBAL         0x0000000000000100
 #define PAGE_NON_EXECUTABLE 0x8000000000000000
@@ -62,7 +63,7 @@ void MapLoaderMemory(struct EfiMemoryMapInfo *mapInfo) {
                        TRUE,
                        TRUE,
                        FALSE,
-                       FALSE);
+                       CACHE_NORMAL_WRITE_BACK);
         }
     }
 }
@@ -81,7 +82,7 @@ void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo) {
                    TRUE,
                    FALSE,
                    FALSE,
-                   TRUE);
+                   CACHE_WRITE_COMBINING);
     }
 
     for (index = numPages; index < numPages * 2; index++) {
@@ -90,7 +91,7 @@ void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo) {
                    TRUE,
                    FALSE,
                    FALSE,
-                   FALSE);
+                   CACHE_NORMAL_WRITE_BACK);
     }
 
     /* update framebuffer info to contain the "new" address, as this structure will be passed to the
@@ -103,7 +104,7 @@ void MapFramebufferMemory(struct FramebufferInfo *framebufferInfo) {
 void CreateIdentityMap(EFI_PHYSICAL_ADDRESS maxPhysicalAddress) {
     EFI_PHYSICAL_ADDRESS addr;
     for (addr = 0; addr < maxPhysicalAddress; addr += 2 * 1024 * 1024) { /* 2MiB */
-        MapAddress(addr + IDENTITY_MAPPING_BASE, addr, TRUE, FALSE, TRUE, FALSE);
+        MapAddress(addr + IDENTITY_MAPPING_BASE, addr, TRUE, FALSE, TRUE, CACHE_NORMAL_WRITE_BACK);
     }
 }
 
@@ -123,7 +124,7 @@ void MapAddress(EFI_VIRTUAL_ADDRESS virtualAddress,
                 BOOLEAN writeable,
                 BOOLEAN executable,
                 BOOLEAN large,
-                BOOLEAN cacheDisable) {
+                UINTN cacheType) {
     UINTN level = NUM_PAGE_TABLE_LEVELS - 1;
     PageTable *pageTable = MasterPageTable;
     PageTableEntry *entry;
@@ -168,7 +169,7 @@ void MapAddress(EFI_VIRTUAL_ADDRESS virtualAddress,
     if (large) {
         *entry |= PAGE_LARGE_2MIB;
     }
-    if (cacheDisable) {
-        *entry |= PAGE_CAHCE_DISABLE;
+    if (cacheType) {
+        *entry |= cacheType * PAGE_PAT_LOW;
     }
 }

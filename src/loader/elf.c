@@ -73,7 +73,7 @@ UINTN LoadElfKernel(const struct ElfFileHeader *file) {
                            entry->flags & ELF_WRITEABLE,
                            entry->flags & ELF_EXECUTABLE,
                            FALSE,
-                           FALSE);
+                           CACHE_NORMAL_WRITE_BACK);
             }
         }
     }

@@ -11,7 +11,7 @@ PageTableEntry::PageTableEntry() {
 PageTableEntry::PageTableEntry(PhysicalAddress addressValue,
                                Permissions permissions,
                                bool user,
-                               bool disableCache) {
+                               CacheType cacheType) {
     assert(addressValue.isPageAligned());
 
     data = PRESENT_BIT | addressValue.value();
@@ -21,9 +21,7 @@ PageTableEntry::PageTableEntry(PhysicalAddress addressValue,
         data |= GLOBAL_BIT;
     }
 
-    if (disableCache) {
-        data |= DISABLE_CACHE_BIT;
-    }
+    data |= static_cast<size_t>(cacheType) << CACHE_TYPE_SHIFT;
 
     setPermissions(permissions);
 }

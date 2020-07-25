@@ -80,7 +80,7 @@ KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
             PagingContext::map(heapEnd + index * PAGE_SIZE,
                                allocatePhysicalFrame(),
                                Permissions::READ_WRITE,
-                               false);
+                               CacheType::NORMAL_WRITE_BACK);
         }
     } else {
         for (size_t index = 1; index <= static_cast<size_t>(-change) / PAGE_SIZE; index++) {

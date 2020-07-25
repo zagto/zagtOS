@@ -10,7 +10,7 @@ struct BootInfo *PrepareBootInfo(struct InitDataInfo *initDataInfo,
     //struct MemoryFrameListInfo *memInfo = &bootInfo->memoryFrameListInfo;
 
     // map page so it is readable after kernel entry
-    MapAddress((EFI_PHYSICAL_ADDRESS)bootInfo, (EFI_PHYSICAL_ADDRESS)bootInfo, FALSE, FALSE, FALSE, FALSE);
+    MapAddress((EFI_PHYSICAL_ADDRESS)bootInfo, (EFI_PHYSICAL_ADDRESS)bootInfo, FALSE, FALSE, FALSE, CACHE_NORMAL_WRITE_BACK);
 
     bootInfo->initDataInfo = *initDataInfo;
 
