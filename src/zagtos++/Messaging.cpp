@@ -48,7 +48,6 @@ void *MessageInfo::operator new[](std::size_t) {
 }
 
 void MessageInfo::operator delete(void *object) {
-    std::cout << "unmapping message at " << object << std::endl;
     MessageInfo *msgInfo = reinterpret_cast<MessageInfo *>(object);
     size_t munmapSize = reinterpret_cast<size_t>(msgInfo->data.data())
             + msgInfo->data.size()

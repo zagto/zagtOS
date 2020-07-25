@@ -67,7 +67,6 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_SEND_MESSAGE: {
-        cout << "sendMessage" << endl;
         uint32_t handle = static_cast<uint32_t>(registerState.syscallParameter(0));
         size_t messageTypeAddress = registerState.syscallParameter(1);
         size_t messageAddress = registerState.syscallParameter(2);
@@ -107,7 +106,6 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_RECEIVE_MESSAGE: {
-        cout << "receiveMessage" << endl;
         uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
         optional<shared_ptr<Port>> port = process->handleManager.lookupPort(portHandle);
         if (!port) {

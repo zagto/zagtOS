@@ -409,9 +409,6 @@ public:
         size_t bytesSizePosition = position;
         position += COUNT_SIZE;
 
-        std::cout << "encoding tuple of " << sizeof...(Types) << std::endl;
-
-
         encodeTupleElements<0, Types...>(tuple);
 
         size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
