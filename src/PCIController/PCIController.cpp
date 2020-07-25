@@ -13,7 +13,15 @@ using namespace zagtos::pci;
 struct alignas(0x1000) FunctionConfigSpace {
     uint32_t vendorDevice;
     uint32_t commandStatus;
-    uint32_t classCodeSubclassProgIFRevisionID;
+    uint32_t classCodeProgIFRevisionID;
+    uint32_t BISTHeaderTypeLatencyTimer;
+
+    uint16_t classCode() volatile {
+        return classCodeProgIFRevisionID >> 16;
+    }
+    uint8_t headerType() volatile {
+        return BISTHeaderTypeLatencyTimer >> 16;
+    }
 };
 
 class MappedSegmentGroup {
@@ -71,10 +79,22 @@ int main() {
                 for (size_t function = 0; function < MappedSegmentGroup::FUNCTIONS_PER_DEVICE; function++) {
                     volatile FunctionConfigSpace *config = segment.functionConfigSpace(bus, device, function);
                     uint32_t vendorDevice = config->vendorDevice;
-                    uint32_t classC = config->classCodeSubclassProgIFRevisionID;
                     if ((vendorDevice >> 16) != 0xffff) {
-                        std::cout << "found PCI device: vendor/device: " << std::hex << vendorDevice
-                             << ", class: " << (classC >> 16) << std::endl;
+                        if (config->headerType() == 0) {
+                            uint32_t classCode = config->classCode();
+                            std::cout << "found PCI device: vendor/device: " << std::hex << vendorDevice
+                                 << ", class: " << (classCode >> 16) << std::endl;
+
+                            uint64_t combinedID = (static_cast<uint64_t>(classCode) << 32u)
+                                    | vendorDevice;
+
+                            zbon::EncodedData driverData = zbon::encode(true);
+                            sendMessage(envPort,
+                                        MSG_FOUND_DEVICE,
+                                        zbon::encode(std::tuple(combinedID, std::move(driverData))));
+                        } else {
+                            std::cout << "found PCI bridge" << std::endl;
+                        }
                     }
                 }
             }
