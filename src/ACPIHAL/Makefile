@@ -18,7 +18,7 @@ COMMON_FLAGS = -O2 -Wall -Wextra -Wpedantic -Werror -I$(PWD) -I$(PWD)/selection/
 CFLAGS = $(COMMON_FLAGS) -std=c18 -Wno-unused-parameter -Wno-format-truncation -Wno-format 
 CXXFLAGS = $(COMMON_FLAGS) -std=c++17
 
-LDFLAGS = -O2
+LDFLAGS = -O2 -s
 
 
 CXX = $(ARCH)-zagto-zagtos-g++
