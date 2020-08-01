@@ -53,7 +53,7 @@ void MMap::perform(Process &process) {
 
     /* Shared and Private are the oposite of each other, they should not be used at the same time.
      * On Linux MAP_PRIVATE|MAP_SHARED means MAP_SHARED_VALIDATE, so treat them this the same as
-     * MAP_PRIVATE. We don't offer not validating. */
+     * FLAG_SHARED. We don't offer not validating. */
     if ((flags & FLAG_PRIVATE) && (flags & FLAG_SHARED)) {
         flags = flags & ~(FLAG_PRIVATE);
     }
