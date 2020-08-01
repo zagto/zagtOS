@@ -37,8 +37,8 @@ bool Thread::handleSyscall() {
             cout << "SYS_LOG: invalid buffer\n";
             return false;
         }
-        /* attempt to print program name only at beginning of line */
-        if (CurrentProcessor->logBufferIndex == 0) {
+        /* do not print program name for small invisible stuff */
+        if (!(length == 0 || (length == 1 && buffer[0] <= ' '))) {
             cout.setProgramNameColor();
             for (uint8_t character: process->logName) {
                 cout << static_cast<char>(character);
