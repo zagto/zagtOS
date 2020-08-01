@@ -445,7 +445,7 @@ public:
         size_t bytesSizePosition = position;
         position += COUNT_SIZE;
 
-        encodeObjectElements<0, Types...>(values...);
+        encodeObjectElements(values...);
 
         size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
         encodeBytesSize(bytesSize, bytesSizePosition);
@@ -585,7 +585,7 @@ private:
         if (!decodeValue(head)) {
             return false;
         }
-        return decodeFromTupleElements(tail...);
+        return decodeFromObjectElements(tail...);
     }
 
 public:
