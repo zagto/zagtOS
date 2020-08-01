@@ -4,6 +4,7 @@
 #include <system/System.hpp>
 #include <processes/Thread.hpp>
 #include <processes/Port.hpp>
+#include <processes/SharedMemory.hpp>
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <syscalls/Time.hpp>
@@ -162,6 +163,24 @@ bool Thread::handleSyscall() {
         MUnmap munmap(registerState.syscallParameter(0), registerState.syscallParameter(1));
         munmap.perform(*process);
         registerState.setSyscallResult(munmap.error);
+        return true;
+    }
+    case SYS_CREATE_SHARED_MEMORY: {
+        /* TODO: permissions check */
+        uint32_t flags = registerState.syscallParameter(0);
+        size_t offset = registerState.syscallParameter(1);
+        size_t length = registerState.syscallParameter(2);
+        /* currently this is only supported for pyhsical memory, but this may change in the
+         * future */
+        if (flags != MAP_PHYSICAL) {
+            return false;
+        }
+
+        auto sharedMemory = make_shared<SharedMemory>(MappedArea::Source::PHYSICAL_MEMORY,
+                                                      PhysicalAddress(offset),
+                                                      length);
+        uint32_t handle = process->handleManager.addSharedMemory(sharedMemory);
+        registerState.setSyscallResult(handle);
         return true;
     }
     case SYS_CREATE_THREAD: {

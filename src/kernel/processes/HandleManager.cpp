@@ -25,6 +25,11 @@ Element::Element(shared_ptr<Thread> &thread) {
     new (&data.thread) shared_ptr<Thread>(thread);
 }
 
+Element::Element(shared_ptr<SharedMemory> &sharedMemory) {
+    type = Type::SHARED_MEMORY;
+    new (&data.sharedMemory) shared_ptr<SharedMemory>(sharedMemory);
+}
+
 Element::Element(const Element &other) {
     type = other.type;
     switch (type) {
@@ -41,6 +46,9 @@ Element::Element(const Element &other) {
         break;
     case Type::THREAD:
         new (&data.thread) shared_ptr<Thread>(other.data.thread);
+        break;
+    case Type::SHARED_MEMORY:
+        new (&data.sharedMemory) shared_ptr<SharedMemory>(other.data.sharedMemory);
         break;
     }
 }
@@ -67,6 +75,9 @@ void Element::destructData() {
         break;
     case Type::THREAD:
         data.thread.~shared_ptr();
+        break;
+    case Type::SHARED_MEMORY:
+        data.sharedMemory.~shared_ptr();
         break;
     }
     type = Type::INVALID;
@@ -119,6 +130,14 @@ uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
 
     uint32_t handle = grabFreeNumber();
     elements[handle] = Element(remotePort);
+    return handle;
+}
+
+uint32_t HandleManager::addSharedMemory(shared_ptr<SharedMemory> &sharedMemory) {
+    scoped_lock sl(lock);
+
+    uint32_t handle = grabFreeNumber();
+    elements[handle] = Element(sharedMemory);
     return handle;
 }
 

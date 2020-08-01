@@ -9,36 +9,23 @@
 namespace zagtos {
     class ExternalBinary;
 
-    struct Handle {
-        uint32_t value;
-
-        static zbon::Type ZBONType();
-        zbon::Size ZBONSize() const;
-        void ZBONEncode(zbon::Encoder &encoder) const;
-    };
-    static constexpr bool operator==(const Handle a, const Handle b) {
-        return a.value == b.value;
-    }
-    static constexpr bool operator!=(const Handle a, const Handle b) {
-        return a.value != b.value;
-    }
-
     class HandleObject {
     protected:
-        static constexpr Handle INVALID_HANDLE{static_cast<uint32_t>(-1)};
+        static constexpr uint32_t INVALID_HANDLE{static_cast<uint32_t>(-1)};
 
-        Handle _handle{INVALID_HANDLE};
+        uint32_t _handle{INVALID_HANDLE};
 
-        HandleObject(const Handle handle);
+        HandleObject(const uint32_t handle);
 
     public:
         HandleObject();
-
-        Handle handle() const;
+        ~HandleObject();
 
         static constexpr zbon::Type ZBONType() {
             return zbon::Type::HANDLE;
         }
+        zbon::Size ZBONSize() const;
+        void ZBONEncode(zbon::Encoder &encoder) const;
         bool ZBONDecode(zbon::Decoder &decoder);
     };
 
@@ -47,8 +34,17 @@ namespace zagtos {
         RemotePort() {}
         RemotePort(RemotePort &) = delete;
         RemotePort(RemotePort &&ohter);
-        ~RemotePort();
 
+        void sendMessage(const uuid_t messageType,
+                         zbon::EncodedData message) const;
+    };
+
+    class SharedMemory : public HandleObject {
+    public:
+        SharedMemory() {}
+        SharedMemory(int flags, size_t offset, size_t length);
+        SharedMemory(SharedMemory &) = delete;
+        SharedMemory(SharedMemory &&ohter);
     };
 
     struct MessageInfo {
@@ -65,7 +61,6 @@ namespace zagtos {
         Port();
         Port(Port &) = delete;
         Port(Port &&ohter);
-        ~Port();
 
         bool ZBONDecode(zbon::Decoder &) = delete;
 
@@ -85,9 +80,6 @@ namespace zagtos {
         }
     };
 
-    void sendMessage(const RemotePort &target,
-                     const uuid_t messageType,
-                     zbon::EncodedData message);
 
 
     extern "C" void exit(int);

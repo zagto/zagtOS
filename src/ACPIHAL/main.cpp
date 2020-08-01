@@ -13,7 +13,6 @@ int main() {
     std::cout << "Hello from ACPI" << std::endl;
 
     zagtos::RemotePort envPort = zagtos::decodeRunMessage<zagtos::RemotePort>(zagtos::MSG_START_HAL);
-    std::cout << "received port handle " << envPort.handle().value << std::endl;
 
     if (AcpiInitializeSubsystem()) {
         throw std::logic_error("AcpiInitializeSubsystem failed");
@@ -53,7 +52,7 @@ int main() {
 
     std::cout << "ACPI HAL initialized" << std::endl;
 
-    zagtos::sendMessage(envPort, zagtos::MSG_START_HAL_RESULT, zagtos::zbon::encode(true));
+    envPort.sendMessage(zagtos::MSG_START_HAL_RESULT, zagtos::zbon::encode(true));
     std::cout << "ACPI HAL EXIT" << std::endl;
 
 }

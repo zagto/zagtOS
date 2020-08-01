@@ -508,6 +508,31 @@ public:
         assert(handlePosition == handlesSize);
         return encodedData;
     }
+
+    template<typename ...Types>
+    EncodedData encodeObject(const Types &...cppData) {
+        /* the root element is encoded like an object property (with type byte), so the type of
+         * the whole thing is known on decoding */
+        Size size = sizeForObject(cppData...);
+        size_t handlesSize = size.numHandles * HANDLE_SIZE;
+        size_t bytesSize = size.numRegularBytes + handlesSize;
+
+        data = new uint8_t[HEADER_SIZE + bytesSize];
+        EncodedData encodedData(data, HEADER_SIZE + bytesSize, size.numHandles);
+        assert(position == 0);
+        assert(handlePosition == 0);
+        position = handlesSize;
+
+        encodeType(Type::OBJECT);
+        encodeValue(static_cast<uint64_t>(size.numRegularBytes));
+        encodeObjectValue(cppData...);
+
+        /* check encoding actually used the amount of space the size calculation got */
+        assert(position == HEADER_SIZE + bytesSize);
+        assert(handlePosition == handlesSize);
+        return encodedData;
+    }
+
 };
 
 class Decoder {
@@ -897,6 +922,12 @@ static EncodedData encode(const T &cppData) {
     Encoder e;
     return e.encode(cppData);
 }
+template<typename ...Types>
+static EncodedData encodeObject(const Types &...cppData) {
+    Encoder e;
+    return e.encodeObject(cppData...);
+}
+
 
 template<typename T>
 static bool decode(const EncodedData &encodedData, T &result) {

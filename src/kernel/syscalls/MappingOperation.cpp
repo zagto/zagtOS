@@ -3,18 +3,6 @@
 #include <syscalls/ErrorCodes.hpp>
 
 
-static const int32_t PROTECTION_READ = 1,
-                     PROTECTION_WRITE = 2,
-                     PROTECTION_EXECUTE = 4;
-static const uint32_t FLAG_SHARED = 0x01,
-                      FLAG_PRIVATE = 0x02,
-                      FLAG_FIXED = 0x10,
-                      FLAG_ANONYMOUS = 0x20,
-                      FLAG_PHYSICAL = 0x20000000;
-
-
-
-
 bool MappingOperation::addressLengthValid() {
     return startAddress != 0
             && !(startAddress % PAGE_SIZE)
@@ -45,7 +33,7 @@ void MMap::perform(Process &process) {
         return;
     }
 
-    if (!(flags & (FLAG_SHARED | FLAG_PRIVATE))) {
+    if (!(flags & (MAP_SHARED | MAP_PRIVATE))) {
         cout << "mmap with neither SHARED nor PRIVATE flag set" << endl;
         error = EINVAL;
         return;
@@ -54,25 +42,25 @@ void MMap::perform(Process &process) {
     /* Shared and Private are the oposite of each other, they should not be used at the same time.
      * On Linux MAP_PRIVATE|MAP_SHARED means MAP_SHARED_VALIDATE, so treat them this the same as
      * FLAG_SHARED. We don't offer not validating. */
-    if ((flags & FLAG_PRIVATE) && (flags & FLAG_SHARED)) {
-        flags = flags & ~(FLAG_PRIVATE);
+    if ((flags & MAP_PRIVATE) && (flags & MAP_SHARED)) {
+        flags = flags & ~(MAP_PRIVATE);
     }
 
     /* Can't do anonymous and physical memory mapping at the same time */
-    if ((flags & FLAG_ANONYMOUS) && (flags & FLAG_PHYSICAL)) {
+    if ((flags & MAP_ANONYMOUS) && (flags & MAP_PHYSICAL)) {
         cout << "mmap both ANONYMOUS and PHYSICAL flag set" << endl;
         error = EINVAL;
         return;
     }
 
-    if ((flags & FLAG_PHYSICAL) && offset % PAGE_SIZE != 0) {
+    if ((flags & MAP_PHYSICAL) && offset % PAGE_SIZE != 0) {
         cout << "mmap with PHYSICAL set and non-aligned offset" << endl;
         error = EINVAL;
         return;
     }
 
-    if ((flags & ~FLAG_FIXED) != (FLAG_PRIVATE | FLAG_ANONYMOUS)
-            && (flags & ~FLAG_FIXED) != (FLAG_SHARED | FLAG_PHYSICAL)) {
+    if ((flags & ~MAP_FIXED) != (MAP_PRIVATE | MAP_ANONYMOUS)
+            && (flags & ~MAP_FIXED) != (MAP_SHARED | MAP_PHYSICAL)) {
         cout << "MMAP: unsupported flags: " << flags << endl;
         error = EOPNOTSUPP;
         return;
@@ -102,7 +90,7 @@ void MMap::perform(Process &process) {
         actualRegion = passedRegion;
     } else {
         /* can't use passed address/length */
-        if (flags & FLAG_FIXED) {
+        if (flags & MAP_FIXED) {
             if (addressLengthValid()) {
                 insertIndex = process.mappedAreas.unmapRange(passedRegion, 1);
                 actualRegion = passedRegion;
@@ -128,9 +116,9 @@ void MMap::perform(Process &process) {
     if (protection == 0) {
         /* guard area */
         ma = new MappedArea(&process, actualRegion);
-    } else if (flags & FLAG_ANONYMOUS) {
+    } else if (flags & MAP_ANONYMOUS) {
         ma = new MappedArea(&process, actualRegion, permissions);
-    } else if (flags & FLAG_PHYSICAL) {
+    } else if (flags & MAP_PHYSICAL) {
         ma = new MappedArea(&process, actualRegion, permissions, offset);
     } else {
         Panic();

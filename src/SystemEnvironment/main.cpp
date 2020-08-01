@@ -11,6 +11,7 @@
 
 EXTERNAL_BINARY(ACPIHAL)
 EXTERNAL_BINARY(PCIController)
+EXTERNAL_BINARY(AHCIDriver)
 
 using namespace zagtos;
 
@@ -56,7 +57,8 @@ struct ControllerType {
     std::vector<Driver> drivers;
 };
 
-static ControllerType PCI{CONTROLLER_TYPE_PCI, CONTROLLER_TYPE_PCI, {}};
+static Driver dACHIDriver{{{0x0106'0000'0000'0000, 0xffff'0000'0000'0000}}, AHCIDriver};
+static ControllerType PCI{CONTROLLER_TYPE_PCI, MSG_START_PCI_DRIVER, {}};
 
 void ControllerServer(const ExternalBinary &program,
                       zbon::EncodedData startMessage,
@@ -66,7 +68,7 @@ void ControllerServer(const ExternalBinary &program,
     environmentSpawn(program,
                      Priority::BACKGROUND,
                      MSG_START_CONTROLLER,
-                     zbon::encode(std::make_tuple(port.handle(), std::move(startMessage))));
+                     zbon::encodeObject(port, std::move(startMessage)));
 
     while (true) {
         std::unique_ptr<MessageInfo> msgInfo = port.receiveMessage();
@@ -98,7 +100,7 @@ int main() {
     std::cout << "Starting HAL..." << std::endl;
 
     Port halServerPort;
-    environmentSpawn(ACPIHAL, Priority::BACKGROUND, MSG_START_HAL, zbon::encode(halServerPort.handle()));
+    environmentSpawn(ACPIHAL, Priority::BACKGROUND, MSG_START_HAL, zbon::encode(halServerPort));
 
     while (true) {
         std::unique_ptr<MessageInfo> msgInfo = halServerPort.receiveMessage();

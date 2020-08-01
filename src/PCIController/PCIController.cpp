@@ -19,6 +19,9 @@ struct alignas(0x1000) FunctionConfigSpace {
     uint16_t classCode() volatile {
         return classCodeProgIFRevisionID >> 16;
     }
+    uint8_t progIF() volatile {
+        return classCodeProgIFRevisionID >> 8;
+    }
     uint8_t headerType() volatile {
         return BISTHeaderTypeLatencyTimer >> 16;
     }
@@ -83,15 +86,15 @@ int main() {
                         if (config->headerType() == 0) {
                             uint32_t classCode = config->classCode();
                             std::cout << "found PCI device: vendor/device: " << std::hex << vendorDevice
-                                 << ", class: " << (classCode >> 16) << std::endl;
+                                 << ", class: " << classCode
+                                 << ", progIF: " << static_cast<uint16_t>(config->progIF()) << std::endl;
 
-                            uint64_t combinedID = (static_cast<uint64_t>(classCode) << 32u)
-                                    | vendorDevice;
+                            uint64_t combinedID = config->classCodeProgIFRevisionID;
 
                             zbon::EncodedData driverData = zbon::encode(true);
-                            sendMessage(envPort,
-                                        MSG_FOUND_DEVICE,
-                                        zbon::encode(std::tuple(combinedID, std::move(driverData))));
+                            envPort.sendMessage(MSG_FOUND_DEVICE,
+                                                zbon::encode(std::tuple(combinedID,
+                                                                        std::move(driverData))));
                         } else {
                             std::cout << "found PCI bridge" << std::endl;
                         }

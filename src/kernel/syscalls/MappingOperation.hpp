@@ -1,8 +1,15 @@
-#ifndef MAPPINGOPERATION_HPP
-#define MAPPINGOPERATION_HPP
-
+#pragma once
 #include <common/common.hpp>
 #include <processes/UUID.hpp>
+
+static const int32_t PROTECTION_READ = 1,
+                     PROTECTION_WRITE = 2,
+                     PROTECTION_EXECUTE = 4;
+static const uint32_t MAP_SHARED = 0x01,
+                      MAP_PRIVATE = 0x02,
+                      MAP_FIXED = 0x10,
+                      MAP_ANONYMOUS = 0x20,
+                      MAP_PHYSICAL = 0x20000000;
 
 class Process;
 
@@ -50,5 +57,3 @@ public:
     /* only called before USO is loaded, does nothing */
     MMap() {}
 };
-
-#endif // MAPPINGOPERATION_HPP

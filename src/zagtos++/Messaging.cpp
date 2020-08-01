@@ -8,30 +8,18 @@ namespace zagtos {
 
 HandleObject::HandleObject() {}
 
-HandleObject::HandleObject(const Handle handle) {
-    _handle = handle;
-}
-
-Handle HandleObject::handle() const {
-    return _handle;
-}
-
-zbon::Type Handle::ZBONType() {
-    return zbon::Type::HANDLE;
-}
-
-zbon::Size Handle::ZBONSize() const {
+zbon::Size HandleObject::ZBONSize() const {
     return {0, 1};
 }
 
-void Handle::ZBONEncode(zbon::Encoder &encoder) const {
-    encoder.encodeHandle(value);
+void HandleObject::ZBONEncode(zbon::Encoder &encoder) const {
+    encoder.encodeHandle(_handle);
 }
 
 bool HandleObject::ZBONDecode(zbon::Decoder &decoder) {
     assert(_handle == INVALID_HANDLE);
 
-    bool success = decoder.decodeHandle(_handle.value);
+    bool success = decoder.decodeHandle(_handle);
     if (!success) {
         _handle = INVALID_HANDLE;
     }
@@ -66,33 +54,35 @@ Port::Port(Port &&other) {
     other._handle = INVALID_HANDLE;
 }
 
-Port::~Port() {
-    if (_handle != INVALID_HANDLE) {
-        zagtos_syscall1(SYS_DELETE_HANDLE, _handle.value);
-    }
-}
-
 RemotePort::RemotePort(RemotePort &&other) {
     assert(_handle == other._handle);
     other._handle = INVALID_HANDLE;
 }
 
-RemotePort::~RemotePort() {
+SharedMemory::SharedMemory(int flags, size_t offset, size_t length) {
+    _handle = {static_cast<uint32_t>(zagtos_syscall3(SYS_CREATE_SHARED_MEMORY, flags, offset, length))};
+}
+
+SharedMemory::SharedMemory(SharedMemory &&other) {
+    assert(_handle == other._handle);
+    other._handle = INVALID_HANDLE;
+}
+
+HandleObject::~HandleObject() {
     if (_handle != INVALID_HANDLE) {
-        zagtos_syscall1(SYS_DELETE_HANDLE, _handle.value);
+        zagtos_syscall1(SYS_DELETE_HANDLE, _handle);
     }
 }
 
-
 std::unique_ptr<MessageInfo> Port::receiveMessage() {
-    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, _handle.value, reinterpret_cast<size_t>(&result));
+    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, _handle, reinterpret_cast<size_t>(&result));
     return std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result));
 }
 
 
-void sendMessage(const RemotePort &target, const uuid_t messageTypeID, zbon::EncodedData message) {
+void RemotePort::sendMessage(const uuid_t messageTypeID, zbon::EncodedData message) const {
     zagtos_syscall5(SYS_SEND_MESSAGE,
-                    target.handle().value,
+                    _handle,
                     reinterpret_cast<size_t>(messageTypeID),
                     reinterpret_cast<size_t>(message.data()),
                     message.size(),

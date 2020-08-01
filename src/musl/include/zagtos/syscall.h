@@ -30,6 +30,7 @@ static const uint32_t SYS_LOG = 1,
                       SYS_MUNMAP = 12,
                       SYS_MSYNC = 13,
                       SYS_MREMAP = 14,
+                      SYS_CREATE_SHARED_MEMORY = 15,
 
                       SYS_CREATE_THREAD = 20,
                       SYS_EXIT_THREAD = 21,
