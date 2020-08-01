@@ -248,6 +248,20 @@ static Size sizeForTupleElements(const std::tuple<Types...> &tuple) {
         return Size{TYPE_SIZE} + sizeFor(element) + sizeForTupleElements<position + 1>(tuple);
     }
 }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+static Size sizeForObjectElements() {
+    return Size{0};
+}
+#pragma GCC diagnostic pop
+template<typename HeadType, typename ...TailTypes>
+static Size sizeForObjectElements(const HeadType &head, const TailTypes &...tail) {
+    return Size{TYPE_SIZE} + sizeFor(head) + sizeForObjectElements(tail...);
+}
+template<typename ...Types>
+static Size sizeForObject(const Types &...elements) {
+    return sizeForObjectElements<Types...>(elements...) + Size{COUNT_SIZE * 2};
+}
 template<typename ...Types>
 static Size sizeFor(const std::tuple<Types...> &tuple) {
     return sizeForTupleElements<0, Types...>(tuple) + Size{COUNT_SIZE * 2};
@@ -376,6 +390,16 @@ private:
             encodeTupleElements<position + 1, Types...>(tuple);
         }
     }
+    void encodeObjectElements() {
+        /* nothing to do */
+    }
+    template<typename HeadType, typename ...TailTypes>
+    void encodeObjectElements(const HeadType &head, const TailTypes &...tail) {
+        encodeType(typeFor<HeadType>::type());
+        encodeValue(head);
+        encodeObjectElements(tail...);
+    }
+
 public:
     void encodeValue(bool value) {
         data[position] = value;
@@ -410,6 +434,18 @@ public:
         position += COUNT_SIZE;
 
         encodeTupleElements<0, Types...>(tuple);
+
+        size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
+        encodeBytesSize(bytesSize, bytesSizePosition);
+    }
+    template<typename ...Types>
+    void encodeObjectValue(const Types &...values) {
+        encodeValue(static_cast<uint64_t>(sizeof...(Types)));
+        /* insert bytesSize (64bit) later */
+        size_t bytesSizePosition = position;
+        position += COUNT_SIZE;
+
+        encodeObjectElements<0, Types...>(values...);
 
         size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
         encodeBytesSize(bytesSize, bytesSizePosition);
@@ -531,11 +567,11 @@ private:
         }
     }
 
-    bool decodeFromTupleElements() {
+    bool decodeFromObjectElements() {
         return true;
     }
     template<typename HeadType, typename ...TailTypes>
-    bool decodeFromTupleElements(HeadType &head, TailTypes &...tail) {
+    bool decodeFromObjectElements(HeadType &head, TailTypes &...tail) {
         Type type;
         if (!decodeType(type)) {
             return false;
@@ -595,7 +631,7 @@ public:
     /* decodes the same values as the above, but for applications that don't want to keep the data
      * as tuple */
     template<typename ...Types>
-    bool decodeFromTuple(Types &...result) {
+    bool decodeFromObject(Types &...result) {
         uint64_t numElements;
         decodeValue(numElements);
         std::cout << "decoding tuple of " << sizeof...(result) << std::endl;
@@ -611,7 +647,7 @@ public:
         }
         size_t positionBeforeData = position;
 
-        if (!decodeFromTupleElements(result...)) {
+        if (!decodeFromObjectElements(result...)) {
             return false;
         }
 
