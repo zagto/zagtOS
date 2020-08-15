@@ -58,7 +58,7 @@ struct ControllerType {
 };
 
 static Driver dACHIDriver{{{0x0106'0000'0000'0000, 0xffff'0000'0000'0000}}, AHCIDriver};
-static ControllerType PCI{CONTROLLER_TYPE_PCI, MSG_START_PCI_DRIVER, {}};
+static ControllerType PCI{CONTROLLER_TYPE_PCI, MSG_START_PCI_DRIVER, {dACHIDriver}};
 
 void ControllerServer(const ExternalBinary &program,
                       zbon::EncodedData startMessage,
@@ -81,6 +81,7 @@ void ControllerServer(const ExternalBinary &program,
                 continue;
             }
             uint64_t deviceID = std::get<0>(msg);
+            std::cout << "combined device id: " << deviceID << std::endl;
             zbon::EncodedData &startData = std::get<1>(msg);
             for (const Driver &driver: controllerType.drivers) {
                 if (driver.matches(deviceID)) {

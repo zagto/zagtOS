@@ -6,6 +6,7 @@
 #include <vector>
 #include <array>
 #include <tuple>
+#include <optional>
 #include <limits>
 #include <iostream>
 #include <uuid/uuid.h>
@@ -16,7 +17,7 @@ namespace zbon {
 enum class Type : uint8_t {
     OBJECT, NOTHING, ARRAY, STRING, BOOLEAN,
     INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64,
-    FLOAT, DOUBLE, HANDLE
+    FLOAT, DOUBLE, HANDLE, OPTION
 };
 static const size_t NUM_TYPES = 16;
 static const size_t HANDLE_SIZE = 4;
@@ -165,6 +166,12 @@ public:
         return Type::OBJECT;
     }
 };
+template<typename T> class typeFor<std::optional<T>> {
+public:
+    static constexpr Type type() {
+        return Type::OPTION;
+    }
+};
 
 #define INSERT_NUMBER_TYPES \
 NUMBER_TYPE(char)  \
@@ -184,12 +191,14 @@ static const size_t COUNT_SIZE = 8;
 static const size_t TYPE_SIZE = 1;
 static const size_t HEADER_SIZE = TYPE_SIZE + COUNT_SIZE;
 
+
+template<typename T>
+static Size sizeFor(const T& object) {
+    return object.ZBONSize();
+}
+
 static constexpr Size sizeFor(bool) {
     return {1};
-}
-template<typename T>
-Size sizeFor(const T& object) {
-    return object.ZBONSize();
 }
 Size sizeFor(std::string string);
 #define NUMBER_TYPE(T) constexpr Size sizeFor(const T) { return {sizeof(T)}; }
@@ -206,6 +215,8 @@ template<typename T, size_t count>
 static Size sizeFor(const T (&array)[count]);
 template<typename ...Types>
 static Size sizeFor(const std::tuple<Types...> &tuple);
+template<typename T>
+static Size sizeFor(const std::optional<T> &option);
 
 template<typename T>
 static Size sizeFor(const std::vector<T> &vector) {
@@ -267,6 +278,16 @@ static Size sizeFor(const std::tuple<Types...> &tuple) {
     return sizeForTupleElements<0, Types...>(tuple) + Size{COUNT_SIZE * 2};
 }
 
+template<typename T>
+static Size sizeFor(const std::optional<T> &option) {
+    if (option) {
+        return Size{TYPE_SIZE} + sizeFor(*option);
+    } else {
+        return {TYPE_SIZE};
+    }
+}
+
+
 class Encoder;
 class Decoder;
 
@@ -319,12 +340,10 @@ public:
     }
 
     static Type ZBONType() {
-        return zbon::Type::ARRAY;
+        return zbon::Type::TUPLE;
     }
     Size ZBONSize() const {
-        /* there is currently no support for passing handles in nested zbon for now */
-        assert(_numHandles == 0);
-        return zbon::sizeForArray(_data, _size);
+        return zbon::sizeForArray(_data, _size) + Size{0, _numHandles};
     }
     void ZBONEncode(Encoder &encoder) const;
     bool ZBONDecode(Decoder &decoder);
@@ -449,6 +468,15 @@ public:
 
         size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
         encodeBytesSize(bytesSize, bytesSizePosition);
+    }
+    template<typename T>
+    void encodeValue(const std::optional<T> &option) {
+        if (option) {
+            encodeType(typeFor<T>::type());
+            encodeValue(*option);
+        } else {
+            encodeType(Type::NOTHING);
+        }
     }
     template<typename T>
     void encodeValue(const T& object) {
@@ -659,7 +687,6 @@ public:
     bool decodeFromObject(Types &...result) {
         uint64_t numElements;
         decodeValue(numElements);
-        std::cout << "decoding tuple of " << sizeof...(result) << std::endl;
         if (numElements != sizeof...(result)) {
             std::cerr << "ZBON: requested decode of Tuple of " << sizeof...(result)
                       << " elements but ZBON Object holds " << numElements << " elements."
@@ -871,6 +898,23 @@ public:
             }
         }
         return true;
+    }
+
+    template<typename T>
+    bool decodeValue(std::optional<T> &option) {
+        Type type;
+        if (!decodeType(type)) {
+            return false;
+        }
+        if (type == typeFor<T>::type()) {
+            decodeValue(option);
+        } else if (type == Type::NOTHING) {
+            option.reset();
+        } else {
+            std::cerr << "ZBON: requested decode of Option of " << typeFor<T>::type()
+                      << " but ZBON Option holds " << type << std::endl;
+            return false;
+        }
     }
 
     template<typename T>

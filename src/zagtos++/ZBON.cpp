@@ -40,6 +40,8 @@ std::ostream &operator<<(std::ostream &stream, Type type) {
         return stream << "Single-Precision Float";
     case Type::HANDLE:
         return stream << "Handle";
+    case Type::OPTION:
+        return stream << "Option";
     }
     throw std::logic_error("Tried to output non-existing ZBON type");
 }

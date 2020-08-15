@@ -173,6 +173,7 @@ bool Thread::handleSyscall() {
         /* currently this is only supported for pyhsical memory, but this may change in the
          * future */
         if (flags != MAP_PHYSICAL) {
+            cout << "SYS_CREATE_SHARED_MEMORY: other flag than MAP_PHYSICAL" << endl;
             return false;
         }
 

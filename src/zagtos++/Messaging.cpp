@@ -50,12 +50,12 @@ Port::Port() {
 }
 
 Port::Port(Port &&other) {
-    assert(_handle == other._handle);
+    _handle = other._handle;
     other._handle = INVALID_HANDLE;
 }
 
 RemotePort::RemotePort(RemotePort &&other) {
-    assert(_handle == other._handle);
+    _handle = other._handle;
     other._handle = INVALID_HANDLE;
 }
 
@@ -64,7 +64,7 @@ SharedMemory::SharedMemory(int flags, size_t offset, size_t length) {
 }
 
 SharedMemory::SharedMemory(SharedMemory &&other) {
-    assert(_handle == other._handle);
+    _handle = other._handle;
     other._handle = INVALID_HANDLE;
 }
 
