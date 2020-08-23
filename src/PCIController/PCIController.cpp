@@ -155,9 +155,7 @@ void notifyEnvironmentOfDevice(RemotePort &port, volatile FunctionConfigSpace *c
 int main() {
     auto [envPort, data] = decodeRunMessage<std::tuple<RemotePort, zbon::EncodedData>>(MSG_START_CONTROLLER);
     std::vector<SegmentGroup> segmentGroups;
-    if (!zbon::decode(data, segmentGroups)) {
-        throw new std::logic_error("Got malformd segment group info.");
-    }
+    zbon::decode(data, segmentGroups);
 
     std::cout << "Starting PCI Controller..." << std::endl;
     std::cout << "Got " << segmentGroups.size() << " segment groups" << std::endl;

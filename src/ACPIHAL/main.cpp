@@ -14,6 +14,9 @@ int main() {
 
     zagtos::RemotePort envPort = zagtos::decodeRunMessage<zagtos::RemotePort>(zagtos::MSG_START_HAL);
 
+    std::cout << "Decoded handle" << std::endl;
+
+
     if (AcpiInitializeSubsystem()) {
         throw std::logic_error("AcpiInitializeSubsystem failed");
     }

@@ -26,7 +26,7 @@ namespace zagtos {
         }
         zbon::Size ZBONSize() const;
         void ZBONEncode(zbon::Encoder &encoder) const;
-        bool ZBONDecode(zbon::Decoder &decoder);
+        void ZBONDecode(zbon::Decoder &decoder);
     };
 
     class RemotePort : public HandleObject {
@@ -94,10 +94,7 @@ namespace zagtos {
             exit(1);
         }
         T result;
-        if (!zbon::decode(msgInfo.data, result)) {
-            std::cerr << "could not decode run message" << std::endl;
-            exit(1);
-        }
+        zbon::decode(msgInfo.data, result);
         return result;
     }
 }

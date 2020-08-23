@@ -9,21 +9,17 @@ namespace zagtos {
 HandleObject::HandleObject() {}
 
 zbon::Size HandleObject::ZBONSize() const {
-    return {0, 1};
+    return {1, 1};
 }
 
 void HandleObject::ZBONEncode(zbon::Encoder &encoder) const {
     encoder.encodeHandle(_handle);
 }
 
-bool HandleObject::ZBONDecode(zbon::Decoder &decoder) {
+void HandleObject::ZBONDecode(zbon::Decoder &decoder) {
     assert(_handle == INVALID_HANDLE);
 
-    bool success = decoder.decodeHandle(_handle);
-    if (!success) {
-        _handle = INVALID_HANDLE;
-    }
-    return success;
+    decoder.decodeHandle(_handle);
 }
 
 

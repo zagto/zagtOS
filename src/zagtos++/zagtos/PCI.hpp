@@ -23,8 +23,8 @@ struct SegmentGroup {
     void ZBONEncode(zbon::Encoder &encoder) const {
         encoder.encodeObjectValue(configBase, segmentNumber, busStart, busEnd);
     }
-    bool ZBONDecode(zbon::Decoder &decoder) {
-        return decoder.decodeFromObject(configBase, segmentNumber, busStart, busEnd);
+    void ZBONDecode(zbon::Decoder &decoder) {
+        decoder.decodeFromObject(configBase, segmentNumber, busStart, busEnd);
     }
 };
 
@@ -41,8 +41,8 @@ struct BaseRegister {
     void ZBONEncode(zbon::Encoder &encoder) const {
         encoder.encodeObjectValue(sharedMemory, length);
     }
-    bool ZBONDecode(zbon::Decoder &decoder) {
-        return decoder.decodeFromObject(sharedMemory, length);
+    void ZBONDecode(zbon::Decoder &decoder) {
+        decoder.decodeFromObject(sharedMemory, length);
     }
 };
 
@@ -59,8 +59,8 @@ struct Device {
     void ZBONEncode(zbon::Encoder &encoder) const {
         encoder.encodeObjectValue(deviceID, BAR);
     }
-    bool ZBONDecode(zbon::Decoder &decoder) {
-        return decoder.decodeFromObject(deviceID, BAR);
+    void ZBONDecode(zbon::Decoder &decoder) {
+        decoder.decodeFromObject(deviceID, BAR);
     }
 };
 

@@ -15,11 +15,10 @@ namespace zagtos {
 namespace zbon {
 
 enum class Type : uint8_t {
-    OBJECT, NOTHING, ARRAY, STRING, BOOLEAN,
+    BINARY, NOTHING, OBJECT, STRING, BOOLEAN,
     INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64,
-    FLOAT, DOUBLE, HANDLE, OPTION
+    FLOAT, DOUBLE, HANDLE, NUM_TYPES
 };
-static const size_t NUM_TYPES = 16;
 static const size_t HANDLE_SIZE = 4;
 
 struct Size {
@@ -39,139 +38,71 @@ struct Size {
 
 std::ostream &operator<<(std::ostream &stream, Type type);
 
-/* typeFor is a class and not a function to allow partial specialization */
-template<typename T> class typeFor {
-public:
-    static constexpr Type type() {
-        return T::ZBONType();
+template<typename T>
+static Type typeFor(const T& object) {
+    return object.ZBONType();
+}
+
+static constexpr Type typeFor(bool) {
+    return Type::BOOLEAN;
+}
+static constexpr Type typeFor(char) {
+    return Type::INT8;
+}
+static constexpr Type typeFor(int8_t) {
+    return Type::INT8;
+}
+static constexpr Type typeFor(uint8_t) {
+    return Type::UINT8;
+}
+static constexpr Type typeFor(int16_t) {
+    return Type::INT16;
+}
+static constexpr Type typeFor(uint16_t) {
+    return Type::UINT16;
+}
+static constexpr Type typeFor(int32_t) {
+    return Type::INT32;
+}
+static constexpr Type typeFor(uint32_t) {
+    return Type::UINT32;
+}
+static constexpr Type typeFor(int64_t) {
+    return Type::INT64;
+}
+static constexpr Type typeFor(uint64_t) {
+    return Type::UINT64;
+}
+static constexpr Type typeFor(double) {
+    return Type::DOUBLE;
+}
+static constexpr Type typeFor(float) {
+    return Type::FLOAT;
+}
+template<typename T>
+static Type typeFor(const std::vector<T> &) {
+    return Type::OBJECT;
+}
+template<typename T, size_t count>
+static Type typeFor(const std::array<T, count> &) {
+    return Type::OBJECT;
+}
+template<typename T, size_t count>
+static Type typeFor(const T (&)[count]) {
+    return Type::OBJECT;
+}
+template<typename ...Types>
+static Type typeFor(const std::tuple<Types...> &) {
+    return Type::OBJECT;
+}
+template<typename T>
+static Type typeFor(const std::optional<T> &option) {
+    if (option) {
+        return typeFor(*option);
+    } else {
+        return Type::NOTHING;
     }
-};
-template<> class typeFor<bool> {
-public:
-    static constexpr Type type() {
-        return Type::BOOLEAN;
-    }
-};
-template<> class typeFor<uint8_t> {
-public:
-    static constexpr Type type() {
-        return Type::UINT8;
-    }
-};
-template<> class typeFor<const uint8_t> {
-public:
-    static constexpr Type type() {
-        return Type::UINT8;
-    }
-};
-template<> class typeFor<int8_t> {
-public:
-    static constexpr Type type() {
-        return Type::INT8;
-    }
-};
-template<> class typeFor<uint16_t> {
-public:
-    static constexpr Type type() {
-        return Type::UINT16;
-    }
-};
-template<> class typeFor<int16_t> {
-public:
-    static constexpr Type type() {
-        return Type::INT16;
-    }
-};
-template<> class typeFor<uint32_t> {
-public:
-    static constexpr Type type() {
-        return Type::UINT32;
-    }
-};
-template<> class typeFor<int32_t> {
-public:
-    static constexpr Type type() {
-        return Type::INT32;
-    }
-};
-template<> class typeFor<uint64_t> {
-public:
-    static constexpr Type type() {
-        return Type::UINT64;
-    }
-};
-template<> class typeFor<int64_t> {
-public:
-    static constexpr Type type() {
-        return Type::INT64;
-    }
-};
-template<> class typeFor<float> {
-public:
-    static constexpr Type type() {
-        return Type::FLOAT;
-    }
-};
-template<> class typeFor<double> {
-public:
-    static constexpr Type type() {
-        return Type::DOUBLE;
-    }
-};
-template<> class typeFor<std::string> {
-public:
-    static constexpr Type type() {
-        return Type::STRING;
-    }
-};
-template<typename T, std::size_t count> class typeFor<const std::array<T, count>> {
-public:
-    static constexpr Type type() {
-        return Type::ARRAY;
-    }
-};
-template<typename T, std::size_t count> class typeFor<std::array<T, count>> {
-public:
-    static constexpr Type type() {
-        return Type::ARRAY;
-    }
-};
-template<typename T> class typeFor<const std::vector<T>> {
-public:
-    static constexpr Type type() {
-        return Type::ARRAY;
-    }
-};
-template<typename T> class typeFor<std::vector<T>> {
-public:
-    static constexpr Type type() {
-        return Type::ARRAY;
-    }
-};
-template<typename T, size_t count> class typeFor<const T[count]> {
-public:
-    static constexpr Type type() {
-        return Type::ARRAY;
-    }
-};
-template<typename T, size_t count> class typeFor<T[count]> {
-public:
-    static constexpr Type type() {
-        return Type::ARRAY;
-    }
-};
-template<typename ...Types> class typeFor<std::tuple<Types...>> {
-public:
-    static constexpr Type type() {
-        return Type::OBJECT;
-    }
-};
-template<typename T> class typeFor<std::optional<T>> {
-public:
-    static constexpr Type type() {
-        return Type::OPTION;
-    }
-};
+}
 
 #define INSERT_NUMBER_TYPES \
 NUMBER_TYPE(char)  \
@@ -189,7 +120,7 @@ NUMBER_TYPE(double)
 
 static const size_t COUNT_SIZE = 8;
 static const size_t TYPE_SIZE = 1;
-static const size_t HEADER_SIZE = TYPE_SIZE + COUNT_SIZE;
+static const size_t HEADER_SIZE = TYPE_SIZE + COUNT_SIZE * 3;
 
 
 template<typename T>
@@ -198,10 +129,10 @@ static Size sizeFor(const T& object) {
 }
 
 static constexpr Size sizeFor(bool) {
-    return {1};
+    return {1 + TYPE_SIZE};
 }
 Size sizeFor(std::string string);
-#define NUMBER_TYPE(T) constexpr Size sizeFor(const T) { return {sizeof(T)}; }
+#define NUMBER_TYPE(T) constexpr Size sizeFor(const T) { return {sizeof(T) + TYPE_SIZE}; }
 INSERT_NUMBER_TYPES
 #undef NUMBER_TYPE
 
@@ -220,7 +151,7 @@ static Size sizeFor(const std::optional<T> &option);
 
 template<typename T>
 static Size sizeFor(const std::vector<T> &vector) {
-    Size sum = {COUNT_SIZE * 2 + TYPE_SIZE};
+    Size sum = {HEADER_SIZE};
     for (const T &element: vector) {
         sum += sizeFor(element);
     }
@@ -228,7 +159,7 @@ static Size sizeFor(const std::vector<T> &vector) {
 }
 template<typename T, size_t count>
 static Size sizeFor(const std::array<T, count> &array) {
-    Size sum = {COUNT_SIZE * 2 + TYPE_SIZE};
+    Size sum = {HEADER_SIZE};
     for (const T &element: array) {
         sum += sizeFor(element);
     }
@@ -236,7 +167,7 @@ static Size sizeFor(const std::array<T, count> &array) {
 }
 template<typename T, size_t count>
 static Size sizeFor(const T (&array)[count]) {
-    Size sum = {COUNT_SIZE * 2 + TYPE_SIZE};
+    Size sum = {HEADER_SIZE};
     for (const T &element: array) {
         sum += sizeFor(element);
     }
@@ -244,7 +175,7 @@ static Size sizeFor(const T (&array)[count]) {
 }
 template<typename T>
 static Size sizeForArray(const T *array, size_t numElements) {
-    Size sum = {COUNT_SIZE * 2 + TYPE_SIZE};
+    Size sum = {HEADER_SIZE};
     for (size_t i = 0; i < numElements; i++) {
         sum += sizeFor(array[i]);
     }
@@ -256,7 +187,7 @@ static Size sizeForTupleElements(const std::tuple<Types...> &tuple) {
         return {};
     } else {
         const auto &element = std::get<position>(tuple);
-        return Size{TYPE_SIZE} + sizeFor(element) + sizeForTupleElements<position + 1>(tuple);
+        return sizeFor(element) + sizeForTupleElements<position + 1>(tuple);
     }
 }
 #pragma GCC diagnostic push
@@ -267,24 +198,26 @@ static Size sizeForObjectElements() {
 #pragma GCC diagnostic pop
 template<typename HeadType, typename ...TailTypes>
 static Size sizeForObjectElements(const HeadType &head, const TailTypes &...tail) {
-    return Size{TYPE_SIZE} + sizeFor(head) + sizeForObjectElements(tail...);
+    return sizeFor(head) + sizeForObjectElements(tail...);
 }
 template<typename ...Types>
 static Size sizeForObject(const Types &...elements) {
-    return sizeForObjectElements<Types...>(elements...) + Size{COUNT_SIZE * 2};
+    return sizeForObjectElements<Types...>(elements...) + Size{HEADER_SIZE};
 }
 template<typename ...Types>
 static Size sizeFor(const std::tuple<Types...> &tuple) {
-    return sizeForTupleElements<0, Types...>(tuple) + Size{COUNT_SIZE * 2};
+    return sizeForTupleElements<0, Types...>(tuple) + Size{HEADER_SIZE};
 }
-
 template<typename T>
 static Size sizeFor(const std::optional<T> &option) {
     if (option) {
-        return Size{TYPE_SIZE} + sizeFor(*option);
+        return sizeFor(*option);
     } else {
         return {TYPE_SIZE};
     }
+}
+static Size sizeForBinary(size_t length) {
+    return {length + COUNT_SIZE + TYPE_SIZE};
 }
 
 
@@ -338,27 +271,23 @@ public:
     size_t numHandles() const {
         return _numHandles;
     }
+    void ensureVerified() const {
+        // TODO
+    }
 
-    static Type ZBONType() {
-        return zbon::Type::TUPLE;
-    }
     Size ZBONSize() const {
-        return zbon::sizeForArray(_data, _size) + Size{0, _numHandles};
+        return {_size - _numHandles * HANDLE_SIZE, _numHandles};
     }
-    void ZBONEncode(Encoder &encoder) const;
-    bool ZBONDecode(Decoder &decoder);
 };
 
-template<size_t position, typename Head, typename ...Tail>
-Type nthType() {
-    if constexpr(position == 0) {
-        return typeFor<Head>::type();
-    } else {
-        return nthType<position - 1, Tail...>();
-    }
-}
-
 void copyConvertEndianness(void *destination, const void *source, size_t length);
+
+class DecoderException : public std::exception {
+private:
+    virtual const char* what() const throw() {
+        return "ZBON Decoder got invalid data";
+    }
+};
 
 class Encoder {
 private:
@@ -371,16 +300,22 @@ private:
         position += TYPE_SIZE;
     }
 
-    /* The bytesSize field is filled out when the end of the element is reached so the value
-     * is known. Other than that it's just a 64-bit unsigned number */
-    void encodeBytesSize(size_t bytesSize, size_t bytesSizePosition) {
-        encodeNumber(static_cast<uint64_t>(bytesSize), bytesSizePosition);
+    /* The bytesSize and numHanldes fields are filled out when the end of the element is reached so
+     * the value is known. Other than that it's just a 64-bit unsigned number */
+    void encodeSize(size_t value, size_t bytesSizePosition) {
+        copyConvertEndianness(&data[bytesSizePosition], &value, COUNT_SIZE);
     }
 
     template<typename T>
-    void encodeArray(Type elementType, const T &array, size_t length) {
-        encodeType(elementType);
+    void encodeArray(const T &array, size_t length) {
+        encodeType(Type::OBJECT);
         encodeValue(static_cast<uint64_t>(length));
+
+        /* insert numHandles (64bit) later */
+        size_t numHandlesPosition = position;
+        size_t handlePositionStart = handlePosition;
+        position++;
+
         /* insert bytesSize (64bit) later */
         size_t bytesSizePosition = position;
         position += COUNT_SIZE;
@@ -388,8 +323,12 @@ private:
         for (size_t i = 0; i < length; i++) {
             encodeValue(array[i]);
         }
+
         size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
-        encodeBytesSize(bytesSize, bytesSizePosition);
+        encodeSize(bytesSize, bytesSizePosition);
+
+        size_t numHandles = (handlePosition - handlePositionStart) / HANDLE_SIZE;
+        encodeSize(numHandles, numHandlesPosition);
     }
 
     template<typename T>
@@ -404,7 +343,6 @@ private:
             return;
         } else {
             const auto &element = std::get<position>(tuple);
-            encodeType(nthType<position, Types...>());
             encodeValue(element);
             encodeTupleElements<position + 1, Types...>(tuple);
         }
@@ -414,40 +352,52 @@ private:
     }
     template<typename HeadType, typename ...TailTypes>
     void encodeObjectElements(const HeadType &head, const TailTypes &...tail) {
-        encodeType(typeFor<HeadType>::type());
         encodeValue(head);
         encodeObjectElements(tail...);
     }
 
 public:
     void encodeValue(bool value) {
+        encodeType(Type::BOOLEAN);
         data[position] = value;
         position += 1;
     }
-#define NUMBER_TYPE(T) void encodeValue(T value) { encodeNumber(value, position); }
+#define NUMBER_TYPE(T) void encodeValue(T value) { \
+        encodeType(typeFor(value)); \
+        encodeNumber(value, position); \
+    }
     INSERT_NUMBER_TYPES
 #undef NUMBER_TYPE
     template<typename T>
     void encodeValue(const std::vector<T> &vector) {
-        encodeArray(typeFor<T>::type(), vector, vector.size());
+        encodeArray(vector, vector.size());
     }
     template<typename T, size_t count>
     void encodeValue(const std::array<T, count> &array) {
-        encodeArray(typeFor<T>::type(), array, count);
+        encodeArray(array, count);
     }
     template<typename T, size_t count>
     void encodeValue(const T (&array)[count]) {
-        encodeArray(typeFor<T>::type(), array, count);
+        encodeArray(array, count);
     }
     void encodeValue(std::string string) {
-        encodeValue(static_cast<uint64_t>(string.size()));
+        encodeType(Type::STRING);
+        encodeNumber(static_cast<uint64_t>(string.size()), position);
         for (size_t i = 0; i < string.size(); i++) {
-            encodeValue(string[i]);
+            data[position] = string[i];
+            position++;
         }
     }
     template<typename ...Types>
     void encodeValue(const std::tuple<Types...> &tuple) {
+        encodeType(Type::OBJECT);
         encodeValue(static_cast<uint64_t>(sizeof...(Types)));
+
+        /* insert numHandles (64bit) later */
+        size_t numHandlesPosition = position;
+        size_t handlePositionStart = handlePosition;
+        position++;
+
         /* insert bytesSize (64bit) later */
         size_t bytesSizePosition = position;
         position += COUNT_SIZE;
@@ -455,11 +405,21 @@ public:
         encodeTupleElements<0, Types...>(tuple);
 
         size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
-        encodeBytesSize(bytesSize, bytesSizePosition);
+        encodeSize(bytesSize, bytesSizePosition);
+
+        size_t numHandles = (handlePosition - handlePositionStart) / HANDLE_SIZE;
+        encodeSize(numHandles, numHandlesPosition);
     }
     template<typename ...Types>
     void encodeObjectValue(const Types &...values) {
+        encodeType(Type::OBJECT);
         encodeValue(static_cast<uint64_t>(sizeof...(Types)));
+
+        /* insert numHandles (64bit) later */
+        size_t numHandlesPosition = position;
+        size_t handlePositionStart = handlePosition;
+        position++;
+
         /* insert bytesSize (64bit) later */
         size_t bytesSizePosition = position;
         position += COUNT_SIZE;
@@ -467,51 +427,33 @@ public:
         encodeObjectElements(values...);
 
         size_t bytesSize = position - bytesSizePosition - COUNT_SIZE;
-        encodeBytesSize(bytesSize, bytesSizePosition);
-    }
-    template<typename T>
-    void encodeValue(const std::optional<T> &option) {
-        if (option) {
-            encodeType(typeFor<T>::type());
-            encodeValue(*option);
-        } else {
-            encodeType(Type::NOTHING);
-        }
+        encodeSize(bytesSize, bytesSizePosition);
+
+        size_t numHandles = (handlePosition - handlePositionStart) / HANDLE_SIZE;
+        encodeSize(numHandles, numHandlesPosition);
     }
     template<typename T>
     void encodeValue(const T& object) {
         object.ZBONEncode(*this);
     }
+    template<typename T>
+    void encodeValue(const std::optional<T> &option) {
+        if (option) {
+            encodeValue(*option);
+        }
+    }
+    void encodeValue(const zbon::EncodedData &value);
 
     void encodeHandle(const uint32_t handle) {
+        encodeType(Type::HANDLE);
         encodeNumber(handle, handlePosition);
     }
-    /* In the encoder, this method behaves the same as encodeArray, but in the decoder, C arrays
-     * are a special case because of the unknown size and having to use new[]. Keep this
-     * method for symmetry */
-    template<typename T>
-    void encodeCArray(const T *array, size_t length) {
-        encodeArray(typeFor<T>::type(), array, length);
-    }
+    void encodeBinary(const uint8_t *value, size_t length);
 
     Encoder():
         data{nullptr},
         position{0},
         handlePosition{0} {}
-
-    template<typename T>
-    void encodeObjectProperty(const T &value) {
-        assert(data != nullptr);
-
-        encodeType(typeFor<T>::type());
-        encodeValue(value);
-    }
-
-    /* when objects are encoded a type byte is put in front of every property */
-    template<typename T>
-    size_t sizeInObjectFor(const T &element) {
-        return TYPE_SIZE + sizeFor(element);
-    }
 
     template<typename T>
     EncodedData encode(const T &cppData) {
@@ -521,18 +463,16 @@ public:
         size_t handlesSize = size.numHandles * HANDLE_SIZE;
         size_t bytesSize = size.numRegularBytes + handlesSize;
 
-        data = new uint8_t[HEADER_SIZE + bytesSize];
-        EncodedData encodedData(data, HEADER_SIZE + bytesSize, size.numHandles);
+        data = new uint8_t[bytesSize];
+        EncodedData encodedData(data, bytesSize, size.numHandles);
         assert(position == 0);
         assert(handlePosition == 0);
         position = handlesSize;
 
-        encodeType(typeFor<T>::type());
-        encodeValue(static_cast<uint64_t>(size.numRegularBytes));
         encodeValue(cppData);
 
         /* check encoding actually used the amount of space the size calculation got */
-        assert(position == HEADER_SIZE + bytesSize);
+        assert(position == bytesSize);
         assert(handlePosition == handlesSize);
         return encodedData;
     }
@@ -545,22 +485,19 @@ public:
         size_t handlesSize = size.numHandles * HANDLE_SIZE;
         size_t bytesSize = size.numRegularBytes + handlesSize;
 
-        data = new uint8_t[HEADER_SIZE + bytesSize];
-        EncodedData encodedData(data, HEADER_SIZE + bytesSize, size.numHandles);
+        data = new uint8_t[bytesSize];
+        EncodedData encodedData(data, bytesSize, size.numHandles);
         assert(position == 0);
         assert(handlePosition == 0);
         position = handlesSize;
 
-        encodeType(Type::OBJECT);
-        encodeValue(static_cast<uint64_t>(size.numRegularBytes));
         encodeObjectValue(cppData...);
 
         /* check encoding actually used the amount of space the size calculation got */
-        assert(position == HEADER_SIZE + bytesSize);
+        assert(position == bytesSize);
         assert(handlePosition == handlesSize);
         return encodedData;
     }
-
 };
 
 class Decoder {
@@ -568,359 +505,291 @@ private:
     const EncodedData &encodedData;
     size_t position;
     size_t handlePosition;
-    Type encodedType;
 
-    bool decodeType(Type &result) {
-        if (!(position < encodedData._size)) {
+    void ensureEnoughLeft(size_t numBytes) {
+        if (!(position < encodedData._size && encodedData._size - position >= numBytes)) {
             std::cerr << "ZBON: Unexpected End of Data at " << encodedData._size << std::endl;
-            return false;
+            throw DecoderException();
         }
+    }
+
+    void ensureEnoughHandlesLeft(uint64_t numHandles) {
+        if (!(handlePosition / 4 + numHandles <= encodedData.numHandles()
+              && handlePosition / 4 + numHandles >= numHandles)) {
+            std::cerr << "ZBON: Unexpectedly lagre amount of handles" << std::endl;
+            throw DecoderException();
+        }
+    }
+
+    void decodeType(Type &result) {
+        ensureEnoughLeft(1);
 
         uint8_t value = encodedData._data[position];
-        if (value < NUM_TYPES) {
+        if (value < static_cast<uint8_t>(Type::NUM_TYPES)) {
             result = static_cast<Type>(value);
             position++;
-            return true;
         } else {
             std::cerr << "ZBON: Invalid Type Byte at " << position << std::endl;
-            return false;
+            throw DecoderException();
         }
     }
 
     template<typename T>
-    bool verifyElement(Type elementType) {
+    void decodeNumber(T &result, size_t &position) {
+        ensureEnoughLeft(sizeof(T));
+        copyConvertEndianness(&result, &encodedData._data[position], sizeof(T));
+        position += sizeof(T);
+    }
+
+    void decodeVerifyType(Type elementType) {
+        Type encodedType;
+        decodeType(encodedType);
         if (elementType != encodedType) {
             std::cerr << "ZBON: program expects a " << elementType
                       << " but ZBON data holds " << encodedType << std::endl;
-            return false;
+            throw DecoderException();
         }
     }
 
     template<size_t position, typename ...Types>
-    bool decodeTupleElements(std::tuple<Types...> &tuple) {
+    void decodeTupleElements(std::tuple<Types...> &tuple) {
         if constexpr(position == std::tuple_size<std::tuple<Types...>>::value) {
-            return true;
+            return;
         } else {
             auto &element = std::get<position>(tuple);
-            Type type;
-            if (!decodeType(type)) {
-                return false;
-            }
-            if (nthType<position, Types...>() != type) {
-                std::cerr << "ZBON: requested decode of Tuple element of type "
-                          << nthType<position, Types...>() << " but ZBON Object holds " << type
-                          << std::endl;
-                return false;
-            }
-
-            if (!decodeValue(element)) {
-                return false;
-            }
+            decodeValue(element);
             return decodeTupleElements<position + 1, Types...>(tuple);
         }
     }
 
-    bool decodeFromObjectElements() {
-        return true;
+    void decodeFromObjectElements() {
+        /* do nothing */
     }
     template<typename HeadType, typename ...TailTypes>
-    bool decodeFromObjectElements(HeadType &head, TailTypes &...tail) {
-        Type type;
-        if (!decodeType(type)) {
-            return false;
-        }
-        if (typeFor<HeadType>::type() != type) {
-            std::cerr << "ZBON: requested decode of Tuple element of type "
-                      << typeFor<HeadType>::type() << " but ZBON Object holds " << type
-                      << std::endl;
-            return false;
-        }
-        if (!decodeValue(head)) {
-            return false;
-        }
+    void decodeFromObjectElements(HeadType &head, TailTypes &...tail) {
+        decodeValue(head);
         return decodeFromObjectElements(tail...);
     }
 
 public:
-    template<typename T>
-    bool decodeValue(T &result, Type encodedType) {
-        if (typeFor<T>::type() == encodedType) {
-            return decodeValue(result);
-        } else {
-            std::cerr << "ZBON: requested decode of " << typeFor<T>::type()
-                      << " but ZBON data holds " << encodedType << std::endl;
-            return false;
-        }
-    }
-
     template<typename ...Types>
-    bool decodeValue(std::tuple<Types...> &tuple) {
+    void decodeValue(std::tuple<Types...> &tuple) {
+        decodeVerifyType(Type::OBJECT);
+
         uint64_t numElements;
-        decodeValue(numElements);
+        decodeNumber(numElements, position);
         if (numElements != sizeof...(Types)) {
             std::cerr << "ZBON: requested decode of Tuple of " << sizeof...(Types)
                       << " elements but ZBON Object holds " << numElements << " elements."
                       << std::endl;
+            throw DecoderException();
         }
+
+        size_t handlePositionStart = handlePosition;
+        uint64_t numHandles;
+        decodeNumber(numHandles, position);
+
         uint64_t bytesSize;
-        if (!decodeValue(bytesSize)) {
-            return false;
-        }
+        decodeNumber(bytesSize, position);
         size_t positionBeforeData = position;
 
-        if (!decodeTupleElements<0, Types...>(tuple)) {
-            return false;
-        }
+        decodeTupleElements<0, Types...>(tuple);
 
         if (position - positionBeforeData != bytesSize) {
-            std::cerr << "ZBON: Tuple Object array has bytesSize value of " << bytesSize
+            std::cerr << "ZBON: Object array has bytesSize value of " << bytesSize
                       << " but is actually " << (positionBeforeData - position) << " bytes big."
                       << std::endl;
-            return false;
+            throw DecoderException();
         }
-        return true;
+
+        if ((handlePosition - handlePositionStart) * HANDLE_SIZE != numHandles) {
+            std::cerr << "ZBON: Object array has numHandles value of " << numHandles
+                      << " but actually has "
+                      << ((handlePosition - handlePositionStart) * HANDLE_SIZE) << " handles."
+                      << std::endl;
+            throw DecoderException();
+        }
     }
 
     /* decodes the same values as the above, but for applications that don't want to keep the data
      * as tuple */
     template<typename ...Types>
-    bool decodeFromObject(Types &...result) {
+    void decodeFromObject(Types &...result) {
+        decodeVerifyType(Type::OBJECT);
+
         uint64_t numElements;
-        decodeValue(numElements);
-        if (numElements != sizeof...(result)) {
-            std::cerr << "ZBON: requested decode of Tuple of " << sizeof...(result)
+        decodeNumber(numElements, position);
+        if (numElements != sizeof...(Types)) {
+            std::cerr << "ZBON: requested decode of Tuple of " << sizeof...(Types)
                       << " elements but ZBON Object holds " << numElements << " elements."
                       << std::endl;
-            return false;
+            throw DecoderException();
         }
+
+        size_t handlePositionStart = handlePosition;
+        uint64_t numHandles;
+        decodeNumber(numHandles, position);
+
         uint64_t bytesSize;
-        if (!decodeValue(bytesSize)) {
-            return false;
-        }
+        decodeNumber(bytesSize, position);
         size_t positionBeforeData = position;
 
-        if (!decodeFromObjectElements(result...)) {
-            return false;
-        }
+        decodeFromObjectElements(result...);
 
         if (position - positionBeforeData != bytesSize) {
-            std::cerr << "ZBON: Tuple Object array has bytesSize value of " << bytesSize
+            std::cerr << "ZBON: Object array has bytesSize value of " << bytesSize
                       << " but is actually " << (positionBeforeData - position) << " bytes big."
                       << std::endl;
-            return false;
+            throw DecoderException();
         }
-        return true;
+
+        if ((handlePosition - handlePositionStart) * HANDLE_SIZE != numHandles) {
+            std::cerr << "ZBON: Object array has numHandles value of " << numHandles
+                      << " but actually has "
+                      << ((handlePosition - handlePositionStart) * HANDLE_SIZE) << " handles."
+                      << std::endl;
+            throw DecoderException();
+        }
     }
 
-    bool decodeValue(bool &result) {
-        if (!(position < encodedData._size)) {
-            std::cerr << "ZBON: Unexpected End of Data at " << encodedData._size << std::endl;
-            return false;
-        }
+    void decodeValue(bool &result) {
+        decodeVerifyType(Type::BOOLEAN);
+        ensureEnoughLeft(1);
 
         result = static_cast<bool>(encodedData._data[position]);
         position++;
-        return true;
     }
 
-    template<typename T>
-    bool decodeNumber(T &result, size_t &position) {
-        if (!(position < encodedData._size && encodedData._size - position >= sizeof(T))) {
-            std::cerr << "ZBON: Unexpected End of Data at " << encodedData._size << std::endl;
-            return false;
-        }
-
-        copyConvertEndianness(&result, &encodedData._data[position], sizeof(T));
-        position += sizeof(T);
-        return true;
-    }
-#define NUMBER_TYPE(T) bool decodeValue(T &result) { return decodeNumber(result, position); }
+#define NUMBER_TYPE(T) void decodeValue(T &result) { return decodeNumber(result, position); }
     INSERT_NUMBER_TYPES
 #undef NUMBER_TYPE
 
     template<typename ArrayType, typename ElementType>
-    bool decodeArray(ArrayType &resultArray) {
-        Type type;
-        if (!decodeType(type)) {
-            return false;
-        }
-        if (typeFor<ElementType>::type() != type) {
-            std::cerr << "ZBON: requested decode of Array of " << typeFor<ElementType>::type()
-                      << " but ZBON Array holds " << type << std::endl;
-            return false;
-        }
+    void decodeArray(ArrayType &resultArray) {
+        decodeVerifyType(Type::OBJECT);
 
         uint64_t numElements;
-        if (!decodeValue(numElements)) {
-            return false;
-        }
+        decodeNumber(numElements, position);
         if (numElements != std::size(resultArray)) {
             std::cerr << "ZBON: requested decode of Array of " << std::size(resultArray)
                       << " elements but ZBON Array holds " << numElements << " elements."
                       << std::endl;
-            return false;
+            throw DecoderException();
         }
 
+        size_t handlePositionStart = handlePosition;
+        uint64_t numHandles;
+        decodeNumber(numHandles, position);
+
         uint64_t bytesSize;
-        if (!decodeValue(bytesSize)) {
-            return false;
-        }
+        decodeNumber(bytesSize, position);
         size_t positionBeforeData = position;
 
         for (auto &element: resultArray) {
-            if (!decodeValue(element, type)) {
-                return false;
-            }
+            decodeValue(element);
         }
 
         if (position - positionBeforeData != bytesSize) {
-            std::cerr << "ZBON: Array array has bytesSize value of " << bytesSize
+            std::cerr << "ZBON: Object array has bytesSize value of " << bytesSize
                       << " but is actually " << (positionBeforeData - position) << " bytes big."
                       << std::endl;
-            return false;
+            throw DecoderException();
         }
-        return true;
+
+        if ((handlePosition - handlePositionStart) * HANDLE_SIZE != numHandles) {
+            std::cerr << "ZBON: Object array has numHandles value of " << numHandles
+                      << " but actually has "
+                      << ((handlePosition - handlePositionStart) * HANDLE_SIZE) << " handles."
+                      << std::endl;
+            throw DecoderException();
+        }
     }
 
-    bool decodeHandle(uint32_t &result) {
-        return decodeNumber(result, handlePosition);
+    void decodeHandle(uint32_t &result) {
+        decodeVerifyType(Type::HANDLE);
+        ensureEnoughHandlesLeft(1);
+        copyConvertEndianness(&result, &encodedData._data[handlePosition], HANDLE_SIZE);
+        handlePosition += HANDLE_SIZE;
     }
 
     template<typename T, std::size_t length>
-    bool decodeValue(std::array<T, length> &result) {
-        return decodeArray<std::array<T, length>, T>(result);
+    void decodeValue(std::array<T, length> &result) {
+        decodeArray<std::array<T, length>, T>(result);
     }
     template<typename T, size_t length>
-    bool decodeValue(T (&result)[length]) {
-        return decodeArray<T[length], T>(result);
+    void decodeValue(T (&result)[length]) {
+        decodeArray<T[length], T>(result);
     }
 
     template<typename T>
-    bool decodeValue(std::vector<T> &result) {
-        Type type;
-        if (!decodeType(type)) {
-            return false;
-        }
-        if (typeFor<T>::type() != type) {
-            std::cerr << "ZBON: requested decode of Array of " << typeFor<T>::type()
-                      << " but ZBON Array holds " << type << std::endl;
-            return false;
-        }
+    void decodeValue(std::vector<T> &result) {
+        decodeVerifyType(Type::OBJECT);
 
         uint64_t numElements;
-        if (!decodeValue(numElements)) {
-            return false;
-        }
+        decodeNumber(numElements, position);
         result.resize(numElements);
 
+        size_t handlePositionStart = handlePosition;
+        uint64_t numHandles;
+        decodeNumber(numHandles, position);
+
         uint64_t bytesSize;
-        if (!decodeValue(bytesSize)) {
-            return false;
-        }
+        decodeNumber(bytesSize, position);
         size_t positionBeforeData = position;
 
         for (auto &element: result) {
-            if (!decodeValue(element, type)) {
-                return false;
-            }
+            decodeValue(element);
         }
 
         if (position - positionBeforeData != bytesSize) {
-            std::cerr << "ZBON: Array array has bytesSize value of " << bytesSize
+            std::cerr << "ZBON: Object array has bytesSize value of " << bytesSize
                       << " but is actually " << (positionBeforeData - position) << " bytes big."
                       << std::endl;
-            return false;
-        }
-        return true;
-    }
-
-    template<typename T>
-    bool decodeCArray(T *&pointer, size_t &length) {
-        Type type;
-        pointer = nullptr;
-        length = 0;
-        if (!decodeType(type)) {
-            goto fail;
-        }
-        if (typeFor<T>::type() != type) {
-            std::cerr << "ZBON: requested decode of Array of " << typeFor<T>::type()
-                      << " but ZBON Array holds " << type << std::endl;
-            goto fail;
+            throw DecoderException();
         }
 
-        uint64_t numElements;
-        if (!decodeValue(numElements)) {
-            goto fail;
-        }
-        pointer = new T[numElements];
-        length = static_cast<size_t>(numElements);
-
-        uint64_t bytesSize;
-        size_t positionBeforeData;
-        if (!decodeValue(bytesSize)) {
-            goto fail;
-        }
-
-        positionBeforeData = position;
-        for (size_t i = 0; i < numElements; i++) {
-            if (!decodeValue(pointer[i], type)) {
-                goto fail;
-            }
-        }
-
-        if (position - positionBeforeData != bytesSize) {
-            std::cerr << "ZBON: Array array has bytesSize value of " << bytesSize
-                      << " but is actually " << (positionBeforeData - position) << " bytes big."
+        if ((handlePosition - handlePositionStart) * HANDLE_SIZE != numHandles) {
+            std::cerr << "ZBON: Object array has numHandles value of " << numHandles
+                      << " but actually has "
+                      << ((handlePosition - handlePositionStart) * HANDLE_SIZE) << " handles."
                       << std::endl;
-            goto fail;
+            throw DecoderException();
         }
-        return true;
-
-    fail:
-        if (pointer != nullptr) {
-            delete[] pointer;
-            pointer = nullptr;
-        }
-        length = 0;
-        return false;
     }
-
-    bool decodeValue(std::string &result) {
+    void decodeValue(std::string &result) {
+        decodeVerifyType(Type::STRING);
         uint64_t numElements;
-        if (!decodeValue(numElements)) {
-            return false;
-        }
+        decodeNumber(numElements, position);
         result.resize(numElements);
 
-        for (auto &element: result) {
-            if (!decodeValue(element)) {
-                return false;
-            }
+        ensureEnoughLeft(numElements);
+        for (size_t index = 0; index < numElements; index++) {
+            result[index] = encodedData._data[position + index];
         }
-        return true;
+        position += numElements;
     }
 
     template<typename T>
-    bool decodeValue(std::optional<T> &option) {
+    void decodeValue(std::optional<T> &option) {
         Type type;
-        if (!decodeType(type)) {
-            return false;
-        }
-        if (type == typeFor<T>::type()) {
-            decodeValue(option);
-        } else if (type == Type::NOTHING) {
+        decodeType(type);
+        if (type == Type::NOTHING) {
             option.reset();
         } else {
-            std::cerr << "ZBON: requested decode of Option of " << typeFor<T>::type()
-                      << " but ZBON Option holds " << type << std::endl;
-            return false;
+            position--;
+            option.emplace();
+            decodeValue(*option);
         }
     }
 
+    void decodeValue(zbon::EncodedData &value);
+
     template<typename T>
-    bool decodeValue(T& object) {
-        return object.ZBONDecode(*this);
+    void decodeValue(T& object) {
+         object.ZBONDecode(*this);
     }
+
+    void decodeBinary(uint8_t *buffer, size_t length);
 
     Decoder(const EncodedData &encodedData) :
         encodedData{encodedData},
@@ -928,36 +797,27 @@ public:
         handlePosition{0} {}
 
     template<typename T>
-    bool decode(T &result) {
-        Type rootType;
-        if (!decodeType(rootType)) {
-            return false;
-        }
-
+    void decode(T &result) {
         uint64_t handlesSize = encodedData._numHandles * HANDLE_SIZE;
-        uint64_t regularBytesSize;
-        if (!decodeValue(regularBytesSize)) {
-            return false;
-        }
-        if (handlesSize + regularBytesSize + HEADER_SIZE != encodedData._size) {
-            std::cerr << "ZBON: got " << encodedData._size << " bytes of data but encoded data "
-                      << "is " << (handlesSize + regularBytesSize + HEADER_SIZE) << " bytes." << std::endl;
-            return false;
-        }
 
-        assert(position == HEADER_SIZE + handlesSize);
-        if (!decodeValue(result, rootType)) {
-            return false;
-        }
+        assert(position == handlesSize);
+        decodeValue(result);
 
-        if (position != HEADER_SIZE + regularBytesSize + handlesSize
-                || handlePosition != handlesSize) {
-            std::cerr << "ZBON: root element has bytesSize value of " << regularBytesSize
-                      << "but is actually " << (position - HEADER_SIZE) << " bytes big."
+        if ((position != encodedData._size)
+                || (handlePosition != handlesSize)) {
+            std::cerr << "ZBON: EncodedData object has size value of " << encodedData._size
+                      << "(" << encodedData._numHandles << " handles), but is actually "
+                      << position << "(" << (handlePosition/HANDLE_SIZE) << " handles) bytes big."
                       << std::endl;
-            return false;
+            std::cerr << "_size: " << encodedData._size << std::endl
+                      << "position: " << position << std::endl
+                      << "_numHandles:" << encodedData._numHandles << std::endl
+                      << "handlePosition:" << handlePosition << std::endl
+                      << "handlesSize: " << handlesSize << std::endl
+                      << "A: " << (position != encodedData._size) << std::endl
+                      << "B: " << (handlePosition != handlesSize) << std::endl;
+            throw DecoderException();
         }
-        return true;
     }
 };
 
@@ -974,9 +834,9 @@ static EncodedData encodeObject(const Types &...cppData) {
 
 
 template<typename T>
-static bool decode(const EncodedData &encodedData, T &result) {
+static void decode(const EncodedData &encodedData, T &result) {
     Decoder d(encodedData);
-    return d.decode(result);
+    d.decode(result);
 }
 
 
@@ -987,16 +847,16 @@ public:
         uuid_copy(value, uuid);
     }
     static zbon::Type ZBONType() {
-        return zbon::Type::ARRAY;
+        return zbon::Type::BINARY;
     }
     zbon::Size ZBONSize() const {
-        return zbon::sizeForArray(value, 16);
+        return zbon::sizeForBinary(16);
     }
     void ZBONEncode(zbon::Encoder &encoder) const {
-        encoder.encodeCArray(value, 16);
+        encoder.encodeBinary(value, 16);
     }
-    bool ZBONDecode(zbon::Decoder &decoder) {
-        return decoder.decodeValue(value);
+    void ZBONDecode(zbon::Decoder &decoder) {
+        decoder.decodeBinary(value, 16);
     }
 };
 

@@ -76,7 +76,9 @@ void ControllerServer(const ExternalBinary &program,
             std::cerr << "got MSG_START_CONTROLLER_DONE, TODO: what is next?" << std::endl;
         } else if (uuid_compare(msgInfo->type, MSG_FOUND_DEVICE) == 0) {
             std::tuple<uint64_t, zbon::EncodedData> msg;
-            if (!zbon::decode(msgInfo->data, msg)) {
+            try {
+                zbon::decode(msgInfo->data, msg);
+            } catch(zbon::DecoderException &e) {
                 std::cout << "Received malformed MSG_FOUND_DEVICE message." << std::endl;
                 continue;
             }
@@ -107,7 +109,9 @@ int main() {
         std::unique_ptr<MessageInfo> msgInfo = halServerPort.receiveMessage();
         if (uuid_compare(msgInfo->type, MSG_START_HAL_RESULT) == 0) {
             bool result;
-            if (!zbon::decode(msgInfo->data, result)) {
+            try {
+                zbon::decode(msgInfo->data, result);
+            } catch(zbon::DecoderException &e) {
                 std::cout << "Received malformed MSG_START_HAL_RESULT message." << std::endl;
                 continue;
             }
@@ -119,7 +123,9 @@ int main() {
             }
         } else if (uuid_compare(msgInfo->type, MSG_FOUND_CONTROLLER) == 0) {
             std::tuple<uuid_t, zbon::EncodedData> msg;
-            if (!zbon::decode(msgInfo->data, msg)) {
+            try {
+                zbon::decode(msgInfo->data, msg);
+            } catch(zbon::DecoderException &e) {
                 std::cout << "Received malformed MSG_FOUND_CONTROLLER message." << std::endl;
                 continue;
             }
