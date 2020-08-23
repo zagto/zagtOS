@@ -17,6 +17,8 @@
 #include "sanitizer_symbolizer_fuchsia.h"
 #elif SANITIZER_RTEMS
 #include "sanitizer_symbolizer_rtems.h"
+#elif SANITIZER_ZAGTOS
+#include "sanitizer_symbolizer_zagtos.h"
 #endif
 #include "sanitizer_stacktrace.h"
 #include "sanitizer_symbolizer.h"

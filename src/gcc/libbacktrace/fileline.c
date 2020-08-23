@@ -49,6 +49,8 @@ POSSIBILITY OF SUCH DAMAGE.  */
 /* Initialize the fileline information from the executable.  Returns 1
    on success, 0 on failure.  */
 
+
+#ifndef __zagtos__
 static int
 fileline_initialize (struct backtrace_state *state,
 		     backtrace_error_callback error_callback, void *data)
@@ -166,6 +168,22 @@ fileline_initialize (struct backtrace_state *state,
 
   return 1;
 }
+#else // __zagtos__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+static int
+fileline_initialize (struct backtrace_state *state,
+		     backtrace_error_callback error_callback, void *data)
+{
+  // TODO: add a way to get debug info on Zagtos
+  if (!state->threaded)
+  state->fileline_initialization_failed = 1;
+    else
+  backtrace_atomic_store_int (&state->fileline_initialization_failed, 1);
+  return 0;
+}
+#pragma GCC diagnostic pop
+#endif
 
 /* Given a PC, find the file name, line number, and function name.  */
 

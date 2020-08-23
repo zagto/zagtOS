@@ -71,6 +71,7 @@ sanitizer_common_files = \
 	sanitizer_symbolizer.cc \
 	sanitizer_symbolizer_libbacktrace.cc \
 	sanitizer_symbolizer_libcdep.cc \
+	sanitizer_symbolizer_markup.cc \
 	sanitizer_symbolizer_posix_libcdep.cc \
 	sanitizer_symbolizer_win.cc \
 	sanitizer_termination.cc \
@@ -78,7 +79,8 @@ sanitizer_common_files = \
 	sanitizer_tls_get_addr.cc \
 	sanitizer_unwind_linux_libcdep.cc \
 	sanitizer_unwind_win.cc \
-	sanitizer_win.cc
+	sanitizer_win.cc \
+	sanitizer_zagtos.cc
 
 
 libsanitizer_common_la_SOURCES = $(sanitizer_common_files) 

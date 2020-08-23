@@ -13,7 +13,7 @@
 
 #if !defined(__linux__) && !defined(__FreeBSD__) && !defined(__NetBSD__) && \
   !defined(__OpenBSD__) && !defined(__APPLE__) && !defined(_WIN32) && \
-  !defined(__Fuchsia__) && !defined(__rtems__) && \
+  !defined(__Fuchsia__) && !defined(__rtems__) && !defined(__zagtos__) && \
   !(defined(__sun__) && defined(__svr4__))
 # error "This operating system is not supported"
 #endif
@@ -107,6 +107,12 @@
 # define SANITIZER_RTEMS 1
 #else
 # define SANITIZER_RTEMS 0
+#endif
+
+#if defined(__zagtos__)
+# define SANITIZER_ZAGTOS   1
+#else
+# define SANITIZER_ZAGTOS   0
 #endif
 
 #define SANITIZER_POSIX \
@@ -345,7 +351,7 @@
 #endif
 
 // Enable offline markup symbolizer for Fuchsia and RTEMS.
-#if SANITIZER_FUCHSIA || SANITIZER_RTEMS
+#if SANITIZER_FUCHSIA || SANITIZER_RTEMS || SANITIZER_ZAGTOS
 #define SANITIZER_SYMBOLIZER_MARKUP 1
 #else
 #define SANITIZER_SYMBOLIZER_MARKUP 0
