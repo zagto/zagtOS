@@ -1,4 +1,4 @@
-//===-- sanitizer_rtems.cc ------------------------------------------------===//
+//===-- sanitizer_zagtos.cc -----------------------------------------------===//
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
@@ -23,15 +23,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include <zagtos/syscall.h>
+
+
+extern "C" size_t zagtos_syscall0(size_t call);
 
 
 namespace __sanitizer {
 
 #include "sanitizer_syscall_generic.inc"
 
-void NORETURN internal__exit(int exitcode) {
-  _exit(exitcode);
+void NORETURN internal__exit(int) {
+  zagtos_syscall0(8); // SYS_CRASH
+  while (1); // should never go here
 }
 
 uptr internal_sched_yield() {
@@ -236,4 +239,4 @@ void ListOfModules::fallbackInit() {
 
 } // namespace __sanitizer
 
-#endif  // SANITIZER_RTEMS
+#endif  // SANITIZER_ZAGTOS

@@ -3,5 +3,5 @@
 
 _Noreturn void abort(void)
 {
-    while(1) zagtos_syscall(SYS_EXIT, 127);
+    while(1) zagtos_syscall(SYS_CRASH);
 }

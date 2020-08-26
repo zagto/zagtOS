@@ -12,6 +12,7 @@
 #include <syscalls/SyscallNumbers.hpp>
 #include <portio.hpp>
 #include <system/Processor.hpp>
+#include <common/debug.hpp>
 
 
 bool Thread::handleSyscall() {
@@ -59,6 +60,13 @@ bool Thread::handleSyscall() {
         /* Danger - the current thread (this) will be deleted */
         process->exit();
         return true;
+    case SYS_CRASH:
+        cout << "Process ";
+        for (uint8_t character: process->logName) {
+            cout << static_cast<char>(character);
+        }
+        cout << " crashed.";
+        enterDebugger(process);
     case SYS_CREATE_PORT: {
         shared_ptr<Port> port = make_shared<Port>(process);
         uint32_t handle = process->handleManager.addPort(port);

@@ -24,6 +24,7 @@ static const uint32_t SYS_LOG = 1,
                       SYS_CREATE_PORT = 5,
                       SYS_DELETE_HANDLE = 6,
                       SYS_RANDOM = 7,
+                      SYS_CRASH = 8,
 
                       SYS_MPROTECT = 10,
                       SYS_MMAP = 11,

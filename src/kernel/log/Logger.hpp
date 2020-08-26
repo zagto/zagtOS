@@ -9,6 +9,7 @@ class Logger {
 public:
     void init(const BootInfo *bootInfo);
     void flush();
+    char read();
     void setKernelColor();
     void setProgramNameColor();
     void setProgramColor();

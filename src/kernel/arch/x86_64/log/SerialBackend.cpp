@@ -41,9 +41,18 @@ bool SerialBackend::isTransmitEmpty() {
     return InB(SERIAL_PORT + 5) & 0x20;
 }
 
+bool SerialBackend::signalReceived() {
+    return InB(SERIAL_PORT + 5) & 0x1;
+}
+
 void SerialBackend::write(char character) {
     while (!isTransmitEmpty());
     OutB(SERIAL_PORT, static_cast<uint8_t>(character));
+}
+
+char SerialBackend::read() {
+    while (!signalReceived());
+    return InB(SERIAL_PORT);
 }
 
 void SerialBackend::setKernelColor() {
