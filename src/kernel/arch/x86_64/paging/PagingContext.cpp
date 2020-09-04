@@ -104,6 +104,14 @@ void PagingContext::unmap(KernelVirtualAddress address) {
 }
 
 
+bool PagingContext::isMapped(KernelVirtualAddress address) {
+    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
+
+    PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(address, MissingStrategy::RETURN_NULLPTR);
+    return entry != nullptr && entry->present();
+}
+
+
 PhysicalAddress PagingContext::resolve(UserVirtualAddress address) {
     assert(process == nullptr || process->pagingLock.isLocked());
 

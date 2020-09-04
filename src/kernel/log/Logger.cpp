@@ -30,11 +30,6 @@ void Logger::flush() {
     CurrentProcessor->logBufferIndex = 0;
 }
 
-char Logger::read() {
-    scoped_lock lg(logLock);
-    return serialBackend.read();
-}
-
 void Logger::output(char character) {
     switch (character) {
     case 1:

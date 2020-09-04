@@ -33,6 +33,7 @@ private:
                          size_t length,
                          PagingContext::AccessOperation accOp,
                          bool requireWritePermissions);
+    void coreDump();
 
 public:
     mutex pagingLock;

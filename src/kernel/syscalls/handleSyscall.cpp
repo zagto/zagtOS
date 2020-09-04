@@ -12,7 +12,6 @@
 #include <syscalls/SyscallNumbers.hpp>
 #include <portio.hpp>
 #include <system/Processor.hpp>
-#include <common/debug.hpp>
 
 
 bool Thread::handleSyscall() {
@@ -66,7 +65,8 @@ bool Thread::handleSyscall() {
             cout << static_cast<char>(character);
         }
         cout << " crashed.";
-        enterDebugger(process);
+        process->coreDump();
+        Halt();
     case SYS_CREATE_PORT: {
         shared_ptr<Port> port = make_shared<Port>(process);
         uint32_t handle = process->handleManager.addPort(port);

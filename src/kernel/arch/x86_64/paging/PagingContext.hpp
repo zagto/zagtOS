@@ -53,6 +53,7 @@ public:
                     CacheType cacheType);
     static PhysicalAddress resolve(KernelVirtualAddress address);
     static void unmap(KernelVirtualAddress address);
+    static bool isMapped(KernelVirtualAddress address);
     static void invalidateLocally(KernelVirtualAddress address);
 
     void map(UserVirtualAddress from,

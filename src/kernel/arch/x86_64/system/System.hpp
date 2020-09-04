@@ -1,8 +1,9 @@
-#ifndef SYSTEM_HPP
-#define SYSTEM_HPP
+#pragma once
 
 #include <common/common.hpp>
 #include <system/CommonSystem.hpp>
+
+#define SYSTEM_X86_64 1
 
 class System : public CommonSystem {
 private:
@@ -24,4 +25,3 @@ static_assert(sizeof(System) < PAGE_SIZE - 6 * 8 - 22 * 8);
 
 extern System CurrentSystem;
 
-#endif // SYSTEM_HPP
