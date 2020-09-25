@@ -1,4 +1,4 @@
-;; Copyright (C) 2012-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2020 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -16,6 +16,7 @@
 ;; along with GCC; see the file COPYING3.  If not see
 ;; <http://www.gnu.org/licenses/>.
 ;;
+
 
 (define_attr "znver1_decode" "direct,vector,double"
   (const_string "direct"))

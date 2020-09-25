@@ -30,3 +30,6 @@
 
 #pragma push_macro("__has_cpp_attribute")
 #pragma pop_macro("__has_cpp_attribute")
+
+#pragma push_macro("__has_builtin")
+#pragma pop_macro("__has_builtin")

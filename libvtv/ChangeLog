@@ -1,14 +1,26 @@
-2020-03-12  Release Manager
+2020-07-23  Release Manager
 
-	* GCC 9.3.0 released.
+	* GCC 10.2.0 released.
 
-2019-08-12  Release Manager
+2020-05-07  Release Manager
 
-	* GCC 9.2.0 released.
+	* GCC 10.1.0 released.
 
-2019-05-03  Release Manager
+2020-01-24  Maciej W. Rozycki  <macro@wdc.com>
 
-	* GCC 9.1.0 released.
+	* configure.ac: Handle `--with-toolexeclibdir='.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* testsuite/Makefile.in: Regenerate.
+
+2020-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2019-09-27  Maciej W. Rozycki  <macro@wdc.com>
+
+	* configure: Regenerate.
 
 2019-02-19  Caroline Tice <cmtice@google.com>
 

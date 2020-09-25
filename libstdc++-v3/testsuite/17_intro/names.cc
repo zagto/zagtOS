@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -53,7 +53,10 @@
 #endif
 // <queue> and <stack> defined data members called c
 #define d (
+#if __cplusplus <= 201703L
+// <numbers> defines std::numbers::e
 #define e (
+#endif
 #define f (
 #define g (
 #if __cplusplus >= 201402L
@@ -117,6 +120,7 @@
 #define BidirectionalIterator	BidirectionalIterator is not a reserved name
 #define RandomAccessIterator	RandomAccessIterator is not a reserved name
 #define RandomAccessOutputIterator	RandomAccessOutputIterator is not a reserved name
+#define RAI			RAI is not a reserved name
 #define RAIter			RAIter is not a reserved name
 #define FwdIter			FwdIter is not a reserved name
 #define OutIter			OutIter is not a reserved name

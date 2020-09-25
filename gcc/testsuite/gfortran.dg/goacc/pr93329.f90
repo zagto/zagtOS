@@ -82,9 +82,9 @@
   end do
 !$acc end kernels
 !$acc kernels
-!!$omp target simd
-!  do x = 0, 2
-!  end do
+!$omp target simd		! { dg-error "OMP TARGET SIMD directive cannot be specified within" }
+  do x = 0, 2
+  end do
 !$acc end kernels
 !$acc kernels
 !$omp target teams		! { dg-error "OMP TARGET TEAMS directive cannot be specified within" }

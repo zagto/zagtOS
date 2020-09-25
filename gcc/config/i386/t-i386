@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2019 Free Software Foundation, Inc.
+# Copyright (C) 2008-2020 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -41,6 +41,22 @@ x86-tune-sched-core.o: $(srcdir)/config/i386/x86-tune-sched-core.c
 	  $(POSTCOMPILE)
 
 i386-d.o: $(srcdir)/config/i386/i386-d.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
+i386-options.o: $(srcdir)/config/i386/i386-options.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
+i386-builtins.o: $(srcdir)/config/i386/i386-builtins.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
+i386-expand.o: $(srcdir)/config/i386/i386-expand.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
+i386-features.o: $(srcdir)/config/i386/i386-features.c
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 

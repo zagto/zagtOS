@@ -1,5 +1,5 @@
 /* d-lang.cc -- Language-dependent hooks for D.
-   Copyright (C) 2006-2019 Free Software Foundation, Inc.
+   Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -151,66 +151,56 @@ deps_add_target (const char *target, bool quoted)
 static void
 deps_write (Module *module, OutBuffer *buffer, unsigned colmax = 72)
 {
-  hash_set <const char *> dependencies;
+  hash_set <const char *> seen_modules;
+  vec <const char *> dependencies = vNULL;
 
   Modules modlist;
   modlist.push (module);
 
-  Modules phonylist;
-
-  const char *str;
-  unsigned size;
+  vec <const char *> phonylist = vNULL;
   unsigned column = 0;
 
   /* Write out make target module name.  */
   if (d_option.deps_target)
     {
-      size = d_option.deps_target->offset;
-      str = d_option.deps_target->extractString ();
+      buffer->writestring (d_option.deps_target->extractString ());
+      column = d_option.deps_target->offset;
     }
   else
     {
-      str = module->objfile->name->str;
-      size = strlen (str);
+      buffer->writestring (module->objfile->name->str);
+      column = buffer->offset;
     }
 
-  buffer->writestring (str);
-  column = size;
   buffer->writestring (":");
   column++;
 
-  /* Write out all make dependencies.  */
+  /* Search all modules for file dependencies.  */
   while (modlist.dim > 0)
     {
       Module *depmod = modlist.pop ();
 
-      str = depmod->srcfile->name->str;
-      size = strlen (str);
+      const char *modstr = depmod->srcfile->name->str;
 
-      /* Skip dependencies that have already been written.  */
-      if (dependencies.add (str))
+      /* Skip modules that have already been looked at.  */
+      if (seen_modules.add (modstr))
 	continue;
 
-      column += size;
-
-      if (colmax && column > colmax)
-	{
-	  buffer->writestring (" \\\n ");
-	  column = size + 1;
-	}
-      else
-	{
-	  buffer->writestring (" ");
-	  column++;
-	}
-
-      buffer->writestring (str);
+      dependencies.safe_push (modstr);
 
       /* Add to list of phony targets if is not being compile.  */
       if (d_option.deps_phony && !depmod->isRoot ())
-	phonylist.push (depmod);
+	phonylist.safe_push (modstr);
 
-      /* Search all imports of the written dependency.  */
+      /* Add imported files to dependency list.  */
+      for (size_t i = 0; i < depmod->contentImportedFiles.dim; i++)
+	{
+	  const char *impstr = depmod->contentImportedFiles[i];
+	  dependencies.safe_push (impstr);
+	  phonylist.safe_push (impstr);
+	}
+
+      /* Search all imports of the module.  */
       for (size_t i = 0; i < depmod->aimports.dim; i++)
 	{
 	  Module *m = depmod->aimports[i];
@@ -244,15 +234,34 @@ deps_write (Module *module, OutBuffer *buffer, unsigned colmax = 72)
 	}
     }
 
+  /* Write out all make dependencies.  */
+  for (size_t i = 0; i < dependencies.length (); i++)
+    {
+      const char *str = dependencies[i];
+      unsigned size = strlen (str);
+      column += size;
+
+      if (colmax && column > colmax)
+	{
+	  buffer->writestring (" \\\n ");
+	  column = size + 1;
+	}
+      else
+	{
+	  buffer->writestring (" ");
+	  column++;
+	}
+
+      buffer->writestring (str);
+    }
+
   buffer->writenl ();
 
   /* Write out all phony targets.  */
-  for (size_t i = 0; i < phonylist.dim; i++)
+  for (size_t i = 0; i < phonylist.length (); i++)
     {
-      Module *m = phonylist[i];
-
       buffer->writenl ();
-      buffer->writestring (m->srcfile->name->str);
+      buffer->writestring (phonylist[i]);
       buffer->writestring (":\n");
     }
 }
@@ -449,7 +458,7 @@ d_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
 	  break;
 	}
 
-      error ("bad argument for -fdebug %qs", arg);
+      error ("bad argument for %<-fdebug%>: %qs", arg);
       break;
 
     case OPT_fdoc:
@@ -497,7 +506,7 @@ d_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
     case OPT_fmodule_file_:
       global.params.modFileAliasStrings->push (arg);
       if (!strchr (arg, '='))
-	error ("bad argument for -fmodule-file %qs", arg);
+	error ("bad argument for %<-fmodule-file%>: %qs", arg);
       break;
 
     case OPT_fmoduleinfo:
@@ -588,7 +597,7 @@ d_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
 	  break;
 	}
 
-      error ("bad argument for -fversion %qs", arg);
+      error ("bad argument for %<-fversion%>: %qs", arg);
       break;
 
     case OPT_H:
@@ -772,8 +781,8 @@ d_post_options (const char ** fn)
   if (global_options_set.x_flag_max_errors)
     global.errorLimit = flag_max_errors;
 
-  if (flag_excess_precision_cmdline == EXCESS_PRECISION_DEFAULT)
-    flag_excess_precision_cmdline = EXCESS_PRECISION_STANDARD;
+  if (flag_excess_precision == EXCESS_PRECISION_DEFAULT)
+    flag_excess_precision = EXCESS_PRECISION_STANDARD;
 
   if (global.params.useUnitTests)
     global.params.useAssert = true;
@@ -1011,7 +1020,7 @@ d_parse_file (void)
   /* In this mode, the first file name is supposed to be a duplicate
      of one of the input files.  */
   if (d_option.fonly && strcmp (d_option.fonly, main_input_filename) != 0)
-    error ("-fonly= argument is different from first input file name");
+    error ("%<-fonly=%> argument is different from first input file name");
 
   for (size_t i = 0; i < num_in_fnames; i++)
     {
@@ -1360,6 +1369,17 @@ d_type_for_mode (machine_mode mode, int unsignedp)
   if (mode == TYPE_MODE (build_pointer_type (d_int_type)))
     return build_pointer_type (d_int_type);
 
+  for (int i = 0; i < NUM_INT_N_ENTS; i ++)
+    {
+      if (int_n_enabled_p[i] && mode == int_n_data[i].m)
+	{
+	  if (unsignedp)
+	    return int_n_trees[i].unsigned_type;
+	  else
+	    return int_n_trees[i].signed_type;
+	}
+    }
+
   if (COMPLEX_MODE_P (mode))
     {
       machine_mode inner_mode;
@@ -1407,6 +1427,17 @@ d_type_for_size (unsigned bits, int unsignedp)
 
   if (bits <= TYPE_PRECISION (d_cent_type))
     return unsignedp ? d_ucent_type : d_cent_type;
+
+  for (int i = 0; i < NUM_INT_N_ENTS; i ++)
+    {
+      if (int_n_enabled_p[i] && bits == int_n_data[i].bitsize)
+	{
+	  if (unsignedp)
+	    return int_n_trees[i].unsigned_type;
+	  else
+	    return int_n_trees[i].signed_type;
+	}
+    }
 
   return 0;
 }
