@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+function check_toolchain() {
+    NAME="$1"
+    TARGET="$2"
+    NOHEADERS="$3"
+    TARGET_CFLAGS="$4"
+
+    TOOLCHAIN_DIR="$SHBUILD_ROOT/out/toolchain/$NAME"
+    BINUTILS_BUILD_DIR="$SHBUILD_ROOT/build/binutils/$NAME"
+    BINUTILS_SOURCE_DIR="$PWD"
+
+    if [ "$NOHEADERS" = "yes" ]; then
+        EXTRA_FLAGS_BINUTILS="--without-headers"
+    else
+        EXTRA_FLAGS_BINUTILS="--with-sysroot=$SYSROOT"
+    fi
+    mkdir -p "$BINUTILS_BUILD_DIR"
+    pushd "$BINUTILS_BUILD_DIR"
+    "$BINUTILS_SOURCE_DIR/configure" --target="$TARGET" --prefix="$TOOLCHAIN_DIR" --disable-werror --disable-gdb --disable-nls --enable-lto $EXTRA_FLAGS_BINUTILS
+    make -j "$PARALLEL_JOBS"
+    popd
+}
+
+. check-toolchains.sh

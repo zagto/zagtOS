@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+function check_toolchain() {
+    NAME="$1"
+    TARGET="$2"
+    NOHEADERS="$3"
+    TARGET_CFLAGS="$4"
+
+    TOOLCHAIN_DIR="$SHBUILD_ROOT/out/toolchain/$NAME"
+    BINUTILS_BUILD_DIR="$SHBUILD_ROOT/build/binutils/$NAME"
+    BINUTILS_SOURCE_DIR="$PWD"
+
+    pushd "$BINUTILS_BUILD_DIR"
+    make install
+    popd
+}
+
+. check-toolchains.sh
