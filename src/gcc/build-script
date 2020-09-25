@@ -1,0 +1,31 @@
+#!/bin/bash
+set -e
+
+function check_toolchain() {
+    NAME="$1"
+    TARGET="$2"
+    NOHEADERS="$3"
+    TARGET_CFLAGS="$4"
+
+    TOOLCHAIN_DIR="$SHBUILD_ROOT/out/toolchain/$NAME"
+    GCC_BUILD_DIR="$SHBUILD_ROOT/build/gcc/$NAME"
+    GCC_SOURCE_DIR="$PWD"
+
+    if [ "$NOHEADERS" = "yes" ]; then
+        EXTRA_FLAGS_GCC=
+    else
+        EXTRA_FLAGS_GCC="--with-sysroot=$SYSROOT --enable-threads=posix"
+    fi
+
+    mkdir -p "$GCC_BUILD_DIR"
+    pushd "$GCC_BUILD_DIR"
+    "$GCC_SOURCE_DIR/configure" --target="$TARGET" --prefix="$TOOLCHAIN_DIR" --enable-languages=c,c++,lto --disable-nls $EXTRA_FLAGS_GCC
+    make -j "$PARALLEL_JOBS" all-gcc
+    make -j "$PARALLEL_JOBS" all-target-libgcc CFLAGS_FOR_TARGET="$TARGET_CFLAGS"
+    if [ "$NOHEADERS" != "yes" ]; then
+        make -j "$PARALLEL_JOBS" all-target-libsanitizer CFLAGS_FOR_TARGET="$TARGET_CFLAGS"
+    fi
+    popd
+}
+
+. check-toolchains.sh

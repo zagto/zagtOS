@@ -895,6 +895,13 @@ case ${target} in
 *-*-rdos*)
   use_gcc_stdint=wrap
   ;;
+*-*-zagtos*)
+  gas=yes
+  gnu_ld=yes
+  default_use_cxa_atexit=yes
+  native_system_header_dir=/include
+  thread_file='posix'
+  ;;
 *-*-solaris2*)
   # i?86-*-solaris2* needs to insert headers between cpu default and
   # Solaris 2 specific ones.
@@ -1977,6 +1984,9 @@ x86_64-*-fuchsia*)
 	tmake_file="${tmake_file} i386/t-x86_64-elf"
 	tm_file="${tm_file} i386/unix.h i386/att.h elfos.h newlib-stdint.h i386/i386elf.h i386/x86-64.h fuchsia.h"
 	;;
+x86_64-*-zagtos)
+    tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h glibc-stdint.h i386/i386elf.h i386/x86-64.h zagtos.h"
+    ;;
 ia64*-*-elf*)
 	tm_file="${tm_file} dbxelf.h elfos.h newlib-stdint.h ia64/sysv4.h ia64/elf.h"
 	tmake_file="ia64/t-ia64"
