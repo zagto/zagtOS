@@ -86,6 +86,7 @@ struct sim_inferior_data {
     : gdbsim_desc (desc),
       remote_sim_ptid (next_pid, 0, next_pid)
   {
+    gdb_assert (remote_sim_ptid != null_ptid);
     ++next_pid;
   }
 
@@ -189,21 +190,6 @@ static char **sim_argv = NULL;
 static host_callback gdb_callback;
 static int callbacks_initialized = 0;
 
-/* Callback for iterate_over_inferiors.  It checks to see if the sim
-   descriptor passed via ARG is the same as that for the inferior
-   designated by INF.  Return true if so; false otherwise.  */
-
-static int
-check_for_duplicate_sim_descriptor (struct inferior *inf, void *arg)
-{
-  struct sim_inferior_data *sim_data;
-  SIM_DESC new_sim_desc = (SIM_DESC) arg;
-
-  sim_data = sim_inferior_data_key.get (inf);
-
-  return (sim_data != NULL && sim_data->gdbsim_desc == new_sim_desc);
-}
-
 /* Flags indicating whether or not a sim instance is needed.  One of these
    flags should be passed to get_sim_inferior_data().  */
 
@@ -225,27 +211,33 @@ get_sim_inferior_data (struct inferior *inf, int sim_instance_needed)
   if (sim_instance_needed == SIM_INSTANCE_NEEDED
       && (sim_data == NULL || sim_data->gdbsim_desc == NULL))
     {
-      struct inferior *idup;
       sim_desc = sim_open (SIM_OPEN_DEBUG, &gdb_callback, exec_bfd, sim_argv);
       if (sim_desc == NULL)
 	error (_("Unable to create simulator instance for inferior %d."),
 	       inf->num);
 
-      idup = iterate_over_inferiors (check_for_duplicate_sim_descriptor,
-				     sim_desc);
-      if (idup != NULL)
+      /* Check if the sim descriptor is the same as that of another
+	 inferior.  */
+      for (inferior *other_inf : all_inferiors ())
 	{
-	  /* We don't close the descriptor due to the fact that it's
-	     shared with some other inferior.  If we were to close it,
-	     that might needlessly muck up the other inferior.  Of
-	     course, it's possible that the damage has already been
-	     done...  Note that it *will* ultimately be closed during
-	     cleanup of the other inferior.  */
-	  sim_desc = NULL;
-	  error (
- _("Inferior %d and inferior %d would have identical simulator state.\n"
-   "(This simulator does not support the running of more than one inferior.)"),
-		 inf->num, idup->num);
+	  sim_inferior_data *other_sim_data
+	    = sim_inferior_data_key.get (other_inf);
+
+	  if (other_sim_data != NULL
+	      && other_sim_data->gdbsim_desc == sim_desc)
+	    {
+	      /* We don't close the descriptor due to the fact that it's
+		 shared with some other inferior.  If we were to close it,
+		 that might needlessly muck up the other inferior.  Of
+		 course, it's possible that the damage has already been
+		 done...  Note that it *will* ultimately be closed during
+		 cleanup of the other inferior.  */
+	      sim_desc = NULL;
+	      error (
+_("Inferior %d and inferior %d would have identical simulator state.\n"
+ "(This simulator does not support the running of more than one inferior.)"),
+		     inf->num, other_inf->num);
+	    }
 	}
     }
 
@@ -359,7 +351,7 @@ end_callbacks (void)
 static int
 gdb_os_write_stdout (host_callback *p, const char *buf, int len)
 {
-  ui_file_write (gdb_stdtarg, buf, len);
+  gdb_stdtarg->write (buf, len);
   return len;
 }
 
@@ -368,7 +360,7 @@ gdb_os_write_stdout (host_callback *p, const char *buf, int len)
 static void
 gdb_os_flush_stdout (host_callback *p)
 {
-  gdb_flush (gdb_stdtarg);
+  gdb_stdtarg->flush ();
 }
 
 /* GDB version of os_write_stderr callback.  */
@@ -383,7 +375,7 @@ gdb_os_write_stderr (host_callback *p, const char *buf, int len)
     {
       b[0] = buf[i];
       b[1] = 0;
-      fputs_unfiltered (b, gdb_stdtargerr);
+      gdb_stdtargerr->puts (b);
     }
   return len;
 }
@@ -393,7 +385,7 @@ gdb_os_write_stderr (host_callback *p, const char *buf, int len)
 static void
 gdb_os_flush_stderr (host_callback *p)
 {
-  gdb_flush (gdb_stdtargerr);
+  gdb_stdtargerr->flush ();
 }
 
 /* GDB version of printf_filtered callback.  */
@@ -661,9 +653,10 @@ gdbsim_target::create_inferior (const char *exec_file,
       != SIM_RC_OK)
     error (_("Unable to create sim inferior."));
 
-  inferior_ptid = sim_data->remote_sim_ptid;
-  inferior_appeared (current_inferior (), inferior_ptid.pid ());
-  add_thread_silent (this, inferior_ptid);
+  inferior_appeared (current_inferior (),
+		     sim_data->remote_sim_ptid.pid ());
+  thread_info *thr = add_thread_silent (this, sim_data->remote_sim_ptid);
+  switch_to_thread (thr);
 
   insert_breakpoints ();	/* Needed to get correct instruction
 				   in cache.  */
@@ -769,7 +762,7 @@ gdbsim_target_open (const char *args, int from_tty)
 
   /* There's nothing running after "target sim" or "load"; not until
      "run".  */
-  inferior_ptid = null_ptid;
+  switch_to_no_thread ();
 
   gdbsim_is_open = 1;
 }
@@ -896,30 +889,17 @@ gdbsim_target::resume (ptid_t ptid, int step, enum gdb_signal siggnal)
 
    For simulators that do not support this operation, just abort.  */
 
-static int
-gdbsim_interrupt_inferior (struct inferior *inf, void *arg)
-{
-  struct sim_inferior_data *sim_data
-    = get_sim_inferior_data (inf, SIM_INSTANCE_NEEDED);
-
-  if (sim_data)
-    {
-      if (!sim_stop (sim_data->gdbsim_desc))
-	{
-	  quit ();
-	}
-    }
-
-  /* When called from iterate_over_inferiors, a zero return causes the
-     iteration process to proceed until there are no more inferiors to
-     consider.  */
-  return 0;
-}
-
 void
 gdbsim_target::interrupt ()
 {
-  iterate_over_inferiors (gdbsim_interrupt_inferior, NULL);
+  for (inferior *inf : all_inferiors ())
+    {
+      sim_inferior_data *sim_data
+	= get_sim_inferior_data (inf, SIM_INSTANCE_NEEDED);
+
+      if (sim_data != nullptr && !sim_stop (sim_data->gdbsim_desc))
+	  quit ();
+    }
 }
 
 /* GDB version of os_poll_quit callback.
@@ -966,7 +946,6 @@ gdbsim_target::wait (ptid_t ptid, struct target_waitstatus *status, int options)
       if (sim_data == NULL)
 	error (_("Unable to wait for pid %d.  Inferior not found."),
 	       ptid.pid ());
-      inferior_ptid = ptid;
     }
 
   if (remote_debug)
@@ -1022,7 +1001,7 @@ gdbsim_target::wait (ptid_t ptid, struct target_waitstatus *status, int options)
       break;
     }
 
-  return inferior_ptid;
+  return sim_data->remote_sim_ptid;
 }
 
 /* Get ready to modify the registers array.  On machines which store

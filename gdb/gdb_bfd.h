@@ -21,6 +21,7 @@
 #define GDB_BFD_H
 
 #include "registry.h"
+#include "gdbsupport/byte-vector.h"
 #include "gdbsupport/gdb_ref_ptr.h"
 
 DECLARE_REGISTRY (bfd);
@@ -77,9 +78,12 @@ typedef gdb::ref_ptr<struct bfd, gdb_bfd_ref_policy> gdb_bfd_ref_ptr;
    If the BFD was not accessed using target fileio operations then the
    filename associated with the BFD and accessible with
    bfd_get_filename will not be exactly NAME but rather NAME with
-   TARGET_SYSROOT_PREFIX stripped.  */
+   TARGET_SYSROOT_PREFIX stripped.  If WARN_IF_SLOW is true, print a
+   warning message if the file is being accessed over a link that may
+   be slow.  */
 
-gdb_bfd_ref_ptr gdb_bfd_open (const char *name, const char *target, int fd);
+gdb_bfd_ref_ptr gdb_bfd_open (const char *name, const char *target,
+			      int fd = -1, bool warn_if_slow = true);
 
 /* Mark the CHILD BFD as being a member of PARENT.  Also, increment
    the reference count of CHILD.  Calling this function ensures that
@@ -180,5 +184,13 @@ int gdb_bfd_count_sections (bfd *abfd);
    otherwise.  */
 
 int gdb_bfd_requires_relocations (bfd *abfd);
+
+/* Alternative to bfd_get_full_section_contents that returns the section
+   contents in *CONTENTS, instead of an allocated buffer.
+
+   Return true on success, false otherwise.  */
+
+bool gdb_bfd_get_full_section_contents (bfd *abfd, asection *section,
+					gdb::byte_vector *contents);
 
 #endif /* GDB_BFD_H */

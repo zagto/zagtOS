@@ -222,6 +222,16 @@ md_number_to_chars (char con[], valueT value, int nbytes)
       con[2] =  value        & 0xff;
       con[3] = (value >>  8) & 0xff;
       break;
+    case 8:
+      con[0] = (value >> 48) & 0xff;
+      con[1] = (value >> 56) & 0xff;
+      con[2] = (value >> 32) & 0xff;
+      con[3] = (value >> 40) & 0xff;
+      con[4] = (value >> 16) & 0xff;
+      con[5] = (value >> 24) & 0xff;
+      con[6] =  value        & 0xff;
+      con[7] = (value >>  8) & 0xff;
+      break;
     default:
       BAD_CASE (nbytes);
     }
@@ -255,6 +265,10 @@ md_apply_fix (fixS *fixP,
     case BFD_RELOC_16:
     case BFD_RELOC_16_PCREL:
       mask = 0xffff;
+      shift = 0;
+      break;
+    case BFD_RELOC_32:
+      mask = 0xffffffff;
       shift = 0;
       break;
     case BFD_RELOC_PDP11_DISP_8_PCREL:
@@ -354,8 +368,17 @@ parse_reg (char *str, struct pdp11_code *operand)
       str += 2;
     }
   else
-    operand->error = _("Bad register name");
+    {
+      operand->error = _("Bad register name");
+      return str;
+    }
 
+  if (ISALNUM (*str) || *str == '_' || *str == '.')
+    {
+      operand->error = _("Bad register name");
+      str -= 2;
+    }
+  
   return str;
 }
 
@@ -1419,22 +1442,22 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED,
   /* This is taken account for in md_apply_fix().  */
   reloc->addend = -symbol_get_bfdsym (fixp->fx_addsy)->section->vma;
 
-  switch (fixp->fx_r_type)
+  code = fixp->fx_r_type;
+  if (fixp->fx_pcrel)
     {
-    case BFD_RELOC_16:
-      if (fixp->fx_pcrel)
-	code = BFD_RELOC_16_PCREL;
-      else
-	code = BFD_RELOC_16;
-      break;
+      switch (code)
+	{
+	case BFD_RELOC_16:
+	  code = BFD_RELOC_16_PCREL;
+	  break;
 
-    case BFD_RELOC_16_PCREL:
-      code = BFD_RELOC_16_PCREL;
-      break;
+	case BFD_RELOC_16_PCREL:
+	  break;
 
-    default:
-      BAD_CASE (fixp->fx_r_type);
-      return NULL;
+	default:
+	  BAD_CASE (code);
+	  return NULL;
+	}
     }
 
   reloc->howto = bfd_reloc_type_lookup (stdoutput, code);

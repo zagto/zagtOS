@@ -61,8 +61,8 @@ struct fork_info
 
     if (savedregs)
       delete savedregs;
-    if (filepos)
-      xfree (filepos);
+
+    xfree (filepos);
   }
 
   ptid_t ptid = null_ptid;
@@ -110,8 +110,7 @@ find_last_fork (void)
 static bool
 one_fork_p ()
 {
-  return (!fork_list.empty ()
-	  && &fork_list.front () == &fork_list.back ());
+  return fork_list.size () == 1;
 }
 
 /* Add a new fork to the internal fork list.  */
@@ -664,7 +663,7 @@ checkpoint_command (const char *args, int from_tty)
   if (!fork_fn)
     error (_("checkpoint: can't find fork function in inferior."));
 
-  gdbarch = get_objfile_arch (fork_objf);
+  gdbarch = fork_objf->arch ();
   ret = value_from_longest (builtin_type (gdbarch)->builtin_int, 0);
 
   /* Tell linux-nat.c that we're checkpointing this inferior.  */

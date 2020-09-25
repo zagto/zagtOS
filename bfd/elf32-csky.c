@@ -1163,8 +1163,6 @@ struct csky_elf_link_hash_entry
   int plt_refcount;
   /* For sub jsri2bsr relocs count.  */
   int jsri2bsr_refcount;
-  /* Track dynamic relocs copied for this symbol.  */
-  struct elf_dyn_relocs *dyn_relocs;
 
 #define GOT_UNKNOWN     0
 #define GOT_NORMAL      1
@@ -1429,7 +1427,6 @@ csky_elf_link_hash_newfunc (struct bfd_hash_entry * entry,
       struct csky_elf_link_hash_entry *eh;
 
       eh = (struct csky_elf_link_hash_entry *) ret;
-      eh->dyn_relocs = NULL;
       eh->plt_refcount = 0;
       eh->jsri2bsr_refcount = 0;
       eh->tls_type = GOT_NORMAL;
@@ -1500,7 +1497,7 @@ static struct bfd_link_hash_table *
 csky_elf_link_hash_table_create (bfd *abfd)
 {
   struct csky_elf_link_hash_table *ret;
-  bfd_size_type amt = sizeof (struct csky_elf_link_hash_table);
+  size_t amt = sizeof (struct csky_elf_link_hash_table);
 
   ret = (struct csky_elf_link_hash_table*) bfd_zmalloc (amt);
   if (ret == NULL)
@@ -1804,7 +1801,7 @@ csky_allocate_dynrelocs (struct elf_link_hash_entry *h, PTR inf)
     h->got.offset = (bfd_vma) -1;
 
   eh = (struct csky_elf_link_hash_entry *) h;
-  if (eh->dyn_relocs == NULL)
+  if (h->dyn_relocs == NULL)
     return TRUE;
 
   /* In the shared -Bsymbolic case, discard space allocated for
@@ -1819,7 +1816,7 @@ csky_allocate_dynrelocs (struct elf_link_hash_entry *h, PTR inf)
 	{
 	  struct elf_dyn_relocs **pp;
 
-	  for (pp = &eh->dyn_relocs; (p = *pp) != NULL; )
+	  for (pp = &h->dyn_relocs; (p = *pp) != NULL; )
 	    {
 	      p->count -= p->pc_count;
 	      p->pc_count = 0;
@@ -1832,17 +1829,17 @@ csky_allocate_dynrelocs (struct elf_link_hash_entry *h, PTR inf)
 
       if (eh->jsri2bsr_refcount
 	  && h->root.type == bfd_link_hash_defined
-	  && eh->dyn_relocs != NULL)
-	eh->dyn_relocs->count -= eh->jsri2bsr_refcount;
+	  && h->dyn_relocs != NULL)
+	h->dyn_relocs->count -= eh->jsri2bsr_refcount;
 
       /* Also discard relocs on undefined weak syms with non-default
 	 visibility.  */
-      if (eh->dyn_relocs != NULL
+      if (h->dyn_relocs != NULL
 	  && h->root.type == bfd_link_hash_undefweak)
 	{
 	  if (ELF_ST_VISIBILITY (h->other) != STV_DEFAULT
 	      || UNDEFWEAK_NO_DYNAMIC_RELOC (info, h))
-	    eh->dyn_relocs = NULL;
+	    h->dyn_relocs = NULL;
 
 	  /* Make sure undefined weak symbols are output as a dynamic
 	     symbol in PIEs.  */
@@ -1881,60 +1878,18 @@ csky_allocate_dynrelocs (struct elf_link_hash_entry *h, PTR inf)
 	    goto keep;
 	}
 
-      eh->dyn_relocs = NULL;
+      h->dyn_relocs = NULL;
 
       keep: ;
     }
 
   /* Finally, allocate space.  */
-  for (p = eh->dyn_relocs; p != NULL; p = p->next)
+  for (p = h->dyn_relocs; p != NULL; p = p->next)
     {
       asection *srelgot = htab->elf.srelgot;
       srelgot->size += p->count * sizeof (Elf32_External_Rela);
     }
 
-  return TRUE;
-}
-
-static asection *
-readonly_dynrelocs (struct elf_link_hash_entry *h)
-{
-  struct elf_dyn_relocs *p;
-
-  for (p = csky_elf_hash_entry (h)->dyn_relocs; p != NULL; p = p->next)
-    {
-      asection *s = p->sec->output_section;
-
-      if (s != NULL && (s->flags & SEC_READONLY) != 0)
-	return p->sec;
-    }
-  return NULL;
-}
-
-/* Set DF_TEXTREL if we find any dynamic relocs that apply to
-   read-only sections.  */
-
-static bfd_boolean
-maybe_set_textrel (struct elf_link_hash_entry *h, void *info_p)
-{
-  asection *sec;
-
-  if (h->root.type == bfd_link_hash_indirect)
-    return TRUE;
-
-  sec = readonly_dynrelocs (h);
-  if (sec != NULL)
-    {
-      struct bfd_link_info *info = (struct bfd_link_info *) info_p;
-
-      info->flags |= DF_TEXTREL;
-      info->callbacks->minfo
-	(_("%pB: dynamic relocation against `%pT' in read-only section `%pA'\n"),
-	 sec->owner, h->root.root.string, sec);
-
-      /* Not an error, just cut short the traversal.  */
-      return FALSE;
-    }
   return TRUE;
 }
 
@@ -2138,48 +2093,8 @@ csky_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
     }
 
   if (htab->elf.dynamic_sections_created)
-    {
-      /* Add some entries to the .dynamic section.  We fill in the
-	 values later, in csky_elf_finish_dynamic_sections, but we
-	 must add the entries now so that we get the correct size for
-	 the .dynamic section.  The DT_DEBUG entry is filled in by the
-	 dynamic linker and used by the debugger.  */
-#define add_dynamic_entry(TAG, VAL) \
-  _bfd_elf_add_dynamic_entry (info, TAG, VAL)
-
-      if (bfd_link_executable (info) && !add_dynamic_entry (DT_DEBUG, 0))
-	return FALSE;
-
-      if (htab->elf.sgot->size != 0 || htab->elf.splt->size)
-	{
-	  if (!add_dynamic_entry (DT_PLTGOT, 0)
-	      || !add_dynamic_entry (DT_PLTRELSZ, 0)
-	      || !add_dynamic_entry (DT_PLTREL, DT_RELA)
-	      || !add_dynamic_entry (DT_JMPREL, 0))
-	    return FALSE;
-	}
-
-      if (relocs)
-	{
-	  if (!add_dynamic_entry (DT_RELA, 0)
-	      || !add_dynamic_entry (DT_RELASZ, 0)
-	      || !add_dynamic_entry (DT_RELAENT,
-				     sizeof (Elf32_External_Rela)))
-	    return FALSE;
-
-	  /* If any dynamic relocs apply to a read-only section,
-	     then we need a DT_TEXTREL entry.  */
-	  if ((info->flags & DF_TEXTREL) == 0)
-	    elf_link_hash_traverse (&htab->elf, maybe_set_textrel, info);
-
-	  if ((info->flags & DF_TEXTREL) != 0
-	      && !add_dynamic_entry (DT_TEXTREL, 0))
-	    return FALSE;
-	}
-    }
-#undef add_dynamic_entry
-
-  return TRUE;
+    htab->elf.dt_pltgot_required = htab->elf.sgot->size != 0;
+  return _bfd_elf_add_dynamic_tags (output_bfd, info, relocs);
 }
 
 /* Finish up dynamic symbol handling.  We set the contents of various
@@ -2465,35 +2380,6 @@ csky_elf_copy_indirect_symbol (struct bfd_link_info *info,
   edir = (struct csky_elf_link_hash_entry *) dir;
   eind = (struct csky_elf_link_hash_entry *) ind;
 
-  if (eind->dyn_relocs != NULL)
-    {
-      if (edir->dyn_relocs != NULL)
-	{
-	  struct elf_dyn_relocs **pp;
-	  struct elf_dyn_relocs *p;
-
-	  /* Add reloc counts against the indirect sym to the direct sym
-	     list.  Merge any entries against the same section.  */
-	  for (pp = &eind->dyn_relocs; (p = *pp) != NULL; )
-	    {
-	      struct elf_dyn_relocs *q;
-
-	      for (q = edir->dyn_relocs; q != NULL; q = q->next)
-		if (q->sec == p->sec)
-		  {
-		    q->pc_count += p->pc_count;
-		    q->count += p->count;
-		    *pp = p->next;
-		    break;
-		  }
-	      if (q == NULL)
-		pp = &p->next;
-	    }
-	  *pp = edir->dyn_relocs;
-	}
-      edir->dyn_relocs = eind->dyn_relocs;
-      eind->dyn_relocs = NULL;
-    }
   if (ind->root.type == bfd_link_hash_indirect
       && dir->got.refcount <= 0)
     {
@@ -2687,7 +2573,7 @@ csky_elf_check_relocs (bfd * abfd,
 		      || (ELF32_R_TYPE (rel->r_info)
 			  == R_CKCORE_PCREL_JSR_IMM11BY2))
 		    eh->jsri2bsr_refcount += 1;
-		  head = &eh->dyn_relocs;
+		  head = &h->dyn_relocs;
 		}
 	      else
 		{
@@ -2712,7 +2598,7 @@ csky_elf_check_relocs (bfd * abfd,
 	      p = *head;
 	      if (p == NULL || p->sec != sec)
 		{
-		  bfd_size_type amt = sizeof *p;
+		  size_t amt = sizeof *p;
 		  p = ((struct elf_dyn_relocs *)
 		       bfd_alloc (htab->elf.dynobj, amt));
 		  if (p == NULL)
@@ -3413,7 +3299,7 @@ elf32_csky_size_stubs (bfd *output_bfd,
 		  if (r_type >= (unsigned int) R_CKCORE_MAX)
 		    {
 		      bfd_set_error (bfd_error_bad_value);
-error_ret_free_internal:
+		    error_ret_free_internal:
 		      if (elf_section_data (section)->relocs == NULL)
 			free (internal_relocs);
 		      goto error_ret_free_local;
@@ -3592,7 +3478,7 @@ error_ret_free_internal:
     }
 
   return TRUE;
-error_ret_free_local:
+ error_ret_free_local:
   return FALSE;
 }
 
@@ -3620,6 +3506,14 @@ csky_build_one_stub (struct bfd_hash_entry *gen_entry,
   /* Massage our args to the form they really have.  */
   stub_entry = (struct elf32_csky_stub_hash_entry *)gen_entry;
   info = (struct bfd_link_info *) in_arg;
+
+  /* Fail if the target section could not be assigned to an output
+     section.  The user should fix his linker script.  */
+  if (stub_entry->target_section->output_section == NULL
+      && info->non_contiguous_regions)
+    info->callbacks->einfo (_("%F%P: Could not assign '%pA' to an output section. "
+			      "Retry without --enable-non-contiguous-regions.\n"),
+			    stub_entry->target_section);
 
   globals = csky_elf_hash_table (info);
   if (globals == NULL)
@@ -3770,7 +3664,7 @@ elf32_csky_setup_section_lists (bfd *output_bfd,
   unsigned int top_id, top_index;
   asection *section;
   asection **input_list, **list;
-  bfd_size_type amt;
+  size_t amt;
   struct csky_elf_link_hash_table *htab = csky_elf_hash_table (info);
 
   if (!htab)
@@ -3844,8 +3738,8 @@ csky_relocate_contents (reloc_howto_type *howto,
 
   /* FIXME: these macros should be defined at file head or head file head.  */
 #define CSKY_INSN_ADDI_TO_SUBI        0x04000000
-#define CSKY_INSN_MOV_RTB             0xc41d4820   // mov32 rx, r29, 0
-#define CSKY_INSN_MOV_RDB             0xc41c4820   // mov32 rx, r28, 0
+#define CSKY_INSN_MOV_RTB             0xc41d4820   /* mov32 rx, r29, 0 */
+#define CSKY_INSN_MOV_RDB             0xc41c4820   /* mov32 rx, r28, 0 */
 #define CSKY_INSN_GET_ADDI_RZ(x)      (((x) & 0x03e00000) >> 21)
 #define CSKY_INSN_SET_MOV_RZ(x)       ((x) & 0x0000001f)
 #define CSKY_INSN_JSRI_TO_LRW         0xea9a0000

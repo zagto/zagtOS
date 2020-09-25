@@ -36,6 +36,8 @@ extern void ldemul_after_open
   (void);
 extern void ldemul_after_check_relocs
   (void);
+extern void ldemul_before_place_orphans
+  (void);
 extern void ldemul_after_allocation
   (void);
 extern void ldemul_before_allocation
@@ -80,6 +82,8 @@ extern void after_open_default
   (void);
 extern void after_check_relocs_default
   (void);
+extern void before_place_orphans_default
+  (void);
 extern void after_allocation_default
   (void);
 extern void before_allocation_default
@@ -108,6 +112,8 @@ extern int ldemul_emit_ctf_early
 extern void ldemul_examine_strtab_for_ctf
   (struct ctf_file *, struct elf_sym_strtab *, bfd_size_type,
    struct elf_strtab_hash *);
+extern bfd_boolean ldemul_print_symbol
+  (struct bfd_link_hash_entry *hash_entry, void *ptr);
 
 typedef struct ld_emulation_xfer_struct {
   /* Run before parsing the command line and script file.
@@ -128,6 +134,9 @@ typedef struct ld_emulation_xfer_struct {
 
   /* Run after checking relocations.  */
   void   (*after_check_relocs)  (void);
+
+  /* Run before placing orphans.  */
+  void   (*before_place_orphans)  (void);
 
   /* Run after allocating output sections.  */
   void   (*after_allocation)  (void);
@@ -229,6 +238,12 @@ typedef struct ld_emulation_xfer_struct {
      bfd_link_callback is invoked by per-target code.  */
   void (*examine_strtab_for_ctf) (struct ctf_file *, struct elf_sym_strtab *,
 				  bfd_size_type, struct elf_strtab_hash *);
+
+  /* Called when printing a symbol to the map file.   AIX uses this
+     hook to flag gc'd symbols.  */
+  bfd_boolean (*print_symbol)
+    (struct bfd_link_hash_entry *hash_entry, void *ptr);
+
 } ld_emulation_xfer_type;
 
 typedef enum {

@@ -77,7 +77,7 @@ msymbol_is_function (struct objfile *objfile, minimal_symbol *minsym,
     case mst_file_bss:
     case mst_data_gnu_ifunc:
       {
-	struct gdbarch *gdbarch = get_objfile_arch (objfile);
+	struct gdbarch *gdbarch = objfile->arch ();
 	CORE_ADDR pc
 	  = gdbarch_convert_from_func_ptr_addr (gdbarch, msym_addr,
 						current_top_target ());
@@ -363,8 +363,8 @@ lookup_minimal_symbol (const char *name, const char *sfile,
 		       % MINIMAL_SYMBOL_HASH_SIZE);
 
 		  symbol_name_matcher_ftype *match
-		    = get_symbol_name_matcher (language_def (lang),
-					       lookup_name);
+		    = language_def (lang)->get_symbol_name_matcher
+							(lookup_name);
 		  struct minimal_symbol **msymbol_demangled_hash
 		    = objfile->per_bfd->msymbol_demangled_hash;
 
@@ -467,7 +467,7 @@ linkage_name_str (const lookup_name_info &lookup_name)
   if (current_language->la_language == language_ada)
     return lookup_name.ada ().lookup_name ().c_str ();
 
-  return lookup_name.name ().c_str ();
+  return lookup_name.c_str ();
 }
 
 /* See minsyms.h.  */
@@ -507,7 +507,7 @@ iterate_over_minimal_symbols
       enum language lang = (enum language) liter;
       const language_defn *lang_def = language_def (lang);
       symbol_name_matcher_ftype *name_match
-	= get_symbol_name_matcher (lang_def, lookup_name);
+	= lang_def->get_symbol_name_matcher (lookup_name);
 
       unsigned int hash
 	= lookup_name.search_name_hash (lang) % MINIMAL_SYMBOL_HASH_SIZE;
@@ -666,24 +666,18 @@ msym_prefer_to_msym_type (lookup_msym_prefer prefer)
   gdb_assert_not_reached ("unhandled lookup_msym_prefer");
 }
 
-/* Search through the minimal symbol table for each objfile and find
-   the symbol whose address is the largest address that is still less
-   than or equal to PC, and matches SECTION (which is not NULL).
-   Returns a pointer to the minimal symbol if such a symbol is found,
-   or NULL if PC is not in a suitable range.
+/* See minsyms.h.
+
    Note that we need to look through ALL the minimal symbol tables
    before deciding on the symbol that comes closest to the specified PC.
    This is because objfiles can overlap, for example objfile A has .text
    at 0x100 and .data at 0x40000 and objfile B has .text at 0x234 and
-   .data at 0x40048.
-
-   If WANT_TRAMPOLINE is set, prefer mst_solib_trampoline symbols when
-   there are text and trampoline symbols at the same address.
-   Otherwise prefer mst_text symbols.  */
+   .data at 0x40048.  */
 
 bound_minimal_symbol
 lookup_minimal_symbol_by_pc_section (CORE_ADDR pc_in, struct obj_section *section,
-				     lookup_msym_prefer prefer)
+				     lookup_msym_prefer prefer,
+				     bound_minimal_symbol *previous)
 {
   int lo;
   int hi;
@@ -692,6 +686,12 @@ lookup_minimal_symbol_by_pc_section (CORE_ADDR pc_in, struct obj_section *sectio
   struct minimal_symbol *best_symbol = NULL;
   struct objfile *best_objfile = NULL;
   struct bound_minimal_symbol result;
+
+  if (previous != nullptr)
+    {
+      previous->minsym = nullptr;
+      previous->objfile = nullptr;
+    }
 
   if (section == NULL)
     {
@@ -886,8 +886,23 @@ lookup_minimal_symbol_by_pc_section (CORE_ADDR pc_in, struct obj_section *sectio
 		  if (best_zero_sized != -1)
 		    hi = best_zero_sized;
 		  else
-		    /* Go on to the next object file.  */
-		    continue;
+		    {
+		      /* If needed record this symbol as the closest
+			 previous symbol.  */
+		      if (previous != nullptr)
+			{
+			  if (previous->minsym == nullptr
+			      || (MSYMBOL_VALUE_RAW_ADDRESS (&msymbol[hi])
+				  > MSYMBOL_VALUE_RAW_ADDRESS
+					(previous->minsym)))
+			    {
+			      previous->minsym = &msymbol[hi];
+			      previous->objfile = objfile;
+			    }
+			}
+		      /* Go on to the next object file.  */
+		      continue;
+		    }
 		}
 
 	      /* The minimal symbol indexed by hi now is the best one in this
@@ -1403,9 +1418,8 @@ minimal_symbol_reader::install ()
 		   /* This will be freed later, by compute_and_set_names.  */
 		   char *demangled_name
 		     = symbol_find_demangled_name (msym, msym->linkage_name ());
-		   symbol_set_demangled_name
-		     (msym, demangled_name,
-		      &m_objfile->per_bfd->storage_obstack);
+		   msym->set_demangled_name
+		     (demangled_name, &m_objfile->per_bfd->storage_obstack);
 		   msym->name_set = 1;
 		 }
 	       /* This mangled_name_hash computation has to be outside of

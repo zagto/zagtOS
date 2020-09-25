@@ -36,6 +36,9 @@ struct ppc64_elf_params
   /* Whether to use a special call stub for __tls_get_addr.  */
   int tls_get_addr_opt;
 
+  /* Whether the special call stub should save r4..r12.  */
+  int no_tls_get_addr_regsave;
+
   /* Whether to allow multiple toc sections.  */
   int no_multi_toc;
 
@@ -50,6 +53,9 @@ struct ppc64_elf_params
 
   /* Set if PLT call stubs for localentry:0 functions should omit r2 save.  */
   int plt_localentry0;
+
+  /* Whether to use power10 instructions in linkage stubs.  */
+  int power10_stubs;
 
   /* Whether to canonicalize .opd so that there are no overlapping
      .opd entries.  */

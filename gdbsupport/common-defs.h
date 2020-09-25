@@ -20,20 +20,6 @@
 #ifndef COMMON_COMMON_DEFS_H
 #define COMMON_COMMON_DEFS_H
 
-#ifdef GDBSERVER
-
-#include <build-gnulib-gdbserver/config.h>
-
-#undef PACKAGE_NAME
-#undef PACKAGE
-#undef PACKAGE_VERSION
-#undef PACKAGE_STRING
-#undef PACKAGE_TARNAME
-
-#include <config.h>
-
-#else  /* GDBSERVER */
-
 #include <gdbsupport/config.h>
 
 #undef PACKAGE_NAME
@@ -43,8 +29,6 @@
 #undef PACKAGE_TARNAME
 
 #include "gnulib/config.h"
-
-#endif	/* GDBSERVER */
 
 /* From:
     https://www.gnu.org/software/gnulib/manual/html_node/stdint_002eh.html
@@ -100,7 +84,12 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+
+/* Include both cstdlib and stdlib.h to ensure we have standard functions
+   defined both in the std:: namespace and in the global namespace.  */
+#include <cstdlib>
 #include <stdlib.h>
+
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -108,7 +97,9 @@
 #include <strings.h>	/* for strcasecmp and strncasecmp */
 #endif
 #include <errno.h>
+#if HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
 
 #include "ansidecl.h"
 /* This is defined by ansidecl.h, but we prefer gnulib's version.  On

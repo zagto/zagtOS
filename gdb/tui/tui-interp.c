@@ -22,7 +22,7 @@
 #include "interps.h"
 #include "top.h"
 #include "event-top.h"
-#include "event-loop.h"
+#include "gdbsupport/event-loop.h"
 #include "ui-out.h"
 #include "cli-out.h"
 #include "tui/tui-data.h"
@@ -243,8 +243,8 @@ tui_interp::init (bool top_level)
 
   tui_initialize_io ();
   tui_initialize_win ();
-  if (ui_file_isatty (gdb_stdout))
-    tui_initialize_readline ();
+  if (gdb_stdout->isatty ())
+    tui_ensure_readline_initialized ();
 }
 
 void

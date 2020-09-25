@@ -346,6 +346,16 @@ struct pd_reg
 
 static const struct pd_reg pre_defined_registers[] =
 {
+  /* VSX accumulators.  */
+  { "a0", 0, PPC_OPERAND_ACC },
+  { "a1", 1, PPC_OPERAND_ACC },
+  { "a2", 2, PPC_OPERAND_ACC },
+  { "a3", 3, PPC_OPERAND_ACC },
+  { "a4", 4, PPC_OPERAND_ACC },
+  { "a5", 5, PPC_OPERAND_ACC },
+  { "a6", 6, PPC_OPERAND_ACC },
+  { "a7", 7, PPC_OPERAND_ACC },
+
   /* Condition Registers */
   { "cr.0", 0, PPC_OPERAND_CR_REG },
   { "cr.1", 1, PPC_OPERAND_CR_REG },
@@ -1400,6 +1410,8 @@ PowerPC options:\n"));
   fprintf (stream, _("\
 -mpower9, -mpwr9        generate code for Power9 architecture\n"));
   fprintf (stream, _("\
+-mpower10, -mpwr10      generate code for Power10 architecture\n"));
+  fprintf (stream, _("\
 -mcell                  generate code for Cell Broadband Engine architecture\n"));
   fprintf (stream, _("\
 -mcom                   generate code for Power/PowerPC common instructions\n"));
@@ -2223,10 +2235,10 @@ ppc_elf_suffix (char **str_p, expressionS *exp_p)
     MAP64 ("got@pcrel",		BFD_RELOC_PPC64_GOT_PCREL34),
     MAP64 ("plt@pcrel",		BFD_RELOC_PPC64_PLT_PCREL34),
     MAP64 ("tls@pcrel",		BFD_RELOC_PPC64_TLS_PCREL),
-    MAP64 ("got@tlsgd@pcrel",	BFD_RELOC_PPC64_GOT_TLSGD34),
-    MAP64 ("got@tlsld@pcrel",	BFD_RELOC_PPC64_GOT_TLSLD34),
-    MAP64 ("got@tprel@pcrel",	BFD_RELOC_PPC64_GOT_TPREL34),
-    MAP64 ("got@dtprel@pcrel",	BFD_RELOC_PPC64_GOT_DTPREL34),
+    MAP64 ("got@tlsgd@pcrel",	BFD_RELOC_PPC64_GOT_TLSGD_PCREL34),
+    MAP64 ("got@tlsld@pcrel",	BFD_RELOC_PPC64_GOT_TLSLD_PCREL34),
+    MAP64 ("got@tprel@pcrel",	BFD_RELOC_PPC64_GOT_TPREL_PCREL34),
+    MAP64 ("got@dtprel@pcrel",	BFD_RELOC_PPC64_GOT_DTPREL_PCREL34),
     MAP64 ("higher34",		BFD_RELOC_PPC64_ADDR16_HIGHER34),
     MAP64 ("highera34",		BFD_RELOC_PPC64_ADDR16_HIGHERA34),
     MAP64 ("highest34",		BFD_RELOC_PPC64_ADDR16_HIGHEST34),
@@ -3209,10 +3221,10 @@ fixup_size (bfd_reloc_code_real_type reloc, bfd_boolean *pc_relative)
     case BFD_RELOC_64_PCREL:
     case BFD_RELOC_64_PLT_PCREL:
     case BFD_RELOC_PPC64_GOT_PCREL34:
-    case BFD_RELOC_PPC64_GOT_TLSGD34:
-    case BFD_RELOC_PPC64_GOT_TLSLD34:
-    case BFD_RELOC_PPC64_GOT_TPREL34:
-    case BFD_RELOC_PPC64_GOT_DTPREL34:
+    case BFD_RELOC_PPC64_GOT_TLSGD_PCREL34:
+    case BFD_RELOC_PPC64_GOT_TLSLD_PCREL34:
+    case BFD_RELOC_PPC64_GOT_TPREL_PCREL34:
+    case BFD_RELOC_PPC64_GOT_DTPREL_PCREL34:
     case BFD_RELOC_PPC64_PCREL28:
     case BFD_RELOC_PPC64_PCREL34:
     case BFD_RELOC_PPC64_PLT_PCREL34:
@@ -3255,7 +3267,10 @@ parse_tls_arg (char **str, const expressionS *exp, struct ppc_fixup *tls_fix)
     ++sym_name;
 
   tls_fix->reloc = BFD_RELOC_NONE;
-  if (strcasecmp (sym_name, "__tls_get_addr") == 0)
+  if (strncasecmp (sym_name, "__tls_get_addr", 14) == 0
+      && (sym_name[14] == 0
+	  || strcasecmp (sym_name + 14, "_desc") == 0
+	  || strcasecmp (sym_name + 14, "_opt") == 0))
     {
       char *hold = input_line_pointer;
       input_line_pointer = *str + 1;
@@ -3566,7 +3581,7 @@ md_assemble (char *str)
 	       & ~operand->flags
 	       & (PPC_OPERAND_GPR | PPC_OPERAND_FPR | PPC_OPERAND_VR
 		  | PPC_OPERAND_VSR | PPC_OPERAND_CR_BIT | PPC_OPERAND_CR_REG
-		  | PPC_OPERAND_SPR | PPC_OPERAND_GQR)) != 0
+		  | PPC_OPERAND_SPR | PPC_OPERAND_GQR | PPC_OPERAND_ACC)) != 0
 	      && !((ex.X_md & PPC_OPERAND_GPR) != 0
 		   && ex.X_add_number != 0
 		   && (operand->flags & PPC_OPERAND_GPR_0) != 0))
@@ -3791,10 +3806,10 @@ md_assemble (char *str)
 		  /* Fall through.  */
 		case BFD_RELOC_PPC64_GOT_PCREL34:
 		case BFD_RELOC_PPC64_PLT_PCREL34:
-		case BFD_RELOC_PPC64_GOT_TLSGD34:
-		case BFD_RELOC_PPC64_GOT_TLSLD34:
-		case BFD_RELOC_PPC64_GOT_TPREL34:
-		case BFD_RELOC_PPC64_GOT_DTPREL34:
+		case BFD_RELOC_PPC64_GOT_TLSGD_PCREL34:
+		case BFD_RELOC_PPC64_GOT_TLSLD_PCREL34:
+		case BFD_RELOC_PPC64_GOT_TPREL_PCREL34:
+		case BFD_RELOC_PPC64_GOT_DTPREL_PCREL34:
 		  if (operand->bitm != 0x3ffffffffULL
 		      || (operand->flags & PPC_OPERAND_NEGATIVE) != 0)
 		    as_warn (_("%s unsupported on this instruction"), "@pcrel");
@@ -4128,7 +4143,7 @@ md_assemble (char *str)
   insn_length = 4;
   if ((ppc_cpu & PPC_OPCODE_VLE) != 0 && PPC_OP_SE_VLE (insn))
     insn_length = 2;
-  else if ((opcode->flags & PPC_OPCODE_POWERXX) != 0
+  else if ((opcode->flags & PPC_OPCODE_POWER10) != 0
 	   && PPC_PREFIX_P (insn))
     {
       struct insn_label_list *l;
@@ -7519,10 +7534,10 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg)
 	case BFD_RELOC_PPC64_DTPREL16_HIGHESTA:
 	case BFD_RELOC_PPC64_TPREL34:
 	case BFD_RELOC_PPC64_DTPREL34:
-	case BFD_RELOC_PPC64_GOT_TLSGD34:
-	case BFD_RELOC_PPC64_GOT_TLSLD34:
-	case BFD_RELOC_PPC64_GOT_TPREL34:
-	case BFD_RELOC_PPC64_GOT_DTPREL34:
+	case BFD_RELOC_PPC64_GOT_TLSGD_PCREL34:
+	case BFD_RELOC_PPC64_GOT_TLSLD_PCREL34:
+	case BFD_RELOC_PPC64_GOT_TPREL_PCREL34:
+	case BFD_RELOC_PPC64_GOT_DTPREL_PCREL34:
 	  gas_assert (fixP->fx_addsy != NULL);
 	  S_SET_THREAD_LOCAL (fixP->fx_addsy);
 	  fieldval = 0;

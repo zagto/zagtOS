@@ -364,6 +364,10 @@ CODE_FRAGMENT
 #define GNU_LINKONCE_WT ".gnu.linkonce.wt."
 #define DOT_RELOC	".reloc"
 
+#if defined(COFF_WITH_PE) || defined(COFF_GO32_EXE) || defined(COFF_GO32)
+# define COFF_WITH_EXTENDED_RELOC_COUNTER
+#endif
+
 #if defined (COFF_LONG_SECTION_NAMES)
 /* Needed to expand the inputs to BLANKOR1TOODD.  */
 #define COFFLONGSECTIONCATHELPER(x,y)    x ## y
@@ -717,7 +721,7 @@ sec_to_styp_flags (const char *sec_name, flagword sec_flags)
 #ifndef COFF_WITH_PE
 
 static bfd_boolean
-styp_to_sec_flags (bfd *abfd ATTRIBUTE_UNUSED,
+styp_to_sec_flags (bfd *abfd,
 		   void * hdr,
 		   const char *name,
 		   asection *section ATTRIBUTE_UNUSED,
@@ -849,6 +853,11 @@ styp_to_sec_flags (bfd *abfd ATTRIBUTE_UNUSED,
   if (styp_flags & STYP_OTHER_LOAD)
     sec_flags = (SEC_LOAD | SEC_ALLOC);
 #endif /* STYP_SDATA */
+
+  if ((bfd_applicable_section_flags (abfd) & SEC_SMALL_DATA) != 0
+      && (CONST_STRNEQ (name, ".sbss")
+	  || CONST_STRNEQ (name, ".sdata")))
+    sec_flags |= SEC_SMALL_DATA;
 
 #if defined (COFF_LONG_SECTION_NAMES) && defined (COFF_SUPPORT_GNU_LINKONCE)
   /* As a GNU extension, if the name begins with .gnu.linkonce, we
@@ -1109,7 +1118,7 @@ handle_COMDAT (bfd * abfd,
 		 drop through from the above).  */
 	      {
 		char *newname;
-		bfd_size_type amt;
+		size_t amt;
 
 		/* This must the second symbol with the
 		   section #.  It is the actual symbol name.
@@ -1311,6 +1320,11 @@ styp_to_sec_flags (bfd *abfd,
 	  result = FALSE;
 	}
     }
+
+  if ((bfd_applicable_section_flags (abfd) & SEC_SMALL_DATA) != 0
+      && (CONST_STRNEQ (name, ".sbss")
+	  || CONST_STRNEQ (name, ".sdata")))
+    sec_flags |= SEC_SMALL_DATA;
 
 #if defined (COFF_LONG_SECTION_NAMES) && defined (COFF_SUPPORT_GNU_LINKONCE)
   /* As a GNU extension, if the name begins with .gnu.linkonce, we
@@ -1752,7 +1766,7 @@ static bfd_boolean
 coff_new_section_hook (bfd * abfd, asection * section)
 {
   combined_entry_type *native;
-  bfd_size_type amt;
+  size_t amt;
   unsigned char sclass = C_STAT;
 
   section->alignment_power = COFF_DEFAULT_SECTION_ALIGNMENT_POWER;
@@ -1843,7 +1857,7 @@ coff_set_alignment_hook (bfd * abfd ATTRIBUTE_UNUSED,
 			 void * scnhdr)
 {
   struct internal_scnhdr *hdr = (struct internal_scnhdr *) scnhdr;
-  bfd_size_type amt;
+  size_t amt;
   unsigned int alignment_power_const
     = hdr->s_flags & IMAGE_SCN_ALIGN_POWER_BIT_MASK;
 
@@ -1954,6 +1968,39 @@ coff_set_alignment_hook (bfd *abfd, asection *section, void * scnhdr)
 }
 
 #else /* ! RS6000COFF_C */
+#if defined (COFF_GO32_EXE) || defined (COFF_GO32)
+
+static void
+coff_set_alignment_hook (bfd * abfd, asection * section, void * scnhdr)
+{
+  struct internal_scnhdr *hdr = (struct internal_scnhdr *) scnhdr;
+
+  /* Check for extended relocs.  */
+  if (hdr->s_flags & IMAGE_SCN_LNK_NRELOC_OVFL)
+    {
+      struct external_reloc dst;
+      struct internal_reloc n;
+      const file_ptr oldpos = bfd_tell (abfd);
+      const bfd_size_type relsz = bfd_coff_relsz (abfd);
+
+      if (bfd_seek (abfd, (file_ptr) hdr->s_relptr, 0) != 0)
+	return;
+      if (bfd_bread (& dst, relsz, abfd) != relsz)
+	return;
+
+      coff_swap_reloc_in (abfd, &dst, &n);
+      if (bfd_seek (abfd, oldpos, 0) != 0)
+	return;
+      section->reloc_count = hdr->s_nreloc = n.r_vaddr - 1;
+      section->rel_filepos += relsz;
+    }
+  else if (hdr->s_nreloc == 0xffff)
+    _bfd_error_handler
+      (_("%pB: warning: claims to have 0xffff relocs, without overflow"),
+       abfd);
+}
+
+#else /* ! COFF_GO32_EXE && ! COFF_GO32 */
 
 static void
 coff_set_alignment_hook (bfd *abfd ATTRIBUTE_UNUSED,
@@ -1962,6 +2009,7 @@ coff_set_alignment_hook (bfd *abfd ATTRIBUTE_UNUSED,
 {
 }
 
+#endif /* ! COFF_GO32_EXE && ! COFF_GO32 */
 #endif /* ! RS6000COFF_C */
 #endif /* ! COFF_WITH_PE */
 #endif /* ! COFF_ALIGN_IN_SECTION_HEADER */
@@ -1972,7 +2020,7 @@ static bfd_boolean
 coff_mkobject (bfd * abfd)
 {
   coff_data_type *coff;
-  bfd_size_type amt = sizeof (coff_data_type);
+  size_t amt = sizeof (coff_data_type);
 
   abfd->tdata.coff_obj_data = bfd_zalloc (abfd, amt);
   if (abfd->tdata.coff_obj_data == NULL)
@@ -2066,15 +2114,6 @@ coff_mkobject_hook (bfd * abfd,
     abfd->flags |= HAS_DEBUG;
 #endif
 
-  if ((internal_f->f_flags & F_GO32STUB) != 0)
-    {
-      coff->go32stub = (char *) bfd_alloc (abfd, (bfd_size_type) GO32_STUBSIZE);
-      if (coff->go32stub == NULL)
-	return NULL;
-    }
-  if (coff->go32stub != NULL)
-    memcpy (coff->go32stub, internal_f->go32stub, GO32_STUBSIZE);
-
   return coff;
 }
 #endif
@@ -2163,6 +2202,7 @@ coff_set_arch_mach_hook (bfd *abfd, void * filehdr)
 	{
 	case bfd_mach_z80strict << 12:
 	case bfd_mach_z80 << 12:
+	case bfd_mach_z80n << 12:
 	case bfd_mach_z80full << 12:
 	case bfd_mach_r800 << 12:
 	case bfd_mach_gbz80 << 12:
@@ -2221,15 +2261,11 @@ coff_set_arch_mach_hook (bfd *abfd, void * filehdr)
 		struct internal_syment sym;
 		bfd_size_type amt = bfd_coff_symesz (abfd);
 
-		buf = bfd_malloc (amt);
+		if (bfd_seek (abfd, obj_sym_filepos (abfd), SEEK_SET) != 0)
+		  return FALSE;
+		buf = _bfd_malloc_and_read (abfd, amt, amt);
 		if (buf == NULL)
 		  return FALSE;
-		if (bfd_seek (abfd, obj_sym_filepos (abfd), SEEK_SET) != 0
-		    || bfd_bread (buf, amt, abfd) != amt)
-		  {
-		    free (buf);
-		    return FALSE;
-		  }
 		bfd_coff_swap_sym_in (abfd, buf, & sym);
 		if (sym.n_sclass == C_FILE)
 		  cputype = sym.n_type & 0xff;
@@ -2523,8 +2559,8 @@ coff_write_relocs (bfd * abfd, int first_undef)
       if (bfd_seek (abfd, s->rel_filepos, SEEK_SET) != 0)
 	return FALSE;
 
-#ifdef COFF_WITH_PE
-      if (obj_pe (abfd) && s->reloc_count >= 0xffff)
+#ifdef COFF_WITH_EXTENDED_RELOC_COUNTER
+      if ((obj_pe (abfd) || obj_go32 (abfd)) && s->reloc_count >= 0xffff)
 	{
 	  /* Encode real count here as first reloc.  */
 	  struct internal_reloc n;
@@ -2630,8 +2666,7 @@ coff_write_relocs (bfd * abfd, int first_undef)
 	}
 
 #ifdef TARG_AUX
-      if (p != NULL)
-	free (p);
+      free (p);
 #endif
     }
 
@@ -2655,6 +2690,7 @@ coff_set_flags (bfd * abfd,
 	{
 	case bfd_mach_z80strict:
 	case bfd_mach_z80:
+	case bfd_mach_z80n:
 	case bfd_mach_z80full:
 	case bfd_mach_r800:
 	case bfd_mach_gbz80:
@@ -3086,7 +3122,7 @@ coff_compute_section_file_positions (bfd * abfd)
 	 page size too, and remember both sizes.  */
       if (coff_section_data (abfd, current) == NULL)
 	{
-	  bfd_size_type amt = sizeof (struct coff_section_tdata);
+	  size_t amt = sizeof (struct coff_section_tdata);
 
 	  current->used_by_bfd = bfd_zalloc (abfd, amt);
 	  if (current->used_by_bfd == NULL)
@@ -3094,7 +3130,7 @@ coff_compute_section_file_positions (bfd * abfd)
 	}
       if (pei_section_data (abfd, current) == NULL)
 	{
-	  bfd_size_type amt = sizeof (struct pei_section_tdata);
+	  size_t amt = sizeof (struct pei_section_tdata);
 
 	  coff_section_data (abfd, current)->tdata = bfd_zalloc (abfd, amt);
 	  if (coff_section_data (abfd, current)->tdata == NULL)
@@ -3383,9 +3419,9 @@ coff_write_object_contents (bfd * abfd)
   for (current = abfd->sections; current != NULL; current =
        current->next)
     {
-#ifdef COFF_WITH_PE
+#ifdef COFF_WITH_EXTENDED_RELOC_COUNTER
       /* We store the actual reloc count in the first reloc's addr.  */
-      if (obj_pe (abfd) && current->reloc_count >= 0xffff)
+      if ((obj_pe (abfd) || obj_go32 (abfd)) && current->reloc_count >= 0xffff)
 	reloc_count ++;
 #endif
       reloc_count += current->reloc_count;
@@ -3413,9 +3449,9 @@ coff_write_object_contents (bfd * abfd)
 	{
 	  current->rel_filepos = reloc_base;
 	  reloc_base += current->reloc_count * bfd_coff_relsz (abfd);
-#ifdef COFF_WITH_PE
+#ifdef COFF_WITH_EXTENDED_RELOC_COUNTER
 	  /* Extra reloc to hold real count.  */
-	  if (obj_pe (abfd) && current->reloc_count >= 0xffff)
+	  if ((obj_pe (abfd) || obj_go32 (abfd)) && current->reloc_count >= 0xffff)
 	    reloc_base += bfd_coff_relsz (abfd);
 #endif
 	}
@@ -3616,7 +3652,7 @@ coff_write_object_contents (bfd * abfd)
 	  SCNHDR buff;
 	  bfd_size_type amt = bfd_coff_scnhsz (abfd);
 
-	  if (coff_swap_scnhdr_out (abfd, &section, &buff) == 0
+	  if (bfd_coff_swap_scnhdr_out (abfd, &section, &buff) == 0
 	      || bfd_bwrite (& buff, amt, abfd) != amt)
 	    return FALSE;
 	}
@@ -3742,12 +3778,28 @@ coff_write_object_contents (bfd * abfd)
 	  scnhdr.s_nlnno = current->target_index;
 	  scnhdr.s_flags = STYP_OVRFLO;
 	  amt = bfd_coff_scnhsz (abfd);
-	  if (coff_swap_scnhdr_out (abfd, &scnhdr, &buff) == 0
+	  if (bfd_coff_swap_scnhdr_out (abfd, &scnhdr, &buff) == 0
 	      || bfd_bwrite (& buff, amt, abfd) != amt)
 	    return FALSE;
 	}
     }
 #endif
+#endif
+
+#if defined (COFF_GO32_EXE) || defined (COFF_GO32)
+  /* Pad section headers.  */
+  if ((abfd->flags & EXEC_P) && abfd->sections != NULL)
+    {
+      file_ptr cur_ptr = scn_base
+			 + abfd->section_count * bfd_coff_scnhsz (abfd);
+      long fill_size = (abfd->sections->filepos - cur_ptr);
+      bfd_byte *b = bfd_zmalloc (fill_size);
+      if (b)
+	{
+	  bfd_bwrite ((PTR)b, fill_size, abfd);
+	  free (b);
+	}
+    }
 #endif
 
   /* OK, now set up the filehdr...  */
@@ -4198,15 +4250,16 @@ static void *
 buy_and_read (bfd *abfd, file_ptr where,
 	      bfd_size_type nmemb, bfd_size_type size)
 {
-  void *area = bfd_alloc2 (abfd, nmemb, size);
+  size_t amt;
 
-  if (!area)
+  if (_bfd_mul_overflow (nmemb, size, &amt))
+    {
+      bfd_set_error (bfd_error_file_too_big);
+      return NULL;
+    }
+  if (bfd_seek (abfd, where, SEEK_SET) != 0)
     return NULL;
-  size *= nmemb;
-  if (bfd_seek (abfd, where, SEEK_SET) != 0
-      || bfd_bread (area, size, abfd) != size)
-    return NULL;
-  return area;
+  return _bfd_alloc_and_read (abfd, amt, amt);
 }
 
 /*
@@ -4263,6 +4316,7 @@ coff_slurp_line_table (bfd *abfd, asection *asect)
   LINENO *src;
   bfd_boolean have_func;
   bfd_boolean ret = TRUE;
+  size_t amt;
 
   if (asect->lineno_count == 0)
     return TRUE;
@@ -4277,9 +4331,12 @@ coff_slurp_line_table (bfd *abfd, asection *asect)
       return FALSE;
     }
 
-  lineno_cache = (alent *) bfd_alloc2 (abfd,
-				       (bfd_size_type) asect->lineno_count + 1,
-				       sizeof (alent));
+  if (_bfd_mul_overflow (asect->lineno_count + 1, sizeof (alent), &amt))
+    {
+      bfd_set_error (bfd_error_file_too_big);
+      return FALSE;
+    }
+  lineno_cache = (alent *) bfd_alloc (abfd, amt);
   if (lineno_cache == NULL)
     return FALSE;
 
@@ -4393,8 +4450,12 @@ coff_slurp_line_table (bfd *abfd, asection *asect)
       alent *n_lineno_cache;
 
       /* Create a table of functions.  */
-      func_table = (alent **) bfd_alloc2 (abfd, nbr_func, sizeof (alent *));
-      if (func_table != NULL)
+      if (_bfd_mul_overflow (nbr_func, sizeof (alent *), &amt))
+	{
+	  bfd_set_error (bfd_error_file_too_big);
+	  ret = FALSE;
+	}
+      else if ((func_table = (alent **) bfd_alloc (abfd, amt)) != NULL)
 	{
 	  alent **p = func_table;
 	  unsigned int i;
@@ -4409,9 +4470,12 @@ coff_slurp_line_table (bfd *abfd, asection *asect)
 	  qsort (func_table, nbr_func, sizeof (alent *), coff_sort_func_alent);
 
 	  /* Create the new sorted table.  */
-	  n_lineno_cache = (alent *) bfd_alloc2 (abfd, asect->lineno_count,
-						 sizeof (alent));
-	  if (n_lineno_cache != NULL)
+	  if (_bfd_mul_overflow (asect->lineno_count, sizeof (alent), &amt))
+	    {
+	      bfd_set_error (bfd_error_file_too_big);
+	      ret = FALSE;
+	    }
+	  else if ((n_lineno_cache = (alent *) bfd_alloc (abfd, amt)) != NULL)
 	    {
 	      alent *n_cache_ptr = n_lineno_cache;
 
@@ -4457,6 +4521,7 @@ coff_slurp_symbol_table (bfd * abfd)
   unsigned int *table_ptr;
   unsigned int number_of_symbols = 0;
   bfd_boolean ret = TRUE;
+  size_t amt;
 
   if (obj_symbols (abfd))
     return TRUE;
@@ -4466,15 +4531,23 @@ coff_slurp_symbol_table (bfd * abfd)
     return FALSE;
 
   /* Allocate enough room for all the symbols in cached form.  */
-  cached_area = (coff_symbol_type *) bfd_alloc2 (abfd,
-						 obj_raw_syment_count (abfd),
-						 sizeof (coff_symbol_type));
+  if (_bfd_mul_overflow (obj_raw_syment_count (abfd),
+			 sizeof (*cached_area), &amt))
+    {
+      bfd_set_error (bfd_error_file_too_big);
+      return FALSE;
+    }
+  cached_area = (coff_symbol_type *) bfd_alloc (abfd, amt);
   if (cached_area == NULL)
     return FALSE;
 
-  table_ptr = (unsigned int *) bfd_zalloc2 (abfd, obj_raw_syment_count (abfd),
-					    sizeof (unsigned int));
-
+  if (_bfd_mul_overflow (obj_raw_syment_count (abfd),
+			 sizeof (*table_ptr), &amt))
+    {
+      bfd_set_error (bfd_error_file_too_big);
+      return FALSE;
+    }
+  table_ptr = (unsigned int *) bfd_zalloc (abfd, amt);
   if (table_ptr == NULL)
     return FALSE;
   else
@@ -4961,6 +5034,7 @@ coff_slurp_reloc_table (bfd * abfd, sec_ptr asect, asymbol ** symbols)
   arelent *reloc_cache;
   arelent *cache_ptr;
   unsigned int idx;
+  size_t amt;
 
   if (asect->relocation)
     return TRUE;
@@ -4974,9 +5048,12 @@ coff_slurp_reloc_table (bfd * abfd, sec_ptr asect, asymbol ** symbols)
   native_relocs = (RELOC *) buy_and_read (abfd, asect->rel_filepos,
 					  asect->reloc_count,
 					  bfd_coff_relsz (abfd));
-  reloc_cache = (arelent *) bfd_alloc2 (abfd, asect->reloc_count,
-					sizeof (arelent));
-
+  if (_bfd_mul_overflow (asect->reloc_count, sizeof (arelent), &amt))
+    {
+      bfd_set_error (bfd_error_file_too_big);
+      return FALSE;
+    }
+  reloc_cache = (arelent *) bfd_alloc (abfd, amt);
   if (reloc_cache == NULL || native_relocs == NULL)
     return FALSE;
 

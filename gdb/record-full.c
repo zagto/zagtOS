@@ -31,13 +31,14 @@
 #include "record-full.h"
 #include "elf-bfd.h"
 #include "gcore.h"
-#include "event-loop.h"
+#include "gdbsupport/event-loop.h"
 #include "inf-loop.h"
 #include "gdb_bfd.h"
 #include "observable.h"
 #include "infrun.h"
 #include "gdbsupport/gdb_unlinker.h"
 #include "gdbsupport/byte-vector.h"
+#include "async-event.h"
 
 #include <signal.h>
 
@@ -904,7 +905,7 @@ static struct async_event_handler *record_full_async_inferior_event_token;
 static void
 record_full_async_inferior_event_handler (gdb_client_data data)
 {
-  inferior_event_handler (INF_REG_EVENT, NULL);
+  inferior_event_handler (INF_REG_EVENT);
 }
 
 /* Open the process record target for 'core' files.  */
@@ -1267,12 +1268,12 @@ record_full_wait_1 (struct target_ops *ops,
 
 			  /* Try to insert the software single step breakpoint.
 			     If insert success, set step to 0.  */
-			  set_executing (proc_target, inferior_ptid, 0);
+			  set_executing (proc_target, inferior_ptid, false);
 			  reinit_frame_cache ();
 
 			  step = !insert_single_step_breakpoints (gdbarch);
 
-			  set_executing (proc_target, inferior_ptid, 1);
+			  set_executing (proc_target, inferior_ptid, true);
 			}
 
 		      if (record_debug)
@@ -2793,25 +2794,6 @@ set_record_full_insn_max_num (const char *args, int from_tty,
     }
 }
 
-/* The "set record full" command.  */
-
-static void
-set_record_full_command (const char *args, int from_tty)
-{
-  printf_unfiltered (_("\"set record full\" must be followed "
-		       "by an appropriate subcommand.\n"));
-  help_list (set_record_full_cmdlist, "set record full ", all_commands,
-	     gdb_stdout);
-}
-
-/* The "show record full" command.  */
-
-static void
-show_record_full_command (const char *args, int from_tty)
-{
-  cmd_show_list (show_record_full_cmdlist, from_tty, "");
-}
-
 void _initialize_record_full ();
 void
 _initialize_record_full ()
@@ -2843,13 +2825,13 @@ Argument is filename.  File must be created with 'record save'."),
   set_cmd_completer (c, filename_completer);
   deprecate_cmd (c, "record full restore");
 
-  add_prefix_cmd ("full", class_support, set_record_full_command,
-		  _("Set record options."), &set_record_full_cmdlist,
-		  "set record full ", 0, &set_record_cmdlist);
+  add_basic_prefix_cmd ("full", class_support,
+			_("Set record options."), &set_record_full_cmdlist,
+			"set record full ", 0, &set_record_cmdlist);
 
-  add_prefix_cmd ("full", class_support, show_record_full_command,
-		  _("Show record options."), &show_record_full_cmdlist,
-		  "show record full ", 0, &show_record_cmdlist);
+  add_show_prefix_cmd ("full", class_support,
+		       _("Show record options."), &show_record_full_cmdlist,
+		       "show record full ", 0, &show_record_cmdlist);
 
   /* Record instructions number limit command.  */
   add_setshow_boolean_cmd ("stop-at-limit", no_class,

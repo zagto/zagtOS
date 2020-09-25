@@ -18,6 +18,9 @@ dnl along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 dnl Invoke configury needed by the files in 'common'.
 AC_DEFUN([GDB_AC_COMMON], [
+  # Set the 'development' global.
+  . $srcdir/../bfd/development.sh
+
   AC_HEADER_STDC
   AC_FUNC_ALLOCA
 
@@ -43,11 +46,12 @@ AC_DEFUN([GDB_AC_COMMON], [
 		   thread_db.h wait.h dnl
 		   termios.h dnl
 		   dlfcn.h dnl
-		   linux/elf.h sys/procfs.h proc_service.h)
+		   linux/elf.h sys/procfs.h proc_service.h dnl
+		   poll.h sys/poll.h sys/select.h)
 
   AC_FUNC_MMAP
   AC_FUNC_VFORK
-  AC_CHECK_FUNCS([fdwalk getrlimit pipe pipe2 socketpair sigaction \
+  AC_CHECK_FUNCS([fdwalk getrlimit pipe pipe2 poll socketpair sigaction \
 		  ptrace64 sbrk setns sigaltstack sigprocmask \
 		  setpgid setpgrp getrusage getauxval])
 

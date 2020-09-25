@@ -38,13 +38,14 @@
 #include "frame-base.h"
 #include "trad-frame.h"
 #include "objfiles.h"
-#include "dwarf2-frame.h"
+#include "dwarf2/frame.h"
 #include "gdbtypes.h"
 #include "prologue-value.h"
 #include "remote.h"
 #include "target-descriptions.h"
 #include "user-regs.h"
 #include "observable.h"
+#include "count-one-bits.h"
 
 #include "arch/arm.h"
 #include "arch/arm-get-next-pcs.h"
@@ -80,7 +81,7 @@ static bool arm_debug;
 
 struct arm_mapping_symbol
 {
-  bfd_vma value;
+  CORE_ADDR value;
   char type;
 
   bool operator< (const arm_mapping_symbol &other) const
@@ -930,7 +931,7 @@ thumb_analyze_prologue (struct gdbarch *gdbarch,
 	       parameters from memory.  */
 	    ;
 
-	  else if ((insn & 0xffb0) == 0xe950	/* ldrd Rt, Rt2,
+	  else if ((insn & 0xff70) == 0xe950    /* ldrd Rt, Rt2,
 						   [Rn, #+/-imm] */
 		   && pv_is_register (regs[bits (insn, 0, 3)], ARM_SP_REGNUM))
 	    /* Similarly ignore dual loads from the stack.  */
@@ -1985,7 +1986,7 @@ struct frame_unwind arm_prologue_unwind = {
 
 struct arm_exidx_entry
 {
-  bfd_vma addr;
+  CORE_ADDR addr;
   gdb_byte *entry;
 
   bool operator< (const arm_exidx_entry &other) const
@@ -3305,7 +3306,7 @@ static ULONGEST
 arm_type_align (gdbarch *gdbarch, struct type *t)
 {
   t = check_typedef (t);
-  if (TYPE_CODE (t) == TYPE_CODE_ARRAY && TYPE_VECTOR (t))
+  if (t->code () == TYPE_CODE_ARRAY && TYPE_VECTOR (t))
     {
       /* Use the natural alignment for vector types (the same for
 	 scalar type), but the maximum alignment is 64-bit.  */
@@ -3392,7 +3393,7 @@ arm_vfp_cprc_sub_candidate (struct type *t,
 			    enum arm_vfp_cprc_base_type *base_type)
 {
   t = check_typedef (t);
-  switch (TYPE_CODE (t))
+  switch (t->code ())
     {
     case TYPE_CODE_FLT:
       switch (TYPE_LENGTH (t))
@@ -3496,12 +3497,12 @@ arm_vfp_cprc_sub_candidate (struct type *t,
 	int count = 0;
 	unsigned unitlen;
 	int i;
-	for (i = 0; i < TYPE_NFIELDS (t); i++)
+	for (i = 0; i < t->num_fields (); i++)
 	  {
 	    int sub_count = 0;
 
-	    if (!field_is_static (&TYPE_FIELD (t, i)))
-	      sub_count = arm_vfp_cprc_sub_candidate (TYPE_FIELD_TYPE (t, i),
+	    if (!field_is_static (&t->field (i)))
+	      sub_count = arm_vfp_cprc_sub_candidate (t->field (i).type (),
 						      base_type);
 	    if (sub_count == -1)
 	      return -1;
@@ -3525,9 +3526,9 @@ arm_vfp_cprc_sub_candidate (struct type *t,
 	int count = 0;
 	unsigned unitlen;
 	int i;
-	for (i = 0; i < TYPE_NFIELDS (t); i++)
+	for (i = 0; i < t->num_fields (); i++)
 	  {
-	    int sub_count = arm_vfp_cprc_sub_candidate (TYPE_FIELD_TYPE (t, i),
+	    int sub_count = arm_vfp_cprc_sub_candidate (t->field (i).type (),
 							base_type);
 	    if (sub_count == -1)
 	      return -1;
@@ -3614,7 +3615,7 @@ arm_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   /* Determine the type of this function and whether the VFP ABI
      applies.  */
   ftype = check_typedef (value_type (function));
-  if (TYPE_CODE (ftype) == TYPE_CODE_PTR)
+  if (ftype->code () == TYPE_CODE_PTR)
     ftype = check_typedef (TYPE_TARGET_TYPE (ftype));
   use_vfp_abi = arm_vfp_abi_for_function (gdbarch, ftype);
 
@@ -3659,7 +3660,7 @@ arm_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       arg_type = check_typedef (value_type (args[argnum]));
       len = TYPE_LENGTH (arg_type);
       target_type = TYPE_TARGET_TYPE (arg_type);
-      typecode = TYPE_CODE (arg_type);
+      typecode = arg_type->code ();
       val = value_contents (args[argnum]);
 
       align = type_align (arg_type);
@@ -3757,7 +3758,7 @@ arm_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	 the THUMB bit in it.  */
       if (TYPE_CODE_PTR == typecode
 	  && target_type != NULL
-	  && TYPE_CODE_FUNC == TYPE_CODE (check_typedef (target_type)))
+	  && TYPE_CODE_FUNC == check_typedef (target_type)->code ())
 	{
 	  CORE_ADDR regval = extract_unsigned_integer (val, len, byte_order);
 	  if (arm_pc_is_thumb (gdbarch, regval))
@@ -3919,7 +3920,7 @@ arm_neon_double_type (struct gdbarch *gdbarch)
       append_composite_type_field (t, "f64", elem);
 
       TYPE_VECTOR (t) = 1;
-      TYPE_NAME (t) = "neon_d";
+      t->set_name ("neon_d");
       tdep->neon_double_type = t;
     }
 
@@ -3958,7 +3959,7 @@ arm_neon_quad_type (struct gdbarch *gdbarch)
       append_composite_type_field (t, "f64", init_vector_type (elem, 2));
 
       TYPE_VECTOR (t) = 1;
-      TYPE_NAME (t) = "neon_q";
+      t->set_name ("neon_q");
       tdep->neon_quad_type = t;
     }
 
@@ -3989,7 +3990,7 @@ arm_register_type (struct gdbarch *gdbarch, int regnum)
       struct type *t = tdesc_register_type (gdbarch, regnum);
 
       if (regnum >= ARM_D0_REGNUM && regnum < ARM_D0_REGNUM + 32
-	  && TYPE_CODE (t) == TYPE_CODE_FLT
+	  && t->code () == TYPE_CODE_FLT
 	  && gdbarch_tdep (gdbarch)->have_neon)
 	return arm_neon_double_type (gdbarch);
       else
@@ -5798,7 +5799,8 @@ cleanup_block_store_pc (struct gdbarch *gdbarch, struct regcache *regs,
 {
   uint32_t status = displaced_read_reg (regs, dsc, ARM_PS_REGNUM);
   int store_executed = condition_true (dsc->u.block.cond, status);
-  CORE_ADDR pc_stored_at, transferred_regs = bitcount (dsc->u.block.regmask);
+  CORE_ADDR pc_stored_at, transferred_regs
+    = count_one_bits (dsc->u.block.regmask);
   CORE_ADDR stm_insn_addr;
   uint32_t pc_val;
   long offset;
@@ -5850,7 +5852,7 @@ cleanup_block_load_pc (struct gdbarch *gdbarch,
   uint32_t status = displaced_read_reg (regs, dsc, ARM_PS_REGNUM);
   int load_executed = condition_true (dsc->u.block.cond, status);
   unsigned int mask = dsc->u.block.regmask, write_reg = ARM_PC_REGNUM;
-  unsigned int regs_loaded = bitcount (mask);
+  unsigned int regs_loaded = count_one_bits (mask);
   unsigned int num_to_shuffle = regs_loaded, clobbered;
 
   /* The method employed here will fail if the register list is fully populated
@@ -5982,7 +5984,7 @@ arm_copy_block_xfer (struct gdbarch *gdbarch, uint32_t insn,
 	     contiguous chunk r0...rX before doing the transfer, then shuffling
 	     registers into the correct places in the cleanup routine.  */
 	  unsigned int regmask = insn & 0xffff;
-	  unsigned int num_in_list = bitcount (regmask), new_regmask;
+	  unsigned int num_in_list = count_one_bits (regmask), new_regmask;
 	  unsigned int i;
 
 	  for (i = 0; i < num_in_list; i++)
@@ -6084,7 +6086,7 @@ thumb2_copy_block_xfer (struct gdbarch *gdbarch, uint16_t insn1, uint16_t insn2,
       else
 	{
 	  unsigned int regmask = dsc->u.block.regmask;
-	  unsigned int num_in_list = bitcount (regmask), new_regmask;
+	  unsigned int num_in_list = count_one_bits (regmask), new_regmask;
 	  unsigned int i;
 
 	  for (i = 0; i < num_in_list; i++)
@@ -7102,7 +7104,7 @@ thumb_copy_pop_pc_16bit (struct gdbarch *gdbarch, uint16_t insn1,
     }
   else
     {
-      unsigned int num_in_list = bitcount (dsc->u.block.regmask);
+      unsigned int num_in_list = count_one_bits (dsc->u.block.regmask);
       unsigned int i;
       unsigned int new_regmask;
 
@@ -7803,7 +7805,7 @@ arm_extract_return_value (struct type *type, struct regcache *regs,
   struct gdbarch *gdbarch = regs->arch ();
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
 
-  if (TYPE_CODE_FLT == TYPE_CODE (type))
+  if (TYPE_CODE_FLT == type->code ())
     {
       switch (gdbarch_tdep (gdbarch)->fp_model)
 	{
@@ -7838,12 +7840,12 @@ arm_extract_return_value (struct type *type, struct regcache *regs,
 	  break;
 	}
     }
-  else if (TYPE_CODE (type) == TYPE_CODE_INT
-	   || TYPE_CODE (type) == TYPE_CODE_CHAR
-	   || TYPE_CODE (type) == TYPE_CODE_BOOL
-	   || TYPE_CODE (type) == TYPE_CODE_PTR
+  else if (type->code () == TYPE_CODE_INT
+	   || type->code () == TYPE_CODE_CHAR
+	   || type->code () == TYPE_CODE_BOOL
+	   || type->code () == TYPE_CODE_PTR
 	   || TYPE_IS_REFERENCE (type)
-	   || TYPE_CODE (type) == TYPE_CODE_ENUM)
+	   || type->code () == TYPE_CODE_ENUM)
     {
       /* If the type is a plain integer, then the access is
 	 straight-forward.  Otherwise we have to play around a bit
@@ -7899,7 +7901,7 @@ arm_return_in_memory (struct gdbarch *gdbarch, struct type *type)
 
   /* Simple, non-aggregate types (ie not including vectors and
      complex) are always returned in a register (or registers).  */
-  code = TYPE_CODE (type);
+  code = type->code ();
   if (TYPE_CODE_STRUCT != code && TYPE_CODE_UNION != code
       && TYPE_CODE_ARRAY != code && TYPE_CODE_COMPLEX != code)
     return 0;
@@ -7968,13 +7970,12 @@ arm_return_in_memory (struct gdbarch *gdbarch, struct type *type)
 	     --> yes, nRc = 1
 	  */
 
-	  for (i = 0; i < TYPE_NFIELDS (type); i++)
+	  for (i = 0; i < type->num_fields (); i++)
 	    {
 	      enum type_code field_type_code;
 
 	      field_type_code
-		= TYPE_CODE (check_typedef (TYPE_FIELD_TYPE (type,
-							     i)));
+		= check_typedef (type->field (i).type ())->code ();
 
 	      /* Is it a floating point type field?  */
 	      if (field_type_code == TYPE_CODE_FLT)
@@ -8012,7 +8013,7 @@ arm_store_return_value (struct type *type, struct regcache *regs,
   struct gdbarch *gdbarch = regs->arch ();
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
 
-  if (TYPE_CODE (type) == TYPE_CODE_FLT)
+  if (type->code () == TYPE_CODE_FLT)
     {
       gdb_byte buf[ARM_FP_REGISTER_SIZE];
 
@@ -8042,12 +8043,12 @@ arm_store_return_value (struct type *type, struct regcache *regs,
 	  break;
 	}
     }
-  else if (TYPE_CODE (type) == TYPE_CODE_INT
-	   || TYPE_CODE (type) == TYPE_CODE_CHAR
-	   || TYPE_CODE (type) == TYPE_CODE_BOOL
-	   || TYPE_CODE (type) == TYPE_CODE_PTR
+  else if (type->code () == TYPE_CODE_INT
+	   || type->code () == TYPE_CODE_CHAR
+	   || type->code () == TYPE_CODE_BOOL
+	   || type->code () == TYPE_CODE_PTR
 	   || TYPE_IS_REFERENCE (type)
-	   || TYPE_CODE (type) == TYPE_CODE_ENUM)
+	   || type->code () == TYPE_CODE_ENUM)
     {
       if (TYPE_LENGTH (type) <= 4)
 	{
@@ -8143,15 +8144,15 @@ arm_return_value (struct gdbarch *gdbarch, struct value *function,
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
 
-  if (TYPE_CODE (valtype) == TYPE_CODE_STRUCT
-      || TYPE_CODE (valtype) == TYPE_CODE_UNION
-      || TYPE_CODE (valtype) == TYPE_CODE_ARRAY)
+  if (valtype->code () == TYPE_CODE_STRUCT
+      || valtype->code () == TYPE_CODE_UNION
+      || valtype->code () == TYPE_CODE_ARRAY)
     {
       if (tdep->struct_return == pcc_struct_return
 	  || arm_return_in_memory (gdbarch, valtype))
 	return RETURN_VALUE_STRUCT_CONVENTION;
     }
-  else if (TYPE_CODE (valtype) == TYPE_CODE_COMPLEX)
+  else if (valtype->code () == TYPE_CODE_COMPLEX)
     {
       if (arm_return_in_memory (gdbarch, valtype))
 	return RETURN_VALUE_STRUCT_CONVENTION;
@@ -8321,20 +8322,6 @@ arm_skip_stub (struct frame_info *frame, CORE_ADDR pc)
     return arm_skip_cmse_entry (pc, name, section->objfile);
 
   return 0;			/* not a stub */
-}
-
-static void
-set_arm_command (const char *args, int from_tty)
-{
-  printf_unfiltered (_("\
-\"set arm\" must be followed by an apporpriate subcommand.\n"));
-  help_list (setarmcmdlist, "set arm ", all_commands, gdb_stdout);
-}
-
-static void
-show_arm_command (const char *args, int from_tty)
-{
-  cmd_show_list (showarmcmdlist, from_tty, "");
 }
 
 static void
@@ -8870,11 +8857,13 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   enum arm_abi_kind arm_abi = arm_abi_global;
   enum arm_float_model fp_model = arm_fp_model;
   struct tdesc_arch_data *tdesc_data = NULL;
-  int i, is_m = 0;
-  int vfp_register_count = 0, have_vfp_pseudos = 0, have_neon_pseudos = 0;
-  int have_wmmx_registers = 0;
-  int have_neon = 0;
-  int have_fpa_registers = 1;
+  int i;
+  bool is_m = false;
+  int vfp_register_count = 0;
+  bool have_vfp_pseudos = false, have_neon_pseudos = false;
+  bool have_wmmx_registers = false;
+  bool have_neon = false;
+  bool have_fpa_registers = true;
   const struct target_desc *tdesc = info.target_desc;
 
   /* If we have an object to base this architecture on, try to determine
@@ -8991,7 +8980,7 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 		  && (attr_arch == TAG_CPU_ARCH_V6_M
 		      || attr_arch == TAG_CPU_ARCH_V6S_M
 		      || attr_profile == 'M'))
-		is_m = 1;
+		is_m = true;
 #endif
 	    }
 
@@ -9049,7 +9038,7 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	  if (feature == NULL)
 	    return NULL;
 	  else
-	    is_m = 1;
+	    is_m = true;
 	}
 
       tdesc_data = tdesc_data_alloc ();
@@ -9095,7 +9084,7 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	    }
 	}
       else
-	have_fpa_registers = 0;
+	have_fpa_registers = false;
 
       feature = tdesc_find_feature (tdesc,
 				    "org.gnu.gdb.xscale.iwmmxt");
@@ -9131,7 +9120,7 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	      return NULL;
 	    }
 
-	  have_wmmx_registers = 1;
+	  have_wmmx_registers = true;
 	}
 
       /* If we have a VFP unit, check whether the single precision registers
@@ -9172,7 +9161,7 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	    }
 
 	  if (tdesc_unnumbered_register (feature, "s0") == 0)
-	    have_vfp_pseudos = 1;
+	    have_vfp_pseudos = true;
 
 	  vfp_register_count = i;
 
@@ -9194,9 +9183,9 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 		 their type; otherwise (normally) provide them with
 		 the default type.  */
 	      if (tdesc_unnumbered_register (feature, "q0") == 0)
-		have_neon_pseudos = 1;
+		have_neon_pseudos = true;
 
-	      have_neon = 1;
+	      have_neon = true;
 	    }
 	}
     }
@@ -9468,7 +9457,21 @@ arm_dump_tdep (struct gdbarch *gdbarch, struct ui_file *file)
   if (tdep == NULL)
     return;
 
-  fprintf_unfiltered (file, _("arm_dump_tdep: Lowest pc = 0x%lx"),
+  fprintf_unfiltered (file, _("arm_dump_tdep: fp_model = %i\n"),
+		      (int) tdep->fp_model);
+  fprintf_unfiltered (file, _("arm_dump_tdep: have_fpa_registers = %i\n"),
+		      (int) tdep->have_fpa_registers);
+  fprintf_unfiltered (file, _("arm_dump_tdep: have_wmmx_registers = %i\n"),
+		      (int) tdep->have_wmmx_registers);
+  fprintf_unfiltered (file, _("arm_dump_tdep: vfp_register_count = %i\n"),
+		      (int) tdep->vfp_register_count);
+  fprintf_unfiltered (file, _("arm_dump_tdep: have_vfp_pseudos = %i\n"),
+		      (int) tdep->have_vfp_pseudos);
+  fprintf_unfiltered (file, _("arm_dump_tdep: have_neon_pseudos = %i\n"),
+		      (int) tdep->have_neon_pseudos);
+  fprintf_unfiltered (file, _("arm_dump_tdep: have_neon = %i\n"),
+		      (int) tdep->have_neon);
+  fprintf_unfiltered (file, _("arm_dump_tdep: Lowest pc = 0x%lx\n"),
 		      (unsigned long) tdep->lowest_pc);
 }
 
@@ -9499,13 +9502,13 @@ _initialize_arm_tdep ()
 				  arm_elf_osabi_sniffer);
 
   /* Add root prefix command for all "set arm"/"show arm" commands.  */
-  add_prefix_cmd ("arm", no_class, set_arm_command,
-		  _("Various ARM-specific commands."),
-		  &setarmcmdlist, "set arm ", 0, &setlist);
+  add_basic_prefix_cmd ("arm", no_class,
+			_("Various ARM-specific commands."),
+			&setarmcmdlist, "set arm ", 0, &setlist);
 
-  add_prefix_cmd ("arm", no_class, show_arm_command,
-		  _("Various ARM-specific commands."),
-		  &showarmcmdlist, "show arm ", 0, &showlist);
+  add_show_prefix_cmd ("arm", no_class,
+		       _("Various ARM-specific commands."),
+		       &showarmcmdlist, "show arm ", 0, &showlist);
 
 
   arm_disassembler_options = xstrdup ("reg-names-std");

@@ -622,7 +622,7 @@ struct target_ops
       TARGET_DEFAULT_RETURN (1);
     virtual int remove_vfork_catchpoint (int)
       TARGET_DEFAULT_RETURN (1);
-    virtual int follow_fork (int, int)
+    virtual bool follow_fork (bool, bool)
       TARGET_DEFAULT_FUNC (default_follow_fork);
     virtual int insert_exec_catchpoint (int)
       TARGET_DEFAULT_RETURN (1);
@@ -1505,8 +1505,13 @@ int target_supports_disable_randomization (void);
 #define target_can_run_breakpoint_commands() \
   (current_top_target ()->can_run_breakpoint_commands) ()
 
-extern int target_read_string (CORE_ADDR, gdb::unique_xmalloc_ptr<char> *,
-			       int, int *);
+/* Read a string from target memory at address MEMADDR.  The string
+   will be at most LEN bytes long (note that excess bytes may be read
+   in some cases -- but these will not be returned).  Returns nullptr
+   on error.  */
+
+extern gdb::unique_xmalloc_ptr<char> target_read_string
+  (CORE_ADDR memaddr, int len, int *bytes_read = nullptr);
 
 /* For target_read_memory see target/target.h.  */
 
@@ -1660,10 +1665,10 @@ extern void target_load (const char *arg, int from_tty);
    necessary to continue debugging either the parent or child, as
    requested, and releasing the other.  Information about the fork
    or vfork event is available via get_last_target_status ().
-   This function returns 1 if the inferior should not be resumed
+   This function returns true if the inferior should not be resumed
    (i.e. there is another event pending).  */
 
-int target_follow_fork (int follow_child, int detach_fork);
+bool target_follow_fork (bool follow_child, bool detach_fork);
 
 /* Handle the target-specific bookkeeping required when the inferior
    makes an exec call.  INF is the exec'd inferior.  */
@@ -1856,6 +1861,9 @@ extern enum auto_boolean target_non_stop_enabled;
    in non-stop mode even with "set non-stop off".  Always true if "set
    non-stop" is on.  */
 extern int target_is_non_stop_p (void);
+
+/* Return true if at least one inferior has a non-stop target.  */
+extern bool exists_non_stop_target ();
 
 #define target_execution_direction() \
   (current_top_target ()->execution_direction ())
@@ -2132,21 +2140,15 @@ extern int target_search_memory (CORE_ADDR start_addr,
   current_top_target ()->filesystem_is_local ()
 
 /* Open FILENAME on the target, in the filesystem as seen by INF,
-   using FLAGS and MODE.  If INF is NULL, use the filesystem seen
-   by the debugger (GDB or, for remote targets, the remote stub).
-   Return a target file descriptor, or -1 if an error occurs (and
-   set *TARGET_ERRNO).  */
+   using FLAGS and MODE.  If INF is NULL, use the filesystem seen by
+   the debugger (GDB or, for remote targets, the remote stub).  Return
+   a target file descriptor, or -1 if an error occurs (and set
+   *TARGET_ERRNO).  If WARN_IF_SLOW is true, print a warning message
+   if the file is being accessed over a link that may be slow.  */
 extern int target_fileio_open (struct inferior *inf,
 			       const char *filename, int flags,
-			       int mode, int *target_errno);
-
-/* Like target_fileio_open, but print a warning message if the
-   file is being accessed over a link that may be slow.  */
-extern int target_fileio_open_warn_if_slow (struct inferior *inf,
-					    const char *filename,
-					    int flags,
-					    int mode,
-					    int *target_errno);
+			       int mode, bool warn_if_slow,
+			       int *target_errno);
 
 /* Write up to LEN bytes from WRITE_BUF to FD on the target.
    Return the number of bytes written, or -1 if an error occurs

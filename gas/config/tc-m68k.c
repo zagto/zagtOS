@@ -30,6 +30,7 @@
 #include "elf/m68k.h"
 
 static void m68k_elf_cons (int);
+static void m68k_elf_gnu_attribute (int);
 
 /* This string holds the chars that always start a comment.  If the
    pre-processor is disabled, these aren't very useful.  The macro
@@ -889,6 +890,7 @@ const pseudo_typeS md_pseudo_table[] =
 
   {"arch", s_m68k_arch, 0},
   {"cpu", s_m68k_cpu, 0},
+  {"gnu_attribute", m68k_elf_gnu_attribute, 0},
 
   /* The following pseudo-ops are supported for MRI compatibility.  */
   {"chip", s_chip, 0},
@@ -2794,7 +2796,7 @@ m68k_ip (char *instring)
 		      && opP->index.reg <= ZDATA7)
 		    nextword |= (opP->index.reg - ZDATA0) << 12;
 		  else if (opP->index.reg >= ZADDR0
-			   || opP->index.reg <= ZADDR7)
+			   && opP->index.reg <= ZADDR7)
 		    nextword |= (opP->index.reg - ZADDR0 + 8) << 12;
 		}
 
@@ -6135,8 +6137,7 @@ pop_mri_control (void)
 
   n = mri_control_stack;
   mri_control_stack = n->outer;
-  if (n->top != NULL)
-    free (n->top);
+  free (n->top);
   free (n->next);
   free (n->bottom);
   free (n);
@@ -7950,6 +7951,24 @@ m68k_elf_cons (int nbytes /* 4=.long */)
   /* Put terminator back into stream.  */
   input_line_pointer--;
   demand_empty_rest_of_line ();
+}
+
+/* Parse a .gnu_attribute directive.  */
+static void
+m68k_elf_gnu_attribute (int ignored ATTRIBUTE_UNUSED)
+{
+  int tag = obj_elf_vendor_attribute (OBJ_ATTR_GNU);
+
+  /* Check validity of defined m68k tags.  */
+  if (tag == Tag_GNU_M68K_ABI_FP)
+    {
+      unsigned int val;
+
+      val = bfd_elf_get_obj_attr_int (stdoutput, OBJ_ATTR_GNU, tag);
+
+      if (tag == Tag_GNU_M68K_ABI_FP && val > 2)
+	as_warn (_("unknown .gnu_attribute value"));
+    }
 }
 
 int

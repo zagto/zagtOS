@@ -3,7 +3,6 @@ aix5ppc-core.c
 aout-cris.c
 aout-ns32k.c
 aout-target.h
-aout-tic30.c
 aout32.c
 aout64.c
 aoutx.h
@@ -99,7 +98,6 @@ cpu-ns32k.c
 cpu-or1k.c
 cpu-pdp11.c
 cpu-pj.c
-cpu-plugin.c
 cpu-powerpc.c
 cpu-pru.c
 cpu-riscv.c

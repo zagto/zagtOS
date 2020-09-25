@@ -144,14 +144,14 @@ struct alpha_elf_reloc_entry
   /* Which .reloc section? */
   asection *srel;
 
-  /* What kind of relocation? */
-  unsigned int rtype;
-
-  /* Is this against read-only section? */
-  unsigned int reltext : 1;
+  /* Which section this relocation is against? */
+  asection *sec;
 
   /* How many did we find?  */
   unsigned long count;
+
+  /* What kind of relocation? */
+  unsigned int rtype;
 };
 
 struct alpha_elf_link_hash_entry
@@ -280,7 +280,7 @@ static struct bfd_link_hash_table *
 elf64_alpha_bfd_link_hash_table_create (bfd *abfd)
 {
   struct alpha_elf_link_hash_table *ret;
-  bfd_size_type amt = sizeof (struct alpha_elf_link_hash_table);
+  size_t amt = sizeof (struct alpha_elf_link_hash_table);
 
   ret = (struct alpha_elf_link_hash_table *) bfd_zmalloc (amt);
   if (ret == (struct alpha_elf_link_hash_table *) NULL)
@@ -1136,9 +1136,7 @@ elf64_alpha_info_to_howto (bfd *abfd, arelent *cache_ptr,
 
 /* Handle an Alpha specific section when reading an object file.  This
    is called when bfd_section_from_shdr finds a section with an unknown
-   type.
-   FIXME: We need to handle the SHF_ALPHA_GPREL flag, but I'm not sure
-   how to.  */
+   type.  */
 
 static bfd_boolean
 elf64_alpha_section_from_shdr (bfd *abfd,
@@ -1180,10 +1178,10 @@ elf64_alpha_section_from_shdr (bfd *abfd,
 /* Convert Alpha specific section flags to bfd internal section flags.  */
 
 static bfd_boolean
-elf64_alpha_section_flags (flagword *flags, const Elf_Internal_Shdr *hdr)
+elf64_alpha_section_flags (const Elf_Internal_Shdr *hdr)
 {
   if (hdr->sh_flags & SHF_ALPHA_GPREL)
-    *flags |= SEC_SMALL_DATA;
+    hdr->bfd_section->flags |= SEC_SMALL_DATA;
 
   return TRUE;
 }
@@ -1387,18 +1385,23 @@ elf64_alpha_read_ecoff_info (bfd *abfd, asection *section,
   /* The symbolic header contains absolute file offsets and sizes to
      read.  */
 #define READ(ptr, offset, count, size, type)				\
-  if (symhdr->count == 0)						\
-    debug->ptr = NULL;							\
-  else									\
+  do									\
     {									\
-      bfd_size_type amt = (bfd_size_type) size * symhdr->count;		\
-      debug->ptr = (type) bfd_malloc (amt);				\
+      size_t amt;							\
+      debug->ptr = NULL;						\
+      if (symhdr->count == 0)						\
+	break;								\
+      if (_bfd_mul_overflow (size, symhdr->count, &amt))		\
+	{								\
+	  bfd_set_error (bfd_error_file_too_big);			\
+	  goto error_return;						\
+	}								\
+      if (bfd_seek (abfd, symhdr->offset, SEEK_SET) != 0)		\
+	goto error_return;						\
+      debug->ptr = (type) _bfd_malloc_and_read (abfd, amt, amt);	\
       if (debug->ptr == NULL)						\
 	goto error_return;						\
-      if (bfd_seek (abfd, (file_ptr) symhdr->offset, SEEK_SET) != 0	\
-	  || bfd_bread (debug->ptr, amt, abfd) != amt)			\
-	goto error_return;						\
-    }
+    } while (0)
 
   READ (line, cbLineOffset, cbLine, sizeof (unsigned char), unsigned char *);
   READ (external_dnr, cbDnOffset, idnMax, swap->external_dnr_size, void *);
@@ -1419,30 +1422,18 @@ elf64_alpha_read_ecoff_info (bfd *abfd, asection *section,
   return TRUE;
 
  error_return:
-  if (ext_hdr != NULL)
-    free (ext_hdr);
-  if (debug->line != NULL)
-    free (debug->line);
-  if (debug->external_dnr != NULL)
-    free (debug->external_dnr);
-  if (debug->external_pdr != NULL)
-    free (debug->external_pdr);
-  if (debug->external_sym != NULL)
-    free (debug->external_sym);
-  if (debug->external_opt != NULL)
-    free (debug->external_opt);
-  if (debug->external_aux != NULL)
-    free (debug->external_aux);
-  if (debug->ss != NULL)
-    free (debug->ss);
-  if (debug->ssext != NULL)
-    free (debug->ssext);
-  if (debug->external_fdr != NULL)
-    free (debug->external_fdr);
-  if (debug->external_rfd != NULL)
-    free (debug->external_rfd);
-  if (debug->external_ext != NULL)
-    free (debug->external_ext);
+  free (ext_hdr);
+  free (debug->line);
+  free (debug->external_dnr);
+  free (debug->external_pdr);
+  free (debug->external_sym);
+  free (debug->external_opt);
+  free (debug->external_aux);
+  free (debug->ss);
+  free (debug->ssext);
+  free (debug->external_fdr);
+  free (debug->external_rfd);
+  free (debug->external_ext);
   return FALSE;
 }
 
@@ -1724,7 +1715,7 @@ get_got_entry (bfd *abfd, struct alpha_elf_link_hash_entry *h,
   if (!gotent)
     {
       int entry_size;
-      bfd_size_type amt;
+      size_t amt;
 
       amt = sizeof (struct alpha_elf_got_entry);
       gotent = (struct alpha_elf_got_entry *) bfd_alloc (abfd, amt);
@@ -1787,18 +1778,8 @@ elf64_alpha_check_relocs (bfd *abfd, struct bfd_link_info *info,
   Elf_Internal_Shdr *symtab_hdr;
   struct alpha_elf_link_hash_entry **sym_hashes;
   const Elf_Internal_Rela *rel, *relend;
-  bfd_size_type amt;
 
   if (bfd_link_relocatable (info))
-    return TRUE;
-
-  /* Don't do anything special with non-loaded, non-alloced sections.
-     In particular, any relocs in such sections should not affect GOT
-     and PLT reference counting (ie. we don't allow them to create GOT
-     or PLT entries), there's no possibility or desire to optimize TLS
-     relocs, and there's not much point in propagating relocs to shared
-     libs that the dynamic linker won't relocate.  */
-  if ((sec->flags & SEC_ALLOC) == 0)
     return TRUE;
 
   BFD_ASSERT (is_alpha_elf (abfd));
@@ -1990,15 +1971,15 @@ elf64_alpha_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	      if (!rent)
 		{
-		  amt = sizeof (struct alpha_elf_reloc_entry);
+		  size_t amt = sizeof (struct alpha_elf_reloc_entry);
 		  rent = (struct alpha_elf_reloc_entry *) bfd_alloc (abfd, amt);
 		  if (!rent)
 		    return FALSE;
 
 		  rent->srel = sreloc;
+		  rent->sec = sec;
 		  rent->rtype = r_type;
 		  rent->count = 1;
-		  rent->reltext = (sec->flags & SEC_READONLY) != 0;
 
 		  rent->next = h->reloc_entries;
 		  h->reloc_entries = rent;
@@ -2012,7 +1993,13 @@ elf64_alpha_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		 loaded into memory, we need a RELATIVE reloc.  */
 	      sreloc->size += sizeof (Elf64_External_Rela);
 	      if (sec->flags & SEC_READONLY)
-		info->flags |= DF_TEXTREL;
+		{
+		  info->flags |= DF_TEXTREL;
+		  info->callbacks->minfo
+		    (_("%pB: dynamic relocation against `%pT' in "
+		       "read-only section `%pA'\n"),
+		     sec->owner, h->root.root.root.string, sec);
+		}
 	    }
 	}
     }
@@ -2697,10 +2684,17 @@ elf64_alpha_calc_dynrel_sizes (struct alpha_elf_link_hash_entry *h,
 						 bfd_link_pie (info));
       if (entries)
 	{
+	  asection *sec = relent->sec;
 	  relent->srel->size +=
 	    entries * sizeof (Elf64_External_Rela) * relent->count;
-	  if (relent->reltext)
-	    info->flags |= DT_TEXTREL;
+	  if ((sec->flags & SEC_READONLY) != 0)
+	    {
+	      info->flags |= DT_TEXTREL;
+	      info->callbacks->minfo
+		(_("%pB: dynamic relocation against `%pT' in "
+		   "read-only section `%pA'\n"),
+		 sec->owner, h->root.root.root.string, sec);
+	    }
 	}
     }
 
@@ -2916,38 +2910,14 @@ elf64_alpha_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 #define add_dynamic_entry(TAG, VAL) \
   _bfd_elf_add_dynamic_entry (info, TAG, VAL)
 
-      if (bfd_link_executable (info))
-	{
-	  if (!add_dynamic_entry (DT_DEBUG, 0))
-	    return FALSE;
-	}
+      if (!_bfd_elf_add_dynamic_tags (output_bfd, info,
+				      relocs || relplt))
+	return FALSE;
 
-      if (relplt)
-	{
-	  if (!add_dynamic_entry (DT_PLTGOT, 0)
-	      || !add_dynamic_entry (DT_PLTRELSZ, 0)
-	      || !add_dynamic_entry (DT_PLTREL, DT_RELA)
-	      || !add_dynamic_entry (DT_JMPREL, 0))
-	    return FALSE;
-
-	  if (elf64_alpha_use_secureplt
-	      && !add_dynamic_entry (DT_ALPHA_PLTRO, 1))
-	    return FALSE;
-	}
-
-      if (relocs)
-	{
-	  if (!add_dynamic_entry (DT_RELA, 0)
-	      || !add_dynamic_entry (DT_RELASZ, 0)
-	      || !add_dynamic_entry (DT_RELAENT, sizeof (Elf64_External_Rela)))
-	    return FALSE;
-
-	  if (info->flags & DF_TEXTREL)
-	    {
-	      if (!add_dynamic_entry (DT_TEXTREL, 0))
-		return FALSE;
-	    }
-	}
+      if (relplt
+	  && elf64_alpha_use_secureplt
+	  && !add_dynamic_entry (DT_ALPHA_PLTRO, 1))
+	return FALSE;
     }
 #undef add_dynamic_entry
 
@@ -3171,12 +3141,10 @@ elf64_alpha_relax_opt_call (struct alpha_relax_info *info, bfd_vma symval)
 
       if (!gpdisp || gpdisp->r_addend != 4)
 	{
-	  if (tsec_free)
-	    free (tsec_free);
+	  free (tsec_free);
 	  return 0;
 	}
-      if (tsec_free)
-	free (tsec_free);
+      free (tsec_free);
     }
 
   /* We've now determined that we can skip an initial gp load.  Verify
@@ -4022,14 +3990,11 @@ elf64_alpha_relax_section (bfd *abfd, asection *sec,
   return TRUE;
 
  error_return:
-  if (isymbuf != NULL
-      && symtab_hdr->contents != (unsigned char *) isymbuf)
+  if (symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (info.contents != NULL
-      && elf_section_data (sec)->this_hdr.contents != info.contents)
+  if (elf_section_data (sec)->this_hdr.contents != info.contents)
     free (info.contents);
-  if (internal_relocs != NULL
-      && elf_section_data (sec)->relocs != internal_relocs)
+  if (elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
   return FALSE;
 }
@@ -5522,6 +5487,9 @@ static const struct elf_size_info alpha_elf_size_info =
 
 #define elf_backend_special_sections \
   elf64_alpha_special_sections
+
+#define elf_backend_strip_zero_sized_dynamic_sections \
+  _bfd_elf_strip_zero_sized_dynamic_sections
 
 /* A few constants that determine how the .plt section is set up.  */
 #define elf_backend_want_got_plt 0

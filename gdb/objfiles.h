@@ -155,6 +155,37 @@ struct obj_section
    + bfd_section_size ((s)->the_bfd_section)				\
    + obj_section_offset (s))
 
+#define ALL_OBJFILE_OSECTIONS(objfile, osect)	\
+  for (osect = objfile->sections; osect < objfile->sections_end; osect++) \
+    if (osect->the_bfd_section == NULL)					\
+      {									\
+	/* Nothing.  */							\
+      }									\
+    else
+
+#define SECT_OFF_DATA(objfile) \
+     ((objfile->sect_index_data == -1) \
+      ? (internal_error (__FILE__, __LINE__, \
+			 _("sect_index_data not initialized")), -1)	\
+      : objfile->sect_index_data)
+
+#define SECT_OFF_RODATA(objfile) \
+     ((objfile->sect_index_rodata == -1) \
+      ? (internal_error (__FILE__, __LINE__, \
+			 _("sect_index_rodata not initialized")), -1)	\
+      : objfile->sect_index_rodata)
+
+#define SECT_OFF_TEXT(objfile) \
+     ((objfile->sect_index_text == -1) \
+      ? (internal_error (__FILE__, __LINE__, \
+			 _("sect_index_text not initialized")), -1)	\
+      : objfile->sect_index_text)
+
+/* Sometimes the .bss section is missing from the objfile, so we don't
+   want to die here.  Let the users of SECT_OFF_BSS deal with an
+   uninitialized section index.  */
+#define SECT_OFF_BSS(objfile) (objfile)->sect_index_bss
+
 /* The "objstats" structure provides a place for gdb to record some
    interesting information about its internal state at runtime, on a
    per objfile basis, such as information about the number of symbols
@@ -244,13 +275,9 @@ struct objfile_per_bfd_storage
 
   auto_obstack storage_obstack;
 
-  /* Byte cache for file names.  */
+  /* String cache.  */
 
-  gdb::bcache filename_cache;
-
-  /* Byte cache for macros.  */
-
-  gdb::bcache macro_cache;
+  gdb::bcache string_cache;
 
   /* The gdbarch associated with the BFD.  Note that this gdbarch is
      determined solely from BFD information, without looking at target
@@ -492,6 +519,37 @@ public:
     return separate_debug_range (this);
   }
 
+  CORE_ADDR text_section_offset () const
+  {
+    return section_offsets[SECT_OFF_TEXT (this)];
+  }
+
+  CORE_ADDR data_section_offset () const
+  {
+    return section_offsets[SECT_OFF_DATA (this)];
+  }
+
+  /* Intern STRING and return the unique copy.  The copy has the same
+     lifetime as the per-BFD object.  */
+  const char *intern (const char *str)
+  {
+    return (const char *) per_bfd->string_cache.insert (str, strlen (str) + 1);
+  }
+
+  /* Intern STRING and return the unique copy.  The copy has the same
+     lifetime as the per-BFD object.  */
+  const char *intern (const std::string &str)
+  {
+    return (const char *) per_bfd->string_cache.insert (str.c_str (),
+							str.size () + 1);
+  }
+
+  /* Retrieve the gdbarch associated with this objfile.  */
+  struct gdbarch *arch () const
+  {
+    return per_bfd->gdbarch;
+  }
+
 
   /* The object file's original name as specified by the user,
      made absolute, and tilde-expanded.  However, it is not canonicalized
@@ -518,7 +576,7 @@ public:
 
   /* The partial symbol tables.  */
 
-  std::unique_ptr<psymtab_storage> partial_symtabs;
+  std::shared_ptr<psymtab_storage> partial_symtabs;
 
   /* The object file's BFD.  Can be null if the objfile contains only
      minimal symbols, e.g. the run time common symbols for SunOS4.  */
@@ -657,8 +715,6 @@ typedef std::unique_ptr<objfile, objfile_deleter> objfile_up;
 
 /* Declarations for functions defined in objfiles.c */
 
-extern struct gdbarch *get_objfile_arch (const struct objfile *);
-
 extern int entry_point_address_query (CORE_ADDR *entry_p);
 
 extern CORE_ADDR entry_point_address (void);
@@ -685,13 +741,16 @@ extern void objfile_set_sym_fns (struct objfile *objfile,
 
 extern void objfiles_changed (void);
 
-extern int is_addr_in_objfile (CORE_ADDR addr, const struct objfile *objfile);
+/* Return true if ADDR maps into one of the sections of OBJFILE and false
+   otherwise.  */
+
+extern bool is_addr_in_objfile (CORE_ADDR addr, const struct objfile *objfile);
 
 /* Return true if ADDRESS maps into one of the sections of a
    OBJF_SHARED objfile of PSPACE and false otherwise.  */
 
-extern int shared_objfile_contains_address_p (struct program_space *pspace,
-					      CORE_ADDR address);
+extern bool shared_objfile_contains_address_p (struct program_space *pspace,
+                                               CORE_ADDR address);
 
 /* This operation deletes all objfile entries that represent solibs that
    weren't explicitly loaded by the user, via e.g., the add-symbol-file
@@ -737,38 +796,6 @@ extern void default_iterate_over_objfiles_in_search_order
   (struct gdbarch *gdbarch,
    iterate_over_objfiles_in_search_order_cb_ftype *cb,
    void *cb_data, struct objfile *current_objfile);
-
-
-#define ALL_OBJFILE_OSECTIONS(objfile, osect)	\
-  for (osect = objfile->sections; osect < objfile->sections_end; osect++) \
-    if (osect->the_bfd_section == NULL)					\
-      {									\
-	/* Nothing.  */							\
-      }									\
-    else
-
-#define SECT_OFF_DATA(objfile) \
-     ((objfile->sect_index_data == -1) \
-      ? (internal_error (__FILE__, __LINE__, \
-			 _("sect_index_data not initialized")), -1)	\
-      : objfile->sect_index_data)
-
-#define SECT_OFF_RODATA(objfile) \
-     ((objfile->sect_index_rodata == -1) \
-      ? (internal_error (__FILE__, __LINE__, \
-			 _("sect_index_rodata not initialized")), -1)	\
-      : objfile->sect_index_rodata)
-
-#define SECT_OFF_TEXT(objfile) \
-     ((objfile->sect_index_text == -1) \
-      ? (internal_error (__FILE__, __LINE__, \
-			 _("sect_index_text not initialized")), -1)	\
-      : objfile->sect_index_text)
-
-/* Sometimes the .bss section is missing from the objfile, so we don't
-   want to die here.  Let the users of SECT_OFF_BSS deal with an
-   uninitialized section index.  */
-#define SECT_OFF_BSS(objfile) (objfile)->sect_index_bss
 
 /* Reset the per-BFD storage area on OBJ.  */
 

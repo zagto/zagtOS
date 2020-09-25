@@ -37,8 +37,9 @@ extern "C" {
 
 #define coff_data(bfd)		      ((bfd)->tdata.coff_obj_data)
 #define obj_pe(bfd)		      (coff_data (bfd)->pe)
+#define obj_go32(bfd)		      (coff_data (bfd)->go32)
 #define obj_symbols(bfd)	      (coff_data (bfd)->symbols)
-#define	obj_sym_filepos(bfd)	      (coff_data (bfd)->sym_filepos)
+#define obj_sym_filepos(bfd)	      (coff_data (bfd)->sym_filepos)
 #define obj_relocbase(bfd)	      (coff_data (bfd)->relocbase)
 #define obj_raw_syments(bfd)	      (coff_data (bfd)->raw_syments)
 #define obj_raw_syment_count(bfd)     (coff_data (bfd)->raw_syment_count)
@@ -118,9 +119,14 @@ typedef struct coff_tdata
      used by ARM code.  */
   flagword flags;
 
-  /* coff-stgo32 EXE stub header after BFD tdata has been allocated.  Its data
-     is kept in internal_filehdr.go32stub beforehand.  */
-  char *go32stub;
+  /* Is this a GO32 coff file?  */
+  bfd_boolean go32;
+
+  /* A stub (extra data prepended before the COFF image) and its size.
+     Used by coff-go32-exe, it contains executable data that loads the
+     COFF object into memory.  */
+  char * stub;
+  bfd_size_type stub_size;
 } coff_data_type;
 
 /* Tdata for pe image files.  */
@@ -132,7 +138,9 @@ typedef struct pe_tdata
   int has_reloc_section;
   int dont_strip_reloc;
   int dos_message[16];
-  bfd_boolean insert_timestamp;
+  /* The timestamp to insert into the output file.
+     If the timestamp is -1 then the current time is used.  */
+  int timestamp;
   bfd_boolean (*in_reloc_p) (bfd *, reloc_howto_type *);
   flagword real_flags;
 
@@ -239,8 +247,9 @@ struct coff_link_hash_entry
 {
   struct bfd_link_hash_entry root;
 
-  /* Symbol index in output file.  Set to -1 initially.  Set to -2 if
-     there is a reloc against this symbol.  */
+  /* Symbol index in output file.  This is initialized to -1.  It is
+     set to -2 if the symbol is used by a reloc.  It is set to -3 if
+     this symbol is defined in a discarded section.  */
   long indx;
 
   /* Symbol type.  */
@@ -303,7 +312,7 @@ struct coff_reloc_cookie
 #define coff_hash_table(p) ((struct coff_link_hash_table *) ((p)->hash))
 
 /* Functions in coffgen.c.  */
-extern const bfd_target *coff_object_p
+extern bfd_cleanup coff_object_p
   (bfd *);
 extern struct bfd_section *coff_section_from_bfd_index
   (bfd *, int);

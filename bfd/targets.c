@@ -176,6 +176,8 @@ DESCRIPTION
 .{* Forward declaration.  *}
 .typedef struct flag_info flag_info;
 .
+.typedef void (*bfd_cleanup) (bfd *);
+.
 .typedef struct bfd_target
 .{
 .  {* Identifies the kind of target, e.g., SunOS4, Ultrix, etc.  *}
@@ -240,9 +242,9 @@ DESCRIPTION
 .  {* Format dependent routines: these are vectors of entry points
 .     within the target vector structure, one for each format to check.  *}
 .
-.  {* Check the format of a file being read.  Return a <<bfd_target *>> or zero.  *}
-.  const struct bfd_target *
-.	       (*_bfd_check_format[bfd_type_end]) (bfd *);
+.  {* Check the format of a file being read.  Return a <<bfd_cleanup>> on
+.     success or zero on failure.  *}
+.  bfd_cleanup (*_bfd_check_format[bfd_type_end]) (bfd *);
 .
 .  {* Set the format of a file being written.  *}
 .  bfd_boolean (*_bfd_set_format[bfd_type_end]) (bfd *);
@@ -390,9 +392,10 @@ BFD_JUMP_TABLE macros.
 .#define bfd_get_symbol_info(b,p,e) \
 .	BFD_SEND (b, _bfd_get_symbol_info, (b,p,e))
 .  const char *(*_bfd_get_symbol_version_string) (bfd *, struct bfd_symbol *,
+.						  bfd_boolean,
 .						  bfd_boolean *);
-.#define bfd_get_symbol_version_string(b,s,h) \
-.	BFD_SEND (b, _bfd_get_symbol_version_string, (b,s,h))
+.#define bfd_get_symbol_version_string(b,s,p,h) \
+.	BFD_SEND (b, _bfd_get_symbol_version_string, (b,s,p,h))
 .  bfd_boolean (*_bfd_is_local_label_name) (bfd *, const char *);
 .  bfd_boolean (*_bfd_is_target_special_symbol) (bfd *, asymbol *);
 .  alent *     (*_get_lineno) (bfd *, struct bfd_symbol *);
@@ -733,12 +736,12 @@ extern const bfd_target i386_coff_go32stubbed_vec;
 extern const bfd_target i386_coff_lynx_vec;
 extern const bfd_target i386_elf32_vec;
 extern const bfd_target i386_elf32_fbsd_vec;
-extern const bfd_target i386_elf32_nacl_vec;
 extern const bfd_target i386_elf32_sol2_vec;
 extern const bfd_target i386_elf32_vxworks_vec;
 extern const bfd_target i386_mach_o_vec;
 extern const bfd_target i386_msdos_vec;
 extern const bfd_target i386_pe_vec;
+extern const bfd_target i386_pe_big_vec;
 extern const bfd_target i386_pei_vec;
 extern const bfd_target iamcu_elf32_vec;
 extern const bfd_target ia64_elf32_be_vec;
@@ -879,7 +882,6 @@ extern const bfd_target sparc_elf64_fbsd_vec;
 extern const bfd_target sparc_elf64_sol2_vec;
 extern const bfd_target spu_elf32_vec;
 extern const bfd_target sym_vec;
-extern const bfd_target tic30_aout_vec;
 extern const bfd_target tic30_coff_vec;
 extern const bfd_target tic4x_coff0_vec;
 extern const bfd_target tic4x_coff0_beh_vec;
@@ -915,15 +917,13 @@ extern const bfd_target wasm_vec;
 extern const bfd_target wasm32_elf32_vec;
 extern const bfd_target x86_64_coff_vec;
 extern const bfd_target x86_64_elf32_vec;
-extern const bfd_target x86_64_elf32_nacl_vec;
 extern const bfd_target x86_64_elf64_vec;
 extern const bfd_target x86_64_elf64_cloudabi_vec;
 extern const bfd_target x86_64_elf64_fbsd_vec;
-extern const bfd_target x86_64_elf64_nacl_vec;
 extern const bfd_target x86_64_elf64_sol2_vec;
 extern const bfd_target x86_64_mach_o_vec;
 extern const bfd_target x86_64_pe_vec;
-extern const bfd_target x86_64_pe_be_vec;
+extern const bfd_target x86_64_pe_big_vec;
 extern const bfd_target x86_64_pei_vec;
 extern const bfd_target xc16x_elf32_vec;
 extern const bfd_target xgate_elf32_vec;
@@ -1082,12 +1082,12 @@ static const bfd_target * const _bfd_target_vector[] =
 	&i386_coff_lynx_vec,
 	&i386_elf32_vec,
 	&i386_elf32_fbsd_vec,
-	&i386_elf32_nacl_vec,
 	&i386_elf32_sol2_vec,
 	&i386_elf32_vxworks_vec,
 	&i386_mach_o_vec,
 	&i386_msdos_vec,
 	&i386_pe_vec,
+	&i386_pe_big_vec,
 	&i386_pei_vec,
 
 	&iamcu_elf32_vec,
@@ -1296,7 +1296,6 @@ static const bfd_target * const _bfd_target_vector[] =
 
 	&sym_vec,
 
-	&tic30_aout_vec,
 	&tic30_coff_vec,
 	&tic54x_coff0_beh_vec,
 	&tic54x_coff0_vec,
@@ -1332,15 +1331,13 @@ static const bfd_target * const _bfd_target_vector[] =
 #ifdef BFD64
 	&x86_64_coff_vec,
 	&x86_64_elf32_vec,
-	&x86_64_elf32_nacl_vec,
 	&x86_64_elf64_vec,
 	&x86_64_elf64_cloudabi_vec,
 	&x86_64_elf64_fbsd_vec,
-	&x86_64_elf64_nacl_vec,
 	&x86_64_elf64_sol2_vec,
 	&x86_64_mach_o_vec,
 	&x86_64_pe_vec,
-	&x86_64_pe_be_vec,
+	&x86_64_pe_big_vec,
 	&x86_64_pei_vec,
 #endif
 
@@ -1687,8 +1684,7 @@ bfd_get_target_info (const char *target_name, bfd *abfd,
 	    _bfd_find_arch_match (tname, arches, def_target_arch);
 	}
 
-      if (arches)
-	free (arches);
+      free (arches);
     }
   return target_vec;
 }
@@ -1711,7 +1707,7 @@ const char **
 bfd_target_list (void)
 {
   int vec_length = 0;
-  bfd_size_type amt;
+  size_t amt;
   const bfd_target * const *target;
   const  char **name_list, **name_ptr;
 

@@ -236,19 +236,7 @@ find_pc_partial_function (CORE_ADDR pc, const char **name, CORE_ADDR *address,
     goto return_cached_value;
 
   msymbol = lookup_minimal_symbol_by_pc_section (mapped_pc, section);
-  for (objfile *objfile : current_program_space->objfiles ())
-    {
-      if (objfile->sf)
-	{
-	  compunit_symtab
-	    = objfile->sf->qf->find_pc_sect_compunit_symtab (objfile, msymbol,
-							     mapped_pc,
-							     section,
-							     0);
-	}
-      if (compunit_symtab != NULL)
-	break;
-    }
+  compunit_symtab = find_pc_sect_compunit_symtab (mapped_pc, section);
 
   if (compunit_symtab != NULL)
     {
@@ -441,11 +429,11 @@ find_gnu_ifunc_target_type (CORE_ADDR resolver_funaddr)
 
       /* If we found a pointer to function, then the resolved type
 	 is the type of the pointed-to function.  */
-      if (TYPE_CODE (resolver_ret_type) == TYPE_CODE_PTR)
+      if (resolver_ret_type->code () == TYPE_CODE_PTR)
 	{
 	  struct type *resolved_type
 	    = TYPE_TARGET_TYPE (resolver_ret_type);
-	  if (TYPE_CODE (check_typedef (resolved_type)) == TYPE_CODE_FUNC)
+	  if (check_typedef (resolved_type)->code () == TYPE_CODE_FUNC)
 	    return resolved_type;
 	}
     }

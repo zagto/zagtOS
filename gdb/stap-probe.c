@@ -1290,7 +1290,7 @@ stap_probe::parse_arguments (struct gdbarch *gdbarch)
 static CORE_ADDR
 relocate_address (CORE_ADDR address, struct objfile *objfile)
 {
-  return address + objfile->section_offsets[SECT_OFF_DATA (objfile)];
+  return address + objfile->data_section_offset ();
 }
 
 /* Implementation of the get_relocated_address method.  */
@@ -1517,7 +1517,7 @@ handle_stap_probe (struct objfile *objfile, struct sdt_note *el,
 {
   bfd *abfd = objfile->obfd;
   int size = bfd_get_arch_size (abfd) / 8;
-  struct gdbarch *gdbarch = get_objfile_arch (objfile);
+  struct gdbarch *gdbarch = objfile->arch ();
   struct type *ptr_type = builtin_type (gdbarch)->builtin_data_ptr;
 
   /* Provider and the name of the probe.  */
@@ -1606,7 +1606,7 @@ get_stap_base_address (bfd *obfd, bfd_vma *base)
     {
       complaint (_("could not obtain base address for "
 					"SystemTap section on objfile `%s'."),
-		 obfd->filename);
+		 bfd_get_filename (obfd));
       return 0;
     }
 

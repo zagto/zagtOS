@@ -65,7 +65,6 @@ set DOBJDUMP_FLAGS --dynamic-syms
 set SOBJDUMP_FLAGS --syms
 set shared "--shared -Wl,--no-as-needed"
 
-
 #
 # objdump_symstuff
 #	Dump non-dynamic symbol stuff and make sure that it is sane.
@@ -306,13 +305,14 @@ proc build_exec { test execname objs flags dat dynsymexp symexp} {
     global srcdir
     global subdir
     global exec_output
+    global NOSANTIZE_CFLAGS
 
     set files ""
     foreach obj $objs {
       set files "$files $tmpdir/$obj"
     }
 
-    if {![ld_link $CC $tmpdir/$execname "$flags $files"]} {
+    if {![ld_link $CC $tmpdir/$execname "$flags $NOSANTIZE_CFLAGS $files"]} {
 	fail "$test"
 	return
     }
@@ -392,10 +392,11 @@ if {![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo.c $tmpdir/foo.o]
     || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1a.c $tmpdir/bar1a.o]
     || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1b.c $tmpdir/bar1b.o]
     || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1c.c $tmpdir/bar1c.o]
-    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/main1.c $tmpdir/main1.o]
-    || ![ld_link $CC $tmpdir/libfoo1a.so "$shared $tmpdir/foo1a.o"]
-    || ![ld_link $CC $tmpdir/libfoo1b.so "$shared $tmpdir/foo1b.o"]
-    || ![ld_link $CC $tmpdir/libbar1a.so "$shared $tmpdir/bar1a.o $tmpdir/libfoo1a.so"]} then {
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/main1.c $tmpdir/main1.o]} then {
+    unresolved "ELF weak"
+} elseif {![ld_link $CC $tmpdir/libfoo1a.so "$shared $tmpdir/foo1a.o"]
+	  || ![ld_link $CC $tmpdir/libfoo1b.so "$shared $tmpdir/foo1b.o"]
+	  || ![ld_link $CC $tmpdir/libbar1a.so "$shared $tmpdir/bar1a.o $tmpdir/libfoo1a.so"]} then {
     fail "ELF weak"
 } else {
     build_lib "ELF DSO weak func first" libfoo "foo.o bar.o" dso.dsym
@@ -439,7 +440,7 @@ run_dump_test $srcdir/$subdir/size2
 
 if {![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/alias.c $tmpdir/alias.o]
     || ![ld_link $CC $tmpdir/alias.so "$shared $tmpdir/alias.o"]
-    || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/aliasmain.c $tmpdir/aliasmain.o]
+    || ![ld_compile "$CC $CFLAGS $NOSANTIZE_CFLAGS" $srcdir/$subdir/aliasmain.c $tmpdir/aliasmain.o]
     || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/weakref1.c $tmpdir/weakref1.o]
     || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/weakref2.c $tmpdir/weakref2.o]} then {
     unresolved "ELF weak (alias)"

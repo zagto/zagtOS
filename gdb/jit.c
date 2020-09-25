@@ -136,7 +136,8 @@ mem_bfd_iovec_stat (struct bfd *abfd, void *stream, struct stat *sb)
 /* Open a BFD from the target's memory.  */
 
 static gdb_bfd_ref_ptr
-bfd_open_from_target_memory (CORE_ADDR addr, ULONGEST size, char *target)
+bfd_open_from_target_memory (CORE_ADDR addr, ULONGEST size,
+			     const char *target)
 {
   struct target_buffer *buffer = XNEW (struct target_buffer);
 
@@ -328,9 +329,9 @@ get_jit_program_space_data ()
 }
 
 /* Helper function for reading the global JIT descriptor from remote
-   memory.  Returns 1 if all went well, 0 otherwise.  */
+   memory.  Returns true if all went well, false otherwise.  */
 
-static int
+static bool
 jit_read_descriptor (struct gdbarch *gdbarch,
 		     struct jit_descriptor *descriptor,
 		     struct jit_program_space_data *ps_data)
@@ -344,10 +345,10 @@ jit_read_descriptor (struct gdbarch *gdbarch,
   struct jit_objfile_data *objf_data;
 
   if (ps_data->objfile == NULL)
-    return 0;
+    return false;
   objf_data = get_jit_objfile_data (ps_data->objfile);
   if (objf_data->descriptor == NULL)
-    return 0;
+    return false;
 
   if (jit_debug)
     fprintf_unfiltered (gdb_stdlog,
@@ -369,7 +370,7 @@ jit_read_descriptor (struct gdbarch *gdbarch,
     {
       printf_unfiltered (_("Unable to read JIT descriptor from "
 			   "remote memory\n"));
-      return 0;
+      return false;
     }
 
   /* Fix the endianness to match the host.  */
@@ -380,7 +381,7 @@ jit_read_descriptor (struct gdbarch *gdbarch,
   descriptor->first_entry =
       extract_typed_address (&desc_buf[8 + ptr_size], ptr_type);
 
-  return 1;
+  return true;
 }
 
 /* Helper function for reading a JITed code entry from remote memory.  */
@@ -578,6 +579,7 @@ jit_symtab_line_mapping_add_impl (struct gdb_symbol_callbacks *cb,
     {
       stab->linetable->item[i].pc = (CORE_ADDR) map[i].pc;
       stab->linetable->item[i].line = map[i].line;
+      stab->linetable->item[i].is_stmt = 1;
     }
 }
 
@@ -653,8 +655,8 @@ finalize_symtab (struct gdb_symtab *stab, struct objfile *objfile)
   for (gdb_block &gdb_block_iter : stab->blocks)
     {
       struct block *new_block = allocate_block (&objfile->objfile_obstack);
-      struct symbol *block_name = allocate_symbol (objfile);
-      struct type *block_type = arch_type (get_objfile_arch (objfile),
+      struct symbol *block_name = new (&objfile->objfile_obstack) symbol;
+      struct type *block_type = arch_type (objfile->arch (),
 					   TYPE_CODE_VOID,
 					   TARGET_CHAR_BIT,
 					   "void");
@@ -948,9 +950,9 @@ jit_breakpoint_deleted (struct breakpoint *b)
 }
 
 /* (Re-)Initialize the jit breakpoint if necessary.
-   Return 0 if the jit breakpoint has been successfully initialized.  */
+   Return true if the jit breakpoint has been successfully initialized.  */
 
-static int
+static bool
 jit_breakpoint_re_set_internal (struct gdbarch *gdbarch,
 				struct jit_program_space_data *ps_data)
 {
@@ -966,13 +968,13 @@ jit_breakpoint_re_set_internal (struct gdbarch *gdbarch,
       reg_symbol = lookup_bound_minimal_symbol (jit_break_name);
       if (reg_symbol.minsym == NULL
 	  || BMSYMBOL_VALUE_ADDRESS (reg_symbol) == 0)
-	return 1;
+	return false;
 
       desc_symbol = lookup_minimal_symbol (jit_descriptor_name, NULL,
 					   reg_symbol.objfile);
       if (desc_symbol.minsym == NULL
 	  || BMSYMBOL_VALUE_ADDRESS (desc_symbol) == 0)
-	return 1;
+	return false;
 
       objf_data = get_jit_objfile_data (reg_symbol.objfile);
       objf_data->register_code = reg_symbol.minsym;
@@ -992,7 +994,7 @@ jit_breakpoint_re_set_internal (struct gdbarch *gdbarch,
 			paddress (gdbarch, addr));
 
   if (ps_data->cached_code_address == addr)
-    return 0;
+    return true;
 
   /* Delete the old breakpoint.  */
   if (ps_data->jit_breakpoint != NULL)
@@ -1002,7 +1004,7 @@ jit_breakpoint_re_set_internal (struct gdbarch *gdbarch,
   ps_data->cached_code_address = addr;
   ps_data->jit_breakpoint = create_jit_event_breakpoint (gdbarch, addr);
 
-  return 0;
+  return true;
 }
 
 /* The private data passed around in the frame unwind callback
@@ -1250,7 +1252,7 @@ jit_inferior_init (struct gdbarch *gdbarch)
   jit_prepend_unwinder (gdbarch);
 
   ps_data = get_jit_program_space_data ();
-  if (jit_breakpoint_re_set_internal (gdbarch, ps_data) != 0)
+  if (!jit_breakpoint_re_set_internal (gdbarch, ps_data))
     return;
 
   /* Read the descriptor so we can check the version number and load

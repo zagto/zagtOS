@@ -65,13 +65,13 @@ struct trad_core_struct
   asection *sections[MAX_CORE_SEGS];
 };
 
-static const bfd_target *
+static bfd_cleanup
 aix386_core_file_p (bfd *abfd)
 {
   int i, n;
   unsigned char longbuf[4];	/* Raw bytes of various header fields */
   bfd_size_type core_size = sizeof (struct corehdr);
-  bfd_size_type amt;
+  size_t amt;
   struct corehdr *core;
   struct mergem
   {
@@ -189,7 +189,7 @@ aix386_core_file_p (bfd *abfd)
       n++;
     }
 
-  return abfd->xvec;
+  return _bfd_no_cleanup;
 }
 
 static char *

@@ -48,6 +48,8 @@
 #include "source-cache.h"
 #include "cli/cli-style.h"
 #include "observable.h"
+#include "build-id.h"
+#include "debuginfod-support.h"
 
 #define OPEN_MODE (O_RDONLY | O_BINARY)
 #define FDOPEN_MODE FOPEN_RB
@@ -419,9 +421,7 @@ forget_cached_source_info_for_objfile (struct objfile *objfile)
 void
 forget_cached_source_info (void)
 {
-  struct program_space *pspace;
-
-  ALL_PSPACES (pspace)
+  for (struct program_space *pspace : program_spaces)
     for (objfile *objfile : pspace->objfiles ())
       {
 	forget_cached_source_info_for_objfile (objfile);
@@ -1051,10 +1051,7 @@ find_and_open_source (const char *filename,
       result = gdb_open_cloexec (fullname->get (), OPEN_MODE, 0);
       if (result >= 0)
 	{
-	  if (basenames_may_differ)
-	    *fullname = gdb_realpath (fullname->get ());
-	  else
-	    *fullname = gdb_abspath (fullname->get ());
+	  *fullname = gdb_realpath (fullname->get ());
 	  return scoped_fd (result);
 	}
 
@@ -1098,12 +1095,9 @@ find_and_open_source (const char *filename,
   if (rewritten_filename != NULL)
     filename = rewritten_filename.get ();
 
-  openp_flags flags = OPF_SEARCH_IN_PATH;
-  if (basenames_may_differ)
-    flags |= OPF_RETURN_REALPATH;
-
   /* Try to locate file using filename.  */
-  result = openp (path, flags, filename, OPEN_MODE, fullname);
+  result = openp (path, OPF_SEARCH_IN_PATH | OPF_RETURN_REALPATH, filename,
+		  OPEN_MODE, fullname);
   if (result < 0 && dirname != NULL)
     {
       /* Remove characters from the start of PATH that we don't need when
@@ -1124,15 +1118,16 @@ find_and_open_source (const char *filename,
       cdir_filename.append (SLASH_STRING);
       cdir_filename.append (filename_start);
 
-      result = openp (path, flags, cdir_filename.c_str (), OPEN_MODE,
-		      fullname);
+      result = openp (path, OPF_SEARCH_IN_PATH | OPF_RETURN_REALPATH,
+		      cdir_filename.c_str (), OPEN_MODE, fullname);
     }
   if (result < 0)
     {
       /* Didn't work.  Try using just the basename.  */
       p = lbasename (filename);
       if (p != filename)
-	result = openp (path, flags, p, OPEN_MODE, fullname);
+	result = openp (path, OPF_SEARCH_IN_PATH | OPF_RETURN_REALPATH, p,
+			OPEN_MODE, fullname);
     }
 
   return scoped_fd (result);
@@ -1153,6 +1148,34 @@ open_source_file (struct symtab *s)
   s->fullname = NULL;
   scoped_fd fd = find_and_open_source (s->filename, SYMTAB_DIRNAME (s),
 				       &fullname);
+
+  if (fd.get () < 0)
+    {
+      if (SYMTAB_COMPUNIT (s) != nullptr)
+	{
+	  const objfile *ofp = COMPUNIT_OBJFILE (SYMTAB_COMPUNIT (s));
+
+	  std::string srcpath;
+	  if (IS_ABSOLUTE_PATH (s->filename))
+	    srcpath = s->filename;
+	  else if (SYMTAB_DIRNAME (s) != nullptr)
+	    {
+	      srcpath = SYMTAB_DIRNAME (s);
+	      srcpath += SLASH_STRING;
+	      srcpath += s->filename;
+	    }
+
+	  const struct bfd_build_id *build_id = build_id_bfd_get (ofp->obfd);
+
+	  /* Query debuginfod for the source file.  */
+	  if (build_id != nullptr && !srcpath.empty ())
+	    fd = debuginfod_source_query (build_id->data,
+					  build_id->size,
+					  srcpath.c_str (),
+					  &fullname);
+	}
+    }
+
   s->fullname = fullname.release ();
   return fd;
 }
@@ -1474,8 +1497,7 @@ info_line_command (const char *arg, int from_tty)
       else if (sal.line > 0
 	       && find_line_pc_range (sal, &start_pc, &end_pc))
 	{
-	  struct gdbarch *gdbarch
-	    = get_objfile_arch (SYMTAB_OBJFILE (sal.symtab));
+	  struct gdbarch *gdbarch = SYMTAB_OBJFILE (sal.symtab)->arch ();
 
 	  if (start_pc == end_pc)
 	    {
@@ -1510,7 +1532,7 @@ info_line_command (const char *arg, int from_tty)
 
 	  /* If this is the only line, show the source code.  If it could
 	     not find the file, don't do anything special.  */
-	  if (sals.size () == 1)
+	  if (annotation_level > 0 && sals.size () == 1)
 	    annotate_source_line (sal.symtab, sal.line, 0, start_pc);
 	}
       else

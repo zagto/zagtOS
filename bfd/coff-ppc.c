@@ -179,7 +179,7 @@ static struct bfd_link_hash_table *
 ppc_coff_link_hash_table_create (bfd *abfd)
 {
   struct ppc_coff_link_hash_table *ret;
-  bfd_size_type amt = sizeof (struct ppc_coff_link_hash_table);
+  size_t amt = sizeof (struct ppc_coff_link_hash_table);
 
   ret = (struct ppc_coff_link_hash_table *) bfd_malloc (amt);
   if (ret == NULL)
@@ -771,7 +771,7 @@ record_toc (asection *toc_section,
 	    const char *name)
 {
   /* Add this entry to our toc addr-offset-name list.  */
-  bfd_size_type amt = sizeof (struct list_ele);
+  size_t amt = sizeof (struct list_ele);
   struct list_ele *t = (struct list_ele *) bfd_malloc (amt);
 
   if (t == NULL)
@@ -1513,7 +1513,6 @@ ppc_allocate_toc_section (struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   asection *s;
   bfd_byte *foo;
-  bfd_size_type amt;
   static char test_char = '1';
 
   if ( global_toc_size == 0 ) /* FIXME: does this get me in trouble?  */
@@ -1528,8 +1527,7 @@ ppc_allocate_toc_section (struct bfd_link_info *info ATTRIBUTE_UNUSED)
     /* No toc section? Something is very wrong.  */
     abort ();
 
-  amt = global_toc_size;
-  foo = (bfd_byte *) bfd_alloc (bfd_of_toc_owner, amt);
+  foo = (bfd_byte *) bfd_alloc (bfd_of_toc_owner, global_toc_size);
   memset(foo, test_char, (size_t) global_toc_size);
 
   s->size = global_toc_size;
@@ -2260,41 +2258,20 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
   coff_debug_merge_hash_table_free (&flaginfo.debug_merge);
   debug_merge_allocated = FALSE;
 
-  if (flaginfo.internal_syms != NULL)
-    {
-      free (flaginfo.internal_syms);
-      flaginfo.internal_syms = NULL;
-    }
-  if (flaginfo.sec_ptrs != NULL)
-    {
-      free (flaginfo.sec_ptrs);
-      flaginfo.sec_ptrs = NULL;
-    }
-  if (flaginfo.sym_indices != NULL)
-    {
-      free (flaginfo.sym_indices);
-      flaginfo.sym_indices = NULL;
-    }
-  if (flaginfo.linenos != NULL)
-    {
-      free (flaginfo.linenos);
-      flaginfo.linenos = NULL;
-    }
-  if (flaginfo.contents != NULL)
-    {
-      free (flaginfo.contents);
-      flaginfo.contents = NULL;
-    }
-  if (flaginfo.external_relocs != NULL)
-    {
-      free (flaginfo.external_relocs);
-      flaginfo.external_relocs = NULL;
-    }
-  if (flaginfo.internal_relocs != NULL)
-    {
-      free (flaginfo.internal_relocs);
-      flaginfo.internal_relocs = NULL;
-    }
+  free (flaginfo.internal_syms);
+  flaginfo.internal_syms = NULL;
+  free (flaginfo.sec_ptrs);
+  flaginfo.sec_ptrs = NULL;
+  free (flaginfo.sym_indices);
+  flaginfo.sym_indices = NULL;
+  free (flaginfo.linenos);
+  flaginfo.linenos = NULL;
+  free (flaginfo.contents);
+  flaginfo.contents = NULL;
+  free (flaginfo.external_relocs);
+  flaginfo.external_relocs = NULL;
+  free (flaginfo.internal_relocs);
+  flaginfo.internal_relocs = NULL;
 
   /* The value of the last C_FILE symbol is supposed to be the symbol
      index of the first external symbol.  Write it out again if
@@ -2320,11 +2297,8 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
     goto error_return;
 
   /* The outsyms buffer is used by _bfd_coff_write_global_sym.  */
-  if (flaginfo.outsyms != NULL)
-    {
-      free (flaginfo.outsyms);
-      flaginfo.outsyms = NULL;
-    }
+  free (flaginfo.outsyms);
+  flaginfo.outsyms = NULL;
 
   if (bfd_link_relocatable (info))
     {
@@ -2377,10 +2351,8 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
 
       for (i = 0; i < abfd->section_count; i++)
 	{
-	  if (flaginfo.section_info[i].relocs != NULL)
-	    free (flaginfo.section_info[i].relocs);
-	  if (flaginfo.section_info[i].rel_hashes != NULL)
-	    free (flaginfo.section_info[i].rel_hashes);
+	  free (flaginfo.section_info[i].relocs);
+	  free (flaginfo.section_info[i].rel_hashes);
 	}
       free (flaginfo.section_info);
       flaginfo.section_info = NULL;
@@ -2437,31 +2409,20 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
 
       for (i = 0; i < abfd->section_count; i++)
 	{
-	  if (flaginfo.section_info[i].relocs != NULL)
-	    free (flaginfo.section_info[i].relocs);
-	  if (flaginfo.section_info[i].rel_hashes != NULL)
-	    free (flaginfo.section_info[i].rel_hashes);
+	  free (flaginfo.section_info[i].relocs);
+	  free (flaginfo.section_info[i].rel_hashes);
 	}
       free (flaginfo.section_info);
     }
-  if (flaginfo.internal_syms != NULL)
-    free (flaginfo.internal_syms);
-  if (flaginfo.sec_ptrs != NULL)
-    free (flaginfo.sec_ptrs);
-  if (flaginfo.sym_indices != NULL)
-    free (flaginfo.sym_indices);
-  if (flaginfo.outsyms != NULL)
-    free (flaginfo.outsyms);
-  if (flaginfo.linenos != NULL)
-    free (flaginfo.linenos);
-  if (flaginfo.contents != NULL)
-    free (flaginfo.contents);
-  if (flaginfo.external_relocs != NULL)
-    free (flaginfo.external_relocs);
-  if (flaginfo.internal_relocs != NULL)
-    free (flaginfo.internal_relocs);
-  if (external_relocs != NULL)
-    free (external_relocs);
+  free (flaginfo.internal_syms);
+  free (flaginfo.sec_ptrs);
+  free (flaginfo.sym_indices);
+  free (flaginfo.outsyms);
+  free (flaginfo.linenos);
+  free (flaginfo.contents);
+  free (flaginfo.external_relocs);
+  free (flaginfo.internal_relocs);
+  free (external_relocs);
   return FALSE;
 }
 #endif
