@@ -11,7 +11,6 @@
 #include <iostream>
 #include <uuid/uuid.h>
 
-namespace zagtos {
 namespace zbon {
 
 enum class Type : uint8_t {
@@ -309,12 +308,12 @@ private:
     template<typename T>
     void encodeArray(const T &array, size_t length) {
         encodeType(Type::OBJECT);
-        encodeValue(static_cast<uint64_t>(length));
+        encodeNumber(static_cast<uint64_t>(length), position);
 
         /* insert numHandles (64bit) later */
         size_t numHandlesPosition = position;
         size_t handlePositionStart = handlePosition;
-        position++;
+        position += COUNT_SIZE;
 
         /* insert bytesSize (64bit) later */
         size_t bytesSizePosition = position;
@@ -391,12 +390,12 @@ public:
     template<typename ...Types>
     void encodeValue(const std::tuple<Types...> &tuple) {
         encodeType(Type::OBJECT);
-        encodeValue(static_cast<uint64_t>(sizeof...(Types)));
+        encodeNumber(static_cast<uint64_t>(sizeof...(Types)), position);
 
         /* insert numHandles (64bit) later */
         size_t numHandlesPosition = position;
         size_t handlePositionStart = handlePosition;
-        position++;
+        position += COUNT_SIZE;
 
         /* insert bytesSize (64bit) later */
         size_t bytesSizePosition = position;
@@ -413,12 +412,12 @@ public:
     template<typename ...Types>
     void encodeObjectValue(const Types &...values) {
         encodeType(Type::OBJECT);
-        encodeValue(static_cast<uint64_t>(sizeof...(Types)));
+        encodeNumber(static_cast<uint64_t>(sizeof...(Types)), position);
 
         /* insert numHandles (64bit) later */
         size_t numHandlesPosition = position;
         size_t handlePositionStart = handlePosition;
-        position++;
+        position += COUNT_SIZE;
 
         /* insert bytesSize (64bit) later */
         size_t bytesSizePosition = position;
@@ -440,6 +439,8 @@ public:
     void encodeValue(const std::optional<T> &option) {
         if (option) {
             encodeValue(*option);
+        } else {
+            encodeType(Type::NOTHING);
         }
     }
     void encodeValue(const zbon::EncodedData &value);
@@ -860,5 +861,4 @@ public:
     }
 };
 
-}
 }

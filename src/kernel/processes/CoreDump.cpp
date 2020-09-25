@@ -121,7 +121,7 @@ void Process::coreDump() {
             .fileClass = 2,             /* 64-bit */
             .dataEncoding = 1,          /* little-endian */
             .fileVersion = 1,
-            .OSABIIdentification = 255, /* standalone */
+            .OSABIIdentification = 0,   /* System V */
             .ABIVersion = 0,
             .pad{0}
         },

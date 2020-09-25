@@ -32,7 +32,10 @@ LDFLAGS = -O2 -s
 CXX = $(ARCH)-zagto-zagtos-g++
 CC = $(ARCH)-zagto-zagtos-gcc
 LD = $(ARCH)-zagto-zagtos-ld
+CONVERTELF = $(SHBUILD_ROOT)/build/ConvertELF/ConvertELF
 
+$(TARGET).Executable: $(TARGET)
+	$(CONVERTELF) $(TARGET) $(TARGET).Executable
 
 $(TARGET): $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(BINARY_OBJS)
 	mkdir -p $(dir $@)
@@ -51,7 +54,12 @@ $(SHBUILD_BUILD_DIR)/binaries.o: $(EMBEDDED_BINARIES)
 	# copy all binaries to the same directory and link there to genearate
 	# symbol names without the whole path
 	cp $(EMBEDDED_BINARIES) $(SHBUILD_BUILD_DIR)
-	cd $(SHBUILD_BUILD_DIR) && $(LD) -b binary -o $@ $(notdir $(EMBEDDED_BINARIES))
+	#for ELF in $(notdir $(EMBEDDED_BINARIES)) ; do \
+	#	$(CONVERTELF) $$ELF $$ELF.Executable ; \
+	#done
+	
+	$(foreach ELF, $(EMBEDDED_BINARIES), $(CONVERTELF) $(ELF) $(SHBUILD_BUILD_DIR)/$(notdir $(ELF)).Executable;)
+	cd $(SHBUILD_BUILD_DIR) && $(LD) -b binary -o $@ $(addsuffix .Executable, $(notdir $(EMBEDDED_BINARIES)))
 
 $(SHBUILD_BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)

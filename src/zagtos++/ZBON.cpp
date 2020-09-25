@@ -3,7 +3,6 @@
 #include <zagtos/ZBON.hpp>
 
 
-namespace zagtos {
 namespace zbon {
 
 std::ostream &operator<<(std::ostream &stream, Type type) {
@@ -162,5 +161,4 @@ void Decoder::decodeBinary(uint8_t *buffer, size_t length) {
 }
 
 
-}
 }
