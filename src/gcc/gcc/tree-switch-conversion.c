@@ -1,6 +1,6 @@
 /* Lower GIMPLE_SWITCH expressions to something more efficient than
    a jump table.
-   Copyright (C) 2006-2019 Free Software Foundation, Inc.
+   Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -36,7 +36,6 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 #include "optabs-tree.h"
 #include "cgraph.h"
 #include "gimple-pretty-print.h"
-#include "params.h"
 #include "fold-const.h"
 #include "varasm.h"
 #include "stor-layout.h"
@@ -62,7 +61,7 @@ using namespace tree_switch_conversion;
 
 /* Constructor.  */
 
-switch_conversion::switch_conversion (): m_final_bb (NULL), m_other_count (),
+switch_conversion::switch_conversion (): m_final_bb (NULL),
   m_constructors (NULL), m_default_values (NULL),
   m_arr_ref_first (NULL), m_arr_ref_last (NULL),
   m_reason (NULL), m_default_case_nonstandard (false), m_cfg_altered (false)
@@ -90,10 +89,6 @@ switch_conversion::collect (gswitch *swtch)
   e_default = gimple_switch_default_edge (cfun, swtch);
   m_default_bb = e_default->dest;
   m_default_prob = e_default->probability;
-  m_default_count = e_default->count ();
-  FOR_EACH_EDGE (e, ei, m_switch_bb->succs)
-    if (e != e_default)
-      m_other_count += e->count ();
 
   /* Get upper and lower bounds of case values, and the covered range.  */
   min_case = gimple_switch_label (swtch, 1);
@@ -194,7 +189,7 @@ switch_conversion::check_range ()
     }
 
   if (tree_to_uhwi (m_range_size)
-      > ((unsigned) m_count * SWITCH_CONVERSION_BRANCH_RATIO))
+      > ((unsigned) m_count * param_switch_conversion_branch_ratio))
     {
       m_reason = "the maximum range-branch ratio exceeded";
       return false;
@@ -1214,14 +1209,14 @@ jump_table_cluster::find_jump_tables (vec<cluster *> &clusters)
     }
 
   /* No result.  */
-  if (min[l].m_count == INT_MAX)
+  if (min[l].m_count == l)
     return clusters.copy ();
 
   vec<cluster *> output;
   output.create (4);
 
   /* Find and build the clusters.  */
-  for (int end = l;;)
+  for (unsigned int end = l;;)
     {
       int start = min[end].m_start;
 
@@ -1258,18 +1253,18 @@ jump_table_cluster::can_be_handled (const vec<cluster *> &clusters,
      make a sequence of conditional branches instead of a dispatch.
 
      The definition of "much bigger" depends on whether we are
-     optimizing for size or for speed.  */
-  if (!flag_jump_tables)
-    return false;
+     optimizing for size or for speed.
 
-  /* For algorithm correctness, jump table for a single case must return
+     For algorithm correctness, jump table for a single case must return
      true.  We bail out in is_beneficial if it's called just for
      a single case.  */
   if (start == end)
     return true;
 
   unsigned HOST_WIDE_INT max_ratio
-    = optimize_insn_for_size_p () ? max_ratio_for_size : max_ratio_for_speed;
+    = (optimize_insn_for_size_p ()
+       ? param_jump_table_max_growth_ratio_for_size
+       : param_jump_table_max_growth_ratio_for_speed);
   unsigned HOST_WIDE_INT range = get_range (clusters[start]->get_low (),
 					    clusters[end]->get_high ());
   /* Check overflow.  */
@@ -1283,7 +1278,11 @@ jump_table_cluster::can_be_handled (const vec<cluster *> &clusters,
       comparison_count += sc->m_range_p ? 2 : 1;
     }
 
-  return range <= max_ratio * comparison_count;
+  unsigned HOST_WIDE_INT lhs = 100 * range;
+  if (lhs < range)
+    return false;
+
+  return lhs <= max_ratio * comparison_count;
 }
 
 /* Return true if cluster starting at START and ending at END (inclusive)
@@ -1300,20 +1299,12 @@ jump_table_cluster::is_beneficial (const vec<cluster *> &,
   return end - start + 1 >= case_values_threshold ();
 }
 
-/* Definition of jump_table_cluster constants.  */
-
-const unsigned HOST_WIDE_INT jump_table_cluster::max_ratio_for_size;
-const unsigned HOST_WIDE_INT jump_table_cluster::max_ratio_for_speed;
-
 /* Find bit tests of given CLUSTERS, where all members of the vector
    are of type simple_cluster.  New clusters are returned.  */
 
 vec<cluster *>
 bit_test_cluster::find_bit_tests (vec<cluster *> &clusters)
 {
-  vec<cluster *> output;
-  output.create (4);
-
   unsigned l = clusters.length ();
   auto_vec<min_cluster_item> min;
   min.reserve (l + 1);
@@ -1336,8 +1327,11 @@ bit_test_cluster::find_bit_tests (vec<cluster *> &clusters)
     }
 
   /* No result.  */
-  if (min[l].m_count == INT_MAX)
+  if (min[l].m_count == l)
     return clusters.copy ();
+
+  vec<cluster *> output;
+  output.create (4);
 
   /* Find and build the clusters.  */
   for (unsigned end = l;;)
@@ -1448,8 +1442,8 @@ bit_test_cluster::is_beneficial (const vec<cluster *> &clusters,
 int
 case_bit_test::cmp (const void *p1, const void *p2)
 {
-  const struct case_bit_test *const d1 = (const struct case_bit_test *) p1;
-  const struct case_bit_test *const d2 = (const struct case_bit_test *) p2;
+  const case_bit_test *const d1 = (const case_bit_test *) p1;
+  const case_bit_test *const d2 = (const case_bit_test *) p2;
 
   if (d2->bits != d1->bits)
     return d2->bits - d1->bits;
@@ -1480,7 +1474,7 @@ void
 bit_test_cluster::emit (tree index_expr, tree index_type,
 			tree, basic_block default_bb)
 {
-  struct case_bit_test test[m_max_case_bit_tests] = { {} };
+  case_bit_test test[m_max_case_bit_tests] = { {} };
   unsigned int i, j, k;
   unsigned int count;
 
@@ -1835,6 +1829,7 @@ switch_decision_tree::try_switch_expansion (vec<cluster *> &clusters)
     if (clusters[i]->get_type () != SIMPLE_CASE)
       {
 	clusters[i]->m_case_bb = create_empty_bb (bb);
+	clusters[i]->m_case_bb->count = bb->count;
 	clusters[i]->m_case_bb->loop_father = bb->loop_father;
       }
 

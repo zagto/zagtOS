@@ -1,5 +1,5 @@
 /* intrinsics.cc -- D language compiler intrinsics.
-   Copyright (C) 2006-2019 Free Software Foundation, Inc.
+   Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -134,10 +134,7 @@ maybe_set_intrinsic (FuncDeclaration *decl)
 	  /* If there is no function body, then the implementation is always
 	     provided by the compiler.  */
 	  if (!decl->fbody)
-	    {
-	      DECL_BUILT_IN_CLASS (decl->csym) = BUILT_IN_FRONTEND;
-	      DECL_FUNCTION_CODE (decl->csym) = (built_in_function) code;
-	    }
+	    set_decl_built_in_function (decl->csym, BUILT_IN_FRONTEND, code);
 
 	  /* Infer whether the intrinsic can be used for CTFE, let the
 	     front-end know that it can be evaluated at compile-time.  */
@@ -468,6 +465,25 @@ expand_intrinsic_pow (tree callexp)
 
   return call_builtin_fn (callexp, DECL_FUNCTION_CODE (builtin), 2,
 			  base, exponent);
+}
+
+/* Expand a front-end intrinsic call to toPrec().  This takes one argument, the
+   signature to which can be either:
+
+	T toPrec(T)(float f);
+	T toPrec(T)(double f);
+	T toPrec(T)(real f);
+
+    This rounds the argument F to the precision of the specified floating
+    point type T.  The original call expression is held in CALLEXP.  */
+
+static tree
+expand_intrinsic_toprec (tree callexp)
+{
+  tree f = CALL_EXPR_ARG (callexp, 0);
+  tree type = TREE_TYPE (callexp);
+
+  return convert (type, f);
 }
 
 /* Expand a front-end intrinsic call to va_arg().  This takes either one or two
@@ -820,6 +836,9 @@ maybe_expand_intrinsic (tree callexp)
 			      CALL_EXPR_ARG (callexp, 0),
 			      CALL_EXPR_ARG (callexp, 1),
 			      CALL_EXPR_ARG (callexp, 2));
+
+    case INTRINSIC_TOPREC:
+      return expand_intrinsic_toprec (callexp);
 
     case INTRINSIC_VA_ARG:
     case INTRINSIC_C_VA_ARG:

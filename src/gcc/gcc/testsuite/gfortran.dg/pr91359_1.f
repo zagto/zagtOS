@@ -12,6 +12,5 @@
 
       program test_zero
          logical zero
-         if (zero()) stop 'FAIL:  zero() returned .TRUE.'
-         stop 'OKAY:  zero() returned .FALSE.'
+         if (zero()) stop 1
       end

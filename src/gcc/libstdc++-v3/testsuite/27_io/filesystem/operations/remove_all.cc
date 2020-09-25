@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -166,6 +166,8 @@ test04()
     VERIFY( e.code() == std::errc::permission_denied );
     // First path is the argument to remove_all
     VERIFY( e.path1() == dir );
+    // Second path is the first file that couldn't be removed
+    VERIFY( e.path2() == dir/"file" );
   }
 
   fs::permissions(dir, fs::perms::owner_write, fs::perm_options::add);

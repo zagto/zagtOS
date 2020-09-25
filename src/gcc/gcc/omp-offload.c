@@ -1,7 +1,7 @@
 /* Bits of OpenMP and OpenACC handling that is specific to device offloading
    and a lowering pass for OpenACC device directives.
 
-   Copyright (C) 2005-2019 Free Software Foundation, Inc.
+   Copyright (C) 2005-2020 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -124,6 +124,10 @@ add_decls_addresses_to_decl_constructor (vec<tree, va_gc> *v_decls,
 #endif
 	  && lookup_attribute ("omp declare target link", DECL_ATTRIBUTES (it));
 
+      /* See also omp_finish_file and output_offload_tables in lto-cgraph.c.  */
+      if (!in_lto_p && !symtab_node::get (it))
+	continue;
+
       tree size = NULL_TREE;
       if (is_var)
 	size = fold_convert (const_ptr_type_node, DECL_SIZE_UNIT (it));
@@ -180,7 +184,7 @@ omp_finish_file (void)
       add_decls_addresses_to_decl_constructor (offload_vars, v_v);
 
       tree vars_decl_type = build_array_type_nelts (pointer_sized_int_node,
-						    num_vars * 2);
+						    vec_safe_length (v_v));
       tree funcs_decl_type = build_array_type_nelts (pointer_sized_int_node,
 						     num_funcs);
       SET_TYPE_ALIGN (vars_decl_type, TYPE_ALIGN (pointer_sized_int_node));
@@ -215,12 +219,30 @@ omp_finish_file (void)
       for (unsigned i = 0; i < num_funcs; i++)
 	{
 	  tree it = (*offload_funcs)[i];
+	  /* See also add_decls_addresses_to_decl_constructor
+	     and output_offload_tables in lto-cgraph.c.  */
+	  if (!in_lto_p && !symtab_node::get (it))
+	    continue;
 	  targetm.record_offload_symbol (it);
 	}
       for (unsigned i = 0; i < num_vars; i++)
 	{
 	  tree it = (*offload_vars)[i];
-	  targetm.record_offload_symbol (it);
+	  if (!in_lto_p && !symtab_node::get (it))
+	    continue;
+#ifdef ACCEL_COMPILER
+	  if (DECL_HAS_VALUE_EXPR_P (it)
+	      && lookup_attribute ("omp declare target link",
+				   DECL_ATTRIBUTES (it)))
+	    {
+	      tree value_expr = DECL_VALUE_EXPR (it);
+	      tree link_ptr_decl = TREE_OPERAND (value_expr, 0);
+	      targetm.record_offload_symbol (link_ptr_decl);
+	      varpool_node::finalize_decl (link_ptr_decl);
+	    }
+	  else
+#endif
+	    targetm.record_offload_symbol (it);
 	}
     }
 }
@@ -300,13 +322,22 @@ oacc_xform_loop (gcall *call)
   tree chunk_size = NULL_TREE;
   unsigned mask = (unsigned) TREE_INT_CST_LOW (gimple_call_arg (call, 5));
   tree lhs = gimple_call_lhs (call);
-  tree type = TREE_TYPE (lhs);
+  tree type = NULL_TREE;
   tree diff_type = TREE_TYPE (range);
   tree r = NULL_TREE;
   gimple_seq seq = NULL;
   bool chunking = false, striding = true;
   unsigned outer_mask = mask & (~mask + 1); // Outermost partitioning
   unsigned inner_mask = mask & ~outer_mask; // Inner partitioning (if any)
+
+  /* Skip lowering if return value of IFN_GOACC_LOOP call is not used.  */
+  if (!lhs)
+    {
+      gsi_replace_with_seq (&gsi, seq, true);
+      return;
+    }
+
+  type = TREE_TYPE (lhs);
 
 #ifdef ACCEL_COMPILER
   chunk_size = gimple_call_arg (call, 4);
@@ -380,8 +411,8 @@ oacc_xform_loop (gcall *call)
 	      || !global_options_set.x_flag_tree_loop_vectorize))
 	{
 	  basic_block bb = gsi_bb (gsi);
-	  struct loop *parent = bb->loop_father;
-	  struct loop *body = parent->inner;
+	  class loop *parent = bb->loop_father;
+	  class loop *body = parent->inner;
 
 	  parent->force_vectorize = true;
 	  parent->safelen = INT_MAX;
@@ -1846,8 +1877,7 @@ ompdevlow_adjust_simt_enter (gimple_stmt_iterator *gsi, bool *regimplify)
     {
       gcc_assert (gimple_call_internal_p (exit_stmt, IFN_GOMP_SIMT_EXIT));
       gimple_stmt_iterator exit_gsi = gsi_for_stmt (exit_stmt);
-      tree clobber = build_constructor (rectype, NULL);
-      TREE_THIS_VOLATILE (clobber) = 1;
+      tree clobber = build_clobber (rectype);
       exit_stmt = gimple_build_assign (build_simple_mem_ref (simtrec), clobber);
       gsi_insert_before (&exit_gsi, exit_stmt, GSI_SAME_STMT);
     }

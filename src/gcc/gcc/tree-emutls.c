@@ -1,5 +1,5 @@
 /* Lower TLS operations to emulation functions.
-   Copyright (C) 2006-2019 Free Software Foundation, Inc.
+   Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -322,7 +322,7 @@ new_emutls_decl (tree decl, tree alias_of)
      control structure with size and alignment information.  Initialization
      of COMMON block variables happens elsewhere via a constructor.  */
   if (!DECL_EXTERNAL (to)
-      && (!DECL_COMMON (to)
+      && (!DECL_COMMON (to) || !targetm.emutls.register_common
           || (DECL_INITIAL (decl)
               && DECL_INITIAL (decl) != error_mark_node)))
     {
@@ -360,7 +360,7 @@ emutls_common_1 (tree tls_decl, tree control_decl, tree *pstmts)
   tree x;
   tree word_type_node;
 
-  if (! DECL_COMMON (tls_decl)
+  if (!DECL_COMMON (tls_decl) || !targetm.emutls.register_common
       || (DECL_INITIAL (tls_decl)
 	  && DECL_INITIAL (tls_decl) != error_mark_node))
     return;

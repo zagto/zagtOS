@@ -71,3 +71,10 @@ hasattr2 = __has_attribute(noreturn)	/* { dg-final { scan-file-not pr92296-2.i "
 hasattrcpp1 = __has_cpp_attribute(noreturn)	/* { dg-final { scan-file pr92296-2.i "hasattrcpp1 = 0" } } */
 #pragma pop_macro("__has_cpp_attribute")
 hasattrcpp2 = __has_cpp_attribute(noreturn)	/* { dg-final { scan-file-not pr92296-2.i "hasattrcpp2 = 0" } } */
+
+#pragma push_macro("__has_builtin")
+#undef __has_builtin	/* { dg-warning "undefining" } */
+#define __has_builtin(x) 0
+hasbuiltin1 = __has_builtin(__builtin_expect)	/* { dg-final { scan-file pr92296-2.i "hasbuiltin1 = 0" } } */
+#pragma pop_macro("__has_builtin")
+hasbuiltin2 = __has_builtin(__builtin_expect)	/* { dg-final { scan-file pr92296-2.i "hasbuiltin2 = 1" } } */

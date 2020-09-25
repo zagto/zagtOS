@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2019 Free Software Foundation, Inc.
+ * Copyright (C) 2007-2020 Free Software Foundation, Inc.
  *
  * This file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +20,9 @@
  * see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
+
+/* %eax */
+#define bit_AVX512BF16	(1 << 5)
 
 /* %ecx */
 #define bit_SSE3	(1 << 0)
@@ -110,11 +113,13 @@
 #define bit_RDPID	(1 << 22)
 #define bit_MOVDIRI	(1 << 27)
 #define bit_MOVDIR64B	(1 << 28)
+#define bit_ENQCMD	(1 << 29)
 #define bit_CLDEMOTE	(1 << 25)
 
 /* %edx */
 #define bit_AVX5124VNNIW (1 << 2)
 #define bit_AVX5124FMAPS (1 << 3)
+#define bit_AVX512VP2INTERSECT	(1 << 8)
 #define bit_IBT	(1 << 20)
 #define bit_PCONFIG	(1 << 18)
 /* XFEATURE_ENABLED_MASK register bits (%eax == 13, %ecx == 0) */

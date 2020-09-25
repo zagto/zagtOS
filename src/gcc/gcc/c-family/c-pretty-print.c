@@ -1,5 +1,5 @@
 /* Subroutines common to both C and C++ pretty-printers.
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -278,7 +278,11 @@ pp_c_pointer (c_pretty_printer *pp, tree t)
       if (TREE_CODE (t) == POINTER_TYPE)
 	pp_c_star (pp);
       else
-	pp_c_ampersand (pp);
+	{
+	  pp_c_ampersand (pp);
+	  if (TYPE_REF_IS_RVALUE (t))
+	    pp_c_ampersand (pp);
+	}
       pp_c_type_qualifier_list (pp, t);
       break;
 
@@ -470,6 +474,16 @@ pp_c_specifier_qualifier_list (c_pretty_printer *pp, tree t)
 			     ? "_Complex" : "__complex__"));
       else if (code == VECTOR_TYPE)
 	{
+	  /* The syntax we print for vector types isn't real C or C++ syntax,
+	     so it's better to print the type name if we have one.  */
+	  tree name = TYPE_NAME (t);
+	  if (!(pp->flags & pp_c_flag_gnu_v3)
+	      && name
+	      && TREE_CODE (name) == TYPE_DECL)
+	    {
+	      pp->id_expression (name);
+	      break;
+	    }
 	  pp_c_ws_string (pp, "__vector");
 	  pp_c_left_paren (pp);
 	  pp_wide_integer (pp, TYPE_VECTOR_SUBPARTS (t));
@@ -525,7 +539,7 @@ pp_c_parameter_type_list (c_pretty_printer *pp, tree t)
       if (!first && !parms)
 	{
 	  pp_separate_with (pp, ',');
-	  pp_c_ws_string (pp, "...");
+	  pp_string (pp, "...");
 	}
     }
   pp_c_right_paren (pp);
@@ -571,16 +585,22 @@ c_pretty_printer::direct_abstract_declarator (tree t)
 
     case ARRAY_TYPE:
       pp_c_left_bracket (this);
-      if (TYPE_DOMAIN (t) && TYPE_MAX_VALUE (TYPE_DOMAIN (t)))
+      if (tree dom = TYPE_DOMAIN (t))
 	{
-	  tree maxval = TYPE_MAX_VALUE (TYPE_DOMAIN (t));
-	  tree type = TREE_TYPE (maxval);
+	  if (tree maxval = TYPE_MAX_VALUE (dom))
+	    {
+	      tree type = TREE_TYPE (maxval);
 
-	  if (tree_fits_shwi_p (maxval))
-	    pp_wide_integer (this, tree_to_shwi (maxval) + 1);
-	  else
-	    expression (fold_build2 (PLUS_EXPR, type, maxval,
-                                     build_int_cst (type, 1)));
+	      if (tree_fits_shwi_p (maxval))
+		pp_wide_integer (this, tree_to_shwi (maxval) + 1);
+	      else
+		expression (fold_build2 (PLUS_EXPR, type, maxval,
+					 build_int_cst (type, 1)));
+	    }
+	  else if (TYPE_SIZE (t))
+	    /* Print zero for zero-length arrays but not for flexible
+	       array members whose TYPE_SIZE is null.  */
+	    pp_string (this, "0");
 	}
       pp_c_right_bracket (this);
       direct_abstract_declarator (TREE_TYPE (t));
@@ -1769,8 +1789,9 @@ c_pretty_printer::unary_expression (tree e)
 	  if (!integer_zerop (TREE_OPERAND (e, 1)))
 	    {
 	      pp_c_left_paren (this);
-	      if (!integer_onep (TYPE_SIZE_UNIT
-				 (TREE_TYPE (TREE_TYPE (TREE_OPERAND (e, 0))))))
+	      tree type = TREE_TYPE (TREE_TYPE (TREE_OPERAND (e, 0)));
+	      if (TYPE_SIZE_UNIT (type) == NULL_TREE
+		  || !integer_onep (TYPE_SIZE_UNIT (type)))
 		pp_c_type_cast (this, ptr_type_node);
 	    }
 	  pp_c_cast_expression (this, TREE_OPERAND (e, 0));
@@ -2358,6 +2379,13 @@ c_pretty_printer::c_pretty_printer ()
   parameter_list            = pp_c_parameter_type_list;
 }
 
+/* c_pretty_printer's implementation of pretty_printer::clone vfunc.  */
+
+pretty_printer *
+c_pretty_printer::clone () const
+{
+  return new c_pretty_printer (*this);
+}
 
 /* Print the tree T in full, on file FILE.  */
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,6 +30,10 @@ static_assert( noexcept(std::__invoke(std::declval<abstract>())),
 static_assert( noexcept(std::invoke(std::declval<abstract>())),
     "It should be possible to use abstract types with INVOKE" );
 
+// The std::__invoke_r extension only has a noexcept-specifier for >= C++17.
+static_assert( noexcept(std::__invoke_r<void>(std::declval<abstract>())),
+    "It should be possible to use abstract types with INVOKE<R>" );
+
 struct F {
   void operator()() &;
   void operator()() && noexcept;
@@ -47,3 +51,12 @@ static_assert( !noexcept(std::invoke(std::declval<F&>())), "" );
 static_assert( noexcept(std::invoke(std::declval<F>())), "" );
 static_assert( !noexcept(std::invoke(std::declval<F>(), 1)), "" );
 static_assert( noexcept(std::invoke(std::declval<F>(), 1, 2)), "" );
+
+static_assert( !noexcept(std::__invoke_r<void>(std::declval<F&>())), "" );
+static_assert( noexcept(std::__invoke_r<void>(std::declval<F>())), "" );
+static_assert( !noexcept(std::__invoke_r<int>(std::declval<F>(), 1)), "" );
+static_assert( !noexcept(std::__invoke_r<void>(std::declval<F>(), 1)), "" );
+static_assert( !noexcept(std::__invoke_r<long>(std::declval<F>(), 1)), "" );
+static_assert( noexcept(std::__invoke_r<void>(std::declval<F>(), 1, 2)), "" );
+static_assert( noexcept(std::__invoke_r<void*>(std::declval<F>(), 1, 2)), "" );
+static_assert( !noexcept(std::__invoke_r<D>(std::declval<F>(), 1, 2)), "" );

@@ -20,6 +20,7 @@ case $machine in
     powerpcle-*-eabisim* | \
     powerpcle-*-eabi* | \
     *-zagtos* | \
+    *-*-vxworks7* | \
     *-musl* )
 	#  IF there is no include fixing,
 	#  THEN create a no-op fixer and exit

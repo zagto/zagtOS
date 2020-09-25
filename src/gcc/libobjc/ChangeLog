@@ -1,14 +1,42 @@
-2020-03-12  Release Manager
+2020-07-23  Release Manager
 
-	* GCC 9.3.0 released.
+	* GCC 10.2.0 released.
 
-2019-08-12  Release Manager
+2020-05-07  Release Manager
 
-	* GCC 9.2.0 released.
+	* GCC 10.1.0 released.
 
-2019-05-03  Release Manager
+2020-02-12  Sandra Loosemore  <sandra@codesourcery.com>
 
-	* GCC 9.1.0 released.
+	PR libstdc++/79193
+	PR libstdc++/88999
+
+	* configure: Regenerated.
+
+2020-01-24  Maciej W. Rozycki  <macro@wdc.com>
+
+	* Makefile.in (aclocal_deps): Add `toolexeclibdir.m4'.
+	* aclocal.m4: Include `toolexeclibdir.m4'.
+	* configure.ac: Handle `--with-toolexeclibdir='.
+	* configure: Regenerate.
+
+2020-01-01  Andrew Pinski  <pinskia@gmail.com>
+
+	PR libobjc/93099
+	* objc/objc-decls.h (objc_EXPORT): Define it to
+	extern for DLL_EXPORT define case.
+
+2020-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2019-11-26  Tobias Burnus  <tobias@codesourcery.com>
+
+	* Makefile.in (aclocal_deps): Fix path to cet.m4.
+
+2019-09-27  Maciej W. Rozycki  <macro@wdc.com>
+
+	* configure: Regenerate.
 
 2019-04-23  Ramana Radhakrishnan  <ramana.radhakrishnan@arm.com>
 	    Bernd Edlinger  <bernd.edlinger@hotmail.de>
@@ -3554,7 +3582,7 @@ Mon Sep 21 23:27:10 1998  Ovidiu Predescu <ovidiu@slip.net>
 
 	* New directory.  Moved files from ../gcc/objc.
 
-Copyright (C) 1998-2019 Free Software Foundation, Inc.
+Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

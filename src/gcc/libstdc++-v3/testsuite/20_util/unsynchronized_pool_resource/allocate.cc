@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -197,7 +197,7 @@ test06()
     void do_deallocate(void* p, std::size_t bytes, std::size_t align)
     { std::pmr::new_delete_resource()->deallocate(p, bytes, align); }
 
-    bool do_is_equal(const memory_resource& r) const noexcept
+    bool do_is_equal(const memory_resource&) const noexcept
     { return false; }
   };
 

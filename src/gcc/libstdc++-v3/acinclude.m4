@@ -211,7 +211,7 @@ AC_DEFUN([GLIBCXX_CHECK_LINKER_FEATURES], [
       glibcxx_ld_is_gold=yes
     fi
     ldver=`$LD --version 2>/dev/null |
-	   sed -e 's/GNU gold /GNU ld /;s/GNU ld version /GNU ld /;s/GNU ld ([^)]*) /GNU ld /;s/GNU ld \([0-9.][0-9.]*\).*/\1/; q'`
+	   sed -e 's/[. ][0-9]\{8\}$//;s/.* \([^ ]\{1,\}\)$/\1/; q'`
     changequote([,])
     glibcxx_gnu_ld_version=`echo $ldver | \
 	   $AWK -F. '{ if (NF<3) [$]3=0; print ([$]1*100+[$]2)*100+[$]3 }'`
@@ -316,6 +316,8 @@ AC_DEFUN([GLIBCXX_CHECK_SETRLIMIT_ancilliary], [
 ])
 
 AC_DEFUN([GLIBCXX_CHECK_SETRLIMIT], [
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
   setrlimit_have_headers=yes
   AC_CHECK_HEADERS(unistd.h sys/time.h sys/resource.h,
 		   [],
@@ -352,6 +354,7 @@ AC_DEFUN([GLIBCXX_CHECK_SETRLIMIT], [
   else
     ac_res_limits=no
   fi
+  AC_LANG_RESTORE
   AC_MSG_RESULT($ac_res_limits)
 ])
 
@@ -782,6 +785,8 @@ AC_DEFUN([GLIBCXX_EXPORT_INSTALL_INFO], [
     [version_specific_libs=no])
   AC_MSG_RESULT($version_specific_libs)
 
+  GCC_WITH_TOOLEXECLIBDIR
+
   # Default case for install directory for include files.
   if test $version_specific_libs = no && test $gxx_include_dir = no; then
     gxx_include_dir='include/c++/${gcc_version}'
@@ -812,7 +817,14 @@ AC_DEFUN([GLIBCXX_EXPORT_INSTALL_INFO], [
     if test -n "$with_cross_host" &&
        test x"$with_cross_host" != x"no"; then
       glibcxx_toolexecdir='${exec_prefix}/${host_alias}'
-      glibcxx_toolexeclibdir='${toolexecdir}/lib'
+      case ${with_toolexeclibdir} in
+	no)
+	  glibcxx_toolexeclibdir='${toolexecdir}/lib'
+	  ;;
+	*)
+	  glibcxx_toolexeclibdir=${with_toolexeclibdir}
+	  ;;
+      esac
     else
       glibcxx_toolexecdir='${libdir}/gcc/${host_alias}'
       glibcxx_toolexeclibdir='${libdir}'
@@ -1404,6 +1416,11 @@ AC_DEFUN([GLIBCXX_ENABLE_LIBSTDCXX_TIME], [
         ac_has_nanosleep=yes
         ac_has_sched_yield=yes
         ;;
+      # VxWorks has nanosleep as soon as the kernel is configured with
+      # INCLUDE_POSIX_TIMERS, which is normally/most-often the case.
+      vxworks*)
+        ac_has_nanosleep=yes
+        ;;
       gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu)
         # Don't use link test for freestanding library, in case gcc_no_link=yes
         if test x"$is_hosted" = xyes; then
@@ -1435,6 +1452,9 @@ AC_DEFUN([GLIBCXX_ENABLE_LIBSTDCXX_TIME], [
         ac_has_nanosleep=yes
         ac_has_sched_yield=yes
         ;;
+      uclinux*)
+        ac_has_nanosleep=yes
+        ac_has_sched_yield=yes
     esac
 
   elif test x"$enable_libstdcxx_time" != x"no"; then
@@ -1520,7 +1540,7 @@ AC_DEFUN([GLIBCXX_ENABLE_LIBSTDCXX_TIME], [
 
   if test x"$ac_has_clock_monotonic" != x"yes"; then
     case ${target_os} in
-      linux*)
+      linux* | uclinux*)
 	AC_MSG_CHECKING([for clock_gettime syscall])
 	AC_TRY_COMPILE(
 	  [#include <unistd.h>
@@ -2154,7 +2174,7 @@ AC_DEFUN([GLIBCXX_CHECK_STDIO_PROTO], [
   AC_CACHE_VAL(glibcxx_cv_gets, [
   AC_COMPILE_IFELSE([AC_LANG_SOURCE(
 	  [#include <stdio.h>
-	   namespace test 
+	   namespace test
 	   {
               using ::gets;
 	   }
@@ -2771,9 +2791,9 @@ AC_DEFUN([GLIBCXX_ENABLE_VTABLE_VERIFY], [
     esac
     VTV_PCH_CXXFLAGS="-fvtable-verify=std"
   else
-    VTV_CXXFLAGS= 
+    VTV_CXXFLAGS=
     VTV_PCH_CXXFLAGS=
-    VTV_CXXLINKFLAGS= 
+    VTV_CXXLINKFLAGS=
   fi
 
   AC_SUBST(VTV_CXXFLAGS)
@@ -2893,8 +2913,20 @@ dnl       Where DEFAULT is either `yes' or `no'.
 dnl
 AC_DEFUN([GLIBCXX_ENABLE_DEBUG], [
   AC_MSG_CHECKING([for additional debug build])
+  skip_debug_build=
   GLIBCXX_ENABLE(libstdcxx-debug,$1,,[build extra debug library])
-  AC_MSG_RESULT($enable_libstdcxx_debug)
+  if test x$enable_libstdcxx_debug = xyes; then
+    if test -f $toplevel_builddir/../stage_final \
+      && test -f $toplevel_builddir/../stage_current; then
+      stage_final=`cat $toplevel_builddir/../stage_final`
+      stage_current=`cat $toplevel_builddir/../stage_current`
+      if test x$stage_current != x$stage_final ; then
+	skip_debug_build=" (skipped for bootstrap stage $stage_current)"
+	enable_libstdcxx_debug=no
+      fi
+    fi
+  fi
+  AC_MSG_RESULT($enable_libstdcxx_debug$skip_debug_build)
   GLIBCXX_CONDITIONAL(GLIBCXX_BUILD_DEBUG, test $enable_libstdcxx_debug = yes)
 ])
 
@@ -3943,7 +3975,7 @@ dnl
 AC_DEFUN([GLIBCXX_CHECK_GTHREADS], [
   GLIBCXX_ENABLE(libstdcxx-threads,auto,,[enable C++11 threads support])
 
-  if test x$enable_libstdcxx_threads = xauto || 
+  if test x$enable_libstdcxx_threads = xauto ||
      test x$enable_libstdcxx_threads = xyes; then
 
   AC_LANG_SAVE
@@ -3996,11 +4028,23 @@ AC_DEFUN([GLIBCXX_CHECK_GTHREADS], [
 	      [Define if gthreads library is available.])
 
     # Also check for pthread_rwlock_t for std::shared_timed_mutex in C++14
-    AC_CHECK_TYPE([pthread_rwlock_t],
-            [AC_DEFINE([_GLIBCXX_USE_PTHREAD_RWLOCK_T], 1,
-            [Define if POSIX read/write locks are available in <gthr.h>.])],
-            [],
-            [#include "gthr.h"])
+    # but only do so if we're using pthread in the gthread library.
+    # On VxWorks for example, pthread_rwlock_t is defined in sys/types.h
+    # but the pthread library is not there by default and the gthread library
+    # does not use it.
+    AC_TRY_COMPILE([#include "gthr.h"],
+    [
+      #if (!defined(_PTHREADS))
+      #error
+      #endif
+    ], [ac_gthread_use_pthreads=yes], [ac_gthread_use_pthreads=no])
+    if test x"$ac_gthread_use_pthreads" = x"yes"; then
+      AC_CHECK_TYPE([pthread_rwlock_t],
+             [AC_DEFINE([_GLIBCXX_USE_PTHREAD_RWLOCK_T], 1,
+             [Define if POSIX read/write locks are available in <gthr.h>.])],
+             [],
+             [#include "gthr.h"])
+    fi
   fi
 
   CXXFLAGS="$ac_save_CXXFLAGS"
@@ -4045,6 +4089,26 @@ AC_DEFUN([GLIBCXX_CHECK_X86_RDRAND], [
 		[ Defined if as can handle rdrand. ])
   fi
   AC_MSG_RESULT($ac_cv_x86_rdrand)
+])
+
+dnl
+dnl Check whether rdseed is supported in the assembler.
+AC_DEFUN([GLIBCXX_CHECK_X86_RDSEED], [
+  AC_MSG_CHECKING([for rdseed support in assembler])
+  AC_CACHE_VAL(ac_cv_x86_rdseed, [
+  ac_cv_x86_rdseed=no
+  case "$target" in
+    i?86-*-* | \
+    x86_64-*-*)
+    AC_TRY_COMPILE(, [asm("rdseed %eax");],
+		[ac_cv_x86_rdseed=yes], [ac_cv_x86_rdseed=no])
+  esac
+  ])
+  if test $ac_cv_x86_rdseed = yes; then
+    AC_DEFINE(_GLIBCXX_X86_RDSEED, 1,
+		[ Defined if as can handle rdseed. ])
+  fi
+  AC_MSG_RESULT($ac_cv_x86_rdseed)
 ])
 
 dnl
@@ -4152,6 +4216,101 @@ AC_DEFUN([GLIBCXX_CHECK_PTHREADS_NUM_PROCESSORS_NP], [
   AC_MSG_RESULT($glibcxx_cv_PTHREADS_NUM_PROCESSORS_NP)
 
   CXXFLAGS="$ac_save_CXXFLAGS"
+  AC_LANG_RESTORE
+])
+
+dnl
+dnl Check whether pthread_cond_clockwait is available in <pthread.h> for std::condition_variable to use,
+dnl and define _GLIBCXX_USE_PTHREAD_COND_CLOCKWAIT.
+dnl
+AC_DEFUN([GLIBCXX_CHECK_PTHREAD_COND_CLOCKWAIT], [
+
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  ac_save_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS -fno-exceptions"
+  ac_save_LIBS="$LIBS"
+  LIBS="$LIBS -lpthread"
+
+  AC_MSG_CHECKING([for pthread_cond_clockwait])
+  AC_CACHE_VAL(glibcxx_cv_PTHREAD_COND_CLOCKWAIT, [
+    GCC_TRY_COMPILE_OR_LINK(
+      [#include <pthread.h>],
+      [pthread_mutex_t mutex; pthread_cond_t cond; struct timespec ts; int n = pthread_cond_clockwait(&cond, &mutex, 0, &ts);],
+      [glibcxx_cv_PTHREAD_COND_CLOCKWAIT=yes],
+      [glibcxx_cv_PTHREAD_COND_CLOCKWAIT=no])
+  ])
+  if test $glibcxx_cv_PTHREAD_COND_CLOCKWAIT = yes; then
+    AC_DEFINE(_GLIBCXX_USE_PTHREAD_COND_CLOCKWAIT, 1, [Define if pthread_cond_clockwait is available in <pthread.h>.])
+  fi
+  AC_MSG_RESULT($glibcxx_cv_PTHREAD_COND_CLOCKWAIT)
+
+  CXXFLAGS="$ac_save_CXXFLAGS"
+  LIBS="$ac_save_LIBS"
+  AC_LANG_RESTORE
+])
+
+dnl
+dnl Check whether pthread_mutex_clocklock is available in <pthread.h> for std::timed_mutex to use,
+dnl and define _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK.
+dnl
+AC_DEFUN([GLIBCXX_CHECK_PTHREAD_MUTEX_CLOCKLOCK], [
+
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  ac_save_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS -fno-exceptions"
+  ac_save_LIBS="$LIBS"
+  LIBS="$LIBS -lpthread"
+
+  AC_MSG_CHECKING([for pthread_mutex_clocklock])
+  AC_CACHE_VAL(glibcxx_cv_PTHREAD_MUTEX_CLOCKLOCK, [
+    GCC_TRY_COMPILE_OR_LINK(
+      [#include <pthread.h>],
+      [pthread_mutex_t mutex; struct timespec ts; int n = pthread_mutex_clocklock(&mutex, CLOCK_REALTIME, &ts);],
+      [glibcxx_cv_PTHREAD_MUTEX_CLOCKLOCK=yes],
+      [glibcxx_cv_PTHREAD_MUTEX_CLOCKLOCK=no])
+  ])
+  if test $glibcxx_cv_PTHREAD_MUTEX_CLOCKLOCK = yes; then
+    AC_DEFINE(_GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK, 1, [Define if pthread_mutex_clocklock is available in <pthread.h>.])
+  fi
+  AC_MSG_RESULT($glibcxx_cv_PTHREAD_MUTEX_CLOCKLOCK)
+
+  CXXFLAGS="$ac_save_CXXFLAGS"
+  LIBS="$ac_save_LIBS"
+  AC_LANG_RESTORE
+])
+
+dnl
+dnl Check whether pthread_mutex_clocklock is available in <pthread.h> for std::timed_mutex to use,
+dnl and define _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK.
+dnl
+AC_DEFUN([GLIBCXX_CHECK_PTHREAD_RWLOCK_CLOCKLOCK], [
+
+  AC_LANG_SAVE
+  AC_LANG_CPLUSPLUS
+  ac_save_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS -fno-exceptions"
+  ac_save_LIBS="$LIBS"
+  LIBS="$LIBS -lpthread"
+
+  AC_MSG_CHECKING([for pthread_rwlock_clockrdlock, pthread_wlock_clockwrlock])
+  AC_CACHE_VAL(glibcxx_cv_PTHREAD_RWLOCK_CLOCKLOCK, [
+    GCC_TRY_COMPILE_OR_LINK(
+      [#include <pthread.h>],
+      [pthread_rwlock_t rwl; struct timespec ts;]
+      [int n = pthread_rwlock_clockrdlock(&rwl, CLOCK_REALTIME, &ts);]
+      [int m = pthread_rwlock_clockwrlock(&rwl, CLOCK_REALTIME, &ts);],
+      [glibcxx_cv_PTHREAD_RWLOCK_CLOCKLOCK=yes],
+      [glibcxx_cv_PTHREAD_RWLOCK_CLOCKLOCK=no])
+  ])
+  if test $glibcxx_cv_PTHREAD_RWLOCK_CLOCKLOCK = yes; then
+    AC_DEFINE(_GLIBCXX_USE_PTHREAD_RWLOCK_CLOCKLOCK, 1, [Define if pthread_rwlock_clockrdlock and pthread_rwlock_clockwrlock are available in <pthread.h>.])
+  fi
+  AC_MSG_RESULT($glibcxx_cv_PTHREAD_RWLOCK_CLOCKLOCK)
+
+  CXXFLAGS="$ac_save_CXXFLAGS"
+  LIBS="$ac_save_LIBS"
   AC_LANG_RESTORE
 ])
 
@@ -4355,13 +4514,16 @@ AC_DEFUN([GLIBCXX_ENABLE_FILESYSTEM_TS], [
       freebsd*|netbsd*|openbsd*|dragonfly*|darwin*)
         enable_libstdcxx_filesystem_ts=yes
         ;;
-      gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu)
+      gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu | uclinux*)
         enable_libstdcxx_filesystem_ts=yes
         ;;
       rtems*)
         enable_libstdcxx_filesystem_ts=yes
         ;;
       solaris*)
+        enable_libstdcxx_filesystem_ts=yes
+        ;;
+      mingw*)
         enable_libstdcxx_filesystem_ts=yes
         ;;
       *)
@@ -4537,7 +4699,7 @@ dnl
     AC_MSG_CHECKING([for sendfile that can copy files])
     AC_CACHE_VAL(glibcxx_cv_sendfile, [dnl
       case "${target_os}" in
-        gnu* | linux* | solaris*)
+        gnu* | linux* | solaris* | uclinux*)
           GCC_TRY_COMPILE_OR_LINK(
             [#include <sys/sendfile.h>],
             [sendfile(1, 2, (off_t*)0, sizeof 1);],

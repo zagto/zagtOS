@@ -1,5 +1,5 @@
 /* Backend support for Fortran 95 basic types and derived types.
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
    and Steven Bosscher <s.bosscher@student.tudelft.nl>
 
@@ -1595,7 +1595,7 @@ gfc_get_nodesc_array_type (tree etype, gfc_array_spec * as, gfc_packed packed,
   mpz_init_set_ui (stride, 1);
   mpz_init (delta);
 
-  /* We don't use build_array_type because this does not include include
+  /* We don't use build_array_type because this does not include
      lang-specific information (i.e. the bounds of the array) when checking
      for duplicates.  */
   if (as->rank)
@@ -1817,11 +1817,11 @@ gfc_get_array_descriptor_base (int dimen, int codimen, bool restricted)
   TYPE_NAMELESS (fat_type) = 1;
 
   /* Add the data member as the first element of the descriptor.  */
-  decl = gfc_add_field_to_struct_1 (fat_type,
-				    get_identifier ("data"),
-				    (restricted
-				     ? prvoid_type_node
-				     : ptr_type_node), &chain);
+  gfc_add_field_to_struct_1 (fat_type,
+			     get_identifier ("data"),
+			     (restricted
+			      ? prvoid_type_node
+			      : ptr_type_node), &chain);
 
   /* Add the base component.  */
   decl = gfc_add_field_to_struct_1 (fat_type,
@@ -2975,63 +2975,6 @@ create_fn_spec (gfc_symbol *sym, tree fntype)
   return build_type_attribute_variant (fntype, tmp);
 }
 
-/* Helper function - if we do not find an interface for a procedure,
-   construct it from the actual arglist.  Luckily, this can only
-   happen for call by reference, so the information we actually need
-   to provide (and which would be impossible to guess from the call
-   itself) is not actually needed.  */
-
-static void
-get_formal_from_actual_arglist (gfc_symbol *sym, gfc_actual_arglist *actual_args)
-{
-  gfc_actual_arglist *a;
-  gfc_formal_arglist **f;
-  gfc_symbol *s;
-  char name[GFC_MAX_SYMBOL_LEN + 1];
-  static int var_num;
-
-  f = &sym->formal;
-  for (a = actual_args; a != NULL; a = a->next)
-    {
-      (*f) = gfc_get_formal_arglist ();
-      if (a->expr)
-	{
-	  snprintf (name, GFC_MAX_SYMBOL_LEN, "_formal_%d", var_num ++);
-	  gfc_get_symbol (name, gfc_current_ns, &s);
-	  if (a->expr->ts.type == BT_PROCEDURE)
-	    {
-	      s->attr.flavor = FL_PROCEDURE;
-	    }
-	  else
-	    {
-	      s->ts = a->expr->ts;
-
-	      if (s->ts.type == BT_CHARACTER)
-		  s->ts.u.cl = gfc_get_charlen ();
-
-	      s->ts.deferred = 0;
-	      s->ts.is_iso_c = 0;
-	      s->ts.is_c_interop = 0;
-	      s->attr.flavor = FL_VARIABLE;
-	      if (a->expr->rank > 0)
-		{
-		  s->attr.dimension = 1;
-		  s->as = gfc_get_array_spec ();
-		  s->as->type = AS_ASSUMED_SIZE;
-		}
-	    }
-	  s->attr.dummy = 1;
-	  s->attr.artificial = 1;
-	  s->attr.intent = INTENT_UNKNOWN;
-	  (*f)->sym = s;
-	}
-      else  /* If a->expr is NULL, this is an alternate rerturn.  */
-	(*f)->sym = NULL;
-
-      f = &((*f)->next);
-    }
-}
-
 tree
 gfc_get_function_type (gfc_symbol * sym, gfc_actual_arglist *actual_args)
 {
@@ -3094,7 +3037,7 @@ gfc_get_function_type (gfc_symbol * sym, gfc_actual_arglist *actual_args)
   if (sym->backend_decl == error_mark_node && actual_args != NULL
       && sym->formal == NULL && (sym->attr.proc == PROC_EXTERNAL
 				 || sym->attr.proc == PROC_UNKNOWN))
-    get_formal_from_actual_arglist (sym, actual_args);
+    gfc_get_formal_from_actual_arglist (sym, actual_args);
 
   /* Build the argument types for the function.  */
   for (f = gfc_sym_get_dummy_args (sym); f; f = f->next)
@@ -3155,6 +3098,16 @@ gfc_get_function_type (gfc_symbol * sym, gfc_actual_arglist *actual_args)
 
 	  vec_safe_push (typelist, type);
 	}
+      /* For noncharacter scalar intrinsic types, VALUE passes the value,
+	 hence, the optional status cannot be transferred via a NULL pointer.
+	 Thus, we will use a hidden argument in that case.  */
+      else if (arg
+	       && arg->attr.optional
+	       && arg->attr.value
+	       && !arg->attr.dimension
+	       && arg->ts.type != BT_CLASS
+	       && !gfc_bt_struct (arg->ts.type))
+	vec_safe_push (typelist, boolean_type_node);
     }
 
   if (!vec_safe_is_empty (typelist)

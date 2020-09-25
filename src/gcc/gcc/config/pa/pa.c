@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.c for HPPA.
-   Copyright (C) 1992-2019 Free Software Foundation, Inc.
+   Copyright (C) 1992-2020 Free Software Foundation, Inc.
    Contributed by Tim Moore (moore@cs.utah.edu), based on sparc.c
 
 This file is part of GCC.
@@ -107,7 +107,7 @@ static int pa_can_combine_p (rtx_insn *, rtx_insn *, rtx_insn *, int, rtx,
 static bool forward_branch_p (rtx_insn *);
 static void compute_zdepwi_operands (unsigned HOST_WIDE_INT, unsigned *);
 static void compute_zdepdi_operands (unsigned HOST_WIDE_INT, unsigned *);
-static int compute_movmem_length (rtx_insn *);
+static int compute_cpymem_length (rtx_insn *);
 static int compute_clrmem_length (rtx_insn *);
 static bool pa_assemble_integer (rtx, unsigned int, int);
 static void remove_useless_addtr_insns (int);
@@ -164,14 +164,12 @@ static void output_deferred_profile_counters (void) ATTRIBUTE_UNUSED;
 static void pa_file_end (void);
 static void pa_init_libfuncs (void);
 static rtx pa_struct_value_rtx (tree, int);
-static bool pa_pass_by_reference (cumulative_args_t, machine_mode,
-				  const_tree, bool);
-static int pa_arg_partial_bytes (cumulative_args_t, machine_mode,
-				 tree, bool);
-static void pa_function_arg_advance (cumulative_args_t, machine_mode,
-				     const_tree, bool);
-static rtx pa_function_arg (cumulative_args_t, machine_mode,
-			    const_tree, bool);
+static bool pa_pass_by_reference (cumulative_args_t,
+				  const function_arg_info &);
+static int pa_arg_partial_bytes (cumulative_args_t, const function_arg_info &);
+static void pa_function_arg_advance (cumulative_args_t,
+				     const function_arg_info &);
+static rtx pa_function_arg (cumulative_args_t, const function_arg_info &);
 static pad_direction pa_function_arg_padding (machine_mode, const_tree);
 static unsigned int pa_function_arg_boundary (machine_mode, const_tree);
 static struct machine_function * pa_init_machine_status (void);
@@ -199,8 +197,7 @@ static bool pa_cannot_force_const_mem (machine_mode, rtx);
 static bool pa_legitimate_constant_p (machine_mode, rtx);
 static unsigned int pa_section_type_flags (tree, const char *, int);
 static bool pa_legitimate_address_p (machine_mode, rtx, bool);
-static bool pa_callee_copies (cumulative_args_t, machine_mode,
-			      const_tree, bool);
+static bool pa_callee_copies (cumulative_args_t, const function_arg_info &);
 static unsigned int pa_hard_regno_nregs (unsigned int, machine_mode);
 static bool pa_hard_regno_mode_ok (unsigned int, machine_mode);
 static bool pa_modes_tieable_p (machine_mode, machine_mode);
@@ -539,7 +536,7 @@ pa_option_override (void)
 
   if (! TARGET_GAS && write_symbols != NO_DEBUG)
     {
-      warning (0, "%<-g%> is only supported when using GAS on this processor,");
+      warning (0, "%<-g%> is only supported when using GAS on this processor");
       warning (0, "%<-g%> option disabled");
       write_symbols = NO_DEBUG;
     }
@@ -654,7 +651,7 @@ pa_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
 		   int ignore ATTRIBUTE_UNUSED)
 {
   tree fndecl = TREE_OPERAND (CALL_EXPR_FN (exp), 0);
-  unsigned int fcode = DECL_FUNCTION_CODE (fndecl);
+  unsigned int fcode = DECL_MD_FUNCTION_CODE (fndecl);
 
   switch (fcode)
     {
@@ -2986,7 +2983,7 @@ pa_output_block_move (rtx *operands, int size_is_constant ATTRIBUTE_UNUSED)
    count insns rather than emit them.  */
 
 static int
-compute_movmem_length (rtx_insn *insn)
+compute_cpymem_length (rtx_insn *insn)
 {
   rtx pat = PATTERN (insn);
   unsigned int align = INTVAL (XEXP (XVECEXP (pat, 0, 7), 0));
@@ -4057,7 +4054,7 @@ pa_expand_prologue (void)
 	}
 
       for (i = 18; i >= 4; i--)
-	if (df_regs_ever_live_p (i) && ! call_used_regs[i])
+	if (df_regs_ever_live_p (i) && !call_used_or_fixed_reg_p (i))
 	  {
 	    store_reg (i, offset, HARD_FRAME_POINTER_REGNUM);
 	    offset += UNITS_PER_WORD;
@@ -4097,7 +4094,7 @@ pa_expand_prologue (void)
 	}
 
       for (i = 18; i >= 3; i--)
-      	if (df_regs_ever_live_p (i) && ! call_used_regs[i])
+	if (df_regs_ever_live_p (i) && !call_used_or_fixed_reg_p (i))
 	  {
 	    /* If merge_sp_adjust_with_store is nonzero, then we can
 	       optimize the first GR save.  */
@@ -4398,7 +4395,7 @@ pa_expand_epilogue (void)
 	}
 
       for (i = 18; i >= 4; i--)
-	if (df_regs_ever_live_p (i) && ! call_used_regs[i])
+	if (df_regs_ever_live_p (i) && !call_used_or_fixed_reg_p (i))
 	  {
 	    load_reg (i, offset, HARD_FRAME_POINTER_REGNUM);
 	    offset += UNITS_PER_WORD;
@@ -4435,7 +4432,7 @@ pa_expand_epilogue (void)
 
       for (i = 18; i >= 3; i--)
 	{
-	  if (df_regs_ever_live_p (i) && ! call_used_regs[i])
+	  if (df_regs_ever_live_p (i) && !call_used_or_fixed_reg_p (i))
 	    {
 	      /* Only for the first load.
 	         merge_sp_adjust_with_load holds the register load
@@ -5061,7 +5058,7 @@ pa_adjust_insn_length (rtx_insn *insn, int length)
       && GET_CODE (XEXP (XVECEXP (pat, 0, 0), 1)) == MEM
       && GET_MODE (XEXP (XVECEXP (pat, 0, 0), 0)) == BLKmode
       && GET_MODE (XEXP (XVECEXP (pat, 0, 0), 1)) == BLKmode)
-    length += compute_movmem_length (insn) - 4;
+    length += compute_cpymem_length (insn) - 4;
   /* Block clear pattern.  */
   else if (NONJUMP_INSN_P (insn)
 	   && GET_CODE (pat) == PARALLEL
@@ -6224,17 +6221,9 @@ pa_eh_return_handler_rtx (void)
    or updates the ABI.  */
 
 static bool
-pa_pass_by_reference (cumulative_args_t ca ATTRIBUTE_UNUSED,
-		      machine_mode mode, const_tree type,
-		      bool named ATTRIBUTE_UNUSED)
+pa_pass_by_reference (cumulative_args_t, const function_arg_info &arg)
 {
-  HOST_WIDE_INT size;
-
-  if (type)
-    size = int_size_in_bytes (type);
-  else
-    size = GET_MODE_SIZE (mode);
-
+  HOST_WIDE_INT size = arg.type_size_in_bytes ();
   if (TARGET_64BIT)
     return size <= 0;
   else
@@ -6378,7 +6367,7 @@ hppa_gimplify_va_arg_expr (tree valist, tree type, gimple_seq *pre_p,
       unsigned int size, ofs;
       bool indirect;
 
-      indirect = pass_by_reference (NULL, TYPE_MODE (type), type, 0);
+      indirect = pass_va_arg_by_reference (type);
       if (indirect)
 	{
 	  type = ptr;
@@ -8345,6 +8334,7 @@ pa_asm_output_mi_thunk (FILE *file, tree thunk_fndecl, HOST_WIDE_INT delta,
 			HOST_WIDE_INT vcall_offset ATTRIBUTE_UNUSED,
 			tree function)
 {
+  const char *fnname = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (thunk_fndecl));
   static unsigned int current_thunk_number;
   int val_14 = VAL_14_BITS_P (delta);
   unsigned int old_last_address = last_address, nbytes = 0;
@@ -8355,6 +8345,7 @@ pa_asm_output_mi_thunk (FILE *file, tree thunk_fndecl, HOST_WIDE_INT delta,
   xoperands[1] = XEXP (DECL_RTL (thunk_fndecl), 0);
   xoperands[2] = GEN_INT (delta);
 
+  assemble_start_function (thunk_fndecl, fnname);
   final_start_function (emit_barrier (), file, 1);
 
   /* Output the thunk.  We know that the function is in the same
@@ -8572,6 +8563,7 @@ pa_asm_output_mi_thunk (FILE *file, tree thunk_fndecl, HOST_WIDE_INT delta,
   if (old_last_address > last_address)
     last_address = UINT_MAX;
   update_total_code_bytes (nbytes);
+  assemble_end_function (thunk_fndecl, fnname);
 }
 
 /* Only direct calls to static functions are allowed to be sibling (tail)
@@ -8734,7 +8726,6 @@ pa_asm_output_aligned_bss (FILE *stream,
 			   unsigned int align)
 {
   switch_to_section (bss_section);
-  fprintf (stream, "\t.align %u\n", align / BITS_PER_UNIT);
 
 #ifdef ASM_OUTPUT_TYPE_DIRECTIVE
   ASM_OUTPUT_TYPE_DIRECTIVE (stream, name, "object");
@@ -9421,21 +9412,19 @@ pa_function_value_regno_p (const unsigned int regno)
   return false;
 }
 
-/* Update the data in CUM to advance over an argument
-   of mode MODE and data type TYPE.
-   (TYPE is null for libcalls where that information may not be available.)  */
+/* Update the data in CUM to advance over argument ARG.  */
 
 static void
-pa_function_arg_advance (cumulative_args_t cum_v, machine_mode mode,
-			 const_tree type, bool named ATTRIBUTE_UNUSED)
+pa_function_arg_advance (cumulative_args_t cum_v,
+			 const function_arg_info &arg)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
-  int arg_size = pa_function_arg_size (mode, type);
+  int arg_size = pa_function_arg_size (arg.mode, arg.type);
 
   cum->nargs_prototype--;
   cum->words += (arg_size
 		 + ((cum->words & 01)
-		    && type != NULL_TREE
+		    && arg.type != NULL_TREE
 		    && arg_size > 1));
 }
 
@@ -9448,10 +9437,11 @@ pa_function_arg_advance (cumulative_args_t cum_v, machine_mode mode,
    ??? We might want to restructure this so that it looks more like other
    ports.  */
 static rtx
-pa_function_arg (cumulative_args_t cum_v, machine_mode mode,
-		 const_tree type, bool named ATTRIBUTE_UNUSED)
+pa_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
+  tree type = arg.type;
+  machine_mode mode = arg.mode;
   int max_arg_words = (TARGET_64BIT ? 8 : 4);
   int alignment = 0;
   int arg_size;
@@ -9459,7 +9449,7 @@ pa_function_arg (cumulative_args_t cum_v, machine_mode mode,
   int gpr_reg_base;
   rtx retval;
 
-  if (mode == VOIDmode)
+  if (arg.end_marker_p ())
     return NULL_RTX;
 
   arg_size = pa_function_arg_size (mode, type);
@@ -9659,8 +9649,7 @@ pa_function_arg_boundary (machine_mode mode, const_tree type)
    then this routine should return zero.  */
 
 static int
-pa_arg_partial_bytes (cumulative_args_t cum_v, machine_mode mode,
-		      tree type, bool named ATTRIBUTE_UNUSED)
+pa_arg_partial_bytes (cumulative_args_t cum_v, const function_arg_info &arg)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
   unsigned int max_arg_words = 8;
@@ -9669,10 +9658,11 @@ pa_arg_partial_bytes (cumulative_args_t cum_v, machine_mode mode,
   if (!TARGET_64BIT)
     return 0;
 
-  if (pa_function_arg_size (mode, type) > 1 && (cum->words & 1))
+  if (pa_function_arg_size (arg.mode, arg.type) > 1 && (cum->words & 1))
     offset = 1;
 
-  if (cum->words + offset + pa_function_arg_size (mode, type) <= max_arg_words)
+  if (cum->words + offset + pa_function_arg_size (arg.mode, arg.type)
+      <= max_arg_words)
     /* Arg fits fully into registers.  */
     return 0;
   else if (cum->words + offset >= max_arg_words)
@@ -10788,10 +10778,7 @@ pa_maybe_emit_compare_and_swap_exchange_loop (rtx target, rtx mem, rtx val)
    in the 64-bit HP runtime.  */
 
 static bool
-pa_callee_copies (cumulative_args_t cum ATTRIBUTE_UNUSED,
-		  machine_mode mode ATTRIBUTE_UNUSED,
-		  const_tree type ATTRIBUTE_UNUSED,
-		  bool named ATTRIBUTE_UNUSED)
+pa_callee_copies (cumulative_args_t, const function_arg_info &)
 {
   return !TARGET_CALLER_COPIES;
 }

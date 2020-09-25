@@ -1,6 +1,6 @@
 // random number generation -*- C++ -*-
 
-// Copyright (C) 2009-2019 Free Software Foundation, Inc.
+// Copyright (C) 2009-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -47,6 +47,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * A facility for generating random numbers on selected distributions.
    * @{
    */
+
+  // std::uniform_random_bit_generator is defined in <bits/uniform_int_dist.h>
 
   /**
    * @brief A function template for converting the output of a (integral)
@@ -1602,20 +1604,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     // constructors, destructors and member functions
 
-#ifdef _GLIBCXX_USE_DEV_RANDOM
     random_device() { _M_init("default"); }
 
     explicit
     random_device(const std::string& __token) { _M_init(__token); }
 
+#if defined _GLIBCXX_USE_DEV_RANDOM
     ~random_device()
     { _M_fini(); }
-#else
-    random_device() { _M_init_pretr1("mt19937"); }
-
-    explicit
-    random_device(const std::string& __token)
-    { _M_init_pretr1(__token); }
 #endif
 
     static constexpr result_type
@@ -1638,13 +1634,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     result_type
     operator()()
-    {
-#ifdef _GLIBCXX_USE_DEV_RANDOM
-      return this->_M_getval();
-#else
-      return this->_M_getval_pretr1();
-#endif
-    }
+    { return this->_M_getval(); }
 
     // No copy functions.
     random_device(const random_device&) = delete;
@@ -1660,9 +1650,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     result_type _M_getval_pretr1();
     double _M_getentropy() const noexcept;
 
+    void _M_init(const char*, size_t); // not exported from the shared library
+
     union
     {
-      void*      _M_file;
+      struct
+      {
+	void*      _M_file;
+	result_type (*_M_func)(void*);
+	int _M_fd;
+      };
       mt19937    _M_mt;
     };
   };
@@ -3710,7 +3707,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * @returns The input stream with @p __x extracted or in an error state.
    */
   template<typename _CharT, typename _Traits>
-    std::basic_istream<_CharT, _Traits>&
+    inline std::basic_istream<_CharT, _Traits>&
     operator>>(std::basic_istream<_CharT, _Traits>& __is,
 	       std::bernoulli_distribution& __x)
     {

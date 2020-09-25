@@ -1,5 +1,5 @@
 /* PowerPC AltiVec include file.
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez (aldyh@redhat.com).
    Rewritten by Paolo Bonzini (bonzini@gnu.org).
 
@@ -37,10 +37,12 @@
 /* If __APPLE_ALTIVEC__ is defined, the compiler supports 'vector',
    'pixel' and 'bool' as context-sensitive AltiVec keywords (in 
    non-AltiVec contexts, they revert to their original meanings,
-   if any), so we do not need to define them as macros.  */
+   if any), so we do not need to define them as macros.  Also,
+   avoid defining them as macros for C++ with strict ANSI, as
+   this is not compatible.  */
 
-#if !defined(__APPLE_ALTIVEC__)
-/* You are allowed to undef these for C++ compatibility.  */
+#if !defined(__APPLE_ALTIVEC__) \
+    && (!defined(__STRICT_ANSI__) || !defined(__cplusplus))
 #define vector __vector
 #define pixel __pixel
 #define bool __bool
@@ -159,6 +161,7 @@
 #define vec_vmsumubm __builtin_vec_vmsumubm
 #define vec_vmsumshs __builtin_vec_vmsumshs
 #define vec_vmsumuhs __builtin_vec_vmsumuhs
+#define vec_vmsumudm __builtin_vec_vmsumudm
 #define vec_vmulesb __builtin_vec_vmulesb
 #define vec_vmulesh __builtin_vec_vmulesh
 #define vec_vmuleuh __builtin_vec_vmuleuh
@@ -180,7 +183,7 @@
 #define vec_recipdiv __builtin_vec_recipdiv
 #define vec_rlmi __builtin_vec_rlmi
 #define vec_vrlnm __builtin_vec_rlnm
-#define vec_rlnm(a,b,c) (__builtin_vec_rlnm((a),((b)<<8)|(c)))
+#define vec_rlnm(a,b,c) (__builtin_vec_rlnm((a),((c)<<8)|(b)))
 #define vec_rsqrt __builtin_vec_rsqrt
 #define vec_rsqrte __builtin_vec_rsqrte
 #define vec_signed __builtin_vec_vsigned
@@ -431,7 +434,7 @@
 #define vec_first_match_or_eos_index __builtin_vec_first_match_or_eos_index
 #define vec_first_mismatch_index __builtin_vec_first_mismatch_index
 #define vec_first_mismatch_or_eos_index __builtin_vec_first_mismatch_or_eos_index
-#define vec_pack_to_short_fp32 __builtin_vec_convert_4f32_8i16
+#define vec_pack_to_short_fp32 __builtin_vec_convert_4f32_8f16
 #define vec_parity_lsbb __builtin_vec_vparity_lsbb
 #define vec_vctz __builtin_vec_vctz
 #define vec_cnttz __builtin_vec_vctz
