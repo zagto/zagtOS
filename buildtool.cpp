@@ -83,6 +83,10 @@ Module::Module(std::string moduleName, uint32_t _id) :
             std::string sourceDir;
             sourceDirsFile >> sourceDir;
 
+            if (sourceDir == "") {
+                continue;
+            }
+
             for (const std::filesystem::directory_entry& entry:
                     std::filesystem::recursive_directory_iterator("src/" + sourceDir)) {
 
