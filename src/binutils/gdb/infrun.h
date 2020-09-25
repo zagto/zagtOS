@@ -26,6 +26,7 @@ struct frame_info;
 struct address_space;
 struct return_value_info;
 struct process_stratum_target;
+struct thread_info;
 
 /* True if we are debugging run control.  */
 extern unsigned int debug_infrun;
@@ -129,7 +130,7 @@ extern void stop_all_threads (void);
 
 extern void prepare_for_detach (void);
 
-extern void fetch_inferior_event (void *);
+extern void fetch_inferior_event ();
 
 extern void init_wait_for_inferior (void);
 
@@ -150,7 +151,9 @@ extern int thread_is_stepping_over_breakpoint (int thread);
    triggers a non-steppable watchpoint.  */
 extern int stepping_past_nonsteppable_watchpoint (void);
 
-extern void set_step_info (struct frame_info *frame,
+/* Record in TP the frame and location we're currently stepping through.  */
+extern void set_step_info (thread_info *tp,
+			   struct frame_info *frame,
 			   struct symtab_and_line sal);
 
 /* Several print_*_reason helper functions to print why the inferior
@@ -265,6 +268,8 @@ struct displaced_step_closure
   virtual ~displaced_step_closure () = 0;
 };
 
+using displaced_step_closure_up = std::unique_ptr<displaced_step_closure>;
+
 /* A simple displaced step closure that contains only a byte buffer.  */
 
 struct buf_displaced_step_closure : displaced_step_closure
@@ -290,7 +295,7 @@ struct displaced_step_inferior_state
     failed_before = 0;
     step_thread = nullptr;
     step_gdbarch = nullptr;
-    step_closure = nullptr;
+    step_closure.reset ();
     step_original = 0;
     step_copy = 0;
     step_saved_copy.clear ();
@@ -310,7 +315,7 @@ struct displaced_step_inferior_state
 
   /* The closure provided gdbarch_displaced_step_copy_insn, to be used
      for post-step cleanup.  */
-  displaced_step_closure *step_closure;
+  displaced_step_closure_up step_closure;
 
   /* The address of the original instruction, and the copy we
      made.  */

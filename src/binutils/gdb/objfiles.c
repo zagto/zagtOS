@@ -374,14 +374,6 @@ objfile::objfile (bfd *abfd, const char *name, objfile_flags flags_)
   per_bfd = get_objfile_bfd_data (this, abfd);
 }
 
-/* Retrieve the gdbarch associated with OBJFILE.  */
-
-struct gdbarch *
-get_objfile_arch (const struct objfile *objfile)
-{
-  return objfile->per_bfd->gdbarch;
-}
-
 /* If there is a valid and known entry point, function fills *ENTRY_P with it
    and returns non-zero; otherwise it returns zero.  */
 
@@ -1132,7 +1124,7 @@ filter_overlapping_sections (struct obj_section **map, int map_size)
 
 	      const CORE_ADDR sect2_endaddr = obj_section_endaddr (sect2);
 
-	      struct gdbarch *const gdbarch = get_objfile_arch (objf1);
+	      struct gdbarch *const gdbarch = objf1->arch ();
 
 	      complaint (_("unexpected overlap between:\n"
 			   " (A) section `%s' from `%s' [%s, %s)\n"
@@ -1311,16 +1303,15 @@ inhibit_section_map_updates (struct program_space *pspace)
     (&get_objfile_pspace_data (pspace)->inhibit_updates, 1);
 }
 
-/* Return 1 if ADDR maps into one of the sections of OBJFILE and 0
-   otherwise.  */
+/* See objfiles.h.  */
 
-int
+bool
 is_addr_in_objfile (CORE_ADDR addr, const struct objfile *objfile)
 {
   struct obj_section *osect;
 
   if (objfile == NULL)
-    return 0;
+    return false;
 
   ALL_OBJFILE_OSECTIONS (objfile, osect)
     {
@@ -1329,12 +1320,14 @@ is_addr_in_objfile (CORE_ADDR addr, const struct objfile *objfile)
 
       if (obj_section_addr (osect) <= addr
 	  && addr < obj_section_endaddr (osect))
-	return 1;
+	return true;
     }
-  return 0;
+  return false;
 }
 
-int
+/* See objfiles.h.  */
+
+bool
 shared_objfile_contains_address_p (struct program_space *pspace,
 				   CORE_ADDR address)
 {
@@ -1342,10 +1335,10 @@ shared_objfile_contains_address_p (struct program_space *pspace,
     {
       if ((objfile->flags & OBJF_SHARED) != 0
 	  && is_addr_in_objfile (address, objfile))
-	return 1;
+	return true;
     }
 
-  return 0;
+  return false;
 }
 
 /* The default implementation for the "iterate_over_objfiles_in_search_order"

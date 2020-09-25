@@ -64,6 +64,7 @@ struct ld_emulation_xfer_struct ld_vanilla_emulation =
   after_parse_default,
   after_open_default,
   after_check_relocs_default,
+  before_place_orphans_default,
   after_allocation_default,
   vanilla_set_output_arch,
   ldemul_default_target,
@@ -86,6 +87,7 @@ struct ld_emulation_xfer_struct ld_vanilla_emulation =
   NULL,	/* new_vers_pattern */
   NULL,	/* extra_map_file_text */
   NULL, /* emit_ctf_early */
-  NULL  /* examine_strtab_for_ctf */
+  NULL, /* examine_strtab_for_ctf */
+  NULL  /* print_symbol */
 };
 EOF

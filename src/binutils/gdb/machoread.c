@@ -28,7 +28,6 @@
 #include "gdbcore.h"
 #include "mach-o.h"
 #include "aout/stab_gnu.h"
-#include "psympriv.h"
 #include "complaints.h"
 #include "gdb_bfd.h"
 #include <string>
@@ -494,7 +493,7 @@ macho_add_oso_symfile (oso_el *oso, const gdb_bfd_ref_ptr &abfd,
             {
               if (mach_o_debug_level > 4)
                 {
-                  struct gdbarch *arch = get_objfile_arch (main_objfile);
+                  struct gdbarch *arch = main_objfile->arch ();
                   printf_unfiltered
                     (_("Adding symbol %s (addr: %s)\n"),
                      sym->name, paddress (arch, sym->value));
@@ -568,7 +567,7 @@ macho_add_oso_symfile (oso_el *oso, const gdb_bfd_ref_ptr &abfd,
 
                   if (mach_o_debug_level > 3)
                     {
-                      struct gdbarch *arch = get_objfile_arch (main_objfile);
+                      struct gdbarch *arch = main_objfile->arch ();
                       printf_unfiltered
                         (_("resolve sect %s with %s (set to %s)\n"),
                          sec->name, sym->name,
@@ -640,7 +639,7 @@ macho_symfile_read_all_oso (std::vector<oso_el> *oso_vector_ptr,
 
 	  /* Open the archive and check the format.  */
 	  gdb_bfd_ref_ptr archive_bfd (gdb_bfd_open (archive_name.c_str (),
-						     gnutarget, -1));
+						     gnutarget));
 	  if (archive_bfd == NULL)
 	    {
 	      warning (_("Could not open OSO archive file \"%s\""),
@@ -706,7 +705,7 @@ macho_symfile_read_all_oso (std::vector<oso_el> *oso_vector_ptr,
 	}
       else
 	{
-	  gdb_bfd_ref_ptr abfd (gdb_bfd_open (oso->name, gnutarget, -1));
+	  gdb_bfd_ref_ptr abfd (gdb_bfd_open (oso->name, gnutarget));
 	  if (abfd == NULL)
             warning (_("`%s': can't open to read symbols: %s."), oso->name,
                      bfd_errmsg (bfd_get_error ()));

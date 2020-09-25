@@ -47,7 +47,7 @@
 #include <sys/stat.h>		/* for struct stat */
 #include <fcntl.h>		/* for O_RDONLY */
 #include "inf-loop.h"
-#include "event-loop.h"
+#include "gdbsupport/event-loop.h"
 #include "event-top.h"
 #include <pwd.h>
 #include <sys/types.h>
@@ -440,8 +440,8 @@ typedef std::unique_ptr<struct lwp_info, lwp_deleter> lwp_info_up;
    ptid of the followed inferior.  At return, inferior_ptid will be
    unchanged.  */
 
-int
-linux_nat_target::follow_fork (int follow_child, int detach_fork)
+bool
+linux_nat_target::follow_fork (bool follow_child, bool detach_fork)
 {
   if (!follow_child)
     {
@@ -611,7 +611,7 @@ linux_nat_target::follow_fork (int follow_child, int detach_fork)
       check_for_thread_db ();
     }
 
-  return 0;
+  return false;
 }
 
 
@@ -1166,8 +1166,8 @@ attach_proc_task_lwp_callback (ptid_t ptid)
 	     matching libthread_db is not found (or the process uses
 	     raw clone).  */
 	  add_thread (linux_target, lp->ptid);
-	  set_running (linux_target, lp->ptid, 1);
-	  set_executing (linux_target, lp->ptid, 1);
+	  set_running (linux_target, lp->ptid, true);
+	  set_executing (linux_target, lp->ptid, true);
 	}
 
       return 1;
@@ -1978,6 +1978,10 @@ linux_handle_extended_wait (struct lwp_info *lp, int status)
 	     inferior.  */
 	  linux_target->low_new_fork (lp, new_pid);
 	}
+      else if (event == PTRACE_EVENT_CLONE)
+	{
+	  linux_target->low_new_clone (lp, new_pid);
+	}
 
       if (event == PTRACE_EVENT_FORK
 	  && linux_fork_checkpointing_p (lp->ptid.pid ()))
@@ -2038,8 +2042,8 @@ linux_handle_extended_wait (struct lwp_info *lp, int status)
 	     internal to this module, from the perspective of infrun
 	     and the user/frontend, this new thread is running until
 	     it next reports a stop.  */
-	  set_running (linux_target, new_lp->ptid, 1);
-	  set_executing (linux_target, new_lp->ptid, 1);
+	  set_running (linux_target, new_lp->ptid, true);
+	  set_executing (linux_target, new_lp->ptid, true);
 
 	  if (WSTOPSIG (status) != SIGSTOP)
 	    {
@@ -4213,8 +4217,7 @@ sigchld_handler (int signo)
   int old_errno = errno;
 
   if (debug_linux_nat)
-    ui_file_write_async_safe (gdb_stdlog,
-			      "sigchld\n", sizeof ("sigchld\n") - 1);
+    gdb_stdlog->write_async_safe ("sigchld\n", sizeof ("sigchld\n") - 1);
 
   if (signo == SIGCHLD
       && linux_nat_event_pipe[0] != -1)
@@ -4229,7 +4232,7 @@ sigchld_handler (int signo)
 static void
 handle_target_event (int error, gdb_client_data client_data)
 {
-  inferior_event_handler (INF_REG_EVENT, NULL);
+  inferior_event_handler (INF_REG_EVENT);
 }
 
 /* Create/destroy the target events pipe.  Returns previous state.  */

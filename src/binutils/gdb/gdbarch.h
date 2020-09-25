@@ -20,17 +20,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/* This file was created with the aid of ``gdbarch.sh''.
-
-   The Bourne shell script ``gdbarch.sh'' creates the files
-   ``new-gdbarch.c'' and ``new-gdbarch.h and then compares them
-   against the existing ``gdbarch.[hc]''.  Any differences found
-   being reported.
-
-   If editing this file, please also run gdbarch.sh and merge any
-   changes into that script. Conversely, when making sweeping changes
-   to this file, modifying gdbarch.sh and using its output may prove
-   easier.  */
+/* This file was created with the aid of ``gdbarch.sh''.  */
 
 #ifndef GDBARCH_H
 #define GDBARCH_H
@@ -39,6 +29,8 @@
 #include "frame.h"
 #include "dis-asm.h"
 #include "gdb_obstack.h"
+#include "infrun.h"
+#include "osabi.h"
 
 struct floatformat;
 struct ui_file;
@@ -55,7 +47,6 @@ struct obstack;
 struct bp_target_info;
 struct target_desc;
 struct symbol;
-struct displaced_step_closure;
 struct syscall;
 struct agent_expr;
 struct axs_value;
@@ -1016,9 +1007,7 @@ extern void set_gdbarch_max_insn_length (struct gdbarch *gdbarch, ULONGEST max_i
    not the copy at TO.  The caller should update it to point at TO later.
   
    Return a pointer to data of the architecture's choice to be passed
-   to gdbarch_displaced_step_fixup.  Or, return NULL to indicate that
-   the instruction's effects have been completely simulated, with the
-   resulting state written back to REGS.
+   to gdbarch_displaced_step_fixup.
   
    For a general explanation of displaced stepping and how GDB uses it,
    see the comments in infrun.c.
@@ -1036,8 +1025,8 @@ extern void set_gdbarch_max_insn_length (struct gdbarch *gdbarch, ULONGEST max_i
 
 extern int gdbarch_displaced_step_copy_insn_p (struct gdbarch *gdbarch);
 
-typedef struct displaced_step_closure * (gdbarch_displaced_step_copy_insn_ftype) (struct gdbarch *gdbarch, CORE_ADDR from, CORE_ADDR to, struct regcache *regs);
-extern struct displaced_step_closure * gdbarch_displaced_step_copy_insn (struct gdbarch *gdbarch, CORE_ADDR from, CORE_ADDR to, struct regcache *regs);
+typedef displaced_step_closure_up (gdbarch_displaced_step_copy_insn_ftype) (struct gdbarch *gdbarch, CORE_ADDR from, CORE_ADDR to, struct regcache *regs);
+extern displaced_step_closure_up gdbarch_displaced_step_copy_insn (struct gdbarch *gdbarch, CORE_ADDR from, CORE_ADDR to, struct regcache *regs);
 extern void set_gdbarch_displaced_step_copy_insn (struct gdbarch *gdbarch, gdbarch_displaced_step_copy_insn_ftype *displaced_step_copy_insn);
 
 /* Return true if GDB should use hardware single-stepping to execute
@@ -1120,14 +1109,6 @@ extern int gdbarch_core_read_description_p (struct gdbarch *gdbarch);
 typedef const struct target_desc * (gdbarch_core_read_description_ftype) (struct gdbarch *gdbarch, struct target_ops *target, bfd *abfd);
 extern const struct target_desc * gdbarch_core_read_description (struct gdbarch *gdbarch, struct target_ops *target, bfd *abfd);
 extern void set_gdbarch_core_read_description (struct gdbarch *gdbarch, gdbarch_core_read_description_ftype *core_read_description);
-
-/* Handle special encoding of static variables in stabs debug info. */
-
-extern int gdbarch_static_transform_name_p (struct gdbarch *gdbarch);
-
-typedef const char * (gdbarch_static_transform_name_ftype) (const char *name);
-extern const char * gdbarch_static_transform_name (struct gdbarch *gdbarch, const char *name);
-extern void set_gdbarch_static_transform_name (struct gdbarch *gdbarch, gdbarch_static_transform_name_ftype *static_transform_name);
 
 /* Set if the address in N_SO or N_FUN stabs may be zero. */
 
@@ -1544,6 +1525,13 @@ extern void set_gdbarch_insn_is_ret (struct gdbarch *gdbarch, gdbarch_insn_is_re
 typedef int (gdbarch_insn_is_jump_ftype) (struct gdbarch *gdbarch, CORE_ADDR addr);
 extern int gdbarch_insn_is_jump (struct gdbarch *gdbarch, CORE_ADDR addr);
 extern void set_gdbarch_insn_is_jump (struct gdbarch *gdbarch, gdbarch_insn_is_jump_ftype *insn_is_jump);
+
+/* Return true if there's a program/permanent breakpoint planted in
+   memory at ADDRESS, return false otherwise. */
+
+typedef bool (gdbarch_program_breakpoint_here_p_ftype) (struct gdbarch *gdbarch, CORE_ADDR address);
+extern bool gdbarch_program_breakpoint_here_p (struct gdbarch *gdbarch, CORE_ADDR address);
+extern void set_gdbarch_program_breakpoint_here_p (struct gdbarch *gdbarch, gdbarch_program_breakpoint_here_p_ftype *program_breakpoint_here_p);
 
 /* Read one auxv entry from *READPTR, not reading locations >= ENDPTR.
    Return 0 if *READPTR is already at the end of the buffer.

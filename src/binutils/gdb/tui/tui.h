@@ -40,9 +40,6 @@ enum tui_win_type
   CMD_WIN,
   /* This must ALWAYS be AFTER the major windows last.  */
   MAX_MAJOR_WINDOWS,
-  /* Auxiliary windows.  */
-  LOCATOR_WIN,
-  DATA_ITEM_WIN
 };
 
 extern CORE_ADDR tui_get_low_disassembly_address (struct gdbarch *,
@@ -52,9 +49,9 @@ extern bool tui_is_window_visible (enum tui_win_type type);
 extern bool tui_get_command_dimension (unsigned int *width,
 				       unsigned int *height);
 
-/* Initialize readline and configure the keymap for the switching
-   key shortcut.  */
-extern void tui_initialize_readline (void);
+/* Initialize readline and configure the keymap for the switching key
+   shortcut.  May be called more than once without issue.  */
+extern void tui_ensure_readline_initialized ();
 
 /* Enter in the tui mode (curses).  */
 extern void tui_enable (void);

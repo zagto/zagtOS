@@ -1568,14 +1568,16 @@ done by increasing the size of the last section.  The extra space is
 filled in with the value specified by @option{--gap-fill} (default zero).
 
 @item --set-start @var{val}
-Set the start address of the new file to @var{val}.  Not all object file
-formats support setting the start address.
+Set the start address (also known as the entry address) of the new
+file to @var{val}.  Not all object file formats support setting the
+start address.
 
 @item --change-start @var{incr}
 @itemx --adjust-start @var{incr}
 @cindex changing start address
-Change the start address by adding @var{incr}.  Not all object file
-formats support setting the start address.
+Change the start address (also known as the entry address) by adding
+@var{incr}.  Not all object file formats support setting the start
+address.
 
 @item --change-addresses @var{incr}
 @itemx --adjust-vma @var{incr}
@@ -1644,11 +1646,13 @@ Set the flags for any sections matching @var{sectionpattern}.  The
 @var{flags} argument is a comma separated string of flag names.  The
 recognized names are @samp{alloc}, @samp{contents}, @samp{load},
 @samp{noload}, @samp{readonly}, @samp{code}, @samp{data}, @samp{rom},
-@samp{share}, and @samp{debug}.  You can set the @samp{contents} flag
-for a section which does not have contents, but it is not meaningful
-to clear the @samp{contents} flag of a section which does have
-contents--just remove the section instead.  Not all flags are
-meaningful for all object file formats.
+@samp{exclude}, @samp{share}, and @samp{debug}.  You can set the
+@samp{contents} flag for a section which does not have contents, but it
+is not meaningful to clear the @samp{contents} flag of a section which
+does have contents--just remove the section instead.  Not all flags are
+meaningful for all object file formats.  In particular the
+@samp{share} flag is only meaningful for COFF format files and not for
+ELF format files.
 
 @item --set-section-alignment @var{sectionpattern}=@var{align}
 Set the alignment for any sections matching @var{sectionpattern}.
@@ -1704,7 +1708,8 @@ Rename a section from @var{oldname} to @var{newname}, optionally
 changing the section's flags to @var{flags} in the process.  This has
 the advantage over using a linker script to perform the rename in that
 the output stays as an object file and does not become a linked
-executable.
+executable.  This option accepts the same set of flags as the
+@option{--sect-section-flags} option.
 
 This option is particularly helpful when the input format is binary,
 since this will always create a section called .data.  If for example,
@@ -2148,8 +2153,8 @@ objdump [@option{-a}|@option{--archive-headers}]
         [@option{-r}|@option{--reloc}]
         [@option{-R}|@option{--dynamic-reloc}]
         [@option{-s}|@option{--full-contents}]
-        [@option{-W[lLiaprmfFsoRtUuTgAckK]}|
-         @option{--dwarf}[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]]
+        [@option{-W[lLiaprmfFsoORtUuTgAckK]}|
+         @option{--dwarf}[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=str-offsets,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]]
         [@option{--ctf=}@var{section}]
         [@option{-G}|@option{--stabs}]
         [@option{-t}|@option{--syms}]
@@ -2158,6 +2163,7 @@ objdump [@option{-a}|@option{--archive-headers}]
         [@option{-w}|@option{--wide}]
         [@option{--start-address=}@var{address}]
         [@option{--stop-address=}@var{address}]
+        [@option{--no-addresses}]
         [@option{--prefix-addresses}]
         [@option{--[no-]show-raw-insn}]
         [@option{--adjust-vma=}@var{offset}]
@@ -2262,7 +2268,7 @@ possible and any bug reports about such an event will be rejected.
 @itemx --debugging
 Display debugging information.  This attempts to parse STABS
 debugging format information stored in the file and print it out using
-a C like syntax.  If no STABS debuging was found this option
+a C like syntax.  If no STABS debugging was found this option
 falls back on the @option{-W} option to print any DWARF information in
 the file.
 
@@ -2310,6 +2316,11 @@ sections as if they were instructions.
 Note if the @option{--dwarf=follow-links} option has also been enabled
 then any symbol tables in linked debug info files will be read in and
 used when disassembling.
+
+@item --no-addresses
+When disassembling, don't print addresses on each line or for symbols
+and relocation offsets.  In combination with @option{--no-show-raw-insn}
+this may be useful for comparing compiler output.
 
 @item --prefix-addresses
 When disassembling, print the complete address on each line.  This is
@@ -2460,8 +2471,7 @@ option or whether instruction notes should be generated as comments in the
 disasssembly using @option{-M notes}.
 
 For the x86, some of the options duplicate functions of the @option{-m}
-switch, but allow finer grained control.  Multiple selections from the
-following may be specified as a comma separated string.
+switch, but allow finer grained control.
 @table @code
 @item x86-64
 @itemx i386
@@ -2492,8 +2502,10 @@ will be overridden if @code{x86-64}, @code{i386} or @code{i8086}
 appear later in the option string.
 
 @item suffix
-When in AT&T mode, instructs the disassembler to print a mnemonic
-suffix even when the suffix could be inferred by the operands.
+When in AT&T mode and also for a limited set of instructions when in Intel
+mode, instructs the disassembler to print a mnemonic suffix even when the
+suffix could be inferred by the operands or, for certain instructions, the
+execution mode's defaults.
 @end table
 
 For PowerPC, the @option{-M} argument @option{raw} selects
@@ -2509,10 +2521,10 @@ rather than @code{li}.  All of the @option{-m} arguments for
 @option{e300}, @option{e500}, @option{e500mc}, @option{e500mc64},
 @option{e500x2}, @option{e5500}, @option{e6500}, @option{efs},
 @option{power4}, @option{power5}, @option{power6}, @option{power7},
-@option{power8}, @option{power9}, @option{ppc}, @option{ppc32},
-@option{ppc64}, @option{ppc64bridge}, @option{ppcps}, @option{pwr},
-@option{pwr2}, @option{pwr4}, @option{pwr5}, @option{pwr5x},
-@option{pwr6}, @option{pwr7}, @option{pwr8}, @option{pwr9},
+@option{power8}, @option{power9}, @option{power10}, @option{ppc},
+@option{ppc32}, @option{ppc64}, @option{ppc64bridge}, @option{ppcps},
+@option{pwr}, @option{pwr2}, @option{pwr4}, @option{pwr5}, @option{pwr5x},
+@option{pwr6}, @option{pwr7}, @option{pwr8}, @option{pwr9}, @option{pwr10},
 @option{pwrx}, @option{titan}, and @option{vle}.
 @option{32} and @option{64} modify the default or a prior CPU
 selection, disabling and enabling 64-bit insns respectively.  In
@@ -2693,8 +2705,8 @@ If it is necessary to disable the @option{visualize-jumps} option
 after it has previously been enabled then use
 @option{visualize-jumps=off}.
 
-@item -W[lLiaprmfFsoRtUuTgAckK]
-@itemx --dwarf[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]
+@item -W[lLiaprmfFsoORtUuTgAckK]
+@itemx --dwarf[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=str-offsets,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]
 @include debug.options.texi
 
 @item --dwarf-check
@@ -3125,7 +3137,7 @@ unprintable character.
 Depending upon how the strings program was configured it will default
 to either displaying all the printable sequences that it can find in
 each file, or only those sequences that are in loadable, initialized
-data sections.  If the file type in unrecognizable, or if strings is
+data sections.  If the file type is unrecognizable, or if strings is
 reading from stdin then it will always display all of the printable
 sequences that it can find.
 
@@ -4697,13 +4709,14 @@ readelf [@option{-a}|@option{--all}]
         [@option{-V}|@option{--version-info}]
         [@option{-A}|@option{--arch-specific}]
         [@option{-D}|@option{--use-dynamic}]
+        [@option{-L}|@option{--lint}|@option{--enable-checks}]
         [@option{-x} <number or name>|@option{--hex-dump=}<number or name>]
         [@option{-p} <number or name>|@option{--string-dump=}<number or name>]
         [@option{-R} <number or name>|@option{--relocated-dump=}<number or name>]
         [@option{-z}|@option{--decompress}]
         [@option{-c}|@option{--archive-index}]
-        [@option{-w[lLiaprmfFsoRtUuTgAckK]}|
-         @option{--debug-dump}[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]]
+        [@option{-w[lLiaprmfFsoORtUuTgAckK]}|
+         @option{--debug-dump}[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=str-offsets,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]]
         [@option{--dwarf-depth=@var{n}}]
         [@option{--dwarf-start=@var{n}}]
         [@option{--ctf=}@var{section}]
@@ -4713,6 +4726,7 @@ readelf [@option{-a}|@option{--all}]
         [@option{-I}|@option{--histogram}]
         [@option{-v}|@option{--version}]
         [@option{-W}|@option{--wide}]
+        [@option{-T}|@option{--silent-truncation}]
         [@option{-H}|@option{--help}]
         @var{elffile}@dots{}
 @c man end
@@ -4853,6 +4867,15 @@ symbol table sections.
 When displaying relocations, this option makes @command{readelf}
 display the dynamic relocations rather than the static relocations.
 
+@item -L
+@itemx --lint
+@itemx --enable-checks
+Displays warning messages about possible problems with the file(s)
+being examined.  If used on its own then all of the contents of the
+file(s) will be examined.  If used with one of the dumping options
+then the warning messages will only be produced for the things being
+displayed.
+
 @item -x <number or name>
 @itemx --hex-dump=<number or name>
 Displays the contents of the indicated section as a hexadecimal bytes.
@@ -4886,8 +4909,8 @@ Displays the file symbol index information contained in the header part
 of binary archives.  Performs the same function as the @option{t}
 command to @command{ar}, but without using the BFD library.  @xref{ar}.
 
-@item -w[lLiaprmfFsoRtUuTgAckK]
-@itemx --debug-dump[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]
+@item -w[lLiaprmfFsOoRtUuTgAckK]
+@itemx --debug-dump[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=str-offsets,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]
 @include debug.options.texi
 
 @include ctf.options.texi
@@ -4916,6 +4939,15 @@ Don't break output lines to fit into 80 columns. By default
 64-bit ELF files, so that they fit into 80 columns. This option causes
 @command{readelf} to print each section header resp. each segment one a
 single line, which is far more readable on terminals wider than 80 columns.
+
+@item -T
+@itemx --silent-truncation
+Normally when readelf is displaying a symbol name, and it has to
+truncate the name to fit into an 80 column display, it will add a
+suffix of @code{[...]} to the name.  This command line option
+disables this behaviour, allowing 5 more characters of the name to be
+displayed and restoring the old behaviour of readelf (prior to release
+2.35).
 
 @item -H
 @itemx --help

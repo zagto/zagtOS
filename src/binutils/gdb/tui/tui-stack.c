@@ -43,6 +43,9 @@
 #define LINE_PREFIX             "L"
 #define PC_PREFIX               "PC: "
 
+/* Strings to display in the TUI status line.  */
+#define SINGLE_KEY              "(SingleKey)"
+
 /* Minimum/Maximum length of some fields displayed in the TUI status
    line.  */
 #define MIN_LINE_WIDTH     4	/* Use at least 4 digits for line
@@ -376,5 +379,6 @@ _initialize_tui_stack ()
 {
   add_com ("update", class_tui, tui_update_command,
 	   _("Update the source window and locator to "
-	     "display the current execution point."));
+	     "display the current execution point.\n\
+Usage: update"));
 }

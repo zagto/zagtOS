@@ -59,10 +59,6 @@ extern unsigned long i386_mach (void);
 #define ELF_TARGET_FORMAT64	"elf64-x86-64-freebsd"
 #elif defined (TE_VXWORKS)
 #define ELF_TARGET_FORMAT	"elf32-i386-vxworks"
-#elif defined (TE_NACL)
-#define ELF_TARGET_FORMAT	"elf32-i386-nacl"
-#define ELF_TARGET_FORMAT32	"elf32-x86-64-nacl"
-#define ELF_TARGET_FORMAT64	"elf64-x86-64-nacl"
 #elif defined TE_CLOUDABI
 #define ELF_TARGET_FORMAT64	"elf64-x86-64-cloudabi"
 #endif
@@ -180,6 +176,14 @@ extern int tc_i386_fix_adjustable (struct fix *);
    || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCRELX		\
    || (FIX)->fx_r_type == BFD_RELOC_X86_64_REX_GOTPCRELX)
 
+#define TC_FORCE_RELOCATION_ABS(FIX)				\
+  (TC_FORCE_RELOCATION (FIX)					\
+   || (FIX)->fx_r_type == BFD_RELOC_386_GOT32			\
+   || (FIX)->fx_r_type == BFD_RELOC_386_GOT32X			\
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCREL		\
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCRELX		\
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_REX_GOTPCRELX)
+
 extern int i386_parse_name (char *, expressionS *, char *);
 #define md_parse_name(s, e, m, c) i386_parse_name (s, e, c)
 
@@ -273,6 +277,7 @@ struct i386_tc_frag_data
   unsigned char prefix_length;
   unsigned char default_prefix;
   unsigned char cmp_size;
+  unsigned int mf_type : 3;
   unsigned int classified : 1;
   unsigned int branch_type : 3;
 };
@@ -299,6 +304,7 @@ struct i386_tc_frag_data
      (FRAGP)->tc_frag_data.cmp_size = 0;			\
      (FRAGP)->tc_frag_data.classified = 0;			\
      (FRAGP)->tc_frag_data.branch_type = 0;			\
+     (FRAGP)->tc_frag_data.mf_type = 0;			\
    }								\
  while (0)
 

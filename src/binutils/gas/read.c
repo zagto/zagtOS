@@ -417,6 +417,7 @@ static const pseudo_typeS potable[] = {
   {"noformat", s_ignore, 0},
   {"nolist", listing_list, 0},	/* Turn listing off.  */
   {"nopage", listing_nopage, 0},
+  {"nop", s_nop, 0},
   {"nops", s_nops, 0},
   {"octa", cons, 16},
   {"offset", s_struct, 0},
@@ -1052,7 +1053,8 @@ read_a_source_file (const char *name)
 		  {
 		    char *s2 = s;
 
-		    strncpy (original_case_string, s2, sizeof (original_case_string));
+		    strncpy (original_case_string, s2,
+			     sizeof (original_case_string) - 1);
 		    original_case_string[sizeof (original_case_string) - 1] = 0;
 
 		    while (*s2)
@@ -1331,8 +1333,7 @@ read_a_source_file (const char *name)
 		  new_length += 100;
 		}
 
-	      if (tmp_buf)
-		free (tmp_buf);
+	      free (tmp_buf);
 
 	      /* We've "scrubbed" input to the preferred format.  In the
 		 process we may have consumed the whole of the remaining
@@ -1800,8 +1801,7 @@ s_comm_internal (int param,
  out:
   if (flag_mri)
     mri_comment_end (stop, stopc);
-  if (name != NULL)
-    free (name);
+  free (name);
   return symbolP;
 }
 
@@ -1861,8 +1861,7 @@ s_mri_common (int small ATTRIBUTE_UNUSED)
 
   sym = symbol_find_or_make (name);
   c = restore_line_pointer (c);
-  if (alc != NULL)
-    free (alc);
+  free (alc);
 
   if (*input_line_pointer != ',')
     align = 0;
@@ -2464,7 +2463,7 @@ bss_alloc (symbolS *symbolP, addressT size, unsigned int align)
 	{
 	  bss_seg = subseg_new (".sbss", 1);
 	  seg_info (bss_seg)->bss = 1;
-	  if (!bfd_set_section_flags (bss_seg, SEC_ALLOC))
+	  if (!bfd_set_section_flags (bss_seg, SEC_ALLOC | SEC_SMALL_DATA))
 	    as_warn (_("error setting flags for \".sbss\": %s"),
 		     bfd_errmsg (bfd_get_error ()));
 	}
@@ -3440,6 +3439,43 @@ s_space (int mult)
 }
 
 void
+s_nop (int ignore ATTRIBUTE_UNUSED)
+{
+#ifdef md_flush_pending_output
+  md_flush_pending_output ();
+#endif
+
+#ifdef md_cons_align
+  md_cons_align (1);
+#endif
+
+  SKIP_WHITESPACE ();
+  demand_empty_rest_of_line ();
+
+#ifdef md_emit_single_noop
+  md_emit_single_noop;
+#else
+  char * nop;
+
+#ifndef md_single_noop_insn
+#define md_single_noop_insn "nop"
+#endif
+  /* md_assemble might modify its argument, so
+     we must pass it a string that is writeable.  */
+  if (asprintf (&nop, "%s", md_single_noop_insn) < 0)
+    as_fatal ("%s", xstrerror (errno));
+
+  /* Some targets assume that they can update input_line_pointer inside
+     md_assemble, and, worse, that they can leave it assigned to the string
+     pointer that was provided as an argument.  So preserve ilp here.  */
+  char * saved_ilp = input_line_pointer;
+  md_assemble (nop);
+  input_line_pointer = saved_ilp;
+  free (nop);
+#endif
+}
+
+void
 s_nops (int ignore ATTRIBUTE_UNUSED)
 {
   expressionS exp;
@@ -3453,8 +3489,12 @@ s_nops (int ignore ATTRIBUTE_UNUSED)
   md_cons_align (1);
 #endif
 
+  SKIP_WHITESPACE ();
   expression (&exp);
+  /* Note - this expression is tested for an absolute value in
+     write.c:relax_segment().  */
 
+  SKIP_WHITESPACE ();
   if (*input_line_pointer == ',')
     {
       ++input_line_pointer;
@@ -3466,29 +3506,30 @@ s_nops (int ignore ATTRIBUTE_UNUSED)
       val.X_add_number = 0;
     }
 
-  if (val.X_op == O_constant)
+  if (val.X_op != O_constant)
     {
-      if (val.X_add_number < 0)
-	{
-	  as_warn (_("negative nop control byte, ignored"));
-	  val.X_add_number = 0;
-	}
-
-      if (!need_pass_2)
-	{
-	  /* Store the no-op instruction control byte in the first byte
-	     of frag.  */
-	  char *p;
-	  symbolS *sym = make_expr_symbol (&exp);
-	  p = frag_var (rs_space_nop, 1, 1, (relax_substateT) 0,
-			sym, (offsetT) 0, (char *) 0);
-	  *p = val.X_add_number;
-	}
+      as_bad (_("unsupported variable nop control in .nops directive"));
+      val.X_op = O_constant;
+      val.X_add_number = 0;
     }
-  else
-    as_bad (_("unsupported variable nop control in .nops directive"));
+  else if (val.X_add_number < 0)
+    {
+      as_warn (_("negative nop control byte, ignored"));
+      val.X_add_number = 0;
+    }
 
   demand_empty_rest_of_line ();
+
+  if (need_pass_2)
+    /* Ignore this directive if we are going to perform a second pass.  */
+    return;
+
+  /* Store the no-op instruction control byte in the first byte of frag.  */
+  char *p;
+  symbolS *sym = make_expr_symbol (&exp);
+  p = frag_var (rs_space_nop, 1, 1, (relax_substateT) 0,
+		sym, (offsetT) 0, (char *) 0);
+  *p = val.X_add_number;
 }
 
 /* This is like s_space, but the value is a floating point number with
@@ -5140,7 +5181,7 @@ output_big_leb128 (char *p, LITTLENUM_TYPE *bignum, unsigned int size, int sign)
 /* Generate the appropriate fragments for a given expression to emit a
    leb128 value.  SIGN is 1 for sleb, 0 for uleb.  */
 
-static void
+void
 emit_leb128_expr (expressionS *exp, int sign)
 {
   operatorT op = exp->X_op;
@@ -5810,11 +5851,10 @@ s_incbin (int x ATTRIBUTE_UNUSED)
 	as_warn (_("truncated file `%s', %ld of %ld bytes read"),
 		 path, bytes, count);
     }
-done:
+ done:
   if (binfile != NULL)
     fclose (binfile);
-  if (path)
-    free (path);
+  free (path);
 }
 
 /* .include -- include a file at this point.  */
@@ -5874,7 +5914,7 @@ s_include (int arg ATTRIBUTE_UNUSED)
 
   free (path);
   path = filename;
-gotit:
+ gotit:
   /* malloc Storage leak when file is found on path.  FIXME-SOMEDAY.  */
   register_dependency (path);
   input_scrub_insert_file (path);

@@ -42,7 +42,7 @@
 #include "gdbsupport/version.h"
 #include "serial.h"
 #include "main.h"
-#include "event-loop.h"
+#include "gdbsupport/event-loop.h"
 #include "gdbthread.h"
 #include "extension.h"
 #include "interps.h"
@@ -51,7 +51,7 @@
 #include "filenames.h"
 #include "frame.h"
 #include "gdbsupport/buffer.h"
-#include "gdb_select.h"
+#include "gdbsupport/gdb_select.h"
 #include "gdbsupport/scope-exit.h"
 #include "gdbarch.h"
 #include "gdbsupport/pathstuff.h"
@@ -83,6 +83,8 @@
 #endif
 
 extern void initialize_all_files (void);
+
+static bool history_filename_empty (void);
 
 #define PROMPT(X) the_prompts.prompt_stack[the_prompts.top + X].prompt
 #define PREFIX(X) the_prompts.prompt_stack[the_prompts.top + X].prefix
@@ -172,7 +174,7 @@ static const char *previous_repeat_arguments;
    whatever) can issue its own commands and also send along commands
    from the user, and have the user not notice that the user interface
    is issuing commands too.  */
-int server_command;
+bool server_command;
 
 /* Timeout limit for response from target.  */
 
@@ -577,6 +579,8 @@ execute_command (const char *p, int from_tty)
     {
       const char *cmd = p;
       const char *arg;
+      std::string default_args;
+      std::string default_args_and_arg;
       int was_sync = current_ui->prompt_state == PROMPT_BLOCKED;
 
       line = p;
@@ -584,15 +588,26 @@ execute_command (const char *p, int from_tty)
       /* If trace-commands is set then this will print this command.  */
       print_command_trace ("%s", p);
 
-      c = lookup_cmd (&cmd, cmdlist, "", 0, 1);
+      c = lookup_cmd (&cmd, cmdlist, "", &default_args, 0, 1);
       p = cmd;
 
       scoped_restore save_repeat_args
 	= make_scoped_restore (&repeat_arguments, nullptr);
       const char *args_pointer = p;
 
-      /* Pass null arg rather than an empty one.  */
-      arg = *p ? p : 0;
+      if (!default_args.empty ())
+	{
+	  if (*p != '\0')
+	    default_args_and_arg = default_args + ' ' + p;
+	  else
+	    default_args_and_arg = default_args;
+	  arg = default_args_and_arg.c_str ();
+	}
+      else
+	{
+	  /* Pass null arg rather than an empty one.  */
+	  arg = *p == '\0' ? nullptr : p;
+	}
 
       /* FIXME: cagney/2002-02-02: The c->type test is pretty dodgy
          while the is_complete_command(cfunc) test is just plain
@@ -884,13 +899,22 @@ static bool command_editing_p;
 
 /* static */ bool history_expansion_p;
 
+/* Should we write out the command history on exit?  In order to write out
+   the history both this flag must be true, and the history_filename
+   variable must be set to something sensible.  */
 static bool write_history_p;
+
+/* Implement 'show history save'.  */
 static void
 show_write_history_p (struct ui_file *file, int from_tty,
 		      struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("Saving of the history record on exit is %s.\n"),
-		    value);
+  if (!write_history_p || !history_filename_empty ())
+    fprintf_filtered (file, _("Saving of the history record on exit is %s.\n"),
+		      value);
+  else
+    fprintf_filtered (file, _("Saving of the history is disabled due to "
+			      "the value of 'history filename'.\n"));
 }
 
 /* The variable associated with the "set/show history size"
@@ -919,14 +943,30 @@ show_history_remove_duplicates (struct ui_file *file, int from_tty,
 		    value);
 }
 
+/* The name of the file in which GDB history will be written.  If this is
+   set to NULL, of the empty string then history will not be written.  */
 static char *history_filename;
+
+/* Return true if the history_filename is either NULL or the empty string,
+   indicating that we should not try to read, nor write out the history.  */
+static bool
+history_filename_empty (void)
+{
+  return (history_filename == nullptr || *history_filename == '\0');
+}
+
+/* Implement 'show history filename'.  */
 static void
 show_history_filename (struct ui_file *file, int from_tty,
 		       struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("The filename in which to record "
-			    "the command history is \"%ps\".\n"),
-		    styled_string (file_name_style.style (), value));
+  if (!history_filename_empty ())
+    fprintf_filtered (file, _("The filename in which to record "
+			      "the command history is \"%ps\".\n"),
+		      styled_string (file_name_style.style (), value));
+  else
+    fprintf_filtered (file, _("There is no filename currently set for "
+			      "recording the command history in.\n"));
 }
 
 /* This is like readline(), but it has some gdb-specific behavior.
@@ -1527,6 +1567,25 @@ This GDB was configured as follows:\n\
              --without-python\n\
 "));
 #endif
+#ifdef WITH_PYTHON_LIBDIR
+  fprintf_filtered (stream, _("\
+             --with-python-libdir=%s%s\n\
+"), WITH_PYTHON_LIBDIR, PYTHON_LIBDIR_RELOCATABLE ? " (relocatable)" : "");
+#else
+  fprintf_filtered (stream, _("\
+             --without-python-libdir\n\
+"));
+#endif
+
+#if HAVE_LIBDEBUGINFOD
+  fprintf_filtered (stream, _("\
+             --with-debuginfod\n\
+"));
+#else
+   fprintf_filtered (stream, _("\
+             --without-debuginfod\n\
+"));
+#endif
 
 #if HAVE_GUILE
   fprintf_filtered (stream, _("\
@@ -1745,12 +1804,11 @@ quit_force (int *exit_arg, int from_tty)
     {
       if (write_history_p && history_filename)
 	{
-	  struct ui *ui;
 	  int save = 0;
 
 	  /* History is currently shared between all UIs.  If there's
 	     any UI with a terminal, save history.  */
-	  ALL_UIS (ui)
+	  for (ui *ui : all_uis ())
 	    {
 	      if (input_interactive_p (ui))
 		{
@@ -1912,20 +1970,6 @@ set_history_size_command (const char *args,
   set_readline_history_size (history_size_setshow_var);
 }
 
-void
-set_history (const char *args, int from_tty)
-{
-  printf_unfiltered (_("\"set history\" must be followed "
-		       "by the name of a history subcommand.\n"));
-  help_list (sethistlist, "set history ", all_commands, gdb_stdout);
-}
-
-void
-show_history (const char *args, int from_tty)
-{
-  cmd_show_list (showhistlist, from_tty, "");
-}
-
 bool info_verbose = false;	/* Default verbose msgs off.  */
 
 /* Called by do_set_command.  An elaborate joke.  */
@@ -1935,7 +1979,7 @@ set_verbose (const char *args, int from_tty, struct cmd_list_element *c)
   const char *cmdname = "verbose";
   struct cmd_list_element *showcmd;
 
-  showcmd = lookup_cmd_1 (&cmdname, showlist, NULL, 1);
+  showcmd = lookup_cmd_1 (&cmdname, showlist, NULL, NULL, 1);
   gdb_assert (showcmd != NULL && showcmd != CMD_LIST_AMBIGUOUS);
 
   if (c->doc && c->doc_allocated)
@@ -2007,9 +2051,9 @@ init_history (void)
   set_readline_history_size (history_size_setshow_var);
 
   tmpenv = getenv ("GDBHISTFILE");
-  if (tmpenv)
+  if (tmpenv != nullptr)
     history_filename = xstrdup (tmpenv);
-  else if (!history_filename)
+  else if (history_filename == nullptr)
     {
       /* We include the current directory so that if the user changes
          directories the file written will be the same as the one
@@ -2024,7 +2068,9 @@ init_history (void)
       gdb::unique_xmalloc_ptr<char> temp (gdb_abspath (fname));
       history_filename = temp.release ();
     }
-  read_history (history_filename);
+
+  if (!history_filename_empty ())
+    read_history (history_filename);
 }
 
 static void
@@ -2093,6 +2139,8 @@ show_gdb_datadir (struct ui_file *file, int from_tty,
 				   gdb_datadir.c_str ()));
 }
 
+/* Implement 'set history filename'.  */
+
 static void
 set_history_filename (const char *args,
 		      int from_tty, struct cmd_list_element *c)
@@ -2100,7 +2148,7 @@ set_history_filename (const char *args,
   /* We include the current directory so that if the user changes
      directories the file written will be the same as the one
      that was read.  */
-  if (!IS_ABSOLUTE_PATH (history_filename))
+  if (!history_filename_empty () && !IS_ABSOLUTE_PATH (history_filename))
     {
       gdb::unique_xmalloc_ptr<char> temp (gdb_abspath (history_filename));
 
@@ -2207,7 +2255,7 @@ By default this option is set to 0."),
 			   show_history_remove_duplicates,
 			   &sethistlist, &showhistlist);
 
-  add_setshow_filename_cmd ("filename", no_class, &history_filename, _("\
+  add_setshow_optional_filename_cmd ("filename", no_class, &history_filename, _("\
 Set the filename in which to record the command history."), _("\
 Show the filename in which to record the command history."), _("\
 (the list of previous commands of which a record is kept)."),

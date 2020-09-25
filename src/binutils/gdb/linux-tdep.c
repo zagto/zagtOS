@@ -258,7 +258,7 @@ linux_get_siginfo_type_with_fields (struct gdbarch *gdbarch,
 
   /* sival_t */
   sigval_type = arch_composite_type (gdbarch, NULL, TYPE_CODE_UNION);
-  TYPE_NAME (sigval_type) = xstrdup ("sigval_t");
+  sigval_type->set_name (xstrdup ("sigval_t"));
   append_composite_type_field (sigval_type, "sival_int", int_type);
   append_composite_type_field (sigval_type, "sival_ptr", void_ptr_type);
 
@@ -352,7 +352,7 @@ linux_get_siginfo_type_with_fields (struct gdbarch *gdbarch,
 
   /* struct siginfo */
   siginfo_type = arch_composite_type (gdbarch, NULL, TYPE_CODE_STRUCT);
-  TYPE_NAME (siginfo_type) = xstrdup ("siginfo");
+  siginfo_type->set_name (xstrdup ("siginfo"));
   append_composite_type_field (siginfo_type, "si_signo", int_type);
   append_composite_type_field (siginfo_type, "si_errno", int_type);
   append_composite_type_field (siginfo_type, "si_code", int_type);
@@ -701,22 +701,16 @@ dump_mapping_p (filter_flags filterflags, const struct smaps_vmflags *v,
   if (!dump_p && private_p && offset == 0
       && (filterflags & COREFILTER_ELF_HEADERS) != 0)
     {
-      /* Let's check if we have an ELF header.  */
-      gdb::unique_xmalloc_ptr<char> header;
-      int errcode;
-
       /* Useful define specifying the size of the ELF magical
 	 header.  */
 #ifndef SELFMAG
 #define SELFMAG 4
 #endif
 
-      /* Read the first SELFMAG bytes and check if it is ELFMAG.  */
-      if (target_read_string (addr, &header, SELFMAG, &errcode) == SELFMAG
-	  && errcode == 0)
+      /* Let's check if we have an ELF header.  */
+      gdb_byte h[SELFMAG];
+      if (target_read_memory (addr, h, SELFMAG) == 0)
 	{
-	  const char *h = header.get ();
-
 	  /* The EI_MAG* and ELFMAG* constants come from
 	     <elf/common.h>.  */
 	  if (h[EI_MAG0] == ELFMAG0 && h[EI_MAG1] == ELFMAG1
@@ -1402,18 +1396,6 @@ linux_find_memory_regions (struct gdbarch *gdbarch,
 					 &data);
 }
 
-/* Determine which signal stopped execution.  */
-
-static int
-find_signalled_thread (struct thread_info *info, void *data)
-{
-  if (info->suspend.stop_signal != GDB_SIGNAL_0
-      && info->ptid.pid () == inferior_ptid.pid ())
-    return 1;
-
-  return 0;
-}
-
 /* This is used to pass information from
    linux_make_mappings_corefile_notes through
    linux_find_memory_regions_full.  */
@@ -1618,8 +1600,8 @@ linux_get_siginfo_data (thread_info *thread, struct gdbarch *gdbarch)
   if (!gdbarch_get_siginfo_type_p (gdbarch))
     return gdb::byte_vector ();
 
-  scoped_restore save_inferior_ptid = make_scoped_restore (&inferior_ptid);
-  inferior_ptid = thread->ptid;
+  scoped_restore_current_thread save_current_thread;
+  switch_to_thread (thread);
 
   siginfo_type = gdbarch_get_siginfo_type (gdbarch);
 
@@ -1729,7 +1711,7 @@ linux_fill_prpsinfo (struct elf_internal_linux_prpsinfo *p)
 
   /* Copying the program name.  Only the basename matters.  */
   basename = lbasename (fname.get ());
-  strncpy (p->pr_fname, basename, sizeof (p->pr_fname));
+  strncpy (p->pr_fname, basename, sizeof (p->pr_fname) - 1);
   p->pr_fname[sizeof (p->pr_fname) - 1] = '\0';
 
   infargs = get_inferior_args ();
@@ -1739,7 +1721,7 @@ linux_fill_prpsinfo (struct elf_internal_linux_prpsinfo *p)
   if (infargs != NULL)
     psargs = psargs + " " + infargs;
 
-  strncpy (p->pr_psargs, psargs.c_str (), sizeof (p->pr_psargs));
+  strncpy (p->pr_psargs, psargs.c_str (), sizeof (p->pr_psargs) - 1);
   p->pr_psargs[sizeof (p->pr_psargs) - 1] = '\0';
 
   xsnprintf (filename, sizeof (filename), "/proc/%d/stat", (int) pid);
@@ -1861,6 +1843,30 @@ linux_fill_prpsinfo (struct elf_internal_linux_prpsinfo *p)
   return 1;
 }
 
+/* Find the signalled thread.  In case there's more than one signalled
+   thread, prefer the current thread, if it is signalled.  If no
+   thread was signalled, default to the current thread, unless it has
+   exited, in which case return NULL.  */
+
+static thread_info *
+find_signalled_thread ()
+{
+  thread_info *curr_thr = inferior_thread ();
+  if (curr_thr->state != THREAD_EXITED
+      && curr_thr->suspend.stop_signal != GDB_SIGNAL_0)
+    return curr_thr;
+
+  for (thread_info *thr : current_inferior ()->non_exited_threads ())
+    if (thr->suspend.stop_signal != GDB_SIGNAL_0)
+      return thr;
+
+  /* Default to the current thread, unless it has exited.  */
+  if (curr_thr->state != THREAD_EXITED)
+    return curr_thr;
+
+  return nullptr;
+}
+
 /* Build the note section for a corefile, and return it in a malloc
    buffer.  */
 
@@ -1870,7 +1876,6 @@ linux_make_corefile_notes (struct gdbarch *gdbarch, bfd *obfd, int *note_size)
   struct linux_corefile_thread_data thread_args;
   struct elf_internal_linux_prpsinfo prpsinfo;
   char *note_data = NULL;
-  struct thread_info *curr_thr, *signalled_thr;
 
   if (! gdbarch_iterate_over_regset_sections_p (gdbarch))
     return NULL;
@@ -1898,26 +1903,21 @@ linux_make_corefile_notes (struct gdbarch *gdbarch, bfd *obfd, int *note_size)
     }
 
   /* Like the kernel, prefer dumping the signalled thread first.
-     "First thread" is what tools use to infer the signalled thread.
-     In case there's more than one signalled thread, prefer the
-     current thread, if it is signalled.  */
-  curr_thr = inferior_thread ();
-  if (curr_thr->suspend.stop_signal != GDB_SIGNAL_0)
-    signalled_thr = curr_thr;
-  else
-    {
-      signalled_thr = iterate_over_threads (find_signalled_thread, NULL);
-      if (signalled_thr == NULL)
-	signalled_thr = curr_thr;
-    }
+     "First thread" is what tools use to infer the signalled
+     thread.  */
+  thread_info *signalled_thr = find_signalled_thread ();
 
   thread_args.gdbarch = gdbarch;
   thread_args.obfd = obfd;
   thread_args.note_data = note_data;
   thread_args.note_size = note_size;
-  thread_args.stop_signal = signalled_thr->suspend.stop_signal;
+  if (signalled_thr != nullptr)
+    thread_args.stop_signal = signalled_thr->suspend.stop_signal;
+  else
+    thread_args.stop_signal = GDB_SIGNAL_0;
 
-  linux_corefile_thread (signalled_thr, &thread_args);
+  if (signalled_thr != nullptr)
+    linux_corefile_thread (signalled_thr, &thread_args);
   for (thread_info *thr : current_inferior ()->non_exited_threads ())
     {
       if (thr == signalled_thr)
@@ -2326,7 +2326,7 @@ linux_infcall_mmap (CORE_ADDR size, unsigned prot)
      "mmap" uses 64-bit off_t on x86_64 and 32-bit off_t on i386 and x32.  */
   struct value *mmap_val = find_function_in_inferior ("mmap64", &objf);
   struct value *addr_val;
-  struct gdbarch *gdbarch = get_objfile_arch (objf);
+  struct gdbarch *gdbarch = objf->arch ();
   CORE_ADDR retval;
   enum
     {
@@ -2365,7 +2365,7 @@ linux_infcall_munmap (CORE_ADDR addr, CORE_ADDR size)
   struct objfile *objf;
   struct value *munmap_val = find_function_in_inferior ("munmap", &objf);
   struct value *retval_val;
-  struct gdbarch *gdbarch = get_objfile_arch (objf);
+  struct gdbarch *gdbarch = objf->arch ();
   LONGEST retval;
   enum
     {

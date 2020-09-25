@@ -24,7 +24,7 @@
 #include "frame.h"
 #include "frame-unwind.h"
 #include "frame-base.h"
-#include "dwarf2-frame.h"
+#include "dwarf2/frame.h"
 #include "trad-frame.h"
 #include "symtab.h"
 #include "gdbtypes.h"
@@ -1290,9 +1290,9 @@ m68hc11_return_value (struct gdbarch *gdbarch, struct value *function,
 		      struct type *valtype, struct regcache *regcache,
 		      gdb_byte *readbuf, const gdb_byte *writebuf)
 {
-  if (TYPE_CODE (valtype) == TYPE_CODE_STRUCT
-      || TYPE_CODE (valtype) == TYPE_CODE_UNION
-      || TYPE_CODE (valtype) == TYPE_CODE_ARRAY 
+  if (valtype->code () == TYPE_CODE_STRUCT
+      || valtype->code () == TYPE_CODE_UNION
+      || valtype->code () == TYPE_CODE_ARRAY
       || TYPE_LENGTH (valtype) > 4)
     return RETURN_VALUE_STRUCT_CONVENTION;
   else

@@ -185,29 +185,58 @@ private:
 class lookup_name_info final
 {
  public:
-  /* Create a new object.  */
-  lookup_name_info (std::string name,
+  /* We delete this overload so that the callers are required to
+     explicitly handle the lifetime of the name.  */
+  lookup_name_info (std::string &&name,
+		    symbol_name_match_type match_type,
+		    bool completion_mode = false,
+		    bool ignore_parameters = false) = delete;
+
+  /* This overload requires that NAME have a lifetime at least as long
+     as the lifetime of this object.  */
+  lookup_name_info (const std::string &name,
 		    symbol_name_match_type match_type,
 		    bool completion_mode = false,
 		    bool ignore_parameters = false)
     : m_match_type (match_type),
       m_completion_mode (completion_mode),
       m_ignore_parameters (ignore_parameters),
-      m_name (std::move (name))
+      m_name (name)
+  {}
+
+  /* This overload requires that NAME have a lifetime at least as long
+     as the lifetime of this object.  */
+  lookup_name_info (const char *name,
+		    symbol_name_match_type match_type,
+		    bool completion_mode = false,
+		    bool ignore_parameters = false)
+    : m_match_type (match_type),
+      m_completion_mode (completion_mode),
+      m_ignore_parameters (ignore_parameters),
+      m_name (name)
   {}
 
   /* Getters.  See description of each corresponding field.  */
   symbol_name_match_type match_type () const { return m_match_type; }
   bool completion_mode () const { return m_completion_mode; }
-  const std::string &name () const { return m_name; }
+  gdb::string_view name () const { return m_name; }
   const bool ignore_parameters () const { return m_ignore_parameters; }
+
+  /* Like the "name" method but guarantees that the returned string is
+     \0-terminated.  */
+  const char *c_str () const
+  {
+    /* Actually this is always guaranteed due to how the class is
+       constructed.  */
+    return m_name.data ();
+  }
 
   /* Return a version of this lookup name that is usable with
      comparisons against symbols have no parameter info, such as
      psymbols and GDB index symbols.  */
   lookup_name_info make_ignore_params () const
   {
-    return lookup_name_info (m_name, m_match_type, m_completion_mode,
+    return lookup_name_info (c_str (), m_match_type, m_completion_mode,
 			     true /* ignore params */);
   }
 
@@ -218,27 +247,27 @@ class lookup_name_info final
     if (!m_demangled_hashes_p[lang])
       {
 	m_demangled_hashes[lang]
-	  = ::search_name_hash (lang, language_lookup_name (lang).c_str ());
+	  = ::search_name_hash (lang, language_lookup_name (lang));
 	m_demangled_hashes_p[lang] = true;
       }
     return m_demangled_hashes[lang];
   }
 
   /* Get the search name for searches in language LANG.  */
-  const std::string &language_lookup_name (language lang) const
+  const char *language_lookup_name (language lang) const
   {
     switch (lang)
       {
       case language_ada:
-	return ada ().lookup_name ();
+	return ada ().lookup_name ().c_str ();
       case language_cplus:
-	return cplus ().lookup_name ();
+	return cplus ().lookup_name ().c_str ();
       case language_d:
-	return d ().lookup_name ();
+	return d ().lookup_name ().c_str ();
       case language_go:
-	return go ().lookup_name ();
+	return go ().lookup_name ().c_str ();
       default:
-	return m_name;
+	return m_name.data ();
       }
   }
 
@@ -287,7 +316,7 @@ private:
   symbol_name_match_type m_match_type;
   bool m_completion_mode;
   bool m_ignore_parameters;
-  std::string m_name;
+  gdb::string_view m_name;
 
   /* Language-specific info.  These fields are filled lazily the first
      time a lookup is done in the corresponding language.  They're
@@ -425,6 +454,11 @@ struct general_symbol_info
   void set_linkage_name (const char *linkage_name)
   { m_name = linkage_name; }
 
+  /* Set the demangled name of this symbol to NAME.  NAME must be
+     already correctly allocated.  If the symbol's language is Ada,
+     then the name is ignored and the obstack is set.  */
+  void set_demangled_name (const char *name, struct obstack *obstack);
+
   enum language language () const
   { return m_language; }
 
@@ -507,13 +541,6 @@ struct general_symbol_info
 
   short section;
 };
-
-extern void symbol_set_demangled_name (struct general_symbol_info *,
-				       const char *,
-                                       struct obstack *);
-
-extern const char *symbol_get_demangled_name
-  (const struct general_symbol_info *);
 
 extern CORE_ADDR symbol_overlayed_address (CORE_ADDR, struct obj_section *);
 
@@ -1080,7 +1107,7 @@ struct symbol : public general_symbol_info, public allocate_on_obstack
     /* Class-initialization of bitfields is only allowed in C++20.  */
     : domain (UNDEF_DOMAIN),
       aclass_index (0),
-      is_objfile_owned (0),
+      is_objfile_owned (1),
       is_argument (0),
       is_inlined (0),
       maybe_copied (0),
@@ -1093,11 +1120,13 @@ struct symbol : public general_symbol_info, public allocate_on_obstack
       language_specific.obstack = nullptr;
       m_language = language_unknown;
       ada_mangled = 0;
-      section = 0;
+      section = -1;
       /* GCC 4.8.5 (on CentOS 7) does not correctly compile class-
          initialization of unions, so we initialize it manually here.  */
       owner.symtab = nullptr;
     }
+
+  symbol (const symbol &) = default;
 
   /* Data type of value */
 
@@ -1277,7 +1306,13 @@ struct rust_vtable_symbol : public symbol
 
 struct linetable_entry
 {
+  /* The line number for this entry.  */
   int line;
+
+  /* True if this PC is a good location to place a breakpoint for LINE.  */
+  unsigned is_stmt : 1;
+
+  /* The address for this entry.  */
   CORE_ADDR pc;
 };
 
@@ -1507,6 +1542,13 @@ extern struct symtab *
 
 extern enum language compunit_language (const struct compunit_symtab *cust);
 
+/* Return true if this symtab is the "main" symtab of its compunit_symtab.  */
+
+static inline bool
+is_main_symtab_of_compunit_symtab (struct symtab *symtab)
+{
+  return symtab == COMPUNIT_FILETABS (SYMTAB_COMPUNIT (symtab));
+}
 
 
 /* The virtual function table is now an array of structures which have the
@@ -1601,16 +1643,6 @@ extern struct block_symbol lookup_symbol (const char *,
 extern struct block_symbol lookup_symbol_search_name (const char *search_name,
 						      const struct block *block,
 						      domain_enum domain);
-
-/* A default version of lookup_symbol_nonlocal for use by languages
-   that can't think of anything better to do.
-   This implements the C lookup rules.  */
-
-extern struct block_symbol
-  basic_lookup_symbol_nonlocal (const struct language_defn *langdef,
-				const char *,
-				const struct block *,
-				const domain_enum);
 
 /* Some helper functions for languages that need to write their own
    lookup_symbol_nonlocal functions.  */
@@ -1853,6 +1885,10 @@ struct symtab_and_line
   bool explicit_pc = false;
   bool explicit_line = false;
 
+  /* If the line number information is valid, then this indicates if this
+     line table entry had the is-stmt flag set or not.  */
+  bool is_stmt = false;
+
   /* The probe associated with this symtab_and_line.  */
   probe *prob = NULL;
   /* If PROBE is not NULL, then this is the objfile in which the probe
@@ -1906,13 +1942,6 @@ extern void default_collect_symbol_completion_matches_break_on
    symbol_name_match_type name_match_type,
    const char *text, const char *word, const char *break_on,
    enum type_code code);
-extern void default_collect_symbol_completion_matches
-  (completion_tracker &tracker,
-   complete_symbol_mode,
-   symbol_name_match_type name_match_type,
-   const char *,
-   const char *,
-   enum type_code);
 extern void collect_symbol_completion_matches
   (completion_tracker &tracker,
    complete_symbol_mode mode,
@@ -2192,10 +2221,6 @@ bool producer_is_realview (const char *producer);
 void fixup_section (struct general_symbol_info *ginfo,
 		    CORE_ADDR addr, struct objfile *objfile);
 
-/* Look up objfile containing BLOCK.  */
-
-struct objfile *lookup_objfile_from_block (const struct block *block);
-
 extern unsigned int symtab_create_debug;
 
 extern unsigned int symbol_lookup_debug;
@@ -2255,20 +2280,18 @@ bool iterate_over_symbols_terminated
 /* Storage type used by demangle_for_lookup.  demangle_for_lookup
    either returns a const char * pointer that points to either of the
    fields of this type, or a pointer to the input NAME.  This is done
-   this way because the underlying functions that demangle_for_lookup
-   calls either return a std::string (e.g., cp_canonicalize_string) or
-   a malloc'ed buffer (libiberty's demangled), and we want to avoid
-   unnecessary reallocation/string copying.  */
+   this way to avoid depending on the precise details of the storage
+   for the string.  */
 class demangle_result_storage
 {
 public:
 
-  /* Swap the std::string storage with STR, and return a pointer to
-     the beginning of the new string.  */
-  const char *swap_string (std::string &str)
+  /* Swap the malloc storage to STR, and return a pointer to the
+     beginning of the new string.  */
+  const char *set_malloc_ptr (gdb::unique_xmalloc_ptr<char> &&str)
   {
-    std::swap (m_string, str);
-    return m_string.c_str ();
+    m_malloc = std::move (str);
+    return m_malloc.get ();
   }
 
   /* Set the malloc storage to now point at PTR.  Any previous malloc
@@ -2282,7 +2305,6 @@ public:
 private:
 
   /* The storage.  */
-  std::string m_string;
   gdb::unique_xmalloc_ptr<char> m_malloc;
 };
 
@@ -2290,17 +2312,12 @@ const char *
   demangle_for_lookup (const char *name, enum language lang,
 		       demangle_result_storage &storage);
 
-struct symbol *allocate_symbol (struct objfile *);
-
-void initialize_objfile_symbol (struct symbol *);
-
-struct template_symbol *allocate_template_symbol (struct objfile *);
-
 /* Test to see if the symbol of language SYMBOL_LANGUAGE specified by
    SYMNAME (which is already demangled for C++ symbols) matches
    SYM_TEXT in the first SYM_TEXT_LEN characters.  If so, add it to
-   the current completion list.  */
-void completion_list_add_name (completion_tracker &tracker,
+   the current completion list and return true.  Otherwise, return
+   false.  */
+bool completion_list_add_name (completion_tracker &tracker,
 			       language symbol_language,
 			       const char *symname,
 			       const lookup_name_info &lookup_name,

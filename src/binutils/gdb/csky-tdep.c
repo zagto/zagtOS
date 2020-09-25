@@ -49,7 +49,7 @@
 #include "floatformat.h"
 #include "remote.h"
 #include "target-descriptions.h"
-#include "dwarf2-frame.h"
+#include "dwarf2/frame.h"
 #include "user-regs.h"
 #include "valprint.h"
 #include "csky-tdep.h"
@@ -267,7 +267,7 @@ csky_vector_type (struct gdbarch *gdbarch)
 			       init_vector_type (bt->builtin_int8, 16));
 
   TYPE_VECTOR (t) = 1;
-  TYPE_NAME (t) = "builtin_type_vec128i";
+  t->set_name ("builtin_type_vec128i");
 
   return t;
 }

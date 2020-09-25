@@ -767,7 +767,7 @@ elf_avr_new_section_hook (bfd *abfd, asection *sec)
   if (!sec->used_by_bfd)
     {
       struct elf_avr_section_data *sdata;
-      bfd_size_type amt = sizeof (*sdata);
+      size_t amt = sizeof (*sdata);
 
       sdata = bfd_zalloc (abfd, amt);
       if (sdata == NULL)
@@ -858,10 +858,8 @@ elf32_avr_link_hash_table_free (bfd *obfd)
     = (struct elf32_avr_link_hash_table *) obfd->link.hash;
 
   /* Free the address mapping table.  */
-  if (htab->amt_stub_offsets != NULL)
-    free (htab->amt_stub_offsets);
-  if (htab->amt_destination_addr != NULL)
-    free (htab->amt_destination_addr);
+  free (htab->amt_stub_offsets);
+  free (htab->amt_destination_addr);
 
   bfd_hash_table_free (&htab->bstab);
   _bfd_elf_link_hash_table_free (obfd);
@@ -875,7 +873,7 @@ static struct bfd_link_hash_table *
 elf32_avr_link_hash_table_create (bfd *abfd)
 {
   struct elf32_avr_link_hash_table *htab;
-  bfd_size_type amt = sizeof (*htab);
+  size_t amt = sizeof (*htab);
 
   htab = bfd_zmalloc (amt);
   if (htab == NULL)
@@ -3166,21 +3164,17 @@ elf32_avr_relax_section (bfd *abfd,
 	}
     }
 
-  if (internal_relocs != NULL
-      && elf_section_data (sec)->relocs != internal_relocs)
+  if (elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return TRUE;
 
  error_return:
-  if (isymbuf != NULL
-      && symtab_hdr->contents != (unsigned char *) isymbuf)
+  if (symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (contents != NULL
-      && elf_section_data (sec)->this_hdr.contents != contents)
+  if (elf_section_data (sec)->this_hdr.contents != contents)
     free (contents);
-  if (internal_relocs != NULL
-      && elf_section_data (sec)->relocs != internal_relocs)
+  if (elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return FALSE;
@@ -3273,10 +3267,8 @@ elf32_avr_get_relocated_section_contents (bfd *output_bfd,
 					isymbuf, sections))
 	goto error_return;
 
-      if (sections != NULL)
-	free (sections);
-      if (isymbuf != NULL
-	  && symtab_hdr->contents != (unsigned char *) isymbuf)
+      free (sections);
+      if (symtab_hdr->contents != (unsigned char *) isymbuf)
 	free (isymbuf);
       if (elf_section_data (input_section)->relocs != internal_relocs)
 	free (internal_relocs);
@@ -3285,13 +3277,10 @@ elf32_avr_get_relocated_section_contents (bfd *output_bfd,
   return data;
 
  error_return:
-  if (sections != NULL)
-    free (sections);
-  if (isymbuf != NULL
-      && symtab_hdr->contents != (unsigned char *) isymbuf)
+  free (sections);
+  if (symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (internal_relocs != NULL
-      && elf_section_data (input_section)->relocs != internal_relocs)
+  if (elf_section_data (input_section)->relocs != internal_relocs)
     free (internal_relocs);
   return NULL;
 }
@@ -3494,7 +3483,7 @@ elf32_avr_setup_section_lists (bfd *output_bfd,
   unsigned int top_id, top_index;
   asection *section;
   asection **input_list, **list;
-  bfd_size_type amt;
+  size_t amt;
   struct elf32_avr_link_hash_table *htab = avr_link_hash_table (info);
 
   if (htab == NULL || htab->no_stubs)
@@ -3558,7 +3547,7 @@ get_local_syms (bfd *input_bfd, struct bfd_link_info *info)
   unsigned int bfd_indx;
   Elf_Internal_Sym *local_syms, **all_local_syms;
   struct elf32_avr_link_hash_table *htab = avr_link_hash_table (info);
-  bfd_size_type amt;
+  size_t amt;
 
   if (htab == NULL)
     return -1;

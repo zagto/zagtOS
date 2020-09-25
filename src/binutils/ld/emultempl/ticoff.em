@@ -163,6 +163,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   after_parse_default,
   after_open_default,
   after_check_relocs_default,
+  before_place_orphans_default,
   after_allocation_default,
   set_output_arch_default,
   ldemul_default_target,
@@ -185,6 +186,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   NULL,	/* new_vers_pattern */
   NULL,  /* extra_map_file_text */
   ${LDEMUL_EMIT_CTF_EARLY-NULL},
-  ${LDEMUL_EXAMINE_STRTAB_FOR_CTF-NULL}
+  ${LDEMUL_EXAMINE_STRTAB_FOR_CTF-NULL},
+  ${LDEMUL_PRINT_SYMBOL-NULL}
 };
 EOF

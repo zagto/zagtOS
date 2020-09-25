@@ -687,6 +687,14 @@ frame_id_build_wild (CORE_ADDR stack_addr)
   return id;
 }
 
+bool
+frame_id_computed_p (struct frame_info *frame)
+{
+  gdb_assert (frame != nullptr);
+
+  return frame->this_id.p != 0;
+}
+
 int
 frame_id_p (struct frame_id l)
 {
@@ -2508,14 +2516,15 @@ find_frame_sal (frame_info *frame)
   int notcurrent;
   CORE_ADDR pc;
 
-  /* If the next frame represents an inlined function call, this frame's
-     sal is the "call site" of that inlined function, which can not
-     be inferred from get_frame_pc.  */
-  next_frame = get_next_frame (frame);
   if (frame_inlined_callees (frame) > 0)
     {
       struct symbol *sym;
 
+      /* If the current frame has some inlined callees, and we have a next
+	 frame, then that frame must be an inlined frame.  In this case
+	 this frame's sal is the "call site" of the next frame's inlined
+	 function, which can not be inferred from get_frame_pc.  */
+      next_frame = get_next_frame (frame);
       if (next_frame)
 	sym = get_frame_function (next_frame);
       else
@@ -2912,19 +2921,6 @@ frame_prepare_for_sniffer (struct frame_info *frame,
 static struct cmd_list_element *set_backtrace_cmdlist;
 static struct cmd_list_element *show_backtrace_cmdlist;
 
-static void
-set_backtrace_cmd (const char *args, int from_tty)
-{
-  help_list (set_backtrace_cmdlist, "set backtrace ", all_commands,
-	     gdb_stdout);
-}
-
-static void
-show_backtrace_cmd (const char *args, int from_tty)
-{
-  cmd_show_list (show_backtrace_cmdlist, from_tty, "");
-}
-
 /* Definition of the "set backtrace" settings that are exposed as
    "backtrace" command options.  */
 
@@ -2968,16 +2964,16 @@ _initialize_frame ()
 
   gdb::observers::target_changed.attach (frame_observer_target_changed);
 
-  add_prefix_cmd ("backtrace", class_maintenance, set_backtrace_cmd, _("\
+  add_basic_prefix_cmd ("backtrace", class_maintenance, _("\
 Set backtrace specific variables.\n\
 Configure backtrace variables such as the backtrace limit"),
-		  &set_backtrace_cmdlist, "set backtrace ",
-		  0/*allow-unknown*/, &setlist);
-  add_prefix_cmd ("backtrace", class_maintenance, show_backtrace_cmd, _("\
+			&set_backtrace_cmdlist, "set backtrace ",
+			0/*allow-unknown*/, &setlist);
+  add_show_prefix_cmd ("backtrace", class_maintenance, _("\
 Show backtrace specific variables.\n\
 Show backtrace variables such as the backtrace limit."),
-		  &show_backtrace_cmdlist, "show backtrace ",
-		  0/*allow-unknown*/, &showlist);
+		       &show_backtrace_cmdlist, "show backtrace ",
+		       0/*allow-unknown*/, &showlist);
 
   add_setshow_uinteger_cmd ("limit", class_obscure,
 			    &user_set_backtrace_options.backtrace_limit, _("\

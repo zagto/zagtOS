@@ -1523,20 +1523,17 @@ pru_elf32_relax_section (bfd * abfd, asection * sec,
 	}
     }
 
-  if (internal_relocs != NULL
-      && elf_section_data (sec)->relocs != internal_relocs)
+  if (elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return TRUE;
 
-error_return:
-  if (isymbuf != NULL && symtab_hdr->contents != (unsigned char *) isymbuf)
+ error_return:
+  if (symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (contents != NULL
-      && elf_section_data (sec)->this_hdr.contents != contents)
+  if (elf_section_data (sec)->this_hdr.contents != contents)
     free (contents);
-  if (internal_relocs != NULL
-      && elf_section_data (sec)->relocs != internal_relocs)
+  if (elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return FALSE;
@@ -1554,7 +1551,7 @@ static struct bfd_link_hash_table *
 pru_elf32_link_hash_table_create (bfd *abfd)
 {
   struct elf_link_hash_table *ret;
-  bfd_size_type amt = sizeof (struct elf_link_hash_table);
+  size_t amt = sizeof (struct elf_link_hash_table);
 
   ret = bfd_zmalloc (amt);
   if (ret == NULL)

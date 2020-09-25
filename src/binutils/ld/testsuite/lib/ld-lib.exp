@@ -289,7 +289,6 @@ proc default_ld_compile { cc source object } {
 	return 1
     } else {
 	verbose -log "$exec_output"
-	perror "$source: compilation failed"
 	return 0
     }
 }
@@ -310,7 +309,6 @@ proc default_ld_assemble { as in_flags source object } {
     if [string match "" $exec_output] then {
 	return 1
     } else {
-	perror "$source: assembly failed"
 	return 0
     }
 }
@@ -361,7 +359,6 @@ proc default_ld_nm { nm nmflags object } {
 	return 1
     } else {
 	verbose -log "$exec_output"
-	perror "$object: nm failed"
 	return 0
     }
 }
@@ -463,12 +460,10 @@ proc run_ld_link_tests { ldtests args } {
     global CFLAGS
     global runtests
     global exec_output
-    global ld_elf_shared_opt
 
-    if { [is_elf_format] && [check_shared_lib_support] } {
-	set ld_extra_opt "$ld_elf_shared_opt"
-    } else {
-	set ld_extra_opt ""
+    set ld_extra_opt ""
+    if [check_relro_support] {
+	set ld_extra_opt "-z norelro"
     }
 
     foreach testitem $ldtests {
@@ -522,12 +517,17 @@ proc run_ld_link_tests { ldtests args } {
 		set as_file "$srcdir/$subdir/$src_file"
 	    }
 	    if ![ld_assemble $as "$as_options $as_file" $objfile] {
-		set is_unresolved 1
+		set failed 1
 		break
 	    }
 	}
 
 	# Catch assembler errors.
+	if { $failed } {
+	    fail $testname
+	    continue
+	}
+	# Catch compiler errors.
 	if { $is_unresolved } {
 	    unresolved $testname
 	    continue
@@ -773,14 +773,9 @@ proc run_ld_link_exec_tests { ldtests args } {
 		verbose "$exec_output" 1
 		set failed 1
 	    } else {
-		send_log "diff $binfile.out $srcdir/$subdir/$expfile\n"
-		verbose "diff $binfile.out $srcdir/$subdir/$expfile"
-		catch "exec diff $binfile.out $srcdir/$subdir/$expfile" exec_output
-		set exec_output [prune_warnings $exec_output]
-
-		if ![string match "" $exec_output] then {
-		    send_log "$exec_output\n"
-		    verbose "$exec_output" 1
+		send_log [file_contents $binfile.out]
+		verbose [file_contents $binfile.out] 2
+		if [regexp_diff "$binfile.out" "$srcdir/$subdir/$expfile"] {
 		    set failed 1
 		}
 	    }
@@ -928,6 +923,7 @@ proc run_cc_link_tests { ldtests } {
 
 	if { $binfile eq "tmpdir/" } {
 	    # compile only
+	    set binfile $objfile
 	} elseif { [regexp ".*\\.a$" $binfile] } {
 	    if { ![ar_simple_create $ar $ldflags $binfile "$objfiles"] } {
 		set failed 1
@@ -1062,7 +1058,8 @@ proc check_gc_sections_available { } {
 	    || [istarget pj*-*-*]
 	    || [istarget pru*-*-*]
 	    || [istarget s12z-*-*]
-	    || [istarget xgate-*-*] } {
+	    || [istarget xgate-*-*]
+	    || [istarget z80-*-*] } {
 	    set gc_sections_available_saved 0
 	    return 0
 	}
@@ -1086,18 +1083,6 @@ proc check_gc_sections_available { } {
 	}
     }
     return $gc_sections_available_saved
-}
-
-# Return true if target uses the generic_link_hash_table linker.
-proc is_generic { } {
-    if { [istarget "d30v-*-*"]
-	 || [istarget "dlx-*-*"]
-	 || [istarget "pj*-*-*"]
-	 || [istarget "s12z-*-*"]
-	 || [istarget "xgate-*-*"] } {
-	return 1
-    }
-    return 0
 }
 
 # Return true if target uses genelf.em.
@@ -1145,7 +1130,8 @@ proc check_plugin_api_available { } {
     if {![info exists plugin_api_available_saved]} {
 	# Check if the ld used by gcc supports --plugin.
 	set ld_output [remote_exec host $ld "--help"]
-	if { [ string first "-plugin PLUGIN" $ld_output ] >= 0 } {
+	if { [regexp -- "-plugin PLUGIN \[^\n\r\]*" $ld_output line]
+	     && ![regexp "ignored" $line] } {
 	    set plugin_api_available_saved 1
 	} else {
 	    set plugin_api_available_saved 0
@@ -1383,11 +1369,7 @@ proc check_as_cfi { } {
     close $as_fh
     remote_download host $as_file
     verbose -log "Checking CFI support:"
-    rename "perror" "check_as_cfi_perror"
-    proc perror { args } { }
     set success [ld_assemble $as $as_file "/dev/null"]
-    rename "perror" ""
-    rename "check_as_cfi_perror" "perror"
     #remote_file host delete $as_file
     set check_as_cfi_result $success
     return $success

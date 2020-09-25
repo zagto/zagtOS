@@ -20,17 +20,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/* This file was created with the aid of ``gdbarch.sh''.
-
-   The Bourne shell script ``gdbarch.sh'' creates the files
-   ``new-gdbarch.c'' and ``new-gdbarch.h and then compares them
-   against the existing ``gdbarch.[hc]''.  Any differences found
-   being reported.
-
-   If editing this file, please also run gdbarch.sh and merge any
-   changes into that script. Conversely, when making sweeping changes
-   to this file, modifying gdbarch.sh and using its output may prove
-   easier.  */
+/* This file was created with the aid of ``gdbarch.sh''.  */
 
 
 #include "defs.h"
@@ -302,7 +292,6 @@ struct gdbarch
   gdbarch_relocate_instruction_ftype *relocate_instruction;
   gdbarch_overlay_update_ftype *overlay_update;
   gdbarch_core_read_description_ftype *core_read_description;
-  gdbarch_static_transform_name_ftype *static_transform_name;
   int sofun_address_maybe_missing;
   gdbarch_process_record_ftype *process_record;
   gdbarch_process_record_signal_ftype *process_record_signal;
@@ -345,6 +334,7 @@ struct gdbarch
   gdbarch_insn_is_call_ftype *insn_is_call;
   gdbarch_insn_is_ret_ftype *insn_is_ret;
   gdbarch_insn_is_jump_ftype *insn_is_jump;
+  gdbarch_program_breakpoint_here_p_ftype *program_breakpoint_here_p;
   gdbarch_auxv_parse_ftype *auxv_parse;
   gdbarch_print_auxv_entry_ftype *print_auxv_entry;
   gdbarch_vsyscall_range_ftype *vsyscall_range;
@@ -464,6 +454,7 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->insn_is_call = default_insn_is_call;
   gdbarch->insn_is_ret = default_insn_is_ret;
   gdbarch->insn_is_jump = default_insn_is_jump;
+  gdbarch->program_breakpoint_here_p = default_program_breakpoint_here_p;
   gdbarch->print_auxv_entry = default_print_auxv_entry;
   gdbarch->vsyscall_range = default_vsyscall_range;
   gdbarch->infcall_mmap = default_infcall_mmap;
@@ -666,7 +657,6 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of relocate_instruction, has predicate.  */
   /* Skip verify of overlay_update, has predicate.  */
   /* Skip verify of core_read_description, has predicate.  */
-  /* Skip verify of static_transform_name, has predicate.  */
   /* Skip verify of sofun_address_maybe_missing, invalid_p == 0 */
   /* Skip verify of process_record, has predicate.  */
   /* Skip verify of process_record_signal, has predicate.  */
@@ -708,6 +698,7 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of insn_is_call, invalid_p == 0 */
   /* Skip verify of insn_is_ret, invalid_p == 0 */
   /* Skip verify of insn_is_jump, invalid_p == 0 */
+  /* Skip verify of program_breakpoint_here_p, invalid_p == 0 */
   /* Skip verify of auxv_parse, has predicate.  */
   /* Skip verify of print_auxv_entry, invalid_p == 0 */
   /* Skip verify of vsyscall_range, invalid_p == 0 */
@@ -1249,6 +1240,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: process_record_signal = <%s>\n",
                       host_address_to_string (gdbarch->process_record_signal));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: program_breakpoint_here_p = <%s>\n",
+                      host_address_to_string (gdbarch->program_breakpoint_here_p));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: ps_regnum = %s\n",
                       plongest (gdbarch->ps_regnum));
   fprintf_unfiltered (file,
@@ -1440,12 +1434,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: stap_register_suffixes = %s\n",
                       pstring_list (gdbarch->stap_register_suffixes));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: gdbarch_static_transform_name_p() = %d\n",
-                      gdbarch_static_transform_name_p (gdbarch));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: static_transform_name = <%s>\n",
-                      host_address_to_string (gdbarch->static_transform_name));
   fprintf_unfiltered (file,
                       "gdbarch_dump: sw_breakpoint_from_kind = <%s>\n",
                       host_address_to_string (gdbarch->sw_breakpoint_from_kind));
@@ -3930,7 +3918,7 @@ gdbarch_displaced_step_copy_insn_p (struct gdbarch *gdbarch)
   return gdbarch->displaced_step_copy_insn != NULL;
 }
 
-struct displaced_step_closure *
+displaced_step_closure_up
 gdbarch_displaced_step_copy_insn (struct gdbarch *gdbarch, CORE_ADDR from, CORE_ADDR to, struct regcache *regs)
 {
   gdb_assert (gdbarch != NULL);
@@ -4077,30 +4065,6 @@ set_gdbarch_core_read_description (struct gdbarch *gdbarch,
                                    gdbarch_core_read_description_ftype core_read_description)
 {
   gdbarch->core_read_description = core_read_description;
-}
-
-int
-gdbarch_static_transform_name_p (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  return gdbarch->static_transform_name != NULL;
-}
-
-const char *
-gdbarch_static_transform_name (struct gdbarch *gdbarch, const char *name)
-{
-  gdb_assert (gdbarch != NULL);
-  gdb_assert (gdbarch->static_transform_name != NULL);
-  if (gdbarch_debug >= 2)
-    fprintf_unfiltered (gdb_stdlog, "gdbarch_static_transform_name called\n");
-  return gdbarch->static_transform_name (name);
-}
-
-void
-set_gdbarch_static_transform_name (struct gdbarch *gdbarch,
-                                   gdbarch_static_transform_name_ftype static_transform_name)
-{
-  gdbarch->static_transform_name = static_transform_name;
 }
 
 int
@@ -4926,6 +4890,23 @@ set_gdbarch_insn_is_jump (struct gdbarch *gdbarch,
                           gdbarch_insn_is_jump_ftype insn_is_jump)
 {
   gdbarch->insn_is_jump = insn_is_jump;
+}
+
+bool
+gdbarch_program_breakpoint_here_p (struct gdbarch *gdbarch, CORE_ADDR address)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->program_breakpoint_here_p != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_program_breakpoint_here_p called\n");
+  return gdbarch->program_breakpoint_here_p (gdbarch, address);
+}
+
+void
+set_gdbarch_program_breakpoint_here_p (struct gdbarch *gdbarch,
+                                       gdbarch_program_breakpoint_here_p_ftype program_breakpoint_here_p)
+{
+  gdbarch->program_breakpoint_here_p = program_breakpoint_here_p;
 }
 
 int

@@ -85,12 +85,6 @@ CODE_FRAGMENT
 .  {* A unique identifier of the BFD  *}
 .  unsigned int id;
 .
-.  {* The format which belongs to the BFD. (object, core, etc.)  *}
-.  ENUM_BITFIELD (bfd_format) format : 3;
-.
-.  {* The direction with which the BFD was opened.  *}
-.  ENUM_BITFIELD (bfd_direction) direction : 2;
-.
 .  {* Format_specific flags.  *}
 .  flagword flags;
 .
@@ -194,6 +188,12 @@ CODE_FRAGMENT
 .   | BFD_PLUGIN | BFD_TRADITIONAL_FORMAT | BFD_DETERMINISTIC_OUTPUT \
 .   | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON)
 .
+.  {* The format which belongs to the BFD. (object, core, etc.)  *}
+.  ENUM_BITFIELD (bfd_format) format : 3;
+.
+.  {* The direction with which the BFD was opened.  *}
+.  ENUM_BITFIELD (bfd_direction) direction : 2;
+.
 .  {* Is the file descriptor being cached?  That is, can it be closed as
 .     needed, and re-opened when accessed later?  *}
 .  unsigned int cacheable : 1;
@@ -249,9 +249,8 @@ CODE_FRAGMENT
 .     library.  *}
 .  bfd *plugin_dummy_bfd;
 .
-.  {* Currently my_archive is tested before adding origin to
-.     anything. I believe that this can become always an add of
-.     origin, with origin set to 0 for non archive files.  *}
+.  {* The offset of this bfd in the file, typically 0 if it is not
+.     contained in an archive.  *}
 .  ufile_ptr origin;
 .
 .  {* The origin in the archive of the proxy entry.  This will
@@ -283,7 +282,7 @@ CODE_FRAGMENT
 .
 .  {* Symbol table for output BFD (with symcount entries).
 .     Also used by the linker to cache input BFD symbols.  *}
-.  struct bfd_symbol  **outsymbols;
+.  struct bfd_symbol **outsymbols;
 .
 .  {* Used for input and output.  *}
 .  unsigned int symcount;
@@ -293,6 +292,11 @@ CODE_FRAGMENT
 .
 .  {* Pointer to structure which contains architecture information.  *}
 .  const struct bfd_arch_info *arch_info;
+.
+.  {* Cached length of file for bfd_get_size.  0 until bfd_get_size is
+.     called, 1 if stat returns an error or the file size is too large to
+.     return in ufile_ptr.  Both 0 and 1 should be treated as "unknown".  *}
+.  ufile_ptr size;
 .
 .  {* Stuff only useful for archives.  *}
 .  void *arelt_data;
@@ -783,8 +787,8 @@ bfd_errmsg (bfd_error_type error_tag)
       char *buf;
       const char *msg = bfd_errmsg (input_error);
 
-      if (asprintf (&buf, _(bfd_errmsgs [error_tag]), input_bfd->filename, msg)
-	  != -1)
+      if (asprintf (&buf, _(bfd_errmsgs [error_tag]),
+		    bfd_get_filename (input_bfd), msg) != -1)
 	return buf;
 
       /* Ick, what to do on out of memory?  */
@@ -1110,10 +1114,10 @@ _bfd_doprnt (FILE *stream, const char *format, union _bfd_doprnt_args *args)
 		  else if (abfd->my_archive
 			   && !bfd_is_thin_archive (abfd->my_archive))
 		    result = fprintf (stream, "%s(%s)",
-				      abfd->my_archive->filename,
-				      abfd->filename);
+				      bfd_get_filename (abfd->my_archive),
+				      bfd_get_filename (abfd));
 		  else
-		    result = fprintf (stream, "%s", abfd->filename);
+		    result = fprintf (stream, "%s", bfd_get_filename (abfd));
 		}
 	      else
 		PRINT_TYPE (void *, p);
@@ -2058,7 +2062,8 @@ DESCRIPTION
 .	BFD_SEND (abfd, _bfd_debug_info_accumulate, (abfd, section))
 .
 .#define bfd_stat_arch_elt(abfd, stat) \
-.	BFD_SEND (abfd, _bfd_stat_arch_elt,(abfd, stat))
+.	BFD_SEND (abfd->my_archive ? abfd->my_archive : abfd, \
+.		  _bfd_stat_arch_elt, (abfd, stat))
 .
 .#define bfd_update_armap_timestamp(abfd) \
 .	BFD_SEND (abfd, _bfd_update_armap_timestamp, (abfd))
@@ -2162,14 +2167,15 @@ bfd_record_phdr (bfd *abfd,
 		 bfd_boolean flags_valid,
 		 flagword flags,
 		 bfd_boolean at_valid,
-		 bfd_vma at,
+		 bfd_vma at,  /* Bytes.  */
 		 bfd_boolean includes_filehdr,
 		 bfd_boolean includes_phdrs,
 		 unsigned int count,
 		 asection **secs)
 {
   struct elf_segment_map *m, **pm;
-  bfd_size_type amt;
+  size_t amt;
+  unsigned int opb = bfd_octets_per_byte (abfd, NULL);
 
   if (bfd_get_flavour (abfd) != bfd_target_elf_flavour)
     return TRUE;
@@ -2182,7 +2188,7 @@ bfd_record_phdr (bfd *abfd,
 
   m->p_type = type;
   m->p_flags = flags;
-  m->p_paddr = at;
+  m->p_paddr = at * opb;
   m->p_flags_valid = flags_valid;
   m->p_paddr_valid = at_valid;
   m->includes_filehdr = includes_filehdr;
@@ -2481,8 +2487,7 @@ bfd_demangle (bfd *abfd, const char *name, int options)
 
   res = cplus_demangle (name, options);
 
-  if (alloc != NULL)
-    free (alloc);
+  free (alloc);
 
   if (res == NULL)
     {

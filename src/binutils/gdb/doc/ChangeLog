@@ -1,3 +1,125 @@
+2020-06-26  Eli Zaretskii  <eliz@gnu.org>
+
+	* gdb.texinfo (Shell Commands): More accurate description of use
+	of $SHELL.  Reported by Sandra Loosemore <sandra@codesourcery.com>.
+
+2020-06-23  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* gdb.texinfo (Maintenance Commands): Document new 'maint print
+	xml-desc' command.
+
+2020-06-22  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
+
+	* gdb.texinfo (Command aliases default args): New node documenting
+	how to use default args for a command using aliases.
+	(Aliases): Document the new 'DEFAULT-ARGS...' option.
+	(Help): Update help aliases text and describe when full alias
+	definition is provided.
+
+2020-06-11  Tom Tromey  <tromey@adacore.com>
+
+	* gdb.texinfo (Index Files): Reword.  Remove Ada limitation.
+
+2020-06-10  Jonny Grant  <jg@jguk.org>
+
+	* gdb.texinfo: Remove broken links Previous and Up from
+	contents.
+
+2020-05-23  Tom Tromey  <tom@tromey.com>
+
+	* gdb.texinfo (Output Styling): Don't mention completion styling.
+	(Editing): Don't mention readline completion styling.
+
+2020-05-23  Tom Tromey  <tom@tromey.com>
+
+	* gdb.texinfo (Output Styling): Mention completion styling.
+	(Editing): Mention readline completion styling.
+
+2020-05-19  Pedro Alves  <palves@redhat.com>
+
+	* gdb.texinfo (Attach): Update exec-file-mismatch description to
+	mention build IDs.
+	(Separate Debug Files): Add "build id" anchor.
+
+2020-05-15  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
+
+	* gdb.texinfo (Help): Document the help and apropos changes.
+	(Aliases): Document new meaning of -a abbreviation flag.
+
+2020-05-05  Kamil Rytarowski  <n54@gmx.com>
+
+	* gdb.texinfo (info proc, info proc cmdline, info proc cwd)
+	(info proc exe, info proc mappings, info proc stat): Mention
+	NetBSD support.
+
+2020-04-28  Tom Tromey  <tom@tromey.com>
+
+	* python.texi (Commands In Python): Document gdb.COMMAND_TUI.
+
+2020-04-27  Tom Tromey  <tromey@adacore.com>
+
+	* python.texi (Types In Python): Mention missing fields.  Add
+	dynamic type example.
+
+2020-04-24  Tom Tromey  <tromey@adacore.com>
+
+	PR python/23662:
+	* python.texi (Types In Python): Document new features.
+
+2020-04-15  Artur Shepilko  <nomadbyte@gmail.com>
+
+	* gdb.texinfo: Transform @var{[host]} to [@var{host}]; this
+	clears makeinfo warnings.
+	* python.texi: Add a missing period trailing an @xref{} clause;
+	this clears a makeinfo warning.
+
+2020-03-06  Tom de Vries  <tdevries@suse.de>
+
+	* gdb.texinfo: Fix "the the".
+
+2020-03-04  Tom de Vries  <tdevries@suse.de>
+
+	* gdb.texinfo: Remove trailing "done." in "Reading symbols from" lines.
+	* python.texi: Same.
+
+2020-03-02  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* gdb.texinfo (Command History): Extend description for
+	GDBHISTFILE and GDBHISTSIZE, add detail about the filename for
+	'set history filename' being optional.  Describe the effect of an
+	empty history filename on 'set history save on'.
+
+2020-02-24  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* gdb.texinfo (Threads): Fix alignment in 'info threads' example
+	output.
+
+2020-02-22  Tom Tromey  <tom@tromey.com>
+
+	* python.texi (Python API): Add menu item.
+	(TUI Windows In Python): New node.
+
+2020-02-22  Tom Tromey  <tom@tromey.com>
+
+	PR tui/17850:
+	* gdb.texinfo (TUI Commands): Document horizontal layouts.
+
+2020-02-22  Tom Tromey  <tom@tromey.com>
+
+	* gdb.texinfo (TUI Overview): Mention user layouts.
+	(TUI Commands): Document "tui new-layout".
+
+2020-01-26  Tom Tromey  <tromey@adacore.com>
+
+	* gdb.texinfo (M68K Features): Document floating-point feature
+	correspondence.
+
+2020-01-25  Philippe Waroquiers  <philippe.waroquiers@skynet.be>
+
+	* gdb.texinfo (Attach): Document the new option and the
+	set/show commands.
+	(Connecting): Reference the exec-file-mismatch option.
+
 2020-01-10  Pedro Alves  <palves@redhat.com>
 
 	* gdb.texinfo (Starting): Say "current inferior not connected"

@@ -1728,7 +1728,7 @@ static struct bfd_link_hash_table *
 bfinfdpic_elf_link_hash_table_create (bfd *abfd)
 {
   struct bfinfdpic_elf_link_hash_table *ret;
-  bfd_size_type amt = sizeof (struct bfinfdpic_elf_link_hash_table);
+  size_t amt = sizeof (struct bfinfdpic_elf_link_hash_table);
 
   ret = bfd_zmalloc (amt);
   if (ret == NULL)
@@ -2552,6 +2552,7 @@ bfinfdpic_relocate_section (bfd * output_bfd,
       h      = NULL;
       sym    = NULL;
       sec    = NULL;
+      picrel = NULL;
 
       if (r_symndx < symtab_hdr->sh_info)
 	{
@@ -2614,6 +2615,9 @@ bfinfdpic_relocate_section (bfd * output_bfd,
 	case R_BFIN_FUNCDESC_GOTOFFLO:
 	case R_BFIN_FUNCDESC:
 	case R_BFIN_FUNCDESC_VALUE:
+	  if ((input_section->flags & SEC_ALLOC) == 0)
+	    break;
+
 	  if (h != NULL)
 	    picrel = bfinfdpic_relocs_info_for_global (bfinfdpic_relocs_info
 						       (info), input_bfd, h,
@@ -3015,11 +3019,11 @@ bfinfdpic_relocate_section (bfd * output_bfd,
 	     input file basename is crt0.o only once.  */
 	  if (silence_segment_error == 1)
 	    silence_segment_error =
-	      (strlen (input_bfd->filename) == 6
-	       && filename_cmp (input_bfd->filename, "crt0.o") == 0)
-	      || (strlen (input_bfd->filename) > 6
-		  && filename_cmp (input_bfd->filename
-				   + strlen (input_bfd->filename) - 7,
+	      (strlen (bfd_get_filename (input_bfd)) == 6
+	       && filename_cmp (bfd_get_filename (input_bfd), "crt0.o") == 0)
+	      || (strlen (bfd_get_filename (input_bfd)) > 6
+		  && filename_cmp (bfd_get_filename (input_bfd)
+				   + strlen (bfd_get_filename (input_bfd)) - 7,
 			     "/crt0.o") == 0)
 	      ? -1 : 0;
 #endif
@@ -4063,26 +4067,6 @@ elf32_bfinfdpic_size_dynamic_sections (bfd *output_bfd,
   if (!_bfinfdpic_size_got_plt (output_bfd, &gpinfo))
       return FALSE;
 
-  if (elf_hash_table (info)->dynamic_sections_created)
-    {
-      if (bfinfdpic_got_section (info)->size)
-	if (!_bfd_elf_add_dynamic_entry (info, DT_PLTGOT, 0))
-	  return FALSE;
-
-      if (bfinfdpic_pltrel_section (info)->size)
-	if (!_bfd_elf_add_dynamic_entry (info, DT_PLTRELSZ, 0)
-	    || !_bfd_elf_add_dynamic_entry (info, DT_PLTREL, DT_REL)
-	    || !_bfd_elf_add_dynamic_entry (info, DT_JMPREL, 0))
-	  return FALSE;
-
-      if (bfinfdpic_gotrel_section (info)->size)
-	if (!_bfd_elf_add_dynamic_entry (info, DT_REL, 0)
-	    || !_bfd_elf_add_dynamic_entry (info, DT_RELSZ, 0)
-	    || !_bfd_elf_add_dynamic_entry (info, DT_RELENT,
-					    sizeof (Elf32_External_Rel)))
-	  return FALSE;
-    }
-
   s = bfd_get_linker_section (dynobj, ".dynbss");
   if (s && s->size == 0)
     s->flags |= SEC_EXCLUDE;
@@ -4091,7 +4075,7 @@ elf32_bfinfdpic_size_dynamic_sections (bfd *output_bfd,
   if (s && s->size == 0)
     s->flags |= SEC_EXCLUDE;
 
-  return TRUE;
+  return _bfd_elf_add_dynamic_tags (output_bfd, info, TRUE);
 }
 
 static bfd_boolean
@@ -4755,6 +4739,10 @@ elf32_bfin_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
   flagword old_flags, new_flags;
   bfd_boolean error = FALSE;
 
+  /* FIXME: What should be checked when linking shared libraries?  */
+  if ((ibfd->flags & DYNAMIC) != 0)
+    return TRUE;
+
   new_flags = elf_elfheader (ibfd)->e_flags;
   old_flags = elf_elfheader (obfd)->e_flags;
 
@@ -4842,7 +4830,7 @@ static struct bfd_link_hash_table *
 bfin_link_hash_table_create (bfd * abfd)
 {
   struct bfin_link_hash_table *ret;
-  bfd_size_type amt = sizeof (struct bfin_link_hash_table);
+  size_t amt = sizeof (struct bfin_link_hash_table);
 
   ret = bfd_zmalloc (amt);
   if (ret == NULL)
@@ -5391,18 +5379,16 @@ bfd_bfin_elf32_create_embedded_relocs (bfd *abfd,
 	strncpy ((char *) p + 4, targetsec->output_section->name, 8);
     }
 
-  if (isymbuf != NULL && symtab_hdr->contents != (unsigned char *) isymbuf)
+  if (symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (internal_relocs != NULL
-      && elf_section_data (datasec)->relocs != internal_relocs)
+  if (elf_section_data (datasec)->relocs != internal_relocs)
     free (internal_relocs);
   return TRUE;
 
-error_return:
-  if (isymbuf != NULL && symtab_hdr->contents != (unsigned char *) isymbuf)
+ error_return:
+  if (symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (internal_relocs != NULL
-      && elf_section_data (datasec)->relocs != internal_relocs)
+  if (elf_section_data (datasec)->relocs != internal_relocs)
     free (internal_relocs);
   return FALSE;
 }

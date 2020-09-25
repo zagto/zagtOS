@@ -23,18 +23,28 @@
 # Written by Nick Clifton <nickc@redhat.com>
 
 
-# IFUNC support has only been implemented for the ix86, x86_64, powerpc,
-# aarch64, sparc, and S/390 so far.
-if {!(([istarget "i?86-*-*"]
-       || [istarget "x86_64-*-*"]
-       || [istarget "powerpc*-*-*"]
-       || [istarget "aarch64*-*-*"]
-       || [istarget "sparc*-*-*"]
-       || [istarget "s390*-*-*"])
-      && ([istarget "*-*-elf*"]
-	  || [istarget "*-*-nacl*"]
-	  || [istarget "*-*-linux*"]
-	  || [istarget "*-*-gnu*"])) } {
+if { ![is_elf_format] || ![supports_gnu_osabi]
+     || [istarget alpha-*-*]
+     || [istarget arc*-*-*]
+     || [istarget am33*-*-*]
+     || [istarget bfin-*-*]
+     || [istarget cris*-*-*]
+     || [istarget frv-*-*]
+     || [istarget lm32-*-*]
+     || [istarget m32r-*-*]
+     || [istarget m68k-*-*]
+     || [istarget microblaze-*-*]
+     || [istarget mips*-*-*]
+     || [istarget mn10300-*-*]
+     || [istarget nds32*-*-*]
+     || [istarget nios2-*-*]
+     || [istarget or1k-*-*]
+     || [istarget riscv*-*-*]
+     || [istarget score*-*-*]
+     || [istarget sh*-*-*]
+     || [istarget tic6x-*-*]
+     || [istarget tile*-*-*]
+     || [istarget vax-*-*] } {
     verbose "IFUNC tests not run - target does not support IFUNC"
     return
 }
@@ -45,7 +55,6 @@ if ![check_shared_lib_support] {
     return
 }
 
-global ASFLAGS
 set saved_ASFLAGS "$ASFLAGS"
 if { [istarget "i?86-*-*"] || [istarget "x86_64-*-*"] } {
     set ASFLAGS "$ASFLAGS -mx86-used-note=no"
@@ -139,7 +148,7 @@ proc contains_irelative_reloc { binary_file } {
     #    080496f4  0000002a R_386_IRELATIVE
 
 
-    if { ![regexp "\[0-9a-f\]+\[ \]+\[0-9a-f\]+\[ \]+R_\[_0-9A-Z\]+_IREL(|ATIVE)\[ \]*\[0-9a-f\]*\n" [file_contents readelf.out]] } {
+    if { ![regexp "\[0-9a-f\]+\[ \]+\[0-9a-f\]+\[ \]+R_(\[_0-9A-Z\]+_IREL(|ATIVE)|PARISC_IPLT)\[ \]*\[0-9a-f\]*\n" [file_contents readelf.out]] } {
 	return 0
     }
 
@@ -268,8 +277,8 @@ if { $fails == 0 } {
 # ifunc should have an OSABI field of GNU.  The linked non-ifunc using
 # executable should have an OSABI field of NONE (aka System V).
 
-case $target_triplet in {
-    { hppa*-*-linux* } { set expected_none {UNIX - GNU} }
+switch -glob $target_triplet {
+    hppa*-*-linux* { set expected_none {UNIX - GNU} }
     default { set expected_none {UNIX - System V} }
 }
 
@@ -550,7 +559,7 @@ run_cc_link_tests [list \
     [list \
 	"Build pr18841a.o" \
 	"" \
-	"" \
+	"$NOPIE_CFLAGS" \
 	{ pr18841a.c } \
 	"" \
 	"" \
@@ -678,32 +687,32 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run pr18841 with libpr18841b.so" \
-	"-Wl,--no-as-needed tmpdir/pr18841a.o tmpdir/libpr18841b.so" \
-	"" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr18841a.o tmpdir/libpr18841b.so" \
+	"$NOPIE_CFLAGS" \
 	{ dummy.c } \
 	"pr18841b" \
 	"pr18841.out" \
     ] \
     [list \
 	"Run pr18841 with libpr18841c.so" \
-	"-Wl,--as-needed tmpdir/pr18841a.o tmpdir/libpr18841c.so" \
-	"" \
+	"$NOPIE_LDFLAGS -Wl,--as-needed tmpdir/pr18841a.o tmpdir/libpr18841c.so" \
+	"$NOPIE_CFLAGS" \
 	{ dummy.c } \
 	"pr18841c" \
 	"pr18841.out" \
     ] \
     [list \
 	"Run pr18841 with libpr18841bn.so (-z now)" \
-	"-Wl,-z,now -Wl,--no-as-needed tmpdir/pr18841a.o tmpdir/libpr18841bn.so" \
-	"" \
+	"$NOPIE_LDFLAGS -Wl,-z,now -Wl,--no-as-needed tmpdir/pr18841a.o tmpdir/libpr18841bn.so" \
+	"$NOPIE_CFLAGS" \
 	{ dummy.c } \
 	"pr18841bn" \
 	"pr18841.out" \
     ] \
     [list \
 	"Run pr18841 with libpr18841cn.so (-z now)" \
-	"-Wl,-z,now -Wl,--as-needed tmpdir/pr18841a.o tmpdir/libpr18841cn.so" \
-	"" \
+	"$NOPIE_LDFLAGS -Wl,-z,now -Wl,--as-needed tmpdir/pr18841a.o tmpdir/libpr18841cn.so" \
+	"$NOPIE_CFLAGS" \
 	{ dummy.c } \
 	"pr18841cn" \
 	"pr18841.out" \

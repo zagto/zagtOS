@@ -49,7 +49,7 @@
 
 #include "gdbsupport/gdb_sys_time.h"
 
-#include "event-loop.h"
+#include "gdbsupport/event-loop.h"
 #include "event-top.h"
 #include "inf-loop.h"
 
@@ -77,6 +77,7 @@
 #include "gdbsupport/byte-vector.h"
 #include <algorithm>
 #include <unordered_map>
+#include "async-event.h"
 
 /* The remote target.  */
 
@@ -674,7 +675,7 @@ public:
 
   const struct btrace_config *btrace_conf (const struct btrace_target_info *) override;
   bool augmented_libraries_svr4_read () override;
-  int follow_fork (int, int) override;
+  bool follow_fork (bool, bool) override;
   void follow_exec (struct inferior *, const char *) override;
   int insert_fork_catchpoint (int) override;
   int remove_fork_catchpoint (int) override;
@@ -2411,6 +2412,9 @@ remote_target::remote_add_inferior (bool fake_pid_p, int pid, int attached,
   if (try_open_exec && get_exec_file (0) == NULL)
     exec_file_locate_attach (pid, 0, 1);
 
+  /* Check for exec file mismatch, and let the user solve it.  */
+  validate_exec_file (1);
+
   return inf;
 }
 
@@ -2489,8 +2493,9 @@ remote_target::remote_notice_new_inferior (ptid_t currthread, int executing)
 	    thread_change_ptid (this, inferior_ptid, currthread);
 	  else
 	    {
-	      remote_add_thread (currthread, running, executing);
-	      inferior_ptid = currthread;
+	      thread_info *thr
+		= remote_add_thread (currthread, running, executing);
+	      switch_to_thread (thr);
 	    }
 	  return;
 	}
@@ -2611,8 +2616,7 @@ remote_target::pass_signals (gdb::array_view<const unsigned char> pass_signals)
 	  putpkt (pass_packet);
 	  getpkt (&rs->buf, 0);
 	  packet_ok (rs->buf, &remote_protocol_packets[PACKET_QPassSignals]);
-	  if (rs->last_pass_packet)
-	    xfree (rs->last_pass_packet);
+	  xfree (rs->last_pass_packet);
 	  rs->last_pass_packet = pass_packet;
 	}
       else
@@ -3781,6 +3785,18 @@ remote_target::remote_get_threads_with_qthreadinfo (threads_listing_context *con
   return 0;
 }
 
+/* Return true if INF only has one non-exited thread.  */
+
+static bool
+has_single_non_exited_thread (inferior *inf)
+{
+  int count = 0;
+  for (thread_info *tp ATTRIBUTE_UNUSED : inf->non_exited_threads ())
+    if (++count > 1)
+      break;
+  return count == 1;
+}
+
 /* Implement the to_update_thread_list function for the remote
    targets.  */
 
@@ -3820,6 +3836,14 @@ remote_target::update_thread_list ()
 
 	  if (!context.contains_thread (tp->ptid))
 	    {
+	      /* Do not remove the thread if it is the last thread in
+		 the inferior.  This situation happens when we have a
+		 pending exit process status to process.  Otherwise we
+		 may end up with a seemingly live inferior (i.e.  pid
+		 != 0) that has no threads.  */
+	      if (has_single_non_exited_thread (tp->inf))
+		continue;
+
 	      /* Not found.  */
 	      delete_thread (tp);
 	    }
@@ -4081,7 +4105,6 @@ remote_target::get_offsets ()
   char *ptr;
   int lose, num_segments = 0, do_sections, do_segments;
   CORE_ADDR text_addr, data_addr, bss_addr, segments[2];
-  struct symfile_segment_data *data;
 
   if (symfile_objfile == NULL)
     return;
@@ -4161,7 +4184,8 @@ remote_target::get_offsets ()
 
   section_offsets offs = symfile_objfile->section_offsets;
 
-  data = get_symfile_segment_data (symfile_objfile->obfd);
+  symfile_segment_data_up data
+    = get_symfile_segment_data (symfile_objfile->obfd);
   do_segments = (data != NULL);
   do_sections = num_segments == 0;
 
@@ -4174,10 +4198,10 @@ remote_target::get_offsets ()
      by assuming that the .text and .data offsets apply to the whole
      text and data segments.  Convert the offsets given in the packet
      to base addresses for symfile_map_offsets_to_segments.  */
-  else if (data && data->num_segments == 2)
+  else if (data != nullptr && data->segments.size () == 2)
     {
-      segments[0] = data->segment_bases[0] + text_addr;
-      segments[1] = data->segment_bases[1] + data_addr;
+      segments[0] = data->segments[0].base + text_addr;
+      segments[1] = data->segments[1].base + data_addr;
       num_segments = 2;
     }
   /* If the object file has only one segment, assume that it is text
@@ -4185,9 +4209,9 @@ remote_target::get_offsets ()
      but programs with no code are useless.  Of course the code might
      have ended up in the data segment... to detect that we would need
      the permissions here.  */
-  else if (data && data->num_segments == 1)
+  else if (data && data->segments.size () == 1)
     {
-      segments[0] = data->segment_bases[0] + text_addr;
+      segments[0] = data->segments[0].base + text_addr;
       num_segments = 1;
     }
   /* There's no way to relocate by segment.  */
@@ -4196,8 +4220,9 @@ remote_target::get_offsets ()
 
   if (do_segments)
     {
-      int ret = symfile_map_offsets_to_segments (symfile_objfile->obfd, data,
-						 offs, num_segments, segments);
+      int ret = symfile_map_offsets_to_segments (symfile_objfile->obfd,
+						 data.get (), offs,
+						 num_segments, segments);
 
       if (ret == 0 && !do_sections)
 	error (_("Can not handle qOffsets TextSeg "
@@ -4206,9 +4231,6 @@ remote_target::get_offsets ()
       if (ret > 0)
 	do_sections = 0;
     }
-
-  if (data)
-    free_symfile_segment_data (data);
 
   if (do_sections)
     {
@@ -4325,9 +4347,10 @@ remote_target::add_current_inferior_and_thread (char *wait_status)
   struct remote_state *rs = get_remote_state ();
   bool fake_pid_p = false;
 
-  inferior_ptid = null_ptid;
+  switch_to_no_thread ();
 
-  /* Now, if we have thread information, update inferior_ptid.  */
+  /* Now, if we have thread information, update the current thread's
+     ptid.  */
   ptid_t curr_ptid = get_current_thread (wait_status);
 
   if (curr_ptid != null_ptid)
@@ -4446,8 +4469,8 @@ remote_target::process_initial_stop_replies (int from_tty)
 	  || ws.value.sig != GDB_SIGNAL_0)
 	evthread->suspend.waitstatus_pending_p = 1;
 
-      set_executing (this, event_ptid, 0);
-      set_running (this, event_ptid, 0);
+      set_executing (this, event_ptid, false);
+      set_running (this, event_ptid, false);
       get_remote_thread_info (evthread)->vcont_resumed = 0;
     }
 
@@ -5582,8 +5605,7 @@ remote_target::open_1 (const char *name, int from_tty, int extended_p)
 
   /* Register extra event sources in the event loop.  */
   rs->remote_async_inferior_event_token
-    = create_async_event_handler (remote_async_inferior_event_handler,
-				  remote);
+    = create_async_event_handler (remote_async_inferior_event_handler, NULL);
   rs->notif_state = remote_notif_state_allocate (remote);
 
   /* Reset the target state; these things will be queried either by
@@ -5739,7 +5761,7 @@ remote_target::remote_detach_1 (inferior *inf, int from_tty)
     }
   else
     {
-      inferior_ptid = null_ptid;
+      switch_to_no_thread ();
       detach_inferior (current_inferior ());
     }
 }
@@ -5763,8 +5785,8 @@ extended_remote_target::detach (inferior *inf, int from_tty)
    it is named remote_follow_fork in anticipation of using it for the
    remote target as well.  */
 
-int
-remote_target::follow_fork (int follow_child, int detach_fork)
+bool
+remote_target::follow_fork (bool follow_child, bool detach_fork)
 {
   struct remote_state *rs = get_remote_state ();
   enum target_waitkind kind = inferior_thread ()->pending_follow.kind;
@@ -5790,7 +5812,8 @@ remote_target::follow_fork (int follow_child, int detach_fork)
 	  remote_detach_pid (child_pid);
 	}
     }
-  return 0;
+
+  return false;
 }
 
 /* Target follow-exec function for remote targets.  Save EXECD_PATHNAME
@@ -5884,33 +5907,33 @@ extended_remote_target::attach (const char *args, int from_tty)
 	     target_pid_to_str (ptid_t (pid)).c_str ());
     }
 
-  set_current_inferior (remote_add_inferior (false, pid, 1, 0));
+  switch_to_inferior_no_thread (remote_add_inferior (false, pid, 1, 0));
 
   inferior_ptid = ptid_t (pid);
 
   if (target_is_non_stop_p ())
     {
-      struct thread_info *thread;
-
       /* Get list of threads.  */
       update_thread_list ();
 
-      thread = first_thread_of_inferior (current_inferior ());
-      if (thread)
-	inferior_ptid = thread->ptid;
-      else
-	inferior_ptid = ptid_t (pid);
+      thread_info *thread = first_thread_of_inferior (current_inferior ());
+      if (thread != nullptr)
+	switch_to_thread (thread);
 
       /* Invalidate our notion of the remote current thread.  */
       record_currthread (rs, minus_one_ptid);
     }
   else
     {
-      /* Now, if we have thread information, update inferior_ptid.  */
-      inferior_ptid = remote_current_thread (inferior_ptid);
+      /* Now, if we have thread information, update the main thread's
+	 ptid.  */
+      ptid_t curr_ptid = remote_current_thread (ptid_t (pid));
 
       /* Add the main thread to the thread list.  */
-      thread_info *thr = add_thread_silent (this, inferior_ptid);
+      thread_info *thr = add_thread_silent (this, curr_ptid);
+
+      switch_to_thread (thr);
+
       /* Don't consider the thread stopped until we've processed the
 	 saved stop reply.  */
       set_executing (this, thr->ptid, true);
@@ -6842,9 +6865,9 @@ remote_console_output (const char *msg)
 
       tb[0] = c;
       tb[1] = 0;
-      fputs_unfiltered (tb, gdb_stdtarg);
+      gdb_stdtarg->puts (tb);
     }
-  gdb_flush (gdb_stdtarg);
+  gdb_stdtarg->flush ();
 }
 
 struct stop_reply : public notif_event
@@ -7399,18 +7422,14 @@ Packet: '%s'\n"),
 		     reported expedited registers.  */
 		  if (event->ptid == null_ptid)
 		    {
+		      /* If there is no thread-id information then leave
+			 the event->ptid as null_ptid.  Later in
+			 process_stop_reply we will pick a suitable
+			 thread.  */
 		      const char *thr = strstr (p1 + 1, ";thread:");
 		      if (thr != NULL)
 			event->ptid = read_ptid (thr + strlen (";thread:"),
 						 NULL);
-		      else
-			{
-			  /* Either the current thread hasn't changed,
-			     or the inferior is not multi-threaded.
-			     The event must be for the thread we last
-			     set as (or learned as being) current.  */
-			  event->ptid = event->rs->general_thread;
-			}
 		    }
 
 		  if (rsa == NULL)
@@ -7561,9 +7580,6 @@ Packet: '%s'\n"),
       event->ptid = minus_one_ptid;
       break;
     }
-
-  if (target_is_non_stop_p () && event->ptid == null_ptid)
-    error (_("No process or thread specified in stop reply: %s"), buf);
 }
 
 /* When the stub wants to tell GDB about a new notification reply, it
@@ -7665,10 +7681,61 @@ remote_target::process_stop_reply (struct stop_reply *stop_reply,
   *status = stop_reply->ws;
   ptid = stop_reply->ptid;
 
-  /* If no thread/process was reported by the stub, assume the current
-     inferior.  */
+  /* If no thread/process was reported by the stub then use the first
+     non-exited thread in the current target.  */
   if (ptid == null_ptid)
-    ptid = inferior_ptid;
+    {
+      /* Some stop events apply to all threads in an inferior, while others
+	 only apply to a single thread.  */
+      bool is_stop_for_all_threads
+	= (status->kind == TARGET_WAITKIND_EXITED
+	   || status->kind == TARGET_WAITKIND_SIGNALLED);
+
+      for (thread_info *thr : all_non_exited_threads (this))
+	{
+	  if (ptid != null_ptid
+	      && (!is_stop_for_all_threads
+		  || ptid.pid () != thr->ptid.pid ()))
+	    {
+	      static bool warned = false;
+
+	      if (!warned)
+		{
+		  /* If you are seeing this warning then the remote target
+		     has stopped without specifying a thread-id, but the
+		     target does have multiple threads (or inferiors), and
+		     so GDB is having to guess which thread stopped.
+
+		     Examples of what might cause this are the target
+		     sending and 'S' stop packet, or a 'T' stop packet and
+		     not including a thread-id.
+
+		     Additionally, the target might send a 'W' or 'X
+		     packet without including a process-id, when the target
+		     has multiple running inferiors.  */
+		  if (is_stop_for_all_threads)
+		    warning (_("multi-inferior target stopped without "
+			       "sending a process-id, using first "
+			       "non-exited inferior"));
+		  else
+		    warning (_("multi-threaded target stopped without "
+			       "sending a thread-id, using first "
+			       "non-exited thread"));
+		  warned = true;
+		}
+	      break;
+	    }
+
+	  /* If this is a stop for all threads then don't use a particular
+	     threads ptid, instead create a new ptid where only the pid
+	     field is set.  */
+	  if (is_stop_for_all_threads)
+	    ptid = ptid_t (thr->ptid.pid ());
+	  else
+	    ptid = thr->ptid;
+	}
+      gdb_assert (ptid != null_ptid);
+    }
 
   if (status->kind != TARGET_WAITKIND_EXITED
       && status->kind != TARGET_WAITKIND_SIGNALLED
@@ -12651,12 +12718,6 @@ remote_delete_command (const char *args, int from_tty)
   remote_file_delete (argv[0], from_tty);
 }
 
-static void
-remote_command (const char *args, int from_tty)
-{
-  help_list (remote_cmdlist, "remote ", all_commands, gdb_stdout);
-}
-
 bool
 remote_target::can_execute_reverse ()
 {
@@ -12811,7 +12872,7 @@ remote_target::download_tracepoint (struct bp_location *loc)
   encode_actions_rsp (loc, &tdp_actions, &stepping_actions);
 
   tpaddr = loc->address;
-  sprintf_vma (addrbuf, tpaddr);
+  strcpy (addrbuf, phex (tpaddr, sizeof (CORE_ADDR)));
   ret = snprintf (buf.data (), buf.size (), "QTDP:%x:%s:%c:%lx:%x",
 		  b->number, addrbuf, /* address */
 		  (b->enable_state == bp_enabled ? 'E' : 'D'),
@@ -13073,11 +13134,10 @@ void
 remote_target::enable_tracepoint (struct bp_location *location)
 {
   struct remote_state *rs = get_remote_state ();
-  char addr_buf[40];
 
-  sprintf_vma (addr_buf, location->address);
   xsnprintf (rs->buf.data (), get_remote_packet_size (), "QTEnable:%x:%s",
-	     location->owner->number, addr_buf);
+	     location->owner->number,
+	     phex (location->address, sizeof (CORE_ADDR)));
   putpkt (rs->buf);
   remote_get_noisy_reply ();
   if (rs->buf[0] == '\0')
@@ -13090,11 +13150,10 @@ void
 remote_target::disable_tracepoint (struct bp_location *location)
 {
   struct remote_state *rs = get_remote_state ();
-  char addr_buf[40];
 
-  sprintf_vma (addr_buf, location->address);
   xsnprintf (rs->buf.data (), get_remote_packet_size (), "QTDisable:%x:%s",
-	     location->owner->number, addr_buf);
+	     location->owner->number,
+	     phex (location->address, sizeof (CORE_ADDR)));
   putpkt (rs->buf);
   remote_get_noisy_reply ();
   if (rs->buf[0] == '\0')
@@ -14098,13 +14157,13 @@ remote_async_serial_handler (struct serial *scb, void *context)
 {
   /* Don't propogate error information up to the client.  Instead let
      the client find out about the error by querying the target.  */
-  inferior_event_handler (INF_REG_EVENT, NULL);
+  inferior_event_handler (INF_REG_EVENT);
 }
 
 static void
 remote_async_inferior_event_handler (gdb_client_data data)
 {
-  inferior_event_handler (INF_REG_EVENT, data);
+  inferior_event_handler (INF_REG_EVENT);
 }
 
 int
@@ -14175,12 +14234,6 @@ remote_target::thread_events (int enable)
     case PACKET_UNKNOWN:
       break;
     }
-}
-
-static void
-set_remote_cmd (const char *args, int from_tty)
-{
-  help_list (remote_set_cmdlist, "set remote ", all_commands, gdb_stdout);
 }
 
 static void
@@ -14335,12 +14388,12 @@ _initialize_remote ()
 
   /* set/show remote ...  */
 
-  add_prefix_cmd ("remote", class_maintenance, set_remote_cmd, _("\
+  add_basic_prefix_cmd ("remote", class_maintenance, _("\
 Remote protocol specific variables.\n\
 Configure various remote-protocol specific variables such as\n\
 the packets being used."),
-		  &remote_set_cmdlist, "set remote ",
-		  0 /* allow-unknown */, &setlist);
+			&remote_set_cmdlist, "set remote ",
+			0 /* allow-unknown */, &setlist);
   add_prefix_cmd ("remote", class_maintenance, show_remote_cmd, _("\
 Remote protocol specific variables.\n\
 Configure various remote-protocol specific variables such as\n\
@@ -14370,10 +14423,10 @@ If set, a break, instead of a cntrl-c, is sent to the remote target."),
 			   set_remotebreak, show_remotebreak,
 			   &setlist, &showlist);
   cmd_name = "remotebreak";
-  cmd = lookup_cmd (&cmd_name, setlist, "", -1, 1);
+  cmd = lookup_cmd (&cmd_name, setlist, "", NULL, -1, 1);
   deprecate_cmd (cmd, "set remote interrupt-sequence");
   cmd_name = "remotebreak"; /* needed because lookup_cmd updates the pointer */
-  cmd = lookup_cmd (&cmd_name, showlist, "", -1, 1);
+  cmd = lookup_cmd (&cmd_name, showlist, "", NULL, -1, 1);
   deprecate_cmd (cmd, "show remote interrupt-sequence");
 
   add_setshow_enum_cmd ("interrupt-sequence", class_support,
@@ -14761,11 +14814,11 @@ packets."),
 				   `Z' packets is %s.  */
 				&remote_set_cmdlist, &remote_show_cmdlist);
 
-  add_prefix_cmd ("remote", class_files, remote_command, _("\
+  add_basic_prefix_cmd ("remote", class_files, _("\
 Manipulate files on the remote system.\n\
 Transfer files to and from the remote target system."),
-		  &remote_cmdlist, "remote ",
-		  0 /* allow-unknown */, &cmdlist);
+			&remote_cmdlist, "remote ",
+			0 /* allow-unknown */, &cmdlist);
 
   add_cmd ("put", class_files, remote_put_command,
 	   _("Copy a local file to the remote system."),
@@ -14821,5 +14874,5 @@ Specify \"unlimited\" to display all the characters."),
 				       &setdebuglist, &showdebuglist);
 
   /* Eventually initialize fileio.  See fileio.c */
-  initialize_remote_fileio (remote_set_cmdlist, remote_show_cmdlist);
+  initialize_remote_fileio (&remote_set_cmdlist, &remote_show_cmdlist);
 }

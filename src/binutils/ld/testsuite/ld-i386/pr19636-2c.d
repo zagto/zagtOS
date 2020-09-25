@@ -1,8 +1,7 @@
 #source: pr19636-2.s
 #as: --32 -mrelax-relocations=no
-#ld: -pie -m elf_i386
+#ld: -pie -m elf_i386 -z notext
 #objdump: -dw
-#notarget: i?86-*-nacl* x86_64-*-nacl*
 
 .*: +file format .*
 

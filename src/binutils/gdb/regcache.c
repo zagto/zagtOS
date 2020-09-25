@@ -22,6 +22,7 @@
 #include "gdbthread.h"
 #include "target.h"
 #include "test-target.h"
+#include "scoped-mock-context.h"
 #include "gdbarch.h"
 #include "gdbcmd.h"
 #include "regcache.h"
@@ -101,7 +102,7 @@ init_regcache_descr (struct gdbarch *gdbarch)
 
   /* Lay out the register cache.
 
-     NOTE: cagney/2002-05-22: Only register_type() is used when
+     NOTE: cagney/2002-05-22: Only register_type () is used when
      constructing the register cache.  It is assumed that the
      register's raw size, virtual size and type length are all the
      same.  */
@@ -1220,6 +1221,24 @@ regcache_read_pc (struct regcache *regcache)
   return pc_val;
 }
 
+/* See gdbsupport/common-regcache.h.  */
+
+CORE_ADDR
+regcache_read_pc_protected (regcache *regcache)
+{
+  CORE_ADDR pc;
+  try
+    {
+      pc = regcache_read_pc (regcache);
+    }
+  catch (const gdb_exception_error &ex)
+    {
+      pc = 0;
+    }
+
+  return pc;
+}
+
 void
 regcache_write_pc (struct regcache *regcache, CORE_ADDR pc)
 {
@@ -1374,7 +1393,7 @@ register_dump::dump (ui_file *file)
 	  {
 	    static const char blt[] = "builtin_type";
 
-	    t = TYPE_NAME (register_type (m_gdbarch, regnum));
+	    t = register_type (m_gdbarch, regnum)->name ();
 	    if (t == NULL)
 	      {
 		if (!footnote_register_type_name_null)
@@ -1578,49 +1597,7 @@ public:
 static void
 cooked_read_test (struct gdbarch *gdbarch)
 {
-  /* Error out if debugging something, because we're going to push the
-     test target, which would pop any existing target.  */
-  if (current_top_target ()->stratum () >= process_stratum)
-    error (_("target already pushed"));
-
-  /* Create a mock environment.  An inferior with a thread, with a
-     process_stratum target pushed.  */
-
-  target_ops_no_register mock_target;
-  ptid_t mock_ptid (1, 1);
-  inferior mock_inferior (mock_ptid.pid ());
-  address_space mock_aspace {};
-  mock_inferior.gdbarch = gdbarch;
-  mock_inferior.aspace = &mock_aspace;
-  thread_info mock_thread (&mock_inferior, mock_ptid);
-  mock_inferior.thread_list = &mock_thread;
-
-  /* Add the mock inferior to the inferior list so that look ups by
-     target+ptid can find it.  */
-  scoped_restore restore_inferior_list
-    = make_scoped_restore (&inferior_list);
-  inferior_list = &mock_inferior;
-
-  /* Switch to the mock inferior.  */
-  scoped_restore_current_inferior restore_current_inferior;
-  set_current_inferior (&mock_inferior);
-
-  /* Push the process_stratum target so we can mock accessing
-     registers.  */
-  push_target (&mock_target);
-
-  /* Pop it again on exit (return/exception).  */
-  struct on_exit
-  {
-    ~on_exit ()
-    {
-      pop_all_targets_at_and_above (process_stratum);
-    }
-  } pop_targets;
-
-  /* Switch to the mock thread.  */
-  scoped_restore restore_inferior_ptid
-    = make_scoped_restore (&inferior_ptid, mock_ptid);
+  scoped_mock_context<target_ops_no_register> mockctx (gdbarch);
 
   /* Test that read one raw register from regcache_no_target will go
      to the target layer.  */
@@ -1635,21 +1612,21 @@ cooked_read_test (struct gdbarch *gdbarch)
 	break;
     }
 
-  readwrite_regcache readwrite (&mock_target, gdbarch);
+  readwrite_regcache readwrite (&mockctx.mock_target, gdbarch);
   gdb::def_vector<gdb_byte> buf (register_size (gdbarch, nonzero_regnum));
 
   readwrite.raw_read (nonzero_regnum, buf.data ());
 
   /* raw_read calls target_fetch_registers.  */
-  SELF_CHECK (mock_target.fetch_registers_called > 0);
-  mock_target.reset ();
+  SELF_CHECK (mockctx.mock_target.fetch_registers_called > 0);
+  mockctx.mock_target.reset ();
 
   /* Mark all raw registers valid, so the following raw registers
      accesses won't go to target.  */
   for (auto i = 0; i < gdbarch_num_regs (gdbarch); i++)
     readwrite.raw_update (i);
 
-  mock_target.reset ();
+  mockctx.mock_target.reset ();
   /* Then, read all raw and pseudo registers, and don't expect calling
      to_{fetch,store}_registers.  */
   for (int regnum = 0; regnum < gdbarch_num_cooked_regs (gdbarch); regnum++)
@@ -1662,18 +1639,18 @@ cooked_read_test (struct gdbarch *gdbarch)
       SELF_CHECK (REG_VALID == readwrite.cooked_read (regnum,
 						      inner_buf.data ()));
 
-      SELF_CHECK (mock_target.fetch_registers_called == 0);
-      SELF_CHECK (mock_target.store_registers_called == 0);
-      SELF_CHECK (mock_target.xfer_partial_called == 0);
+      SELF_CHECK (mockctx.mock_target.fetch_registers_called == 0);
+      SELF_CHECK (mockctx.mock_target.store_registers_called == 0);
+      SELF_CHECK (mockctx.mock_target.xfer_partial_called == 0);
 
-      mock_target.reset ();
+      mockctx.mock_target.reset ();
     }
 
   readonly_detached_regcache readonly (readwrite);
 
   /* GDB may go to target layer to fetch all registers and memory for
      readonly regcache.  */
-  mock_target.reset ();
+  mockctx.mock_target.reset ();
 
   for (int regnum = 0; regnum < gdbarch_num_cooked_regs (gdbarch); regnum++)
     {
@@ -1731,11 +1708,11 @@ cooked_read_test (struct gdbarch *gdbarch)
 	    }
 	}
 
-      SELF_CHECK (mock_target.fetch_registers_called == 0);
-      SELF_CHECK (mock_target.store_registers_called == 0);
-      SELF_CHECK (mock_target.xfer_partial_called == 0);
+      SELF_CHECK (mockctx.mock_target.fetch_registers_called == 0);
+      SELF_CHECK (mockctx.mock_target.store_registers_called == 0);
+      SELF_CHECK (mockctx.mock_target.xfer_partial_called == 0);
 
-      mock_target.reset ();
+      mockctx.mock_target.reset ();
     }
 }
 
@@ -1792,17 +1769,17 @@ cooked_write_test (struct gdbarch *gdbarch)
       std::vector<gdb_byte> buf (register_size (gdbarch, regnum), 0);
       const auto type = register_type (gdbarch, regnum);
 
-      if (TYPE_CODE (type) == TYPE_CODE_FLT
-	  || TYPE_CODE (type) == TYPE_CODE_DECFLOAT)
+      if (type->code () == TYPE_CODE_FLT
+	  || type->code () == TYPE_CODE_DECFLOAT)
 	{
 	  /* Generate valid float format.  */
 	  target_float_from_string (expected.data (), type, "1.25");
 	}
-      else if (TYPE_CODE (type) == TYPE_CODE_INT
-	       || TYPE_CODE (type) == TYPE_CODE_ARRAY
-	       || TYPE_CODE (type) == TYPE_CODE_PTR
-	       || TYPE_CODE (type) == TYPE_CODE_UNION
-	       || TYPE_CODE (type) == TYPE_CODE_STRUCT)
+      else if (type->code () == TYPE_CODE_INT
+	       || type->code () == TYPE_CODE_ARRAY
+	       || type->code () == TYPE_CODE_PTR
+	       || type->code () == TYPE_CODE_UNION
+	       || type->code () == TYPE_CODE_STRUCT)
 	{
 	  if (bfd_arch == bfd_arch_ia64
 	      || (regnum >= gdbarch_num_regs (gdbarch)
@@ -1832,7 +1809,7 @@ cooked_write_test (struct gdbarch *gdbarch)
 		expected[j] = j;
 	    }
 	}
-      else if (TYPE_CODE (type) == TYPE_CODE_FLAGS)
+      else if (type->code () == TYPE_CODE_FLAGS)
 	{
 	  /* No idea how to test flags.  */
 	  continue;

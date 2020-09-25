@@ -33,7 +33,7 @@
 #include "ui-out.h"
 #include "mi-out.h"
 #include "interps.h"
-#include "event-loop.h"
+#include "gdbsupport/event-loop.h"
 #include "event-top.h"
 #include "gdbcore.h"		/* For write_memory().  */
 #include "value.h"
@@ -1120,9 +1120,7 @@ output_register (struct frame_info *frame, int regnum, int format,
 
   get_formatted_print_options (&opts, format);
   opts.deref_ref = 1;
-  val_print (value_type (val),
-	     value_embedded_offset (val), 0,
-	     &stb, 0, val, &opts, current_language);
+  common_val_print (val, &stb, 0, &opts, current_language);
   uiout->field_stream ("value", stb);
 }
 
@@ -2460,9 +2458,9 @@ print_variable_or_computed (const char *expression, enum print_values values)
       type = check_typedef (value_type (val));
       type_print (value_type (val), "", &stb, -1);
       uiout->field_stream ("type", stb);
-      if (TYPE_CODE (type) != TYPE_CODE_ARRAY
-	  && TYPE_CODE (type) != TYPE_CODE_STRUCT
-	  && TYPE_CODE (type) != TYPE_CODE_UNION)
+      if (type->code () != TYPE_CODE_ARRAY
+	  && type->code () != TYPE_CODE_STRUCT
+	  && type->code () != TYPE_CODE_UNION)
 	{
 	  struct value_print_options opts;
 

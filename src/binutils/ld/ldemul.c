@@ -72,6 +72,12 @@ ldemul_after_check_relocs (void)
 }
 
 void
+ldemul_before_place_orphans (void)
+{
+  ld_emulation->before_place_orphans ();
+}
+
+void
 ldemul_after_allocation (void)
 {
   ld_emulation->after_allocation ();
@@ -267,6 +273,11 @@ after_check_relocs_default (void)
 }
 
 void
+before_place_orphans_default (void)
+{
+}
+
+void
 after_allocation_default (void)
 {
   lang_relax_sections (FALSE);
@@ -416,4 +427,12 @@ ldemul_examine_strtab_for_ctf (struct ctf_file *ctf_output,
   if (ld_emulation->examine_strtab_for_ctf)
     ld_emulation->examine_strtab_for_ctf (ctf_output, syms,
 					  symcount, symstrtab);
+}
+
+bfd_boolean
+ldemul_print_symbol (struct bfd_link_hash_entry *hash_entry, void *ptr)
+{
+  if (ld_emulation->print_symbol)
+    return ld_emulation->print_symbol (hash_entry, ptr);
+  return print_one_symbol (hash_entry, ptr);
 }

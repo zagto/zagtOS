@@ -154,7 +154,8 @@ INCLUDE_CFLAGS = -I$(INCLUDE_DIR)
 LIBIBERTY = ../libiberty/libiberty.a
 
 # Where is the CTF library?  Typically in ../libctf.
-LIBCTF = ../libctf/.libs/libctf.a
+LIBCTF = @LIBCTF@
+CTF_DEPS = @CTF_DEPS@
 
 # Where is the BFD library?  Typically in ../bfd.
 BFD_DIR = ../bfd
@@ -405,6 +406,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-symbol.c \
 	python/py-symtab.c \
 	python/py-threadevent.c \
+	python/py-tui.c \
 	python/py-type.c \
 	python/py-unwind.c \
 	python/py-utils.c \
@@ -419,17 +421,20 @@ SUBDIR_PYTHON_DEPS =
 SUBDIR_PYTHON_LDFLAGS =
 SUBDIR_PYTHON_CFLAGS =
 
-SUBDIR_UNITTESTS_SRCS = \
+SELFTESTS_SRCS = \
+	disasm-selftests.c \
+	gdbarch-selftests.c \
+	selftest-arch.c \
 	unittests/array-view-selftests.c \
 	unittests/child-path-selftests.c \
 	unittests/cli-utils-selftests.c \
+	unittests/command-def-selftests.c \
 	unittests/common-utils-selftests.c \
 	unittests/copy_bitwise-selftests.c \
 	unittests/environ-selftests.c \
 	unittests/filtered_iterator-selftests.c \
 	unittests/format_pieces-selftests.c \
 	unittests/function-view-selftests.c \
-	unittests/help-doc-selftests.c \
 	unittests/lookup_name_info-selftests.c \
 	unittests/memory-map-selftests.c \
 	unittests/memrange-selftests.c \
@@ -453,7 +458,7 @@ SUBDIR_UNITTESTS_SRCS = \
 	unittests/vec-utils-selftests.c \
 	unittests/xml-utils-selftests.c
 
-SUBDIR_UNITTESTS_OBS = $(patsubst %.c,%.o,$(SUBDIR_UNITTESTS_SRCS))
+SELFTESTS_OBS = $(patsubst %.c,%.o,$(SELFTESTS_SRCS))
 
 SUBDIR_TARGET_SRCS = target/waitstatus.c
 SUBDIR_TARGET_OBS = $(patsubst %.c,%.o,$(SUBDIR_TARGET_SRCS))
@@ -551,7 +556,7 @@ CONFIG_INSTALL = @CONFIG_INSTALL@
 CONFIG_UNINSTALL = @CONFIG_UNINSTALL@
 HAVE_NATIVE_GCORE_TARGET = @HAVE_NATIVE_GCORE_TARGET@
 
-CONFIG_SRC_SUBDIR = arch cli mi compile tui unittests guile python \
+CONFIG_SRC_SUBDIR = arch cli dwarf2 mi compile tui unittests guile python \
 	target nat
 CONFIG_DEP_SUBDIR = $(addsuffix /$(DEPDIR),$(CONFIG_SRC_SUBDIR))
 
@@ -610,14 +615,15 @@ INTERNAL_LDFLAGS = \
 # Libraries and corresponding dependencies for compiling gdb.
 # XM_CLIBS, defined in *config files, have host-dependent libs.
 # LIBIBERTY appears twice on purpose.
-CLIBS = $(SIM) $(READLINE) $(OPCODES) $(BFD) $(LIBCTF) $(ZLIB) \
+CLIBS = $(SIM) $(READLINE) $(OPCODES) $(LIBCTF) $(BFD) $(ZLIB) \
         $(LIBSUPPORT) $(INTL) $(LIBIBERTY) $(LIBDECNUMBER) \
 	$(XM_CLIBS) $(GDBTKLIBS) \
 	@LIBS@ @GUILE_LIBS@ @PYTHON_LIBS@ \
 	$(LIBEXPAT) $(LIBLZMA) $(LIBBABELTRACE) $(LIBIPT) \
 	$(WIN32LIBS) $(LIBGNU) $(LIBICONV) \
-	$(LIBMPFR) $(SRCHIGH_LIBS) $(LIBXXHASH) $(PTHREAD_LIBS)
-CDEPS = $(NAT_CDEPS) $(SIM) $(BFD) $(READLINE_DEPS) $(LIBCTF) \
+	$(LIBMPFR) $(SRCHIGH_LIBS) $(LIBXXHASH) $(PTHREAD_LIBS) \
+	@LIBDEBUGINFOD@
+CDEPS = $(NAT_CDEPS) $(SIM) $(BFD) $(READLINE_DEPS) $(CTF_DEPS) \
 	$(OPCODES) $(INTL_DEPS) $(LIBIBERTY) $(CONFIG_DEPS) $(LIBGNU) \
 	$(LIBSUPPORT)
 
@@ -692,6 +698,7 @@ ALL_TARGET_OBS = \
 	aarch32-tdep.o \
 	arc-tdep.o \
 	arch/aarch32.o \
+	arch/arc.o \
 	arch/arm.o \
 	arch/arm-get-next-pcs.o \
 	arch/arm-linux.o \
@@ -728,7 +735,6 @@ ALL_TARGET_OBS = \
 	hppa-obsd-tdep.o \
 	hppa-tdep.o \
 	i386-bsd-tdep.o \
-	i386-cygwin-tdep.o \
 	i386-darwin-tdep.o \
 	i386-dicos-tdep.o \
 	i386-fbsd-tdep.o \
@@ -740,6 +746,7 @@ ALL_TARGET_OBS = \
 	i386-obsd-tdep.o \
 	i386-sol2-tdep.o \
 	i386-tdep.o \
+	i386-windows-tdep.o \
 	i387-tdep.o \
 	iq2000-tdep.o \
 	linux-record.o \
@@ -949,6 +956,7 @@ COMMON_SFILES = \
 	alloc.c \
 	annotate.c \
 	arch-utils.c \
+	async-event.c \
 	auto-load.c \
 	auxv.c \
 	ax-gdb.c \
@@ -990,20 +998,28 @@ COMMON_SFILES = \
 	dbxread.c \
 	dcache.c \
 	debug.c \
+	debuginfod-support.c \
 	dictionary.c \
 	disasm.c \
-	disasm-selftests.c \
 	dummy-frame.c \
-	dwarf-index-cache.c \
-	dwarf-index-common.c \
-	dwarf-index-write.c \
-	dwarf2-frame.c \
-	dwarf2-frame-tailcall.c \
-	dwarf2expr.c \
-	dwarf2loc.c \
-	dwarf2read.c \
+	dwarf2/abbrev.c \
+	dwarf2/attribute.c \
+	dwarf2/comp-unit.c \
+	dwarf2/dwz.c \
+	dwarf2/expr.c \
+	dwarf2/frame-tailcall.c \
+	dwarf2/frame.c \
+	dwarf2/index-cache.c \
+	dwarf2/index-common.c \
+	dwarf2/index-write.c \
+	dwarf2/leb.c \
+	dwarf2/line-header.c \
+	dwarf2/loc.c \
+	dwarf2/macro.c \
+	dwarf2/read.c \
+	dwarf2/section.c \
+	dwarf2/stringify.c \
 	eval.c \
-	event-loop.c \
 	event-top.c \
 	exceptions.c \
 	exec.c \
@@ -1025,7 +1041,6 @@ COMMON_SFILES = \
 	gdb_obstack.c \
 	gdb_regex.c \
 	gdbarch.c \
-	gdbarch-selftests.c \
 	gdbtypes.c \
 	gnu-v2-abi.c \
 	gnu-v3-abi.c \
@@ -1196,7 +1211,9 @@ HFILES_NO_SRCDIR = \
 	arc-tdep.h \
 	arch-utils.h \
 	arm-linux-tdep.h \
+	arm-nbsd-tdep.h \
 	arm-tdep.h \
+	async-event.h \
 	auto-load.h \
 	auxv.h \
 	ax.h \
@@ -1230,14 +1247,13 @@ HFILES_NO_SRCDIR = \
 	dictionary.h \
 	disasm.h \
 	dummy-frame.h \
-	dwarf-index-cache.h \
-	dwarf-index-common.h \
-	dwarf2-frame.h \
-	dwarf2-frame-tailcall.h \
-	dwarf2expr.h \
-	dwarf2loc.h \
-	dwarf2read.h \
-	event-loop.h \
+	dwarf2/frame-tailcall.h \
+	dwarf2/frame.h \
+	dwarf2/expr.h \
+	dwarf2/index-cache.h \
+	dwarf2/index-common.h \
+	dwarf2/loc.h \
+	dwarf2/read.h \
 	event-top.h \
 	exceptions.h \
 	exec.h \
@@ -1429,6 +1445,7 @@ HFILES_NO_SRCDIR = \
 	arch/aarch32.h \
 	arch/aarch64.h \
 	arch/aarch64-insn.h \
+	arch/arc.h \
 	arch/arm.h \
 	arch/i386.h \
 	arch/ppc-linux-common.h \
@@ -1898,13 +1915,8 @@ clean mostlyclean: $(CONFIG_CLEAN)
 # I believe this is wrong; the makefile standards for distclean just
 # describe removing files; the only sort of "re-create a distribution"
 # functionality described is if the distributed files are unmodified.
-# NB: While GDBSERVER might be configured on native systems, it isn't
-# always included in SUBDIRS.  Remove the gdbserver files explicitly.
 distclean: clean
 	@$(MAKE) $(FLAGS_TO_PASS) DO=distclean "DODIRS=$(CLEANDIRS)" subdir_do
-	rm -f gdbserver/config.status gdbserver/config.log
-	rm -f gdbserver/tm.h gdbserver/xm.h gdbserver/nm.h
-	rm -f gdbserver/Makefile gdbserver/config.cache
 	rm -f nm.h config.status config.h stamp-h b jit-reader.h
 	rm -f gdb-gdb.py gdb-gdb.gdb
 	rm -f y.output yacc.acts yacc.tmp y.tab.h
@@ -1995,6 +2007,7 @@ aclocal_m4_deps = \
 	transform.m4 \
 	../bfd/bfd.m4 \
 	../config/acinclude.m4 \
+	../config/enable.m4 \
 	../config/plugins.m4 \
 	../config/lead-dot.m4 \
 	../config/override.m4 \
@@ -2155,7 +2168,6 @@ ALLDEPFILES = \
 	hppa-tdep.c \
 	i386-bsd-nat.c \
 	i386-bsd-tdep.c \
-	i386-cygwin-tdep.c \
 	i386-darwin-nat.c \
 	i386-darwin-tdep.c \
 	i386-dicos-tdep.c \
@@ -2172,6 +2184,7 @@ ALLDEPFILES = \
 	i386-sol2-nat.c \
 	i386-sol2-tdep.c \
 	i386-tdep.c \
+	i386-windows-tdep.c \
 	i387-tdep.c \
 	ia64-libunwind-tdep.c \
 	ia64-linux-nat.c \

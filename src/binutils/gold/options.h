@@ -472,7 +472,7 @@ struct Struct_special : public Struct_var
   options::String_set::const_iterator					  \
   varname__##_end() const						  \
   { return this->varname__##_.value.end(); }                              \
-                                                                          \
+									  \
   options::String_set::size_type                                          \
   varname__##_size() const                                                \
   { return this->varname__##_.value.size(); }                             \
@@ -799,6 +799,10 @@ class General_options
   DEFINE_bool(no_demangle, options::TWO_DASHES, '\0', false,
 	      N_("Do not demangle C++ symbols in log messages"),
 	      NULL);
+
+  DEFINE_string(dependency_file, options::TWO_DASHES, '\0', NULL,
+		N_("Write a dependency file listing all files read"),
+		N_("FILE"));
 
   DEFINE_bool(detect_odr_violations, options::TWO_DASHES, '\0', false,
 	      N_("Look for violations of the C++ One Definition Rule"),
@@ -1182,7 +1186,7 @@ class General_options
 
   DEFINE_bool(rosegment, options::TWO_DASHES, '\0', false,
 	      N_("Put read-only non-executable sections in their own segment"),
-	      NULL);
+	      N_("Do not put read-only non-executable sections in their own segment"));
 
   DEFINE_uint64(rosegment_gap, options::TWO_DASHES, '\0', -1U,
 		N_("Set offset between executable and read-only segments"),
@@ -1500,6 +1504,11 @@ class General_options
 	      N_("Don't mark variables read-only after relocation"));
   DEFINE_uint64(stack_size, options::DASH_Z, '\0', 0,
 		N_("Set PT_GNU_STACK segment p_memsz to SIZE"), N_("SIZE"));
+  DEFINE_enum(start_stop_visibility, options::DASH_Z, '\0', "protected",
+	      N_("ELF symbol visibility for synthesized "
+		 "__start_* and __stop_* symbols"),
+	      ("[default,internal,hidden,protected]"),
+	      {"default", "internal", "hidden", "protected"});
   DEFINE_bool(text, options::DASH_Z, '\0', false,
 	      N_("Do not permit relocations in read-only segments"),
 	      N_("Permit relocations in read-only segments"));
@@ -1750,6 +1759,10 @@ class General_options
   orphan_handling_enum() const
   { return this->orphan_handling_enum_; }
 
+  elfcpp::STV
+  start_stop_visibility_enum() const
+  { return this->start_stop_visibility_enum_; }
+
  private:
   // Don't copy this structure.
   General_options(const General_options&);
@@ -1808,6 +1821,10 @@ class General_options
   void
   set_orphan_handling_enum(Orphan_handling value)
   { this->orphan_handling_enum_ = value; }
+
+  void
+  set_start_stop_visibility_enum(elfcpp::STV value)
+  { this->start_stop_visibility_enum_ = value; }
 
   // These are called by finalize() to set up the search-path correctly.
   void
@@ -1876,6 +1893,8 @@ class General_options
   std::vector<Position_dependent_options*> options_stack_;
   // Orphan handling option, decoded to an enum value.
   Orphan_handling orphan_handling_enum_;
+  // Symbol visibility for __start_* / __stop_* magic symbols.
+  elfcpp::STV start_stop_visibility_enum_;
 };
 
 // The position-dependent options.  We use this to store the state of

@@ -398,10 +398,10 @@ static reloc_howto_type alpha_howto_table[] =
 
 /* Recognize an Alpha ECOFF file.  */
 
-static const bfd_target *
+static bfd_cleanup
 alpha_ecoff_object_p (bfd *abfd)
 {
-  static const bfd_target *ret;
+  bfd_cleanup ret;
 
   ret = coff_object_p (abfd);
 
@@ -1127,13 +1127,11 @@ alpha_ecoff_get_relocated_section_contents (bfd *abfd,
     abort ();
 
  successful_return:
-  if (reloc_vector != NULL)
-    free (reloc_vector);
+  free (reloc_vector);
   return data;
 
  error_return:
-  if (reloc_vector != NULL)
-    free (reloc_vector);
+  free (reloc_vector);
   return NULL;
 }
 
@@ -2050,6 +2048,7 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos)
   bfd_size_type size;
   bfd_byte *buf, *p;
   struct bfd_in_memory *bim;
+  ufile_ptr filesize;
 
   buf = NULL;
   nbfd = _bfd_get_elt_at_filepos (archive, filepos);
@@ -2082,6 +2081,14 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos)
   if (bfd_bread (ab, (bfd_size_type) 8, nbfd) != 8)
     goto error_return;
   size = H_GET_64 (nbfd, ab);
+
+  /* The decompression algorithm will at most expand by eight times.  */
+  filesize = bfd_get_file_size (archive);
+  if (filesize != 0 && size / 8 > filesize)
+    {
+      bfd_set_error (bfd_error_malformed_archive);
+      goto error_return;
+    }
 
   if (size != 0)
     {
@@ -2121,7 +2128,7 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos)
 		n = dict[h];
 	      else
 		{
-		  if (! bfd_bread (&n, (bfd_size_type) 1, nbfd))
+		  if (bfd_bread (&n, 1, nbfd) != 1)
 		    goto error_return;
 		  dict[h] = n;
 		}
@@ -2162,8 +2169,7 @@ alpha_ecoff_get_elt_at_filepos (bfd *archive, file_ptr filepos)
   return nbfd;
 
  error_return:
-  if (buf != NULL)
-    free (buf);
+  free (buf);
   if (nbfd != NULL)
     bfd_close (nbfd);
   return NULL;
@@ -2415,7 +2421,8 @@ const bfd_target alpha_ecoff_le_vec =
    | HAS_LINENO | HAS_DEBUG
    | HAS_SYMS | HAS_LOCALS | DYNAMIC | WP_TEXT | D_PAGED),
 
-  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_CODE | SEC_DATA),
+  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_CODE
+   | SEC_DATA | SEC_SMALL_DATA),
   0,				/* leading underscore */
   ' ',				/* ar_pad_char */
   15,				/* ar_max_namelen */

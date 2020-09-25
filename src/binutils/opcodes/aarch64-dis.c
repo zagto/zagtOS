@@ -252,6 +252,16 @@ get_expected_qualifier (const aarch64_inst *inst, int i)
 /* Operand extractors.  */
 
 bfd_boolean
+aarch64_ext_none (const aarch64_operand *self ATTRIBUTE_UNUSED,
+		  aarch64_opnd_info *info ATTRIBUTE_UNUSED,
+		  const aarch64_insn code ATTRIBUTE_UNUSED,
+		  const aarch64_inst *inst ATTRIBUTE_UNUSED,
+		  aarch64_operand_error *errors ATTRIBUTE_UNUSED)
+{
+  return TRUE;
+}
+
+bfd_boolean
 aarch64_ext_regno (const aarch64_operand *self, aarch64_opnd_info *info,
 		   const aarch64_insn code,
 		   const aarch64_inst *inst ATTRIBUTE_UNUSED,
@@ -2972,7 +2982,7 @@ aarch64_opcode_decode (const aarch64_opcode *opcode, const aarch64_insn code,
       DEBUG_TRACE ("constraint matching FAIL");
     }
 
-decode_fail:
+ decode_fail:
   return FALSE;
 }
 

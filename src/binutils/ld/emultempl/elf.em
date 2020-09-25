@@ -82,7 +82,13 @@ gld${EMULATION_NAME}_before_parse (void)
   config.has_shared = `if test -n "$GENERATE_SHLIB_SCRIPT" ; then echo TRUE ; else echo FALSE ; fi`;
   config.separate_code = `if test "x${SEPARATE_CODE}" = xyes ; then echo TRUE ; else echo FALSE ; fi`;
   link_info.check_relocs_after_open_input = TRUE;
+EOF
+if test -n "$COMMONPAGESIZE"; then
+fragment <<EOF
   link_info.relro = DEFAULT_LD_Z_RELRO;
+EOF
+fi
+fragment <<EOF
   link_info.separate_code = DEFAULT_LD_Z_SEPARATE_CODE;
 }
 
@@ -620,11 +626,8 @@ gld${EMULATION_NAME}_handle_option (int optc)
       return FALSE;
 
     case OPTION_BUILD_ID:
-      if (ldelf_emit_note_gnu_build_id != NULL)
-	{
-	  free ((char *) ldelf_emit_note_gnu_build_id);
-	  ldelf_emit_note_gnu_build_id = NULL;
-	}
+      free ((char *) ldelf_emit_note_gnu_build_id);
+      ldelf_emit_note_gnu_build_id = NULL;
       if (optarg == NULL)
 	optarg = DEFAULT_BUILD_ID_STYLE;
       if (strcmp (optarg, "none"))
@@ -675,8 +678,8 @@ fragment <<EOF
     case OPTION_GROUP:
       link_info.flags_1 |= (bfd_vma) DF_1_GROUP;
       /* Groups must be self-contained.  */
-      link_info.unresolved_syms_in_objects = RM_GENERATE_ERROR;
-      link_info.unresolved_syms_in_shared_libs = RM_GENERATE_ERROR;
+      link_info.unresolved_syms_in_objects = RM_DIAGNOSE;
+      link_info.unresolved_syms_in_shared_libs = RM_DIAGNOSE;
       break;
 
     case OPTION_EXCLUDE_LIBS:
@@ -704,7 +707,7 @@ fi
 fragment <<EOF
     case 'z':
       if (strcmp (optarg, "defs") == 0)
-	link_info.unresolved_syms_in_objects = RM_GENERATE_ERROR;
+	link_info.unresolved_syms_in_objects = RM_DIAGNOSE;
       else if (strcmp (optarg, "undefs") == 0)
 	link_info.unresolved_syms_in_objects = RM_IGNORE;
       else if (strcmp (optarg, "muldefs") == 0)
@@ -752,6 +755,21 @@ fragment <<EOF
 	{
 	  link_info.flags_1 |= DF_1_GLOBAUDIT;
 	}
+      else if (CONST_STRNEQ (optarg, "start-stop-visibility="))
+	{
+	  if (strcmp (optarg, "start-stop-visibility=default") == 0)
+	    link_info.start_stop_visibility = STV_DEFAULT;
+	  else if (strcmp (optarg, "start-stop-visibility=internal") == 0)
+	    link_info.start_stop_visibility = STV_INTERNAL;
+	  else if (strcmp (optarg, "start-stop-visibility=hidden") == 0)
+	    link_info.start_stop_visibility = STV_HIDDEN;
+	  else if (strcmp (optarg, "start-stop-visibility=protected") == 0)
+	    link_info.start_stop_visibility = STV_PROTECTED;
+	  else
+	    einfo (_("%F%P: invalid visibility in \`-z %s'; "
+		     "must be default, internal, hidden, or protected"),
+		   optarg);
+	}
 EOF
 
 if test x"$GENERATE_SHLIB_SCRIPT" = xyes; then
@@ -793,10 +811,16 @@ fragment <<EOF
 	link_info.combreloc = FALSE;
       else if (strcmp (optarg, "nocopyreloc") == 0)
 	link_info.nocopyreloc = TRUE;
+EOF
+if test -n "$COMMONPAGESIZE"; then
+fragment <<EOF
       else if (strcmp (optarg, "relro") == 0)
 	link_info.relro = TRUE;
       else if (strcmp (optarg, "norelro") == 0)
 	link_info.relro = FALSE;
+EOF
+fi
+fragment <<EOF
       else if (strcmp (optarg, "separate-code") == 0)
 	link_info.separate_code = TRUE;
       else if (strcmp (optarg, "noseparate-code") == 0)
@@ -806,11 +830,11 @@ fragment <<EOF
       else if (strcmp (optarg, "nocommon") == 0)
 	link_info.elf_stt_common = no_elf_stt_common;
       else if (strcmp (optarg, "text") == 0)
-	link_info.error_textrel = TRUE;
+	link_info.textrel_check = textrel_check_error;
       else if (strcmp (optarg, "notext") == 0)
-	link_info.error_textrel = FALSE;
+	link_info.textrel_check = textrel_check_none;
       else if (strcmp (optarg, "textoff") == 0)
-	link_info.error_textrel = FALSE;
+	link_info.textrel_check = textrel_check_none;
 EOF
 fi
 
@@ -880,6 +904,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   ${LDEMUL_AFTER_PARSE-ldelf_after_parse},
   ${LDEMUL_AFTER_OPEN-gld${EMULATION_NAME}_after_open},
   ${LDEMUL_AFTER_CHECK_RELOCS-after_check_relocs_default},
+  ${LDEMUL_BEFORE_PLACE_ORPHANS-ldelf_before_place_orphans},
   ${LDEMUL_AFTER_ALLOCATION-gld${EMULATION_NAME}_after_allocation},
   ${LDEMUL_SET_OUTPUT_ARCH-set_output_arch_default},
   ${LDEMUL_CHOOSE_TARGET-ldemul_default_target},
@@ -902,6 +927,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   ${LDEMUL_NEW_VERS_PATTERN-NULL},
   ${LDEMUL_EXTRA_MAP_FILE_TEXT-NULL},
   ${LDEMUL_EMIT_CTF_EARLY-NULL},
-  ${LDEMUL_EXAMINE_STRTAB_FOR_CTF-NULL}
+  ${LDEMUL_EXAMINE_STRTAB_FOR_CTF-NULL},
+  ${LDEMUL_PRINT_SYMBOL-NULL}
 };
 EOF
