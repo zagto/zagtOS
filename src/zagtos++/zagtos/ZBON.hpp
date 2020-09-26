@@ -233,13 +233,12 @@ protected:
     size_t _numHandles;
     bool allocatedExternally;
 
-    EncodedData(uint8_t *data, size_t size, size_t numHandles):
+public:
+    constexpr EncodedData(uint8_t *data, size_t size, size_t numHandles, bool _allocatedExternally = false):
         _data{data},
         _size{size},
         _numHandles{numHandles},
-        allocatedExternally{false} {}
-
-public:
+        allocatedExternally{_allocatedExternally} {}
     EncodedData():
         _data{nullptr},
         _size{0},
@@ -860,5 +859,19 @@ public:
         decoder.decodeBinary(value, 16);
     }
 };
+
+#define ZBON_ENCODING_FUNCTIONS(...) \
+    static constexpr zbon::Type ZBONType() { \
+        return zbon::Type::OBJECT; \
+    } \
+    zbon::Size ZBONSize() const { \
+        return zbon::sizeForObject(__VA_ARGS__); \
+    } \
+    void ZBONEncode(zbon::Encoder &encoder) const { \
+        encoder.encodeObjectValue(__VA_ARGS__); \
+    } \
+    void ZBONDecode(zbon::Decoder &decoder) { \
+        decoder.decodeFromObject(__VA_ARGS__); \
+    }
 
 }

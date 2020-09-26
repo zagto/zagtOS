@@ -6,6 +6,7 @@
 #include <memory>
 #include <elf.h>
 #include <zagtos/ZBON.hpp>
+#include <zagtos/ProgramBinary.hpp>
 
 
 static const unsigned char ExpectedELFIdentifier[9] = {ELFMAG0, ELFMAG1, ELFMAG2, ELFMAG3,
@@ -16,25 +17,6 @@ static const unsigned char ExpectedELFIdentifier[9] = {ELFMAG0, ELFMAG1, ELFMAG2
                                                         0};/* ABI version */
 
 static Elf64_Ehdr FileHeader;
-
-struct Section {
-    uint64_t address;
-    uint64_t sizeInMemory;
-    std::vector<uint8_t> data;
-
-    static constexpr zbon::Type ZBONType() {
-        return zbon::Type::OBJECT;
-    }
-    zbon::Size ZBONSize() const {
-        return zbon::sizeForObject(address, sizeInMemory, data);
-    }
-    void ZBONEncode(zbon::Encoder &encoder) const {
-        encoder.encodeObjectValue(address, sizeInMemory, data);
-    }
-    void ZBONDecode(zbon::Decoder &decoder) {
-        decoder.decodeFromObject(address, sizeInMemory, data);
-    }
-};
 
 int main(int argc, char **argv) {
     if (argc != 3) {
@@ -65,19 +47,20 @@ int main(int argc, char **argv) {
     inFile.seekg(FileHeader.e_phoff, std::ios::beg);
     inFile.read(reinterpret_cast<char *>(programHeaders.data()), sizeof(Elf64_Phdr) * numSections);
 
-    std::vector<Section> sections;
+    std::vector<zagtos::ProgramSection> sections;
     sections.reserve(numSections);
 
-    std::optional<Section> TLSSection;
+    std::optional<zagtos::ProgramSection> TLSSection;
 
     for (const auto &header: programHeaders) {
         if (!(header.p_type == PT_LOAD || header.p_type == PT_TLS)) {
             continue;
         }
 
-        Section section = {
+        zagtos::ProgramSection section = {
             .address = header.p_vaddr,
             .sizeInMemory = header.p_memsz,
+            .flags = header.p_flags,
             .data = std::vector<uint8_t>(header.p_filesz)
         };
         inFile.seekg(header.p_offset);
@@ -94,8 +77,12 @@ int main(int argc, char **argv) {
     }
     inFile.close();
 
-    uint64_t entryAddress = FileHeader.e_entry;
-    zbon::EncodedData output = zbon::encode(std::make_tuple(sections, TLSSection, entryAddress));
+    zagtos::ProgramBinary binary = {
+        .entryAddress = FileHeader.e_entry,
+        .TLSSection = std::move(TLSSection),
+        .sections = std::move(sections),
+    };
+    zbon::EncodedData output = zbon::encode(binary);
 
     std::ofstream outFile(argv[2]);
     if (!outFile.is_open()) {
