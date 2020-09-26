@@ -13,6 +13,7 @@
 #include <processes/Message.hpp>
 #include <processes/HandleManager.hpp>
 #include <processes/FutexManager.hpp>
+#include <syscalls/SpawnProcess.hpp>
 
 class Process {
 private:
@@ -41,7 +42,13 @@ public:
     PagingContext *pagingContext;
     FutexManager futexManager;
 
-    Process(ELF elf, Thread::Priority initialPrioriy, Message &runMessage, vector<uint8_t> logName);
+    Process(Process &sourceProcess,
+            vector<SpawnProcessSection> &sections,
+            optional<SpawnProcessSection> &TLSSection,
+            UserVirtualAddress entryAddress,
+            Thread::Priority initialPrioriy,
+            Message &runMessage,
+            vector<uint8_t> logName);
     ~Process();
     void activate();
     PhysicalAddress allocateFrame(UserVirtualAddress address,

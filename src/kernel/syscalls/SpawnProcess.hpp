@@ -6,10 +6,27 @@
 
 class Process;
 
+struct SpawnProcessSection {
+    static const size_t FLAG_EXECUTABLE{1};
+    static const size_t FLAG_WRITEABLE{2};
+    static const size_t FLAG_READABLE{4};
+
+    size_t address;
+    size_t sizeInMemory;
+    size_t flags;
+    size_t dataSize;
+    size_t dataAddress;
+
+    Permissions permissions() const;
+    Region alignedRegion() const;
+};
+
 class SpawnProcess {
 private:
-    size_t address;
-    size_t length;
+    size_t entryAddress;
+    size_t numSections;
+    size_t sectionsAddress;
+    size_t TLSSectionAddress;
     size_t priority;
 
     UUID messageType;
