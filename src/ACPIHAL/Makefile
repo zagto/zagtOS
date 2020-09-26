@@ -12,13 +12,13 @@ C_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(C_SOURCES:.c=.o))
 TARGET = $(SHBUILD_BUILD_DIR)/ACPIHAL
 
 
-COMMON_FLAGS = -O2 -Wall -Wextra -Wpedantic -Werror -I$(PWD) -I$(PWD)/selection/include -fsanitize=undefined
+COMMON_FLAGS = -Os -Wall -Wextra -Wpedantic -Werror -I$(PWD) -I$(PWD)/selection/include -fsanitize=undefined -ffunction-sections -fdata-sections
 
 # ACPICA C code will trigger warnings, since our code is mostly C++, just hide them
 CFLAGS = $(COMMON_FLAGS) -std=c18 -Wno-unused-parameter -Wno-format-truncation -Wno-stringop-truncation -Wno-format 
-CXXFLAGS = $(COMMON_FLAGS) -std=c++17
+CXXFLAGS = $(COMMON_FLAGS) -std=c++2a
 
-LDFLAGS = -O2 -s -fsanitize=undefined
+LDFLAGS = -Os -s -fsanitize=undefined
 
 
 CXX = $(ARCH)-zagto-zagtos-g++
@@ -36,10 +36,6 @@ $(SHBUILD_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
 $(SHBUILD_BUILD_DIR)/%.o: %.c $(C_HEADERS)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
-
-$(SHBUILD_BUILD_DIR)/%.o: %.asm
-	mkdir -p $(dir $@)
-	nasm -f elf64 -o $@ $<
 
 clean:
 	rm -f $(CXX_OBJS) $(C_OBJS) $(TARGET)

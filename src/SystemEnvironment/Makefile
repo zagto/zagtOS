@@ -21,21 +21,18 @@ BINARY_OBJS = $(SHBUILD_BUILD_DIR)/binaries.o
 TARGET = $(SHBUILD_BUILD_DIR)/SystemEnvironment
 
 
-COMMON_FLAGS = -O2 -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
+COMMON_FLAGS = -Os -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
 
 CFLAGS = $(COMMON_FLAGS) -std=c18
-CXXFLAGS = $(COMMON_FLAGS) -std=c++17
+CXXFLAGS = $(COMMON_FLAGS) -std=c++2a
 
-LDFLAGS = -O2 -s
+LDFLAGS = -Os -s -Wl,--gc-sections
 
 
 CXX = $(ARCH)-zagto-zagtos-g++
 CC = $(ARCH)-zagto-zagtos-gcc
 LD = $(ARCH)-zagto-zagtos-ld
 CONVERTELF = $(SHBUILD_ROOT)/build/ConvertELF/ConvertELF
-
-$(TARGET).Executable: $(TARGET)
-	$(CONVERTELF) $(TARGET) $(TARGET).Executable
 
 $(TARGET): $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(BINARY_OBJS)
 	mkdir -p $(dir $@)
@@ -49,17 +46,10 @@ $(SHBUILD_BUILD_DIR)/%.o: %.c $(C_HEADERS)
 	mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-$(SHBUILD_BUILD_DIR)/binaries.o: $(EMBEDDED_BINARIES)
+$(SHBUILD_BUILD_DIR)/binaries.o: $(EMBEDDED_BINARIES) $(CONVERTELF)
 	mkdir -p $(dir $@)
-	# copy all binaries to the same directory and link there to genearate
-	# symbol names without the whole path
-	cp $(EMBEDDED_BINARIES) $(SHBUILD_BUILD_DIR)
-	#for ELF in $(notdir $(EMBEDDED_BINARIES)) ; do \
-	#	$(CONVERTELF) $$ELF $$ELF.Executable ; \
-	#done
-	
-	$(foreach ELF, $(EMBEDDED_BINARIES), $(CONVERTELF) $(ELF) $(SHBUILD_BUILD_DIR)/$(notdir $(ELF)).Executable;)
-	cd $(SHBUILD_BUILD_DIR) && $(LD) -b binary -o $@ $(addsuffix .Executable, $(notdir $(EMBEDDED_BINARIES)))
+	$(foreach ELF, $(EMBEDDED_BINARIES), $(CONVERTELF) $(ELF) $(SHBUILD_BUILD_DIR)/$(notdir $(ELF)).zbon;)
+	cd $(SHBUILD_BUILD_DIR) && $(LD) -relocatable -b binary -o $@ $(addsuffix .zbon, $(notdir $(EMBEDDED_BINARIES)))
 
 $(SHBUILD_BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)

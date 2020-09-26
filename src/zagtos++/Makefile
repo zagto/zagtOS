@@ -22,7 +22,7 @@ TARGET = $(SHBUILD_BUILD_DIR)/libzagtos++.a
 COMMON_FLAGS = -O2 -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
 
 CFLAGS = $(COMMON_FLAGS) -std=c18
-CXXFLAGS = $(COMMON_FLAGS) -std=c++17
+CXXFLAGS = $(COMMON_FLAGS) -std=c++2a
 
 LDFLAGS = -O2
 
