@@ -145,7 +145,7 @@ am__objects_1 = sancov_flags.lo sanitizer_allocator.lo \
 	sanitizer_stoptheworld_linux_libcdep.lo \
 	sanitizer_stoptheworld_mac.lo sanitizer_suppressions.lo \
 	sanitizer_symbolizer.lo sanitizer_symbolizer_libbacktrace.lo \
-	sanitizer_symbolizer_libcdep.lo \
+	sanitizer_symbolizer_libcdep.lo sanitizer_symbolizer_markup.lo \
 	sanitizer_symbolizer_posix_libcdep.lo \
 	sanitizer_symbolizer_win.lo sanitizer_termination.lo \
 	sanitizer_thread_registry.lo sanitizer_tls_get_addr.lo \
@@ -219,6 +219,7 @@ am__depfiles_remade = ./$(DEPDIR)/sancov_flags.Plo \
 	./$(DEPDIR)/sanitizer_symbolizer_libbacktrace.Plo \
 	./$(DEPDIR)/sanitizer_symbolizer_libcdep.Plo \
 	./$(DEPDIR)/sanitizer_symbolizer_mac.Plo \
+	./$(DEPDIR)/sanitizer_symbolizer_markup.Plo \
 	./$(DEPDIR)/sanitizer_symbolizer_posix_libcdep.Plo \
 	./$(DEPDIR)/sanitizer_symbolizer_report.Plo \
 	./$(DEPDIR)/sanitizer_symbolizer_win.Plo \
@@ -484,6 +485,7 @@ sanitizer_common_files = \
 	sanitizer_symbolizer.cpp \
 	sanitizer_symbolizer_libbacktrace.cpp \
 	sanitizer_symbolizer_libcdep.cpp \
+	sanitizer_symbolizer_markup.cpp \
 	sanitizer_symbolizer_posix_libcdep.cpp \
 	sanitizer_symbolizer_win.cpp \
 	sanitizer_termination.cpp \
@@ -640,6 +642,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sanitizer_symbolizer_libbacktrace.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sanitizer_symbolizer_libcdep.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sanitizer_symbolizer_mac.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sanitizer_symbolizer_markup.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sanitizer_symbolizer_posix_libcdep.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sanitizer_symbolizer_report.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sanitizer_symbolizer_win.Plo@am__quote@ # am--include-marker
@@ -845,6 +848,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_libbacktrace.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_libcdep.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_mac.Plo
+	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_markup.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_posix_libcdep.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_report.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_win.Plo
@@ -949,6 +953,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_libbacktrace.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_libcdep.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_mac.Plo
+	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_markup.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_posix_libcdep.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_report.Plo
 	-rm -f ./$(DEPDIR)/sanitizer_symbolizer_win.Plo

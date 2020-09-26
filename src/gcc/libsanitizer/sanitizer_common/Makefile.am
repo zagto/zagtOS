@@ -71,6 +71,7 @@ sanitizer_common_files = \
 	sanitizer_symbolizer.cpp \
 	sanitizer_symbolizer_libbacktrace.cpp \
 	sanitizer_symbolizer_libcdep.cpp \
+	sanitizer_symbolizer_markup.cpp \
 	sanitizer_symbolizer_posix_libcdep.cpp \
 	sanitizer_symbolizer_win.cpp \
 	sanitizer_termination.cpp \
