@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common/common.hpp>
+#include <setup/HandOverState.hpp>
 
 namespace frameStack {
     class Node {
@@ -19,6 +20,10 @@ namespace frameStack {
         size_t addIndex;
 
     public:
+        FrameStack(const hos_v1::FrameStack &handOver) :
+            head{reinterpret_cast<Node *>(handOver.head)},
+            addIndex{handOver.addIndex} {}
+
         ~FrameStack() {
             // Can't destruct the frame stack
             Panic();

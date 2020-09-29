@@ -13,9 +13,9 @@ static FramebufferBackend framebufferBackend;
 static mutex logLock;
 
 
-void Logger::init(const BootInfo *bootInfo) {
+void Logger::init(const hos_v1::FramebufferInfo &handOver) {
     serialBackend.init();
-    framebufferBackend.init(&bootInfo->framebufferInfo);
+    framebufferBackend.init(handOver);
     setKernelColor();
 }
 

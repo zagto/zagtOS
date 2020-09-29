@@ -12,9 +12,7 @@ private:
     PhysicalAddress physicalStart;
 
 public:
-    enum class Source {
-        MEMORY = 1, PHYSICAL_MEMORY = 2, GUARD = 3
-    };
+    using Source = hos_v1::MappingSource;
     Source source;
     Region region;
     Permissions permissions;
@@ -22,6 +20,7 @@ public:
     MappedArea(Process *process, Region region, Permissions permissions);
     MappedArea(Process *process, Region region, Permissions permissions, PhysicalAddress physicalStart);
     MappedArea(Process *process, Region region);
+    MappedArea(Process *process, const hos_v1::MappedArea &handOver);
     ~MappedArea();
 
     bool handlePageFault(UserVirtualAddress address);
@@ -46,6 +45,7 @@ private:
 public:
     MappedAreaVector(Process *process):
         process{process} {}
+    MappedAreaVector(Process *process, const hos_v1::Process &handOver);
     Region findFreeRegion(size_t length, bool &valid, size_t &index) const;
     MappedArea *findMappedArea(UserVirtualAddress address) const;
     void insert2(MappedArea *ma, size_t index);

@@ -7,6 +7,19 @@
 #include <processes/Message.hpp>
 
 
+Process::Process(const hos_v1::Process &handOver,
+        const vector<shared_ptr<Thread>> &allThreads,
+        const vector<shared_ptr<Port>> &allPorts,
+        const vector<shared_ptr<SharedMemory>> &allSharedMemories) :
+    mappedAreas(this, handOver),
+    handleManager(handOver, allThreads, allPorts, allSharedMemories),
+    futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads)
+{
+    logName.resize(handOver.numLogNameChars);
+    memcpy(logName.data(), handOver.logName, handOver.numLogNameChars);
+}
+
+
 Process::Process(Process &sourceProcess,
                  vector<SpawnProcessSection> &sections,
                  optional<SpawnProcessSection> &TLSSection,
@@ -64,7 +77,7 @@ Process::Process(Process &sourceProcess,
     auto mainThread = make_shared<Thread>(shared_ptr<Process>(this),
                                           entryAddress,
                                           initialPrioriy,
-                                          runMessage.infoAddress(),
+                                          runMessage.infoAddress,
                                           tlsBase,
                                           masterTLSBase,
                                           TLSSize);

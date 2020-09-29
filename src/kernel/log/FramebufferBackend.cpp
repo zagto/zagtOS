@@ -39,14 +39,14 @@ void FramebufferBackend::clearLine(uint32_t line) {
 }
 
 
-void FramebufferBackend::init(const BootInfo::FramebufferInfo *framebufferInfo) {
-    frontBuffer = framebufferInfo->frontBuffer;
-    backBuffer = framebufferInfo->backBuffer;
-    width = framebufferInfo->width;
-    height = framebufferInfo->height;
-    bytesPerLine = framebufferInfo->bytesPerLine;
-    bytesPerPixel = framebufferInfo->bytesPerPixel;
-    format = static_cast<FramebufferFormat>(framebufferInfo->format);
+void FramebufferBackend::init(const hos_v1::FramebufferInfo &framebufferInfo) {
+    frontBuffer = framebufferInfo.frontBuffer;
+    backBuffer = framebufferInfo.backBuffer;
+    width = framebufferInfo.width;
+    height = framebufferInfo.height;
+    bytesPerLine = framebufferInfo.bytesPerLine;
+    bytesPerPixel = framebufferInfo.bytesPerPixel;
+    format = static_cast<FramebufferFormat>(framebufferInfo.format);
 
     numColumns = width / Font::characterWidth;
     numLines = height / Font::characterHeight;

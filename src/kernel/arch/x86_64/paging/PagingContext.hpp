@@ -1,6 +1,4 @@
-#ifndef PAGINGCONTEXT_HPP
-#define PAGINGCONTEXT_HPP
-
+#pragma once
 #include <paging/PageTable.hpp>
 
 class Process;
@@ -80,5 +78,3 @@ public:
 
     void completelyUnmapLoaderRegion();
 };
-
-#endif // PAGINGCONTEXT_HPP

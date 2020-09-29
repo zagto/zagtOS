@@ -1,6 +1,4 @@
-#ifndef PORT_HPP
-#define PORT_HPP
-
+#pragma once
 #include <vector>
 #include <queue>
 #include <memory>
@@ -18,14 +16,14 @@ class Port {
     queue<unique_ptr<Message>> messages;
 
 public:
-    const shared_ptr<Process> process;
+    /* should be seen as const besides during handover */
+    shared_ptr<Process> process;
 
     Port(const shared_ptr<Process> process);
+    Port(const hos_v1::Port &handOver, const vector<shared_ptr<Thread>> &allThreads);
     Port(Port &) = delete;
     ~Port();
 
     unique_ptr<Message> getMessageOrMakeThreadWait(Thread *thread);
     void addMessage(unique_ptr<Message> message);
 };
-
-#endif // PORT_HPP

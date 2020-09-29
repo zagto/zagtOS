@@ -3,6 +3,8 @@
 #include <common/addresses.hpp>
 #include <common/panic.hpp>
 
+/* Although in a separate file, the register state is part of the kernel handover interface and
+ * chaging it means introducing a new inteface */
 class alignas(16) RegisterState
 {
 public:

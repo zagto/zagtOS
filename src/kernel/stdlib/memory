@@ -218,11 +218,11 @@ public:
 };
 
 template <typename T, typename ...ArgumentTypes>
-shared_ptr<T> make_shared(ArgumentTypes ...args) {
+shared_ptr<T> make_shared(ArgumentTypes &&...args) {
     return move(shared_ptr(new T(args...)));
 }
 
 template <typename T, typename ...ArgumentTypes>
-unique_ptr<T> make_unique(ArgumentTypes ...args) {
+unique_ptr<T> make_unique(ArgumentTypes &&...args) {
     return move(unique_ptr(new T(args...)));
 }

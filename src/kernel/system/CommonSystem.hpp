@@ -4,7 +4,7 @@
 #include <vector>
 #include <system/Processor.hpp>
 #include <memory/Memory.hpp>
-#include <setup/BootInfo.hpp>
+#include <setup/HandOverState.hpp>
 #include <common/globalregisters.hpp>
 #include <time/Time.hpp>
 #include <paging/PagingContext.hpp>
@@ -21,9 +21,9 @@ public:
     mutex processorsLock;
     FutexManager futexManager;
 
-    CommonSystem(BootInfo *bootInfo) :
-        memory(bootInfo),
-        kernelOnlyPagingContext(nullptr, bootInfo->masterPageTable),
+    CommonSystem(const hos_v1::System &handOver) :
+        memory(handOver),
+        kernelOnlyPagingContext(nullptr, handOver.handOverPagingContext),
         processors() {}
 
     void addBootProcessor();

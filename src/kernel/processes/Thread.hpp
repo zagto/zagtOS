@@ -17,9 +17,7 @@ static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
 
 class Thread {
 public:
-    enum Priority {
-        IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND,
-    };
+    using Priority = hos_v1::ThreadPriority;
     enum {
         ACTIVE, RUNNING, MESSAGE, FUTEX, TRANSITION, TERMINATED
     };
@@ -118,6 +116,14 @@ public:
            UserVirtualAddress stackPointer,
            UserVirtualAddress tlsBase) :
         Thread(process, entry, priority, stackPointer, tlsBase, 0, 0) {}
+    /* constructor used during kernel handover. process and handle fields need to be inserted
+     * later. */
+    Thread(const hos_v1::Thread &handOver) :
+        _ownPriority{handOver.ownPriority},
+        _currentPriority{handOver.currentPriority},
+        _state{State::Transition()},
+        registerState{handOver.registerState},
+        tlsBase{handOver.TLSBase} {}
 
     ~Thread();
 

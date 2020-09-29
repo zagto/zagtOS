@@ -5,6 +5,15 @@
 Port::Port(const shared_ptr<Process> process) :
     process{process} {}
 
+Port::Port(const hos_v1::Port &handOver, const vector<shared_ptr<Thread>> &allThreads) {
+    if (handOver.threadWaits) {
+        waitingThread = allThreads[handOver.waitingThreadID].get();
+    }
+    for (size_t index = 0; index < handOver.numMessages; index++) {
+        messages.push_back(make_unique<Message>(handOver.messages[index]));
+    }
+}
+
 Port::~Port() {
     assert(waitingThread == nullptr);
     if (!messages.empty()) {
@@ -35,7 +44,7 @@ void Port::addMessage(unique_ptr<Message> message) {
     scoped_lock sl(lock);
 
     if (waitingThread) {
-        waitingThread->registerState.setSyscallResult(message->infoAddress().value());
+        waitingThread->registerState.setSyscallResult(message->infoAddress.value());
         waitingThread->setState(Thread::State::Transition());
         Scheduler::schedule(waitingThread);
         waitingThread = nullptr;

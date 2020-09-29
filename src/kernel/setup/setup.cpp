@@ -1,5 +1,5 @@
 #include <common/common.hpp>
-#include <setup/BootInfo.hpp>
+#include <setup/HandOverState.hpp>
 #include <system/System.hpp>
 #include <vector>
 #include <processes/Process.hpp>
@@ -8,66 +8,47 @@
 
 extern "C" void _init();
 extern "C" __attribute__((noreturn)) void switchStack(KernelStack *newStack,
-                                                      void nextCode(BootInfo *),
-                                                      BootInfo *nextCodeArg);
+                                                      void nextCode(hos_v1::System *),
+                                                      hos_v1::System *nextCodeArg);
 
-void KernelEntry2(BootInfo *bootInfo);
-void KernelEntrySecondaryProcessor2(BootInfo *);
+void KernelEntry2(hos_v1::System *handOver);
+void KernelEntrySecondaryProcessor2(hos_v1::System *handOver);
 
 
-extern "C" __attribute__((noreturn)) void KernelEntry(BootInfo *bootInfo) {
+extern "C" __attribute__((noreturn)) void KernelEntry(hos_v1::System *handOver) {
     CurrentProcessor = nullptr;
 
     // Call global constructors
     _init();
 
-    cout.init(bootInfo);
+    cout.init(handOver->framebufferInfo);
     cout << "Hello World. Log initialized." << endl;
 
-    new (&CurrentSystem) System(bootInfo);
+    new (&CurrentSystem) System(*handOver);
     cout << "System Object created." << endl;
 
     CurrentSystem.addBootProcessor();
     cout << "Processor added." << endl;
 
-    switchStack(CurrentProcessor->kernelStack, KernelEntry2, bootInfo);
+    /* TODO: wait for eventual already running secondary processors */
+
+    switchStack(CurrentProcessor->kernelStack, KernelEntry2, handOver);
 }
 
-__attribute__((noreturn)) void KernelEntry2(BootInfo *bootInfoOld) {
-    /* bootinfo may be in strange memory regions, so better copy it before switching to new
-     * master page tables */
-    BootInfo bootInfo = *bootInfoOld;
-
+__attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
     {
         cout << "Setting up time..." << endl;
         CurrentSystem.time.initialize();
 
-        cout << "Creating initial process..." << endl;
-
-        vector<uint8_t> initFile(bootInfo.initDataInfo.size);
-        Slice<vector, uint8_t> initSlice(&initFile);
-        memcpy(&initFile[0],
-               bootInfo.initDataInfo.address.identityMapped().asPointer<uint8_t>(),
-               bootInfo.initDataInfo.size);
-        ELF initELF(initSlice);
-
-        const uint8_t uuidData[] = {0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
-                                           0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55};
-        const UUID beInitMessage(uuidData);
-
-        Message runMessage(nullptr, nullptr, 0, beInitMessage, 0, 0);
-        vector<uint8_t> initStr(4);
-        initStr[0] = 'I';
-        initStr[1] = 'N';
-        initStr[2] = 'I';
-        initStr[3] = 'T';
-        new Process(initELF, Thread::Priority::FOREGROUND, runMessage, move(initStr));
+        cout << "Creating initial processes..." << endl;
+        handOver->decodeProcesses();
 
         /* the ELF data is the last thing we wanted to read from loader memory */
         //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();
 
         cout << "Entering first process..." << endl;
     }
+    /* TODO: clear handover state from the lower half of kernelOnlyPagingContext */
     CurrentProcessor->interrupts.returnToUserMode();
 }
 
@@ -84,7 +65,7 @@ extern "C" __attribute__((noreturn)) void KernelEntrySecondaryProcessor() {
     switchStack(CurrentProcessor->kernelStack, KernelEntrySecondaryProcessor2, nullptr);
 }
 
-__attribute__((noreturn)) void KernelEntrySecondaryProcessor2(BootInfo *) {
+__attribute__((noreturn)) void KernelEntrySecondaryProcessor2(hos_v1::System *) {
     /* we now use our own stack, free to add more processors */
     CurrentSystem.processorsLock.unlock();
 

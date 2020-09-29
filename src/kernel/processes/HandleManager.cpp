@@ -1,5 +1,6 @@
 #include <common/common.hpp>
 #include <processes/HandleManager.hpp>
+#include <processes/Process.hpp>
 
 namespace handleManager {
 
@@ -83,6 +84,62 @@ void Element::destructData() {
     type = Type::INVALID;
 }
 
+HandleManager::HandleManager(const hos_v1::Process &handOver,
+              const vector<shared_ptr<Thread>> &allThreads,
+              const vector<shared_ptr<Port>> &allPorts,
+              const vector<shared_ptr<SharedMemory>> &allSharedMemories) {
+    uint32_t maxHandle = 0;
+    for (size_t index = 0; index < handOver.numHandles; index++) {
+        maxHandle = max(handOver.handles[index].handle, maxHandle);
+    }
+
+    elements.resize(maxHandle + 1);
+    for (size_t index = 0; index < handOver.numHandles; index++) {
+        hos_v1::Handle hosHandle = handOver.handles[index];
+        assert(hosHandle.type > static_cast<uint32_t>(Type::FREE));
+        assert(hosHandle.type < NUM_TYPES);
+        assert(hosHandle.handle != 0);
+        Type type = static_cast<Type>(hosHandle.type);
+
+        Element &element = elements[hosHandle.handle];
+        /* Elements become invalid type on contruction, make sure we don't try to use anything
+         * twice */
+        assert(element.type == Type::INVALID);
+
+        switch (type) {
+        case Type::PORT:
+            element = Element(allPorts[hosHandle.objectID]);
+            break;
+        case Type::REMOTE_PORT: {
+            weak_ptr<Port> weak = allPorts[hosHandle.objectID];
+            element = Element(weak);
+            break;
+        }
+        case Type::THREAD:
+        {
+            shared_ptr<Thread> thread = allThreads[hosHandle.objectID];
+            element = Element(thread);
+            thread->setHandle(hosHandle.handle);
+            break;
+        }
+        case Type::SHARED_MEMORY:
+            element = Element(allSharedMemories[hosHandle.objectID]);
+            break;
+        default:
+            /* Could never ever reach this */
+            Panic();
+        }
+    }
+
+    /* Convert remaining elements to FREE type */
+    nextFreeNumber = NUMBER_END;
+    for (size_t index = 1; index < elements.size(); index++) {
+        if (elements[index].type == Type::INVALID) {
+            elements[index] = Element(nextFreeNumber);
+            nextFreeNumber = index;
+        }
+    }
+}
 
 uint32_t HandleManager::grabFreeNumber() {
     /* should go out of kernel memory way before this happens */
@@ -245,5 +302,16 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
     handles.resize(0);
     nextFreeHandle = 0;
 }*/
+
+void HandleManager::insertAllProcessPointersAfterKernelHandover(const shared_ptr<Process> &process) {
+    for (Element &element: elements) {
+        if (element.type == Type::THREAD) {
+            element.data.thread->process = process;
+        } else if (element.type == Type::PORT) {
+            element.data.port->process = process;
+        }
+    }
+}
+
 
 }

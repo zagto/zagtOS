@@ -12,13 +12,13 @@ private:
     /* Messages can't use shared_ptrs because a processes run message is transferred in the Process
      * constructor. Since long-living Messages are hold by the Port, they won't affect destintion
      * Process lifetime and should not affect Source process lifetime anyways. */
-    Process *sourceProcess;
-    Process *destinationProcess;
-    const UserVirtualAddress sourceAddress;
+    Process *sourceProcess{nullptr};
+    Process *destinationProcess{nullptr};
+    UserVirtualAddress sourceAddress;
     MappedArea *messageArea{nullptr};
-    const UUID messageType;
-    const size_t numBytes;
-    const size_t numHandles;
+    UUID messageType;
+    size_t numBytes{0};
+    size_t numHandles{0};
     bool transferred{false};
 
     bool prepareMemoryArea();
@@ -32,6 +32,8 @@ private:
 public:
     static constexpr size_t HANDLE_SIZE{4};
 
+    UserVirtualAddress infoAddress;
+
     Message(Process *sourceProcess,
             Process *destinationProcess,
             UserVirtualAddress sourceAddress,
@@ -44,10 +46,11 @@ public:
         messageType{messageType},
         numBytes{numBytes},
         numHandles{numHandles} {}
+    Message(const hos_v1::Message &handOver) :
+        infoAddress{handOver.infoAddress} {}
 
     bool transfer();
     void setDestinationProcess(Process *process);
-    UserVirtualAddress infoAddress() const;
 };
 
 struct UserMessageInfo {

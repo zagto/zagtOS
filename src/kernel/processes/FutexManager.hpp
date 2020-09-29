@@ -28,6 +28,9 @@ private:
 public:
     mutex lock;
 
+    FutexManager(hos_v1::Futex *futexes,
+                 size_t numFutexes,
+                 const vector<shared_ptr<Thread>> &allThreads);
     FutexManager();
     ~FutexManager();
     FutexManager(FutexManager &) = delete;

@@ -45,9 +45,19 @@ bool Message::transfer() {
         goto fail;
     }
 
-    /* After transfer, the message object may last longer than the source Process. To ensure nobody
-     * tries to do something stupid with the pointer, erase it. */
+    /* After transfer, multiple fields are no longer needed. Clearing them helps us with 2 things:
+     * - The message object may last longer than the source Process, (or in theory messageArea if
+     *   destination munmaps it before receiving for some reason). We need to ensure nobody tries to
+     *   do something stupid with the pointers.
+     * - During kernel handover all messages are transferred completely, which means we can have a
+     *   much simpler handover interface by excluding these fields */
     sourceProcess = nullptr;
+    destinationProcess = nullptr;
+    sourceAddress = {};
+    messageArea = nullptr;
+    messageType = {0};
+    numBytes = 0;
+    numHandles = 0;
 
     transferred = true;
     return true;
@@ -74,6 +84,10 @@ bool Message::prepareMemoryArea() {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
         Panic();
     }
+
+    /* Holds the address of the message info (UserMessageInfo class) in the destination address
+     * space. */
+    infoAddress = messageArea->region.start;
     return true;
 }
 
@@ -87,7 +101,7 @@ void Message::transferMessageInfo() {
         true,
     };
 
-    destinationProcess->copyToUser(infoAddress().value(),
+    destinationProcess->copyToUser(infoAddress.value(),
                                    reinterpret_cast<uint8_t *>(&msgInfo),
                                    sizeof(UserMessageInfo),
                                    false);
@@ -153,7 +167,7 @@ size_t Message::simpleDataSize() const {
 /* Returns the address of the message itself (not message info) in the destination address space. */
 UserVirtualAddress Message::destinationAddress() const {
     /* Message follows directly after message info. */
-    return infoAddress().value() + sizeof(UserMessageInfo);
+    return infoAddress.value() + sizeof(UserMessageInfo);
 }
 
 /* Allow setting destination process later on because on SpawnProcess syscalls it does not exist at
@@ -163,8 +177,3 @@ void Message::setDestinationProcess(Process *const process) {
     destinationProcess = process;
 }
 
-/* Returns the address of the message info (UserMessageInfo class) in the destination address
- * space. */
-UserVirtualAddress Message::infoAddress() const {
-    return messageArea->region.start;
-}

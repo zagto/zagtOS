@@ -23,6 +23,7 @@ private:
     friend class MProtect;
     friend class MUnmap;
     friend class Message;
+    friend struct hos_v1::System;
     /* For returnToUserMode - TODO: review if there is a better design for this */
     //friend class Interrupts;
     MappedAreaVector mappedAreas;
@@ -42,6 +43,14 @@ public:
     PagingContext *pagingContext;
     FutexManager futexManager;
 
+    /* The handover constructor is the only constructor you should take the result of and put it
+     * into a shared pointer to pass it to the Threads. The other constructors do this by
+     * themselves. DO NEVER create a shared_ptr of their results to prevent shared_ptr
+     * duplication */
+    Process(const hos_v1::Process &handOver,
+            const vector<shared_ptr<Thread>> &allThreads,
+            const vector<shared_ptr<Port>> &allPorts,
+            const vector<shared_ptr<SharedMemory>> &allSharedMemories);
     Process(Process &sourceProcess,
             vector<SpawnProcessSection> &sections,
             optional<SpawnProcessSection> &TLSSection,

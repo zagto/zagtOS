@@ -5,9 +5,9 @@
 
 extern "C" int init_mparams(void);
 
-Memory::Memory(BootInfo *bootInfo) :
-        usedFrameStack{bootInfo->usedFrameStack},
-        freshFrameStack{bootInfo->freshFrameStack} {
+Memory::Memory(const hos_v1::System &handOver) :
+        usedFrameStack(handOver.usedFrameStack),
+        freshFrameStack(handOver.freshFrameStack) {
     init_mparams();
 }
 

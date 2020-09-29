@@ -42,6 +42,14 @@ MappedArea::MappedArea(Process *process, Region region) :
 }
 
 
+MappedArea::MappedArea(Process *process, const hos_v1::MappedArea &handOver) :
+        process{process},
+        physicalStart{handOver.physicalStart},
+        source{handOver.source},
+        region(handOver.start, handOver.length),
+        permissions{handOver.permissions} {}
+
+
 MappedArea::~MappedArea() {
     unmapRange(region);
 }
@@ -119,6 +127,15 @@ void MappedArea::changePermissions(Permissions newPermissions) {
         }
     }
     permissions = newPermissions;
+}
+
+
+MappedAreaVector::MappedAreaVector(Process *process, const hos_v1::Process &handOver) :
+        process{process} {
+    resize(handOver.numMappedAreas);
+    for (size_t index = 0; index < handOver.numMappedAreas; index++) {
+        _data[index] = new MappedArea(process, handOver.mappedAreas[index]);
+    }
 }
 
 

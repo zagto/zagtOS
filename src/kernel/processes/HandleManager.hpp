@@ -14,6 +14,7 @@ namespace handleManager {
 enum class Type : uint32_t {
     INVALID, FREE, PORT, REMOTE_PORT, THREAD, SHARED_MEMORY
 };
+static const uint32_t NUM_TYPES = 6;
 
 /* FUTEX_LOCK_PI wants to or a bit with a handle so make sure upmost bit is reserved */
 static const uint32_t NUMBER_END = 0x3fffffff;
@@ -54,6 +55,10 @@ private:
 
 public:
     HandleManager() {}
+    HandleManager(const hos_v1::Process &handOver,
+                  const vector<shared_ptr<Thread>> &allThreads,
+                  const vector<shared_ptr<Port>> &allPorts,
+                  const vector<shared_ptr<SharedMemory>> &allSharedMemories);
     HandleManager(HandleManager &) = delete;
 
     uint32_t addPort(shared_ptr<Port> &port);
@@ -67,6 +72,7 @@ public:
     bool transferHandles(vector<uint32_t> &elements,
                          HandleManager &destination);
     uint32_t numFreeHandles();
+    void insertAllProcessPointersAfterKernelHandover(const shared_ptr<Process> &process);
 };
 
 }

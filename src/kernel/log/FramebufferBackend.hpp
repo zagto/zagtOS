@@ -38,7 +38,7 @@ private:
     void flip();
 
 public:
-    void init(const BootInfo::FramebufferInfo *framebufferInfo);
+    void init(const hos_v1::FramebufferInfo &framebufferInfo);
     void write(char character);
     void setKernelColor();
     void setProgramNameColor();

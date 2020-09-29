@@ -7,13 +7,13 @@
 
 class System : public CommonSystem {
 private:
-    void setupSecondaryProcessorEntry(BootInfo *bootInfo);
+    void setupSecondaryProcessorEntry(const hos_v1::System &handOver);
 
 public:
     PhysicalAddress ACPIRoot;
     PhysicalAddress secondaryProcessorEntry;
 
-    System(BootInfo *bootInfo);
+    System(hos_v1::System handOver);
 };
 
 extern uint8_t SecondaryProcessorEntryCode;

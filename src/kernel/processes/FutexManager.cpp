@@ -111,6 +111,42 @@ FutexManager::FutexManager():
     numElements{0} {}
 
 
+FutexManager::FutexManager(hos_v1::Futex *futexes,
+                           size_t numFutexes,
+                           const vector<shared_ptr<Thread>> &allThreads) {
+    numBits = MIN_BITS;
+    while (numFutexes >= numAllocated() / 2) {
+        numBits++;
+    }
+    data.resize(numAllocated());
+
+    for (size_t sourceIndex = 0; sourceIndex < numFutexes; sourceIndex++) {
+        const hos_v1::Futex &handOver = futexes[sourceIndex];
+
+        uint32_t hash = getHash(handOver.address);
+        size_t index = reduceHash(hash);
+
+        while (data[index].active) {
+            assert(data[index].address != handOver.address);
+        }
+
+        Futex &element = data[index];
+        assert(element.threads.empty());
+        assert(handOver.numWaitingThreads > 0);
+        for (size_t index = 0; index < handOver.numWaitingThreads; index++) {
+            size_t threadIndex = handOver.waitingThreadIDs[index];
+            element.threads.push_back(allThreads[threadIndex].get());
+            allThreads[threadIndex]->setState(Thread::State::Futex(this, handOver.address));
+        }
+
+        element.active = true;
+        element.address = handOver.address;
+        element.hash = hash;
+        numElements++;
+    }
+}
+
+
 FutexManager::~FutexManager() {
     assert(!lock.isLocked());
 

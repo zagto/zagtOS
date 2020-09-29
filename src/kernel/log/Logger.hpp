@@ -2,12 +2,13 @@
 
 #include <common/inttypes.hpp>
 #include <interrupts/RegisterState.hpp>
+#include <setup/HandOverState.hpp>
 
 struct BootInfo;
 
 class Logger {
 public:
-    void init(const BootInfo *bootInfo);
+    void init(const hos_v1::FramebufferInfo &handOver);
     void flush();
     void setKernelColor();
     void setProgramNameColor();

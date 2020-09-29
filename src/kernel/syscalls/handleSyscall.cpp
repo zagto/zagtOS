@@ -124,7 +124,7 @@ bool Thread::handleSyscall() {
 
         unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(this);
         if (msg) {
-            registerState.setSyscallResult(msg->infoAddress().value());
+            registerState.setSyscallResult(msg->infoAddress.value());
         }
         return true;
     }

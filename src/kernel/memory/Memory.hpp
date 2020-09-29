@@ -1,8 +1,6 @@
-#ifndef MEMORY_HPP
-#define MEMORY_HPP
-
+#pragma once
 #include <memory/FrameStack.hpp>
-#include <setup/BootInfo.hpp>
+#include <setup/HandOverState.hpp>
 #include <memory/PlatformRegions.hpp>
 #include <mutex>
 
@@ -20,7 +18,7 @@ public: /* TODO: make private */
     void recyclePhysicalFrame();
 
 public:
-    Memory(BootInfo *bootInfo);
+    Memory(const hos_v1::System &handOver);
 
     PhysicalAddress allocatePhysicalFrame();
     void freePhysicalFrame(PhysicalAddress address);
@@ -33,5 +31,3 @@ public:
 
     KernelVirtualAddress resizeHeapArea(ssize_t change);
 };
-
-#endif // MEMORY_HPP

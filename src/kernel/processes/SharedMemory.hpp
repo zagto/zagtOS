@@ -12,5 +12,10 @@ struct SharedMemory {
         source{source},
         physicalAddress{physicalAddress},
         length{length} {}
+
+    SharedMemory(const hos_v1::SharedMemory &handOver):
+        source{static_cast<MappedArea::Source>(handOver.source)},
+        physicalAddress{handOver.physicalStart},
+        length{handOver.length} {}
 };
 

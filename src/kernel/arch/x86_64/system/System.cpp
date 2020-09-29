@@ -2,12 +2,12 @@
 #include <system/System.hpp>
 
 
-void System::setupSecondaryProcessorEntry(BootInfo *bootInfo) {
+void System::setupSecondaryProcessorEntry(const hos_v1::System &handOver) {
     size_t length = static_cast<size_t>(&SecondaryProcessorEntryCodeEnd
                                         - &SecondaryProcessorEntryCode);
     size_t mptOffset = static_cast<size_t>(&SecondaryProcessorEntryMasterPageTable
                                            - &SecondaryProcessorEntryCode);
-    size_t mptAddress = bootInfo->masterPageTable.value();
+    size_t mptAddress = handOver.handOverPagingContext.value();
     size_t entryCodeAddress = secondaryProcessorEntry.value();
 
     assert(mptAddress < 0x100000000);
@@ -30,9 +30,9 @@ void System::setupSecondaryProcessorEntry(BootInfo *bootInfo) {
 }
 
 
-System::System(BootInfo *bootInfo) :
-        CommonSystem(bootInfo),
-        ACPIRoot{bootInfo->ACPIRoot},
-        secondaryProcessorEntry{bootInfo->secondaryProcessorEntry} {
-    setupSecondaryProcessorEntry(bootInfo);
+System::System(hos_v1::System handOver) :
+        CommonSystem(handOver),
+        ACPIRoot{handOver.ACPIRoot},
+        secondaryProcessorEntry{handOver.secondaryProcessorEntry} {
+    setupSecondaryProcessorEntry(handOver);
 }

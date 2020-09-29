@@ -4,16 +4,14 @@
 
 #ifdef __cplusplus
 #include <common/addresses.hpp>
+#include <setup/HandOverState.hpp>
 
 enum class AlignDirection {
     DOWN,
     UP
 };
 
-enum class Permissions {
-    READ_WRITE = 1, READ_EXECUTE = 2, READ_WRITE_EXECUTE = 3, READ = 4, INVALID = 5
-};
-
+using Permissions = hos_v1::Permissions;
 
 /* move implementation
  * https://stackoverflow.com/questions/53604753/how-does-one-force-a-c-move-operator-without-
