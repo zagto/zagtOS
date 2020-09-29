@@ -5,6 +5,7 @@
 #include <processes/Port.hpp>
 #include <processes/Process.hpp>
 #include <processes/MappedArea.hpp>
+#include <processes/Scheduler.hpp>
 
 void hos_v1::System::decodeProcesses() {
     vector<shared_ptr<::Thread>> allThreads(numThreads);
@@ -37,7 +38,9 @@ void hos_v1::System::decodeProcesses() {
         process->handleManager.insertAllProcessPointersAfterKernelHandover(process);
     }
 
-    /* Sanity check that all our elements are now referenced somewhere */
-    // schedule threads
-    // idle thread handling
+    /* TODO: Sanity check that all our elements are now referenced somewhere */
+
+    for (const shared_ptr<::Thread> &thread: allThreads) {
+        Scheduler::schedule(thread.get());
+    }
 }

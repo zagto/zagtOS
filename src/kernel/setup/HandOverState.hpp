@@ -103,6 +103,9 @@ struct System {
 
     size_t numProcesses;
     Process *processes;
+    /* This list should not include the idle Threads. These are re-created when the new scheduler
+     * objects are created. Their code is part of kernel code so their state would be invalid after
+     * kernel handover! */
     size_t numThreads;
     Thread *threads;
     size_t numPorts;
