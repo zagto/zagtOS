@@ -47,7 +47,6 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
     ProgramBinary program;
     zbon::decode(binary.data(), program);
 
-    size_t numSections = program.sections.size();
     std::vector<SpawnProcessSection> sections(program.sections.begin(), program.sections.end());
 
     SpawnProcessArgs args = {
