@@ -5,7 +5,6 @@
 #include <memory>
 #include <utility>
 #include <paging/PagingContext.hpp>
-#include <processes/ELF.hpp>
 #include <processes/Thread.hpp>
 #include <processes/MappedArea.hpp>
 #include <paging/PageTableEntry.hpp>

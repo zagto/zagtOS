@@ -1,5 +1,4 @@
 #include <common/common.hpp>
-#include <setup/BootInfo.hpp>
 #include <log/SerialBackend.hpp>
 #include <log/FramebufferBackend.hpp>
 #include <system/System.hpp>

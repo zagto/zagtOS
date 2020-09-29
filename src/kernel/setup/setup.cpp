@@ -3,7 +3,6 @@
 #include <system/System.hpp>
 #include <vector>
 #include <processes/Process.hpp>
-#include <processes/ELF.hpp>
 
 
 extern "C" void _init();

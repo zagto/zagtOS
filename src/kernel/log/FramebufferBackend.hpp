@@ -1,6 +1,6 @@
 #pragma once
 
-#include <setup/BootInfo.hpp>
+#include <setup/HandOverState.hpp>
 
 enum class FramebufferFormat {
     RGB = 1,
