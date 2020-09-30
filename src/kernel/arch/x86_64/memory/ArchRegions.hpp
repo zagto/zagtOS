@@ -1,13 +1,10 @@
-#ifndef PLATFORM_REGIONS_HPP
-#define PLATFORM_REGIONS_HPP
-
 #include <common/Region.hpp>
 
 static constexpr size_t USER_STACK_SIZE = 2 * 1024 * 1024;
 static constexpr size_t USER_STACK_BORDER = 0x1000 * 10;
 static constexpr size_t RED_ZONE_SIZE = 128;
 
-extern "C" char _kernelHeapStart;
+static constexpr size_t KERNEL_STATIC_DATA_SIZE = PAGE_SIZE;
 
 static constexpr Region KernelImageRegion(
     0xffff800000000000,
@@ -19,10 +16,10 @@ static constexpr Region FramebufferRegion(
 );
 static const Region KernelStaticDataRegion(
     0xffffa00000000000,
-    reinterpret_cast<size_t>(&_kernelHeapStart) - 0xffffa00000000000
+    KERNEL_STATIC_DATA_SIZE
 );
 static const Region KernelHeapRegion(
-    reinterpret_cast<size_t>(&_kernelHeapStart),
+    KernelStaticDataRegion.start + KernelStaticDataRegion.length,
     0x0000080000000000
 );
 static constexpr Region UserSpaceRegion(
@@ -60,5 +57,3 @@ static const Region AllRegions[]{
 };
 
 static constexpr Region LoaderRegion = UserSpaceRegion;
-
-#endif // PLATFORM_REGIONS_HPP
