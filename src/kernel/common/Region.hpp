@@ -1,5 +1,4 @@
-#ifndef REGION_HPP
-#define REGION_HPP
+#pragma once
 
 #include <common/inttypes.hpp>
 #include <common/panic.hpp>
@@ -24,5 +23,3 @@ public:
         return !(start % PAGE_SIZE || length % PAGE_SIZE);
     }
 };
-
-#endif // REGION_HPP

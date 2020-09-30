@@ -1,6 +1,6 @@
 #include <paging/PagingContext.hpp>
 #include <system/System.hpp>
-#include <memory/PlatformRegions.hpp>
+#include <memory/ArchRegions.hpp>
 #include <processes/Process.hpp>
 #include <processes/MappedArea.hpp>
 #include <processes/Port.hpp>

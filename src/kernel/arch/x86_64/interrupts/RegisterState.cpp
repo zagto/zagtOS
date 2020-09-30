@@ -1,6 +1,6 @@
 #include <common/common.hpp>
 #include <interrupts/RegisterState.hpp>
-#include <memory/PlatformRegions.hpp>
+#include <memory/ArchRegions.hpp>
 
 
 RegisterState::RegisterState(VirtualAddress entry,

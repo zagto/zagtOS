@@ -2,7 +2,7 @@
 #define ADDRESSES_HPP
 
 #include <common/inttypes.hpp>
-#include <memory/PlatformRegions.hpp>
+#include <memory/ArchRegions.hpp>
 
 class Address {
 private:

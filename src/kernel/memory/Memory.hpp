@@ -1,7 +1,7 @@
 #pragma once
 #include <memory/FrameStack.hpp>
 #include <setup/HandOverState.hpp>
-#include <memory/PlatformRegions.hpp>
+#include <memory/ArchRegions.hpp>
 #include <mutex>
 
 class Memory

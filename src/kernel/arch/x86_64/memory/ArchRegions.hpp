@@ -1,3 +1,4 @@
+#pragma once
 #include <common/Region.hpp>
 
 static constexpr size_t USER_STACK_SIZE = 2 * 1024 * 1024;

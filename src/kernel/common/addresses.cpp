@@ -1,6 +1,6 @@
 #include <common/common.hpp>
 #include <paging/PagingContext.hpp>
-#include <memory/PlatformRegions.hpp>
+#include <memory/ArchRegions.hpp>
 
 
 bool Address::isPageAligned() {
