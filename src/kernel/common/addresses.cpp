@@ -1,5 +1,5 @@
-#include <common/common.hpp>
-#include <paging/PagingContext.hpp>
+#include <common/addresses.hpp>
+#include <log/Logger.hpp>
 #include <memory/ArchRegions.hpp>
 
 
@@ -11,12 +11,11 @@ size_t Address::value() const {
     return _value;
 }
 
-
 PhysicalAddress PhysicalAddress::fromIdentitdyMappedPointer(void *ptr) {
     size_t value = reinterpret_cast<size_t>(ptr);
     assert(VirtualAddress::checkInRegion(IdentityMapping, value));
 
-    return PhysicalAddress(value - IdentityMapping.start);
+    return {value - IdentityMapping.start};
 }
 
 VirtualAddress::VirtualAddress(size_t value) : Address(value) {

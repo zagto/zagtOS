@@ -17,7 +17,7 @@ void KernelEntrySecondaryProcessor2(hos_v1::System *handOver);
 extern "C" __attribute__((noreturn)) void KernelEntry(hos_v1::System *handOver) {
     CurrentProcessor = nullptr;
 
-    // Call global constructors
+    /* Call global constructors */
     _init();
 
     cout.init(handOver->framebufferInfo);

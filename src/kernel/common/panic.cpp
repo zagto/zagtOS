@@ -1,5 +1,5 @@
-#include <common/common.hpp>
-
+#include <common/panic.hpp>
+#include <log/Logger.hpp>
 
 __attribute__((noreturn)) void Halt() {
     basicHalt();

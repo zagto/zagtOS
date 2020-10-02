@@ -17,6 +17,10 @@ enum ThreadPriority : uint32_t {
     IDLE, BACKGROUND, FOREGROUND, INTERACTIVE_FOREGROUND,
 };
 
+enum FramebufferFormat : uint32_t {
+    RGB = 1, BGR = 2
+};
+
 struct MappedArea {
     size_t type;
     size_t physicalStart;

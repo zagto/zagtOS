@@ -1,9 +1,7 @@
 #include <common/common.hpp>
-#include <system/CommonSystem.hpp>
 #include <paging/PagingContext.hpp>
 #include <system/System.hpp>
 #include <processes/Process.hpp>
-
 
 
 extern "C" void basicInvalidate(VirtualAddress address);
@@ -53,7 +51,7 @@ PageTableEntry *PagingContext::walkEntries(VirtualAddress address, MissingStrate
 
 
 PagingContext::PagingContext(Process *process) :
-        PagingContext(process, CurrentSystem.memory.allocatePhysicalFrame()) {
+    PagingContext(process, CurrentSystem.memory.allocatePhysicalFrame()) {
 
     assert(this != CurrentProcessor->activePagingContext);
 

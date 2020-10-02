@@ -1,10 +1,10 @@
 .PHONY: clean install
 
-CXX_SOURCES = $(shell find . -type f -name '*.cpp' -not -path './arch/*')
-CXX_HEADERS = $(shell find . -type f -name '*.hpp' -not -path './arch/*')
-CXX_SOURCES += $(shell find arch/$(ARCH) -type f -name '*.cpp')
-CXX_HEADERS += $(shell find arch/$(ARCH) -type f -name '*.hpp')
-CXX_HEADERS += $(shell find stdlib -type f)
+CXX_SOURCES = $(shell find -L . -type f -name '*.cpp' -follow -not -path './arch/*')
+CXX_HEADERS = $(shell find -L . -type f -name '*.hpp' -follow -not -path './arch/*')
+CXX_SOURCES += $(shell find -L arch/$(ARCH) -type f -name '*.cpp' -follow)
+CXX_HEADERS += $(shell find -L arch/$(ARCH) -type f -name '*.hpp' -follow)
+CXX_HEADERS += $(shell find stdlib -type f -follow)
 CXX_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(CXX_SOURCES:.cpp=.o))
 
 C_SOURCES = memory/dlmalloc.c
@@ -16,7 +16,7 @@ CRTI_OBJ = $(SHBUILD_BUILD_DIR)/arch/$(ARCH)/lib/crt/crti.o
 CRTN_OBJ = $(SHBUILD_BUILD_DIR)/arch/$(ARCH)/lib/crt/crtn.o
 ASM_REGULER_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJS)))
 
-TARGET = $(SHBUILD_BUILD_DIR)/SHKERNEL.BIN
+TARGET = $(SHBUILD_BUILD_DIR)/ZAGTKERN.ZBN
 
 
 COMMON_FLAGS = -O0 -g -fsanitize=undefined -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/stdlib
@@ -30,13 +30,16 @@ LDFLAGS = -O2 -ffreestanding -nostdlib -static -L$(PWD)/arch/$(ARCH)/lib/crt -z 
 
 CXX = $(ARCH)-elf-g++
 CC = $(ARCH)-elf-gcc
+CONVERTELF = $(SHBUILD_ROOT)/build/ConvertELF/ConvertELF
 
 
 CRTBEGIN_OBJ:=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtbegin.o)
 CRTEND_OBJ:=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtend.o)
 
+$(TARGET): $(SHBUILD_BUILD_DIR)/kernel.elf
+	$(CONVERTELF) $< $@
 
-$(TARGET): $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS)
+$(SHBUILD_BUILD_DIR)/kernel.elf: $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $(CRTBEGIN_OBJ) $(CRTI_OBJ) $(C_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(CRTEND_OBJ) $(CRTN_OBJ)
 
 $(SHBUILD_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)

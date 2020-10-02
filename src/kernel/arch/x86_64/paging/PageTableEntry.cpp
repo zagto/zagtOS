@@ -1,7 +1,6 @@
 #include <common/common.hpp>
 #include <paging/PageTableEntry.hpp>
 #include <paging/PageTable.hpp>
-#include <system/CommonSystem.hpp>
 
 
 PageTableEntry::PageTableEntry() {

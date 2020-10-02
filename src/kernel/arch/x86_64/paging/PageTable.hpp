@@ -1,6 +1,4 @@
-#ifndef PAGETABLE_HPP
-#define PAGETABLE_HPP
-
+#pragma once
 #include <common/common.hpp>
 #include <paging/PageTableEntry.hpp>
 
@@ -21,4 +19,3 @@ public:
     void unmapEverything(size_t level);
 };
 
-#endif // PAGETABLE_HPP

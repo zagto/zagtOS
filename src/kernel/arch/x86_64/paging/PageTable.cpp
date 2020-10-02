@@ -1,7 +1,7 @@
 #include <common/common.hpp>
 #include <paging/PageTable.hpp>
 #include <paging/PagingContext.hpp>
-#include <system/CommonSystem.hpp>
+#include <system/System.hpp>
 
 
 size_t PageTable::indexFor(VirtualAddress address, size_t level) {
@@ -26,7 +26,7 @@ void PageTable::unmapEverything(size_t level) {
             if (level > 0) {
                 entry.addressValue().identityMapped().asPointer<PageTable>()->unmapEverything(level - 1);
             }
-            //CurrentSystem.memory.freePhysicalFrame(entry.addressValue());
+            CurrentSystem.memory.freePhysicalFrame(entry.addressValue());
         }
     }
 }

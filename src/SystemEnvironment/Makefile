@@ -18,7 +18,7 @@ ASM_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(ASM_SOURCES:.asm=.o))
 EMBEDDED_BINARIES = $(SHBUILD_ROOT)/build/ACPIHAL/ACPIHAL $(SHBUILD_ROOT)/build/PCIController/PCIController $(SHBUILD_ROOT)/build/AHCIDriver/AHCIDriver
 BINARY_OBJS = $(SHBUILD_BUILD_DIR)/binaries.o
 
-TARGET = $(SHBUILD_BUILD_DIR)/SystemEnvironment
+TARGET = $(SHBUILD_BUILD_DIR)/SYSENV.ZBN
 
 
 COMMON_FLAGS = -Os -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
@@ -34,7 +34,11 @@ CC = $(ARCH)-zagto-zagtos-gcc
 LD = $(ARCH)-zagto-zagtos-ld
 CONVERTELF = $(SHBUILD_ROOT)/build/ConvertELF/ConvertELF
 
-$(TARGET): $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(BINARY_OBJS)
+
+$(TARGET): $(SHBUILD_BUILD_DIR)/SystemEnvironment.elf
+	$(CONVERTELF) $< $@
+
+$(SHBUILD_BUILD_DIR)/SystemEnvironment.elf: $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(BINARY_OBJS)
 	mkdir -p $(dir $@)
 	$(CXX) $(LDFLAGS) -o $@ $^ -lzagtos++
 

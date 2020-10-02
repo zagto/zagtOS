@@ -1,5 +1,4 @@
-#ifndef ADDRESSES_HPP
-#define ADDRESSES_HPP
+#pragma once
 
 #include <common/inttypes.hpp>
 #include <memory/ArchRegions.hpp>
@@ -92,5 +91,3 @@ public:
         return UserVirtualAddress(value() - static_cast<size_t>(offset));
     }
 };
-
-#endif

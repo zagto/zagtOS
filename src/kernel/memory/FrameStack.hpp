@@ -1,11 +1,11 @@
 #pragma once
 
-#include <common/common.hpp>
+#include <common/inttypes.hpp>
+#include <common/addresses.hpp>
 #include <setup/HandOverState.hpp>
 
 namespace frameStack {
-    class Node {
-    public:
+    struct Node {
         static const size_t NUM_ENTRIES{PAGE_SIZE / sizeof(PhysicalAddress) - 1};
 
         Node *next;
@@ -14,15 +14,16 @@ namespace frameStack {
         Node(Node *nextNode) : next{nextNode} {}
     };
 
-    class FrameStack {
-    private:
+    struct FrameStack {
         Node *head;
         size_t addIndex;
 
-    public:
         FrameStack(const hos_v1::FrameStack &handOver) :
             head{reinterpret_cast<Node *>(handOver.head)},
             addIndex{handOver.addIndex} {}
+        FrameStack(Node *head, size_t addIndex) :
+            head{head},
+            addIndex{addIndex} {}
 
         ~FrameStack() {
             // Can't destruct the frame stack
@@ -32,12 +33,6 @@ namespace frameStack {
         bool isEmpty();
         PhysicalAddress pop();
         void push(PhysicalAddress address);
-        void print(){
-            cout << "this: " << this << "\n";
-            cout << "head: " << head << "\n";
-            cout << "addIndex: " << addIndex << "\n";
-
-        }
     };
 }
 

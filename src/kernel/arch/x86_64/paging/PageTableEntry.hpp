@@ -1,6 +1,4 @@
-#ifndef PAGETABLEENTRY_HPP
-#define PAGETABLEENTRY_HPP
-
+#pragma once
 #include <common/common.hpp>
 
 class PageTable;
@@ -35,4 +33,3 @@ public:
     void setPermissions(Permissions newPermissions);
 };
 
-#endif // PAGETABLEENTRY_HPP

@@ -1,22 +1,32 @@
+#ifndef ZAGTOS_LOADER
 #include <system/System.hpp>
+#endif
 #include <memory/FrameStack.hpp>
-#include <paging/PagingContext.hpp>
 
 
 bool FrameStack::isEmpty() {
+#ifndef ZAGTOS_LOADER
     assert(CurrentSystem.memory.frameManagementLock.isLocked());
+#endif
     return head->next == nullptr && addIndex == 0;
 }
 
 
 void FrameStack::push(PhysicalAddress address) {
+#ifndef ZAGTOS_LOADER
     assert(CurrentSystem.memory.frameManagementLock.isLocked());
+#endif
 
     if (addIndex == Node::NUM_ENTRIES) {
         Node *oldHead = head;
 
-        // re-use frame for new node instead of freeing it
+        /* re-use frame for new node instead of freeing it */
+#ifdef ZAGTOS_LOADER
+        head = reinterpret_cast<Node *>(address.value());
+        head->next = oldHead;
+#else
         head = new (address.identityMapped()) Node(oldHead);
+#endif
         addIndex = 0;
     } else {
         head->entries[addIndex] = address;
@@ -26,10 +36,9 @@ void FrameStack::push(PhysicalAddress address) {
 
 
 PhysicalAddress FrameStack::pop() {
+#ifndef ZAGTOS_LOADER
     assert(CurrentSystem.memory.frameManagementLock.isLocked());
-
-    // other CPUs might have remapped the head page
-    PagingContext::invalidateLocally(KernelVirtualAddress(head));
+#endif
 
     if (isEmpty()) {
         Panic();
@@ -44,7 +53,11 @@ PhysicalAddress FrameStack::pop() {
         addIndex = Node::NUM_ENTRIES;
 
         /* re-use old head node frame as result */
+#ifdef ZAGTOS_LOADER
+        return {reinterpret_cast<size_t>(oldHead)};
+#else
         return PhysicalAddress::fromIdentitdyMappedPointer(oldHead);
+#endif
     } else {
         addIndex--;
         PhysicalAddress result = head->entries[addIndex];

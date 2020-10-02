@@ -131,7 +131,7 @@ int main() {
             }
 
             if (uuid_compare(std::get<0>(msg), CONTROLLER_TYPE_PCI) == 0) {
-                new std::thread(ControllerServer, PCIController, std::move(std::get<1>(msg)), PCI);
+                //new std::thread(ControllerServer, PCIController, std::move(std::get<1>(msg)), PCI);
             } else {
                 std::cout << "Received MSG_START_CONTROLLER message for unsupported controller "
                           << "type." << std::endl;

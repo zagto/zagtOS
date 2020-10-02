@@ -27,3 +27,4 @@ public:
 
 extern Logger cout;
 static const char endl = '\n';
+

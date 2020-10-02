@@ -1,13 +1,20 @@
 .PHONY: clean install
 
-ARCH = x86_64
+CXX_SOURCES = $(shell find -L . -type f -name '*.cpp' -not -path './arch/*')
+CXX_HEADERS = $(shell find -L . -type f -name '*.hpp' -not -path './arch/*')
+CXX_SOURCES += $(shell find -L arch/$(ARCH) -type f -name '*.cpp')
+CXX_HEADERS += $(shell find -L arch/$(ARCH) -type f -name '*.hpp')
+CXX_HEADERS += $(shell find -L stdlib -type f)
+CXX_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(CXX_SOURCES:.cpp=.o))
 
-C_SOURCES = $(shell find . -type f -name '*.c')
-C_HEADERS = $(shell find . -type f -name '*.h')
-C_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(C_SOURCES:.c=.o))
-
-ASM_SOURCES = $(shell find . -type f -name '*.asm')
+ASM_SOURCES = $(shell find -L arch/$(ARCH) -type f -name '*.asm')
 ASM_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(ASM_SOURCES:.asm=.o))
+CRTI_OBJ = $(SHBUILD_BUILD_DIR)/arch/$(ARCH)/lib/crt/crti.o
+CRTN_OBJ = $(SHBUILD_BUILD_DIR)/arch/$(ARCH)/lib/crt/crtn.o
+ASM_REGULER_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJS)))
+
+TARGET = $(SHBUILD_BUILD_DIR)/BOOTX64.EFI
+
 
 SOFILE = $(SHBUILD_BUILD_DIR)/loader.so
 EFIFILE = $(SHBUILD_BUILD_DIR)/BOOTX64.EFI
@@ -18,30 +25,36 @@ EFI_LIB_BASE = /usr/lib64
 EFI_CRT_OBJS = $(EFI_LIB_BASE)/crt0-efi-$(ARCH).o
 EFI_LDS = $(EFI_LIB_BASE)/elf_$(ARCH)_efi.lds
 
-CFLAGS = $(EFI_INCLUDES) -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -Wextra -Werror -I$(PWD)
+CXX = $(ARCH)-elf-g++
+LD = $(ARCH)-elf-ld
+
+CXXFLAGS = $(EFI_INCLUDES) -Os -ffreestanding -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -Wextra -Werror -I$(PWD) -I$(PWD)/stdlib -I$(PWD)/arch/$(ARCH) -I$(PWD)/platform/efi -DZAGTOS_LOADER
 ifeq ($(ARCH),x86_64)
-    CFLAGS += -DEFI_FUNCTION_WRAPPER
+    CXXFLAGS += -DEFI_FUNCTION_WRAPPER
 endif
 
-LDFLAGS = -nostdlib -znocombreloc -T $(EFI_LDS) -shared -Bsymbolic -L $(EFI_LIB_BASE) $(EFI_CRT_OBJS)
+LDFLAGS = -Os -ffreestanding  -nostdlib -znocombreloc -T $(EFI_LDS) -shared -Bsymbolic -L $(EFI_LIB_BASE) $(EFI_CRT_OBJS)
 
-OBJCOPY_SECTIONS = -j .text -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel -j .rela -j .reloc
+OBJCOPY_SECTIONS = -j .text -j .init -j .fini -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel -j .rela -j .reloc
 
 
 $(EFIFILE): $(SOFILE)
 	objcopy $(OBJCOPY_SECTIONS) --target=efi-app-$(ARCH) $^ $@
 
-$(SOFILE): $(C_OBJS) $(ASM_OBJS)
-	ld $(LDFLAGS) $^ -o $@ -lefi -lgnuefi
+$(SOFILE): $(CXX_OBJS) $(ASM_OBJS)
+	mkdir -p $(dir $@)
+	$(LD) $(LDFLAGS) -o $@ $(CRTBEGIN_OBJ) $(CRTI_OBJ) $(C_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(CRTEND_OBJ) $(CRTN_OBJ) -lefi -lgnuefi
 
 $(SHBUILD_BUILD_DIR)/%.o: %.asm
+	mkdir -p $(dir $@)
 	nasm -f elf64 -o $@ $^
 
-$(SHBUILD_BUILD_DIR)/%.o: %.c $(C_HEADERS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+$(SHBUILD_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
+	mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(C_OBJS) $(ASM_OBJS) $(EFIFILE) $(SOFILE)
+	rm -f $(CXX_OBJS) $(ASM_OBJS) $(EFIFILE) $(SOFILE)
 
 install:
 	# do nothing
