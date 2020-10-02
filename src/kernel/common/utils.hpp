@@ -87,23 +87,4 @@ template <typename T> T random() {
 
 void *operator new(size_t, KernelVirtualAddress address);
 
-template<typename T1, typename T2> bool arrayCompare(T1 &a, T2 &b, size_t length) {
-    for (size_t index = 0; index < length; index++) {
-        if (a[index] != b[index]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-template<typename T1, typename T2> void arrayCopy(T1 destination,
-                                                  T2 source,
-                                                  size_t length,
-                                                  size_t destinationOffset = 0,
-                                                  size_t sourceOffset = 0) {
-    for (size_t index = 0; index < length; index++) {
-        destination[index + destinationOffset] = source[index + sourceOffset];
-    }
-}
-
 #endif // __cplusplus
