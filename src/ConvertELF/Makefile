@@ -15,7 +15,7 @@ ASM_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(ASM_SOURCES:.asm=.o))
 TARGET = $(SHBUILD_BUILD_DIR)/ConvertELF
 
 
-COMMON_FLAGS = -O2 -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
+COMMON_FLAGS = -O2 -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD) -DZAGTOS_ARCH_$(ARCH)=1
 
 CFLAGS = $(COMMON_FLAGS) -std=c18
 CXXFLAGS = $(COMMON_FLAGS) -std=c++2a

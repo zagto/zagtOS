@@ -6,7 +6,11 @@ __attribute__((noreturn)) void Halt() {
 }
 
 __attribute__((noreturn)) void Panic() {
+#ifdef ZAGTOS_LOADER
+    cout << "Loader Panic. System will Halt";
+#else
     cout << "Kernel Panic. System will Halt";
+#endif
     Halt();
 }
 

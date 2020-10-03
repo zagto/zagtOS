@@ -160,5 +160,12 @@ void Decoder::decodeBinary(uint8_t *buffer, size_t length) {
     position += length;
 }
 
+uint64_t Decoder::getBinaryLength() {
+    decodeVerifyType(Type::BINARY);
+    uint64_t encodedLength;
+    decodeNumber(encodedLength, position);
+    position -= TYPE_SIZE + COUNT_SIZE;
+    return encodedLength;
+}
 
 }

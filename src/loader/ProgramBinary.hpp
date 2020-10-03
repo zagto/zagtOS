@@ -1,47 +1,30 @@
-#ifndef ELF_H
-#define ELF_H
+#pragma once
 
-#include <efi.h>
+#include <setup/HandOverState.hpp>
+#include <Paging.hpp>
 
-struct ElfFileHeader {
-    UINT8 identification[16];
-    UINT16 type;
-    UINT16 machine;
-    UINT32 version;
-    UINT64 entry;
-    UINT64 programHeaderOffset;
-    UINT64 sectionHeaderOffset;
-    UINT32 flags;
-    UINT16 elfHeaderSize;
-    UINT16 programHeaderEntrySize;
-    UINT16 numProgramHeaderEntries;
-    UINT16 sectionHeaderEntrySize;
-    UINT16 numSectionHeaders;
-    UINT16 sectionNameStringTableIndex;
+class ProgramBinary {
+private:
+    uint8_t *data;
+
+    size_t readSize(size_t offset) const;
+    size_t TLSOffset() const;
+    size_t sectionsArrayOffset() const;
+    size_t numSections() const;
+    size_t sectionOffset(size_t index) const;
+    size_t sectionAddress(size_t sectionOffset) const;
+    size_t sectionSizeInMemory(size_t sectionOffset) const;
+    size_t sectionFlags(size_t sectionOffset) const;
+    size_t sectionDataSize(size_t sectionOffset) const;
+    size_t sectionDataOffset(size_t sectionOffset) const;
+    Region sectionRegion(size_t sectionOffset) const;
+    void sanityCheckSection(size_t offset) const;
+    void sanityChecks() const;
+
+public:
+    ProgramBinary(void *pointer);
+
+    bool hasTLS() const;
+    size_t entryAddress() const;
+    void load(PagingContext pagingContext) const;
 };
-
-struct ElfProgramHeaderEntry {
-    UINT32 type;
-    UINT32 flags;
-    UINT64 offsetInFile;
-    UINT64 virtualAddress;
-    UINT64 reserved;
-    UINT64 sizeInFile;
-    UINT64 sizeInMemory;
-    UINT64 alignment;
-};
-
-struct LoadedElfKernel {
-    UINTN minAddress;
-    UINTN maxAddress;
-    UINTN entry;
-};
-
-#define ELF_TYPE_LOAD 1
-#define ELF_EXECUTABLE 0x1
-#define ELF_WRITEABLE  0x2
-#define ELF_READABLE   0x4
-
-UINTN LoadElfKernel(const struct ElfFileHeader *file);
-
-#endif // ELF_H

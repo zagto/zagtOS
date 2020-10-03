@@ -82,6 +82,12 @@ template<typename T>
 static Type typeFor(const std::vector<T> &) {
     return Type::OBJECT;
 }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+static Type typeFor(const std::vector<uint8_t> &) {
+    return Type::BINARY;
+}
+#pragma GCC diagnostic pop
 template<typename T, size_t count>
 static Type typeFor(const std::array<T, count> &) {
     return Type::OBJECT;
@@ -147,6 +153,7 @@ template<typename ...Types>
 static Size sizeFor(const std::tuple<Types...> &tuple);
 template<typename T>
 static Size sizeFor(const std::optional<T> &option);
+static Size sizeForBinary(size_t length);
 
 template<typename T>
 static Size sizeFor(const std::vector<T> &vector) {
@@ -156,6 +163,12 @@ static Size sizeFor(const std::vector<T> &vector) {
     }
     return sum;
 }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+static Size sizeFor(const std::vector<uint8_t> &vector) {
+    return sizeForBinary(vector.size());
+}
+#pragma GCC diagnostic pop
 template<typename T, size_t count>
 static Size sizeFor(const std::array<T, count> &array) {
     Size sum = {HEADER_SIZE};
@@ -369,6 +382,9 @@ public:
     template<typename T>
     void encodeValue(const std::vector<T> &vector) {
         encodeArray(vector, vector.size());
+    }
+    void encodeValue(const std::vector<uint8_t> &vector) {
+        encodeBinary(vector.data(), vector.size());
     }
     template<typename T, size_t count>
     void encodeValue(const std::array<T, count> &array) {
@@ -756,6 +772,11 @@ public:
             throw DecoderException();
         }
     }
+    void decodeValue(std::vector<uint8_t> &result) {
+        size_t length = getBinaryLength();
+        result.resize(length);
+        decodeBinary(result.data(), result.size());
+    }
     void decodeValue(std::string &result) {
         decodeVerifyType(Type::STRING);
         uint64_t numElements;
@@ -790,6 +811,7 @@ public:
     }
 
     void decodeBinary(uint8_t *buffer, size_t length);
+    uint64_t getBinaryLength();
 
     Decoder(const EncodedData &encodedData) :
         encodedData{encodedData},

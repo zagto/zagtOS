@@ -17,6 +17,6 @@ compare_exchange_i32:
     jnz .fail
     mov rax, 1
     ret
-.fail
+.fail:
     mov rax, 0
     ret

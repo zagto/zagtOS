@@ -2,6 +2,7 @@
 #include <MemoryMap.hpp>
 #include <log/Logger.hpp>
 #include <Paging.hpp>
+#include <common/utils.hpp>
 
 static frameStack::Node *const FRAMESTACK_NULL =
         reinterpret_cast<frameStack::Node *>(PhysicalAddress::NULL);
@@ -100,7 +101,5 @@ void FreePhysicalFrame(PhysicalAddress frame) {
 
 
 void ClearFrame(void *frame) {
-    for (size_t index = 0; index < PAGE_SIZE; index++) {
-        ((char *)frame)[index] = 0;
-    }
+    memset(frame, 0, PAGE_SIZE);
 }

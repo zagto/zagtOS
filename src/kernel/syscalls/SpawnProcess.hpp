@@ -18,7 +18,7 @@ struct SpawnProcessSection {
     size_t dataAddress;
 
     Permissions permissions() const;
-    Region alignedRegion() const;
+    Region region() const;
 };
 
 class SpawnProcess {

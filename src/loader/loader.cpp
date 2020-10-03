@@ -5,6 +5,7 @@
 #include <MemoryMap.hpp>
 #include <memory/VirtualMemory.hpp>
 #include <memory/PhysicalMemory.hpp>
+#include <ProgramBinary.hpp>
 
 
 void LoaderMain() {
@@ -12,8 +13,8 @@ void LoaderMain() {
     hos_v1::FramebufferInfo &framebufferInfo = InitFramebuffer();
 
     cout << "Detecting Images..." << endl;
-    /*void *kernel =*/ LoadKernelImage();
-    /*void *sysEnvironment =*/ LoadProcessImage();
+    const ProgramBinary kernel = LoadKernelImage();
+    const ProgramBinary process = LoadProcessImage();
     cout << "Getting Memory Map..." << endl;
 
     memoryMap::freezeAndExitFirmware();
@@ -24,6 +25,11 @@ void LoaderMain() {
     MapLoaderMemory();
     MapFramebufferMemory(framebufferInfo);
     CreateIdentityMap(maxPhysicalAddress);
+
+    cout << "Setting up address space for kernel..." << endl;
+    kernel.load(PagingContext::GLOBAL);
+    cout << "Setting up address space for initial process..." << endl;
+    process.load(PagingContext::PROCESS);
     cout << "here\n";
     while(1);
     /*

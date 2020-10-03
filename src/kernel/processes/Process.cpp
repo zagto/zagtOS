@@ -34,7 +34,7 @@ Process::Process(Process &sourceProcess,
     pagingContext = new PagingContext(this);
 
     for (const auto &section: sections) {
-        MappedArea *ma = new MappedArea(this, section.alignedRegion(), section.permissions());
+        MappedArea *ma = new MappedArea(this, section.region(), section.permissions());
         mappedAreas.insert(ma);
 
         bool success = copyFromOhterUserSpace(section.address,
@@ -62,7 +62,7 @@ Process::Process(Process &sourceProcess,
 
     UserVirtualAddress tlsBase(tlsArea->region.start + THREAD_STRUCT_AREA_SIZE);
     if (TLSSection) {
-        bool success = copyFromOhterUserSpace(masterTLSBase.value(),
+        bool success = copyFromOhterUserSpace(tlsArea->region.start,
                                               sourceProcess,
                                               TLSSection->dataAddress,
                                               TLSSection->dataSize,

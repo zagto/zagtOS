@@ -46,6 +46,13 @@ struct timespec {
     uint32_t tv_nsec;
 };
 
+/* Loader may be linked against GNU EFI, which also contains these symbols. These macros avoid this
+ * conflict by renaming them. */
+#ifdef ZAGTOS_LOADER
+#define memset loader_memset
+#define memcpy loader_memcpy
+#endif
+
 // used by dlmalloc
 extern "C" {
 #endif
@@ -75,16 +82,8 @@ template <typename T> T max(T a, T b) {
     }
 }
 
-size_t randomU32();
-template <typename T> T random() {
-    constexpr size_t numRandom = (sizeof(T) - 1) / sizeof(uint32_t) + 1;
-
-    uint32_t r[numRandom];
-    T result;
-    memcpy(&result, r, sizeof(T));
-    return result;
-}
-
+#ifndef ZAGTOS_LOADER
 void *operator new(size_t, KernelVirtualAddress address);
+#endif
 
 #endif // __cplusplus

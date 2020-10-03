@@ -18,6 +18,12 @@ static const unsigned char ExpectedELFIdentifier[9] = {ELFMAG0, ELFMAG1, ELFMAG2
 
 static Elf64_Ehdr FileHeader;
 
+#ifdef ZAGTOS_ARCH_x86_64
+static const size_t PAGE_SIZE = 0x1000;
+#else
+#error "Please add page size definition for arch"
+#endif
+
 int main(int argc, char **argv) {
     if (argc != 3) {
         throw std::runtime_error("usage: CovertELF <input> <output> (but got "
@@ -57,14 +63,26 @@ int main(int argc, char **argv) {
             continue;
         }
 
+        size_t offsetBefore = header.p_vaddr % PAGE_SIZE;
+        size_t offsetAfter = (PAGE_SIZE - (header.p_vaddr + header.p_filesz)
+                              % PAGE_SIZE) % PAGE_SIZE;
+        size_t offsetAfterInMemory = (PAGE_SIZE - (header.p_vaddr + header.p_memsz)
+                                      % PAGE_SIZE) % PAGE_SIZE;
+
         zagtos::ProgramSection section = {
-            .address = header.p_vaddr,
-            .sizeInMemory = header.p_memsz,
+            .address = header.p_vaddr + offsetBefore,
+            .sizeInMemory = offsetBefore + header.p_memsz + offsetAfterInMemory,
             .flags = header.p_flags,
-            .data = std::vector<uint8_t>(header.p_filesz)
+            .data = std::vector<uint8_t>(offsetBefore + header.p_filesz + offsetAfter, 0)
         };
+        /* for TLS, the address is not where it should be loaded, but the master TLS address, which
+         * may be unaligned */
+        if (header.p_type == PT_TLS) {
+            section.address = header.p_vaddr;
+        }
+
         inFile.seekg(header.p_offset);
-        inFile.read(reinterpret_cast<char *>(section.data.data()), header.p_filesz);
+        inFile.read(reinterpret_cast<char *>(section.data.data() + offsetBefore), header.p_filesz);
 
         if (header.p_type == PT_TLS) {
             if (TLSSection) {

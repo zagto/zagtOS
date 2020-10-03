@@ -1,7 +1,7 @@
 #include <common/common.hpp>
-#include <paging/PageTable.hpp>
+#ifndef ZAGTOS_LOADER
 #include <system/System.hpp>
-
+#endif
 
 void *memset(void *pointer, int value, size_t len)
 {
@@ -57,7 +57,7 @@ void alignedGrow(size_t &start, size_t &length, size_t alignment) {
     start = newStart;
 }
 
-
+#ifndef ZAGTOS_LOADER
 void *operator new(size_t, KernelVirtualAddress address) {
     return address.asPointer<void>();
 }
@@ -100,3 +100,4 @@ void operator delete[](void *object, size_t size) {
     assert(size <= PAGE_SIZE);
     operator delete(object);
 }
+#endif

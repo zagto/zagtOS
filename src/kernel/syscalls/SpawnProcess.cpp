@@ -42,20 +42,24 @@ bool SpawnProcess::perform(const shared_ptr<Process> &process) {
         SpawnProcessSection section = sections[index];
 
         if (section.address + section.sizeInMemory < section.address) {
-            cout << "ELF: Integer Overflow in section target address + size" << endl;
+            cout << "SYS_SPAWN_PROCESS: Integer Overflow in section target address + size" << endl;
             return true;
         }
 
+        if (!section.region().isPageAligned()
+                || section.dataSize % PAGE_SIZE != 0) {
+            cout << "SYS_SPAWN_PROCESS: section region is not page-aligned" << endl;
+        }
+
         static_assert(UserSpaceRegion.start == 0, "This code assumes user space starts at 0");
-        if (!VirtualAddress::checkInRegion(UserSpaceRegion,
-                                           section.address + section.sizeInMemory)) {
-            cout << "ELF: segment does not fit in user space" << endl;
+        if (!VirtualAddress::checkInRegion(UserSpaceRegion, section.region().end())) {
+            cout << "SYS_SPAWN_PROCESS: segment does not fit in user space" << endl;
             return true;
         }
 
         if ((section.flags & section.FLAG_WRITEABLE)
                 && (section.flags & section.FLAG_EXECUTABLE)) {
-            cout << "ELF: Segment is marked as writeable and executable at the same time"
+            cout << "SYS_SPAWN_PROCESS: Segment is marked as writeable and executable at the same time"
                 << endl;
             return true;
         }
@@ -63,14 +67,8 @@ bool SpawnProcess::perform(const shared_ptr<Process> &process) {
         for (size_t otherIndex = index + 1; otherIndex < numSections; otherIndex++) {
             SpawnProcessSection otherSection = sections[otherIndex];
 
-            alignedGrow(section.address, section.sizeInMemory, PAGE_SIZE);
-            alignedGrow(otherSection.address, otherSection.sizeInMemory, PAGE_SIZE);
-
-            /* https://stackoverflow.com/questions/3269434/whats-the-most-efficient-way-to-test-
-             * two-integer-ranges-for-overlap */
-            if (section.address < otherSection.address + otherSection.sizeInMemory
-                    && otherSection.address < section.address + section.sizeInMemory) {
-                cout << "ELF: Segments overlap" << section.address << ":"
+            if (section.region().overlaps(otherSection.region())) {
+                cout << "SYS_SPAWN_PROCESS: Segments overlap" << section.address << ":"
                      << section.sizeInMemory << ", "
                      << otherSection.address << ":"
                      << otherSection.sizeInMemory << endl;
@@ -87,22 +85,13 @@ bool SpawnProcess::perform(const shared_ptr<Process> &process) {
                                            sizeof(SpawnProcessSection),
                                            false);
         if (!valid) {
-            cout << "SYS_SPAWN_PROCESS: invalid sections info buffer\n";
+            cout << "SYS_SPAWN_PROCESS: invalid TLS sections info buffer\n";
             return true;
         }
 
-        /* if we have a TLS section, do the same sanity checks as for the regular section, but not
-         * overlapping as the kernel chooses a free address for TLS */
-        if (section.address + section.sizeInMemory < section.address) {
-            cout << "ELF: Integer Overflow in section target address + size" << endl;
-            return true;
-        }
-
-        static_assert(UserSpaceRegion.start == 0, "This code assumes user space starts at 0");
-        if (!VirtualAddress::checkInRegion(UserSpaceRegion,
-                                           section.address + section.sizeInMemory)) {
-            cout << "ELF: segment does not fit in user space" << endl;
-            return true;
+        if (section.sizeInMemory % PAGE_SIZE != 0
+                || section.dataSize % PAGE_SIZE != 0) {
+            cout << "SYS_SPAWN_PROCESS: TLS region is not page-aligned" << endl;
         }
 
         if ((section.flags & section.FLAG_WRITEABLE)
@@ -146,8 +135,6 @@ Permissions SpawnProcessSection::permissions() const {
     }
 }
 
-Region SpawnProcessSection::alignedRegion() const {
-    Region result = {address, sizeInMemory};
-    alignedGrow(result.start, result.length, PAGE_SIZE);
-    return result;
+Region SpawnProcessSection::region() const {
+    return {address, sizeInMemory};
 }

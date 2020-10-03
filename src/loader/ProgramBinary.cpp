@@ -1,82 +1,227 @@
-/*#include <efi.h>
-#include <util.h>
-#include <elf.h>
-#include <physical-memory.h>
-#include <virtual-memory.h>
-#include <paging.h>
+#include <ProgramBinary.hpp>
+#include <log/Logger.hpp>
+#include <Paging.hpp>
+#include <memory/PhysicalMemory.hpp>
+#include <common/utils.hpp>
+#include <memory/ArchRegions.hpp>
 
+/* Rather inefficient but fully in-place parsing for ZBON ProgramBinaries. We can't use the regular
+ * user-spave implementation because it needs dynamic allocation due to the nature of the binary
+ * format - they can have any number of sections. */
 
-static struct ElfProgramHeaderEntry *GetProgramHeader(const struct ElfFileHeader *file,
-                                                      UINTN index) {
-    UINTN address = (UINTN)file;
-    address += file->programHeaderOffset;
-    address += index * file->programHeaderEntrySize;
-    return (struct ElfProgramHeaderEntry *)address;
+enum Type : uint8_t {
+    BINARY, NOTHING, OBJECT, STRING, BOOLEAN,
+    INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64,
+    FLOAT, DOUBLE, HANDLE, NUM_TYPES
+};
+
+static const size_t FLAG_EXECUTABLE{1};
+static const size_t FLAG_WRITEABLE{2};
+static const size_t FLAG_READABLE{4};
+
+/* Header size for objects: type byte, number of elements, number of handles, size in bytes */
+static const size_t OBJECT_HEADER_SIZE = 1 + 3*8;
+/* Header size for flat binary data: type byte, size in bytes */
+static const size_t BINARY_HEADER_SIZE = 1 + 8;
+
+size_t ProgramBinary::readSize(size_t offset) const {
+    uint64_t result = 0;
+    for (int byte = 7; byte >= 0; byte--) {
+        result = (result << 8) | data[offset + byte];
+    }
+    assert(sizeof(size_t) == 8 || result >= 0xffffffffu);
+    return result;
 }
 
+size_t ProgramBinary::TLSOffset() const {
+    /* after UINT64 entry address with it's type byte */
+    return OBJECT_HEADER_SIZE + 1 + 8;
+}
 
-UINTN LoadElfKernel(const struct ElfFileHeader *file) {
-    UINTN headerIndex;
-    UINTN pageIndex;
-    UINTN byteIndex;
-    UINTN segmentBase;
-    UINTN segmentStartOffset;
-    UINTN numPages;
-    UINT8 *frame;
-    struct ElfProgramHeaderEntry *entry;
+size_t ProgramBinary::sectionsArrayOffset() const {
+    if (data[TLSOffset()] == OBJECT) {
+        return TLSOffset() + OBJECT_HEADER_SIZE + data[TLSOffset() + 1 + 2*8];
+    } else {
+        return TLSOffset() + 1;
+    }
+}
 
-    for (headerIndex = 0; headerIndex < file->numProgramHeaderEntries; headerIndex++) {
-        entry = GetProgramHeader(file, headerIndex);
-        if (entry->type == ELF_TYPE_LOAD) {
-            if (!(entry->flags & ELF_READABLE)) {
-                Log("Non-readable ELF segment\n");
-                Halt();
-            }
+size_t ProgramBinary::numSections() const {
+    return data[sectionsArrayOffset() + 1];
+}
 
-            segmentStartOffset = entry->virtualAddress % PAGE_SIZE;
-            segmentBase = entry->virtualAddress - segmentStartOffset;
-            numPages = (segmentStartOffset + entry->sizeInMemory + PAGE_SIZE - 1) / PAGE_SIZE;
+size_t ProgramBinary::sectionOffset(size_t index) const {
+    assert(index < numSections());
 
-            Log("Load ELF Segment to ");
-            LogUINTN(entry->virtualAddress);
-            Log(", ");
-            LogUINTN(numPages);
-            Log(" pages in memory\n");
+    if (index == 0) {
+        return sectionsArrayOffset() + OBJECT_HEADER_SIZE;
+    } else {
+        return sectionOffset(index - 1)
+                + OBJECT_HEADER_SIZE
+                + readSize(sectionOffset(index - 1) + 1 + 2*8);
+    }
+}
 
-            Log("size in file: ");
-            LogUINTN(entry->sizeInFile);
-            Log(", in memory ");
-            LogUINTN(entry->sizeInMemory);
-            Log("\n");
+size_t ProgramBinary::sectionAddress(size_t sectionOffset) const {
+    return readSize(sectionOffset + OBJECT_HEADER_SIZE + 1);
+}
+size_t ProgramBinary::sectionSizeInMemory(size_t sectionOffset) const {
+    return readSize(sectionOffset + OBJECT_HEADER_SIZE + 1 + 9);
+}
+size_t ProgramBinary::sectionFlags(size_t sectionOffset) const {
+    return readSize(sectionOffset + OBJECT_HEADER_SIZE + 1 + 2*9);
+}
+size_t ProgramBinary::sectionDataSize(size_t sectionOffset) const {
+    return readSize(sectionOffset + OBJECT_HEADER_SIZE + 1 + 3*9);
+}
+size_t ProgramBinary::sectionDataOffset(size_t sectionOffset) const {
+    return sectionOffset + OBJECT_HEADER_SIZE + BINARY_HEADER_SIZE + 3*9;
+}
+Region ProgramBinary::sectionRegion(size_t sectionOffset) const {
+    Region result{sectionAddress(sectionOffset), sectionSizeInMemory(sectionOffset)};
+    alignedGrow(result.start, result.length, PAGE_SIZE);
+    return result;
+}
 
-            for (pageIndex = 0; pageIndex < numPages; pageIndex++) {
-                frame = (UINT8 *)AllocatePhysicalFrame();
+void ProgramBinary::sanityCheckSection(size_t offset) const {
+    /* the section is an object */
+    assert(data[offset] == OBJECT);
+    /* it has 3 elements */
+    assert(readSize(offset + 1) == 4);
+    /* it has no handles */
+    assert(readSize(offset + 9) == 0);
 
-                for (byteIndex = 0; byteIndex < PAGE_SIZE; byteIndex++) {
-                    INTN offsetInFile = pageIndex * PAGE_SIZE + byteIndex - segmentStartOffset;
+    /* address type */
+    assert(data[offset + OBJECT_HEADER_SIZE] == UINT64);
+    /* sizeInMemory type */
+    assert(data[offset + OBJECT_HEADER_SIZE + 9] == UINT64);
+    /* flags type */
+    assert(data[offset + OBJECT_HEADER_SIZE + 2*9] == UINT64);
+    /* data type */
+    assert(data[offset + OBJECT_HEADER_SIZE + 3*9] == BINARY);
+}
 
-                    if (offsetInFile >= 0 && (UINTN)offsetInFile < entry->sizeInFile) {
-                        frame[byteIndex] = *((UINT8 *)file + entry->offsetInFile + offsetInFile);
-                    } else {
-                        frame[byteIndex] = 0;
-                    }
-                }
+void ProgramBinary::sanityChecks() const {
+    /* the whole thing is an object */
+    assert(data[0] == OBJECT);
+    /* it has 3 elements */
+    assert(readSize(1) == 3);
+    /* it has no handles */
+    assert(readSize(9) == 0);
 
-                if (segmentBase + pageIndex * PAGE_SIZE < KernelImageRegion.start
-                        || segmentBase + pageIndex * PAGE_SIZE > KernelPersistentDataRegion.end) {
-                    Log("ELF image exceeds Kernel virtual memory region\n");
-                    Halt();
-                }
+    /* entry address type */
+    assert(data[OBJECT_HEADER_SIZE] == UINT64);
 
-                MapAddress(segmentBase + pageIndex * PAGE_SIZE,
-                           (EFI_PHYSICAL_ADDRESS)frame,
-                           entry->flags & ELF_WRITEABLE,
-                           entry->flags & ELF_EXECUTABLE,
-                           FALSE,
-                           CACHE_NORMAL_WRITE_BACK);
+    /* TLS type */
+    assert(data[TLSOffset()] == NOTHING || data[TLSOffset()] == OBJECT);
+    if (data[TLSOffset()] == OBJECT) {
+        sanityCheckSection(TLSOffset());
+    }
+
+    assert(data[sectionsArrayOffset()] == OBJECT);
+    for (size_t index = 0; index < numSections(); index++) {
+        cout << "checking section " << index << " at offset " << sectionOffset(index) << endl;
+        sanityCheckSection(sectionOffset(index));
+    }
+}
+
+ProgramBinary::ProgramBinary(void *pointer) {
+    data = reinterpret_cast<uint8_t *>(pointer);
+    sanityChecks();
+}
+
+bool ProgramBinary::hasTLS() const {
+    return data[TLSOffset()] == OBJECT;
+}
+
+size_t ProgramBinary::entryAddress() const {
+    return readSize(OBJECT_HEADER_SIZE + 1);
+}
+
+void ProgramBinary::load(PagingContext pagingContext) const {
+    for (size_t sectionIndex = 0; sectionIndex < numSections(); sectionIndex++) {
+        size_t offset = sectionOffset(sectionIndex);
+
+        cout << "section " << sectionIndex  << " offset " << offset << endl;
+        Region region = sectionRegion(offset);
+        size_t flags = sectionFlags(offset);
+        uint8_t *source = data + sectionDataOffset(offset);
+        size_t sourceLen = sectionDataSize(offset);
+
+        assert(region.isPageAligned());
+        assert(sourceLen % PAGE_SIZE == 0);
+
+        cout << "loading section to " << region.start << " length " << region.length << endl;
+
+        for (size_t pageIndex = 0; pageIndex < region.length / PAGE_SIZE; pageIndex++) {
+            PhysicalAddress physicalAddress = AllocatePhysicalFrame();
+            MapAddress(pagingContext,
+                       region.start + pageIndex * PAGE_SIZE,
+                       physicalAddress,
+                       flags & FLAG_WRITEABLE,
+                       flags & FLAG_EXECUTABLE,
+                       false,
+                       CacheType::CACHE_NORMAL_WRITE_BACK);
+
+            /* if there is anything to be written to this page */
+            if (sourceLen > pageIndex * PAGE_SIZE) {
+                memcpy(reinterpret_cast<void *>(physicalAddress.value()), source, PAGE_SIZE);
             }
         }
     }
 
-    return file->entry;
-}*/
+    if (hasTLS()) {
+        size_t offset = TLSOffset();
+        bool foundTLSRegion{false};
+
+        Region region = sectionRegion(offset);
+        for (size_t startAfterIndex = 0; startAfterIndex < numSections(); startAfterIndex++) {
+            region.start = sectionRegion(sectionOffset(startAfterIndex)).end();
+            bool conflicts{false};
+
+            for (size_t checkConflictIndex = 0;
+                 checkConflictIndex < numSections();
+                 checkConflictIndex++) {
+                Region otherRegion = sectionRegion(sectionOffset(checkConflictIndex));
+                if (region.overlaps(otherRegion)) {
+                    conflicts = true;
+                }
+            }
+            if (!UserSpaceRegion.contains(region)) {
+                conflicts = true;
+            }
+            if (!conflicts) {
+                foundTLSRegion = true;
+                break;
+            }
+        }
+
+        if (!foundTLSRegion) {
+            cout << "Unable to find suitable region for TLS" << endl;
+            Halt();
+        }
+
+        uint8_t *source = data + sectionDataOffset(offset);
+        size_t sourceLen = sectionDataSize(offset);
+
+        assert(region.isPageAligned());
+        assert(sourceLen % PAGE_SIZE == 0);
+
+        for (size_t pageIndex = 0; pageIndex < region.length / PAGE_SIZE; pageIndex++) {
+            PhysicalAddress physicalAddress = AllocatePhysicalFrame();
+            MapAddress(pagingContext,
+                       region.start + pageIndex * PAGE_SIZE,
+                       physicalAddress,
+                       true,
+                       false,
+                       false,
+                       CacheType::CACHE_NORMAL_WRITE_BACK);
+
+            /* if there is anything to be written to this page */
+            if (sourceLen > pageIndex * PAGE_SIZE) {
+                memcpy(reinterpret_cast<void *>(physicalAddress.value()), source, PAGE_SIZE);
+            }
+        }
+    }
+}
+
