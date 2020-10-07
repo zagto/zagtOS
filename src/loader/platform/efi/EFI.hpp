@@ -10,6 +10,7 @@ extern "C" {
 #undef NULL
 
 extern EFI_HANDLE ImageHandle;
+extern EFI_SYSTEM_TABLE *SystemTable;
 
 const char *statusToString(EFI_STATUS status);
 

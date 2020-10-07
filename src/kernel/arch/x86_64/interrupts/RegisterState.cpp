@@ -4,23 +4,20 @@
 
 
 RegisterState::RegisterState(VirtualAddress entry,
-                             UserVirtualAddress stackPtr,
+                             UserVirtualAddress stackPointer,
+                             UserVirtualAddress runMessageAddress,
                              UserVirtualAddress tlsBase,
                              UserVirtualAddress masterTLSBase,
                              size_t tlsSize)
 {
     memset(this, 0, sizeof(RegisterState));
-    rsp = UserSpaceRegion.end();
-    if (stackPtr.value()) {
-        rsp = stackPtr.value();
-        /* rdi will point to data that may be passed on stack, without the stack alignment */
-        rdi = rsp;
-    }
+    rsp = stackPointer.value();
+    /* stack-pointer needs to be misaligned on x86_64 */
     while (rsp % 16 != 8) {
         rsp--;
     }
-
     rsi = tlsBase.value();
+    rdi = runMessageAddress.value();
     rdx = masterTLSBase.value();
     rcx = tlsSize;
 

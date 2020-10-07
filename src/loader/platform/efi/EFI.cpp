@@ -3,6 +3,7 @@
 namespace efi {
 
 EFI_HANDLE ImageHandle;
+EFI_SYSTEM_TABLE *SystemTable;
 
 #define STATUS_CASE(symbol) \
     case symbol: \

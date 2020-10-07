@@ -8,9 +8,9 @@ qemu-system-x86_64 \
     -drive id=disk,file=out/disk.img,if=none \
     -device ahci,id=ahci \
     -device ide-drive,drive=disk,bus=ahci.0 \
-    -serial stdio \
     -smp 2 \
+    -serial stdio \
     -machine q35 \
     -no-reboot \
-     -no-reboot -no-shutdown   -d guest_errors,cpu_reset \
+     -no-reboot -no-shutdown   -d int,guest_errors,cpu_reset \
     -s

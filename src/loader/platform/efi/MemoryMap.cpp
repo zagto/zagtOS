@@ -15,6 +15,23 @@ static size_t numDescriptors;
 static size_t currentIndex;
 
 
+uint8_t *allocateHandOver(size_t numPages) {
+    EFI_STATUS status;
+    uint8_t *result;
+
+    status = uefi_call_wrapper(reinterpret_cast<void *>(ST->BootServices->AllocatePages),
+                               4,
+                               AllocateAnyPages,
+                               EfiLoaderData,
+                               numPages,
+                               (EFI_PHYSICAL_ADDRESS *)&result);
+    if (EFI_ERROR(status)) {
+        cout << "Could not allocate memory for handover info: " << statusToString(status) << endl;
+        Halt();
+    }
+    return result;
+}
+
 void freezeAndExitFirmware() {
     EFI_STATUS status;
     UINTN mapSize;

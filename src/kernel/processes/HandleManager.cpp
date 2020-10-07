@@ -96,17 +96,14 @@ HandleManager::HandleManager(const hos_v1::Process &handOver,
     elements.resize(maxHandle + 1);
     for (size_t index = 0; index < handOver.numHandles; index++) {
         hos_v1::Handle hosHandle = handOver.handles[index];
-        assert(hosHandle.type > static_cast<uint32_t>(Type::FREE));
-        assert(hosHandle.type < NUM_TYPES);
         assert(hosHandle.handle != 0);
-        Type type = static_cast<Type>(hosHandle.type);
 
         Element &element = elements[hosHandle.handle];
         /* Elements become invalid type on contruction, make sure we don't try to use anything
          * twice */
         assert(element.type == Type::INVALID);
 
-        switch (type) {
+        switch (hosHandle.type) {
         case Type::PORT:
             element = Element(allPorts[hosHandle.objectID]);
             break;

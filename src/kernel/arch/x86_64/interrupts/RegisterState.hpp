@@ -17,8 +17,8 @@ public:
     uint64_t intNr, errorCode;
     uint64_t rip, cs, rflags, rsp, ss;
 
-    RegisterState(VirtualAddress entry,
-                  UserVirtualAddress stackPointer,
+    RegisterState(VirtualAddress entry, UserVirtualAddress stackPointer,
+                  UserVirtualAddress runMessageAddress,
                   UserVirtualAddress tlsBase,
                   UserVirtualAddress masterTLSBase,
                   size_t tlsSize);

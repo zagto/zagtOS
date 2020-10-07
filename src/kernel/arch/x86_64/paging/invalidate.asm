@@ -8,6 +8,6 @@ basicInvalidate:
     ret
 
 basicSwitchMasterPageTable:
-mov rax, rdi
+    mov rax, rdi
     mov cr3, rax
     ret

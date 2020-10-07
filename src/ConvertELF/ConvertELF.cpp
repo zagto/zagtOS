@@ -69,8 +69,9 @@ int main(int argc, char **argv) {
         size_t offsetAfterInMemory = (PAGE_SIZE - (header.p_vaddr + header.p_memsz)
                                       % PAGE_SIZE) % PAGE_SIZE;
 
+        std::cerr << "offsetBefore "<<offsetBefore<<", offsetAfter "<<offsetAfter<<", offsetAfterInMemory "<<offsetAfterInMemory<<std::endl;
         zagtos::ProgramSection section = {
-            .address = header.p_vaddr + offsetBefore,
+            .address = header.p_vaddr - offsetBefore,
             .sizeInMemory = offsetBefore + header.p_memsz + offsetAfterInMemory,
             .flags = header.p_flags,
             .data = std::vector<uint8_t>(offsetBefore + header.p_filesz + offsetAfter, 0)

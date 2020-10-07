@@ -42,7 +42,6 @@ section .text
 
 ExitFinalize:
     cli
-
     mov rsp, rcx
 
     ; backup rdx

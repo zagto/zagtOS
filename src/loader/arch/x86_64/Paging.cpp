@@ -31,7 +31,7 @@ void CreateGlobalMasterPageTableEntries() {
     /* upper half is global area */
     PageTable *newPageTable;
     size_t index;
-    for (index = ENTRIES_PER_PAGE_TABLE; index < ENTRIES_PER_PAGE_TABLE; index++) {
+    for (index = ENTRIES_PER_PAGE_TABLE / 2; index < ENTRIES_PER_PAGE_TABLE; index++) {
         newPageTable = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
         ClearPageTable(newPageTable);
         (*HandOverMasterPageTable)[index] =
@@ -75,6 +75,7 @@ void MapAddress(PagingContext pagingContext,
     PageTableEntry *entry;
     PageTable *newPageTable;
 
+    size_t userFlag = pagingContext == PagingContext::PROCESS ? PAGE_USER : 0;
     size_t targetLevel = large ? 1 : 0;
 
     while (level > targetLevel) {
@@ -83,7 +84,8 @@ void MapAddress(PagingContext pagingContext,
         if (!(*entry & PAGE_PRESENT)) {
             newPageTable = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
             ClearPageTable(newPageTable);
-            *entry = reinterpret_cast<uint64_t>(newPageTable) | PAGE_PRESENT | PAGE_WRITEABLE;
+            *entry = reinterpret_cast<uint64_t>(newPageTable) | PAGE_PRESENT | PAGE_WRITEABLE
+                    | userFlag;
         }
         pageTable = (PageTable *)(*entry & PAGE_ADDRESS_MASK);
         level--;
@@ -97,7 +99,7 @@ void MapAddress(PagingContext pagingContext,
         Halt();
     }
 
-    *entry = physicalAddress.value() | PAGE_PRESENT;
+    *entry = physicalAddress.value() | PAGE_PRESENT | userFlag;
     if (writeable) {
         *entry |= PAGE_WRITEABLE;
     }

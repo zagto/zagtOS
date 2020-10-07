@@ -11,9 +11,7 @@
 
 namespace handleManager {
 
-enum class Type : uint32_t {
-    INVALID, FREE, PORT, REMOTE_PORT, THREAD, SHARED_MEMORY
-};
+using Type = hos_v1::HandleType;
 static const uint32_t NUM_TYPES = 6;
 
 /* FUTEX_LOCK_PI wants to or a bit with a handle so make sure upmost bit is reserved */

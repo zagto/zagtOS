@@ -5,18 +5,74 @@
 #include <MemoryMap.hpp>
 #include <memory/VirtualMemory.hpp>
 #include <memory/PhysicalMemory.hpp>
+#include <Paging.hpp>
 #include <ProgramBinary.hpp>
+#include <common/utils.hpp>
+#include <Firmware.hpp>
 
+
+/* converts pointers to physical memory for use in kernel where the identity mapping is offset at
+ * an address in high kernel memory */
+template<typename T> T *convertPointer(T *loaderPointer) {
+    return reinterpret_cast<T *>(reinterpret_cast<size_t>(loaderPointer) + IdentityMapping.start);
+}
+
+void convertFrameStack(frameStack::Node *head) {
+    frameStack::Node *node = head;
+    while (reinterpret_cast<size_t>(node->next) != PhysicalAddress::NULL) {
+        frameStack::Node *last = node;
+        node = node->next;
+        last->next = convertPointer(last->next);
+    }
+    node->next = nullptr;
+}
+
+void isort(hos_v1::MappedArea *mappedAreas, size_t len) {
+    for (size_t i = 1; i < len; i++) {
+        hos_v1::MappedArea tmp = mappedAreas[i];
+        size_t j = i;
+        while (j > 0 && mappedAreas[j-1].start > tmp.start) {
+            mappedAreas[j] = mappedAreas[j-1];
+            j--;
+        }
+        mappedAreas[j] = tmp;
+    }
+}
 
 void LoaderMain() {
     cout << "Initializing..." << endl;
     hos_v1::FramebufferInfo &framebufferInfo = InitFramebuffer();
 
     cout << "Detecting Images..." << endl;
-    const ProgramBinary kernel = LoadKernelImage();
-    const ProgramBinary process = LoadProcessImage();
-    cout << "Getting Memory Map..." << endl;
+    ProgramBinary kernel = LoadKernelImage();
+    ProgramBinary process = LoadProcessImage();
 
+    /* sections, run message, stack */
+    size_t numMappings = process.numSections() + 2;
+    if (process.hasTLS()) {
+        numMappings++;
+    }
+
+    size_t handOverSize = sizeof(hos_v1::System)
+            + sizeof(hos_v1::Process)
+            + sizeof(hos_v1::Thread)
+            + sizeof(hos_v1::Handle)
+            + 17 /* SystemEnvironment string */
+            + numMappings * sizeof(hos_v1::MappedArea);
+    uint8_t *pointer = memoryMap::allocateHandOver(handOverSize / PAGE_SIZE + 1);
+    auto handOverSystem = reinterpret_cast<hos_v1::System *>(pointer);
+    pointer += sizeof (hos_v1::System);
+    auto handOverProcess = reinterpret_cast<hos_v1::Process *>(pointer);
+    pointer += sizeof (hos_v1::Process);
+    auto handOverThread = reinterpret_cast<hos_v1::Thread *>(pointer);
+    pointer += sizeof (hos_v1::Thread);
+    auto handOverHandle = reinterpret_cast<hos_v1::Handle *>(pointer);
+    pointer += sizeof (hos_v1::Handle);
+    auto handOverMappedAreas = reinterpret_cast<hos_v1::MappedArea *>(pointer);
+    pointer += numMappings * sizeof(hos_v1::MappedArea);
+    auto handOverString = reinterpret_cast<char *>(pointer);
+
+    cout << "Getting Memory Map..." << endl;
     memoryMap::freezeAndExitFirmware();
 
     cout << "Initialzing Memory Management..." << endl;
@@ -30,25 +86,108 @@ void LoaderMain() {
     kernel.load(PagingContext::GLOBAL);
     cout << "Setting up address space for initial process..." << endl;
     process.load(PagingContext::PROCESS);
-    cout << "here\n";
-    while(1);
-    /*
-    kernelEntry = LoadElfKernel(kernel);
 
-    Log("Kernel Entry is ");
-    LogUINTN(kernelEntry);
-    Log("\n");
+    cout << "Preparing handover structures..." << endl;
 
-    EFI_PHYSICAL_ADDRESS acpiRoot = getACPIRoot(systemTable);
+    RegisterState regState(process.entryAddress(),
+                           UserStackRegion.end() - 1,/* ensure valid UserVirtualAddress */
+                           process.runMessageAddress(),
+                           process.TLSBase(),
+                           process.masterTLSBase(),
+                           process.TLSRegion().length - process.TLSBase().value() % PAGE_SIZE);
 
-    Log("ACPI root is ");
-    LogUINTN(acpiRoot);
-    Log("\n");
+    *handOverSystem = hos_v1::System{
+        .version = 1,
+        .framebufferInfo = framebufferInfo,
+        .freshFrameStack = {
+            convertPointer(CleanFrameStack.head),
+            CleanFrameStack.addIndex
+        },
+        .usedFrameStack = {
+            convertPointer(DirtyFrameStack.head),
+            DirtyFrameStack.addIndex
+        },
+        .handOverPagingContext = reinterpret_cast<size_t>(HandOverMasterPageTable),
+        .firmwareType = GetFirmwareType(),
+        .firmwareRoot = GetFirmwareRoot(),
+        .secondaryProcessorEntry = SecondaryProcessorEntry,
+        .numProcesses = 1,
+        .processes = convertPointer(handOverProcess),
+        .numThreads = 1,
+        .threads = convertPointer(handOverThread),
+        .numPorts = 0,
+        .ports = nullptr,
+        .numSharedMemories = 0,
+        .sharedMemories = nullptr,
+        .numProcessors = 1,
+        .numFutexes = 0,
+        .futexes = nullptr
+    };
+    *handOverProcess = {
+        .pagingContext = reinterpret_cast<size_t>(ProcessMasterPageTable),
+        .numMappedAreas = numMappings,
+        .mappedAreas = convertPointer(handOverMappedAreas),
+        .numLocalFutexes = 0,
+        .localFutexes = nullptr,
+        .numHandles = 1,
+        .handles =convertPointer(handOverHandle),
+        .numLogNameChars = 17,
+        .logName = convertPointer(handOverString)
+    };
+    *handOverThread = hos_v1::Thread{
+        .registerState = regState,
+        .TLSBase = process.TLSBase(),
+        .currentPriority = hos_v1::ThreadPriority::BACKGROUND,
+        .ownPriority = hos_v1::ThreadPriority::BACKGROUND,
+    };
+    *handOverHandle = hos_v1::Handle{
+        .type = hos_v1::HandleType::THREAD,
+        .handle = 1,
+        .objectID = 0
+    };
+    for (size_t index = 0; index < process.numSections(); index++) {
+        size_t offset = process.sectionOffset(index);
+        handOverMappedAreas[index] = hos_v1::MappedArea{
+            .physicalStart = 0,
+            .start = process.sectionAddress(offset),
+            .length = process.sectionSizeInMemory(offset),
+            .source = hos_v1::MappingSource::MEMORY,
+            .permissions = process.sectionPermissions(offset)
+        };
+    }
+    handOverMappedAreas[process.numSections()] = hos_v1::MappedArea{
+        .physicalStart = 0,
+        .start = UserStackRegion.start,
+        .length = UserStackRegion.length,
+        .source = hos_v1::MappingSource::MEMORY,
+        .permissions = hos_v1::Permissions::READ_WRITE
+    };
+    handOverMappedAreas[process.numSections() + 1] = hos_v1::MappedArea{
+        .physicalStart = 0,
+        .start = process.runMessageAddress().value(),
+        .length = PAGE_SIZE,
+        .source = hos_v1::MappingSource::MEMORY,
+        .permissions = hos_v1::Permissions::READ
+    };
+    if (process.hasTLS()) {
+        handOverMappedAreas[process.numSections() + 2] = hos_v1::MappedArea{
+            .physicalStart = 0,
+            .start = process.TLSRegion().start,
+            .length = process.TLSRegion().length,
+            .source = hos_v1::MappingSource::MEMORY,
+            .permissions = hos_v1::Permissions::READ_WRITE
+        };
+    }
+    isort(handOverMappedAreas, numMappings);
+    memcpy(handOverString, "SystemEnvironment", 17);
 
-    bootInfo = PrepareBootInfo(&initDataInfo, framebufferInfo, acpiRoot);
+    cout << "Converting frame stacks..." << endl;
+    convertFrameStack(CleanFrameStack.head);
+    convertFrameStack(DirtyFrameStack.head);
 
-    Log("Exiting to Kernel...\n");
-    ExitToKernel(kernelEntry, MasterPageTable, bootInfo);*/
+    cout << "Exiting to Kernel..." << endl;
+
+    ExitToKernel(kernel.entryAddress(), HandOverMasterPageTable, handOverSystem);
 }
 
 void* __dso_handle = nullptr;

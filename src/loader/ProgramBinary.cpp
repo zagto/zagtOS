@@ -138,11 +138,50 @@ size_t ProgramBinary::entryAddress() const {
     return readSize(OBJECT_HEADER_SIZE + 1);
 }
 
-void ProgramBinary::load(PagingContext pagingContext) const {
+UserVirtualAddress ProgramBinary::TLSBase() const {
+    if (hasTLS()) {
+        return _TLSBase;
+    } else {
+        return {};
+    }
+}
+
+UserVirtualAddress ProgramBinary::masterTLSBase() const {
+    if (hasTLS()) {
+        return sectionAddress(TLSOffset());
+    } else {
+        return {};
+    }
+}
+
+Region ProgramBinary::TLSRegion() const {
+    if (hasTLS()) {
+        return _TLSRegion;
+    } else {
+        return {0, 0};
+    }
+}
+
+UserVirtualAddress ProgramBinary::runMessageAddress() const {
+    return UserStackBorderRegion.start - PAGE_SIZE;
+}
+
+hos_v1::Permissions ProgramBinary::sectionPermissions(size_t sectionOffset) const {
+    size_t flags = sectionFlags(sectionOffset);
+    if (flags & FLAG_EXECUTABLE) {
+        return Permissions::READ_EXECUTE;
+    } else if (flags & FLAG_WRITEABLE) {
+        return Permissions::READ_WRITE;
+    } else {
+        return Permissions::READ;
+    }
+}
+
+void ProgramBinary::load(PagingContext pagingContext) {
     for (size_t sectionIndex = 0; sectionIndex < numSections(); sectionIndex++) {
         size_t offset = sectionOffset(sectionIndex);
 
-        cout << "section " << sectionIndex  << " offset " << offset << endl;
+        cout << "section " << sectionIndex  << " offset " << offset << " dataOffset" << sectionDataOffset(offset) << endl;
         Region region = sectionRegion(offset);
         size_t flags = sectionFlags(offset);
         uint8_t *source = data + sectionDataOffset(offset);
@@ -150,6 +189,7 @@ void ProgramBinary::load(PagingContext pagingContext) const {
 
         assert(region.isPageAligned());
         assert(sourceLen % PAGE_SIZE == 0);
+        assert(!((flags & FLAG_WRITEABLE) && (flags & FLAG_EXECUTABLE)));
 
         cout << "loading section to " << region.start << " length " << region.length << endl;
 
@@ -165,7 +205,9 @@ void ProgramBinary::load(PagingContext pagingContext) const {
 
             /* if there is anything to be written to this page */
             if (sourceLen > pageIndex * PAGE_SIZE) {
-                memcpy(reinterpret_cast<void *>(physicalAddress.value()), source, PAGE_SIZE);
+                memcpy(reinterpret_cast<void *>(physicalAddress.value()),
+                       source + pageIndex * PAGE_SIZE,
+                       PAGE_SIZE);
             }
         }
     }
@@ -174,20 +216,20 @@ void ProgramBinary::load(PagingContext pagingContext) const {
         size_t offset = TLSOffset();
         bool foundTLSRegion{false};
 
-        Region region = sectionRegion(offset);
+        _TLSRegion = sectionRegion(offset);
         for (size_t startAfterIndex = 0; startAfterIndex < numSections(); startAfterIndex++) {
-            region.start = sectionRegion(sectionOffset(startAfterIndex)).end();
+            _TLSRegion.start = sectionRegion(sectionOffset(startAfterIndex)).end();
             bool conflicts{false};
 
             for (size_t checkConflictIndex = 0;
                  checkConflictIndex < numSections();
                  checkConflictIndex++) {
                 Region otherRegion = sectionRegion(sectionOffset(checkConflictIndex));
-                if (region.overlaps(otherRegion)) {
+                if (_TLSRegion.overlaps(otherRegion)) {
                     conflicts = true;
                 }
             }
-            if (!UserSpaceRegion.contains(region)) {
+            if (_TLSRegion.end() > UserStackBorderRegion.start - 2*PAGE_SIZE) {
                 conflicts = true;
             }
             if (!conflicts) {
@@ -204,13 +246,13 @@ void ProgramBinary::load(PagingContext pagingContext) const {
         uint8_t *source = data + sectionDataOffset(offset);
         size_t sourceLen = sectionDataSize(offset);
 
-        assert(region.isPageAligned());
+        assert(_TLSRegion.isPageAligned());
         assert(sourceLen % PAGE_SIZE == 0);
 
-        for (size_t pageIndex = 0; pageIndex < region.length / PAGE_SIZE; pageIndex++) {
+        for (size_t pageIndex = 0; pageIndex < _TLSRegion.length / PAGE_SIZE; pageIndex++) {
             PhysicalAddress physicalAddress = AllocatePhysicalFrame();
             MapAddress(pagingContext,
-                       region.start + pageIndex * PAGE_SIZE,
+                       _TLSRegion.start + pageIndex * PAGE_SIZE,
                        physicalAddress,
                        true,
                        false,
@@ -222,6 +264,50 @@ void ProgramBinary::load(PagingContext pagingContext) const {
                 memcpy(reinterpret_cast<void *>(physicalAddress.value()), source, PAGE_SIZE);
             }
         }
+
+        _TLSBase = _TLSRegion.start + sectionAddress(offset) % PAGE_SIZE;
+    }
+
+    /* if this is a user-space program, map stack and run message */
+    if (pagingContext == PagingContext::PROCESS) {
+        for (size_t pageIndex = 0; pageIndex < UserStackRegion.length / PAGE_SIZE; pageIndex++) {
+            MapAddress(pagingContext,
+                       UserStackRegion.start + pageIndex * PAGE_SIZE,
+                       AllocatePhysicalFrame(),
+                       true,
+                       false,
+                       false,
+                       CacheType::CACHE_NORMAL_WRITE_BACK);
+        }
+
+        /* put run message directly below stack */
+        PhysicalAddress physicalAddress = AllocatePhysicalFrame();
+        MapAddress(pagingContext,
+                   runMessageAddress(),
+                   physicalAddress,
+                   false,
+                   false,
+                   false,
+                   CacheType::CACHE_NORMAL_WRITE_BACK);
+
+        struct UserMessageInfo {
+            uint8_t type[16];
+            size_t address;
+            size_t length;
+            size_t numHandles;
+            /* externally for user = kernel */
+            bool allocatedExternally;
+        };
+        UserMessageInfo *msgInfo = reinterpret_cast<UserMessageInfo *>(physicalAddress.value());
+        *msgInfo = {
+            .type = {0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
+                     0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55}, /* MSG_BE_INIT */
+            .address = runMessageAddress().value(),
+            .length = 0,
+            .numHandles = 0,
+            .allocatedExternally = true
+        };
     }
 }
+
 

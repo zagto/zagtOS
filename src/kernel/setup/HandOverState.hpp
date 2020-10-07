@@ -21,8 +21,15 @@ enum FramebufferFormat : uint32_t {
     RGB = 1, BGR = 2
 };
 
+enum FirmwareType : uint32_t {
+    ACPI = 1, DTB = 2
+};
+
+enum class HandleType : uint32_t {
+    INVALID, FREE, PORT, REMOTE_PORT, THREAD, SHARED_MEMORY
+};
+
 struct MappedArea {
-    size_t type;
     size_t physicalStart;
     size_t start;
     size_t length;
@@ -32,8 +39,7 @@ struct MappedArea {
 
 struct Thread {
     RegisterState registerState;
-    PhysicalAddress paginingContext;
-    size_t TLSBase;
+    UserVirtualAddress TLSBase;
     ThreadPriority currentPriority;
     ThreadPriority ownPriority;
 };
@@ -45,7 +51,7 @@ struct Futex {
 };
 
 struct Handle {
-    size_t type;
+    HandleType type;
     uint32_t handle;
     size_t objectID;
 };
@@ -62,6 +68,7 @@ struct Port {
 };
 
 struct Process {
+    PhysicalAddress pagingContext;
     size_t numMappedAreas;
     MappedArea *mappedAreas;
     size_t numLocalFutexes;
@@ -93,7 +100,6 @@ struct SharedMemory {
     size_t length;
 };
 
-
 struct System {
     size_t version;
 
@@ -101,7 +107,8 @@ struct System {
     FrameStack freshFrameStack;
     FrameStack usedFrameStack;
     PhysicalAddress handOverPagingContext;
-    PhysicalAddress ACPIRoot;
+    FirmwareType firmwareType;
+    PhysicalAddress firmwareRoot;
     PhysicalAddress secondaryProcessorEntry;
     /* TODO: a way to pass time offset to APIC timer */
 
@@ -118,7 +125,6 @@ struct System {
     SharedMemory *sharedMemories;
 
     size_t numProcessors;
-    bool isMainProcessor;
     size_t numFutexes;
     Futex *futexes;
 

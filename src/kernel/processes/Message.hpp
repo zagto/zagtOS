@@ -53,6 +53,7 @@ public:
     void setDestinationProcess(Process *process);
 };
 
+/* when changing this struct also change it in loader/ProgramBinary.hpp */
 struct UserMessageInfo {
     UUID type;
     size_t address;

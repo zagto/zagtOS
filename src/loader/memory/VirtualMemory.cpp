@@ -27,6 +27,7 @@ void InitPaging(void) {
     ClearPageTable(HandOverMasterPageTable);
     ClearPageTable(ProcessMasterPageTable);
     CreateGlobalMasterPageTableEntries();
+    InitVirtualMemory();
 }
 
 

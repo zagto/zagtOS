@@ -3,8 +3,8 @@ set -e
 
 mkdir -p out/esp/EFI/BOOT
 cp build/loader/BOOTX64.EFI out/esp/EFI/BOOT/
-cp build/kernel/SHKERNEL.BIN out/esp/
-cp build/SystemEnvironment/SystemEnvironment out/esp/INIT.BIN
+cp build/kernel/ZAGTKERN.ZBN out/esp/
+cp build/SystemEnvironment/SYSENV.ZBN out/esp/
 # create image
 dd if=/dev/zero of=out/disk.img bs=1M count=202
 dd if=/dev/zero of=out/esp.img bs=1M count=200

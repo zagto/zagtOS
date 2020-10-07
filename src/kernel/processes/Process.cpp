@@ -17,6 +17,7 @@ Process::Process(const hos_v1::Process &handOver,
 {
     logName.resize(handOver.numLogNameChars);
     memcpy(logName.data(), handOver.logName, handOver.numLogNameChars);
+    pagingContext = new PagingContext(this, handOver.pagingContext);
 }
 
 
@@ -77,6 +78,7 @@ Process::Process(Process &sourceProcess,
     auto mainThread = make_shared<Thread>(shared_ptr<Process>(this),
                                           entryAddress,
                                           initialPrioriy,
+                                          UserStackRegion.start,
                                           runMessage.infoAddress,
                                           tlsBase,
                                           masterTLSBase,

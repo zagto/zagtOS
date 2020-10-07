@@ -32,7 +32,7 @@ void System::setupSecondaryProcessorEntry(const hos_v1::System &handOver) {
 
 System::System(hos_v1::System handOver) :
         CommonSystem(handOver),
-        ACPIRoot{handOver.ACPIRoot},
+        ACPIRoot{handOver.firmwareRoot},
         secondaryProcessorEntry{handOver.secondaryProcessorEntry} {
     setupSecondaryProcessorEntry(handOver);
 }

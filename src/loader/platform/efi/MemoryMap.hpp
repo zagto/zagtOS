@@ -5,6 +5,8 @@
 
 namespace memoryMap {
 
+uint8_t *allocateHandOver(size_t numPages);
+
 void freezeAndExitFirmware();
 
 optional<Region> firstAvailableRegion();

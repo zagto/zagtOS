@@ -47,7 +47,9 @@ MappedArea::MappedArea(Process *process, const hos_v1::MappedArea &handOver) :
         physicalStart{handOver.physicalStart},
         source{handOver.source},
         region(handOver.start, handOver.length),
-        permissions{handOver.permissions} {}
+        permissions{handOver.permissions} {
+    cout << "handover MappedArea " << handOver.start << " len " << handOver.length << endl;
+}
 
 
 MappedArea::~MappedArea() {
@@ -135,6 +137,10 @@ MappedAreaVector::MappedAreaVector(Process *process, const hos_v1::Process &hand
     resize(handOver.numMappedAreas);
     for (size_t index = 0; index < handOver.numMappedAreas; index++) {
         _data[index] = new MappedArea(process, handOver.mappedAreas[index]);
+        assert(_data[index]->region.isPageAligned());
+        if (index > 0) {
+            assert(_data[index]->region.start >= _data[index - 1]->region.end());
+        }
     }
 }
 

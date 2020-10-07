@@ -1,5 +1,4 @@
-#ifndef SCHEDULER_HPP
-#define SCHEDULER_HPP
+#pragma once
 
 #include <processes/Thread.hpp>
 #include <interrupts/RegisterState.hpp>
@@ -39,5 +38,3 @@ public:
     void removeLocked(Thread *thread);
     Thread *activeThread() const;
 };
-
-#endif // SCHEDULER_HPP
