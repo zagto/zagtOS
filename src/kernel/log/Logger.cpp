@@ -147,3 +147,26 @@ Logger Logger::operator<<(const RegisterState &regs) {
                  << "\tinterrupt type: " << regs.intNr << ", error code: " << regs.errorCode << endl
                  << "]";
 }
+
+void Logger::sendCoreDump(size_t nameLength,
+                          const uint8_t *name,
+                          size_t dataLength,
+                          const uint8_t *data) {
+    cout << "sending coredump data size " << dataLength << endl;
+    flush();
+    /* core dump marker */
+    serialBackend.write(static_cast<char>(0xf2));
+    for (size_t i = 0; i < 8; i++) {
+        serialBackend.write((nameLength >> i * 8) & 0xff);
+    }
+    for (size_t i = 0; i < nameLength; i++) {
+        serialBackend.write(name[i]);
+    }
+    for (size_t i = 0; i < 8; i++) {
+        serialBackend.write((dataLength >> i * 8) & 0xff);
+    }
+    for (size_t i = 0; i < dataLength; i++) {
+        serialBackend.write(data[i]);
+    }
+}
+

@@ -44,72 +44,16 @@ uint8_t digitToChar(uint8_t digit) {
     return digit >= 10 ? digit - 10 + 'a' : digit + '0';
 }
 
-uint8_t group[3];
-size_t position = 0;
-size_t linePosition = 0;
 
-char convertToChar(uint8_t value) {
-    if (value <= 25) {
-        return value + 'A';
-    } else if (value <= 51) {
-        return value - 26 + 'a';
-    } else if (value <= 61) {
-        return value - 52 + '0';
-    } else if (value == 62) {
-        return '+';
-    } else if (value == 63) {
-        return '/';
-    } else {
-        Panic();
-    }
-}
-
-void writeOutGroup() {
-    cout << convertToChar(group[0] >> 2)
-         << convertToChar(((group[0] & 0b11) << 4) | (group[1] >> 4))
-         << convertToChar(((group[1] & 0b1111) << 2) | (group[2] >> 6))
-         << convertToChar(group[2] & 0b111111);
-
-    position = 0;
-    linePosition++;
-    if (linePosition > 19) {
-        cout << endl;
-        linePosition = 0;
-    }
-}
-
-void writeBase64(void *_data, size_t length) {
-    uint8_t *data = reinterpret_cast<uint8_t *>(_data);
-    for (size_t index = 0; index < length; index++) {
-        group[position] = data[index];
-        position++;
-        if (position == 3) {
-            writeOutGroup();
-        }
-    }
-}
-
-void finalizeBase64() {
-    size_t numFillBytes = 0;
-    if (position > 0) {
-        while (position != 3) {
-            group[position] = 0;
-            position++;
-            numFillBytes++;
-        }
-        writeOutGroup();
-    }
-    for (size_t i = 0; i < numFillBytes; i++) {
-        cout << "=";
-    }
-    cout << endl;
-
-    position = 0;
-    linePosition = 0;
+void writeDump(vector<uint8_t> &dumpFile, void *data, size_t length) {
+    size_t offset = dumpFile.size();
+    dumpFile.resize(offset + length);
+    memcpy(&dumpFile[offset], data, length);
 }
 
 void Process::coreDump() {
-    cout << "===== BEGIN CORE DUMP =====" << endl;
+    cout << "Sending Core Dump to Serial Port..." << endl;
+    vector<uint8_t> dumpFile;
 
     scoped_lock sl(pagingLock);
 
@@ -143,7 +87,7 @@ void Process::coreDump() {
         .shnum = 0,
         .shstrndx = 0,
     };
-    writeBase64(&fileHeader, sizeof(FileHeader));
+    writeDump(dumpFile, &fileHeader, sizeof(FileHeader));
 
     size_t dataOffset = sizeof(FileHeader) * numProgramHeaders * sizeof(ProgramHeader);
     for (size_t index = 0; index < numProgramHeaders; index++) {
@@ -160,7 +104,7 @@ void Process::coreDump() {
             .memsz = length,
             .align = 1
         };
-        writeBase64(&programHeader, sizeof(ProgramHeader));
+        writeDump(dumpFile, &programHeader, sizeof(ProgramHeader));
         dataOffset += length;
     }
 
@@ -174,11 +118,11 @@ void Process::coreDump() {
                 memset(page, 0, PAGE_SIZE);
             }
 
-            writeBase64(page, PAGE_SIZE);
+            writeDump(dumpFile, page, PAGE_SIZE);
         }
     }
-    finalizeBase64();
+    cout.sendCoreDump(logName.size(), logName.data(), dumpFile.size(), dumpFile.data());
 
-    cout << "===== BEGIN END DUMP =====" << endl;
+    cout << "End core dump" << endl;
 
 }

@@ -15,6 +15,7 @@ public:
     void setProgramColor();
     void basicWrite(char character);
     void output(char character);
+    void sendCoreDump(size_t nameLength, const uint8_t *name, size_t dataLength, const uint8_t *data);
     Logger operator<<(char character);
     Logger operator<<(const char *string);
     Logger operator<<(uint32_t value);
