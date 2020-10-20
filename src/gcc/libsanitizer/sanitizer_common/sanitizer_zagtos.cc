@@ -23,6 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <zagtos/syscall.h>
 
 
 extern "C" size_t zagtos_syscall0(size_t call);
@@ -224,8 +225,8 @@ bool IsAbsolutePath(const char *) {
   return false;
 }
 
-void ReportFile::Write(const char *, uptr ) {
-  Die();
+void ReportFile::Write(const char *buffer, uptr length) {
+  zagtos_syscall2(SYS_LOG, reinterpret_cast<size_t>(buffer), length);
 }
 
 void ListOfModules::init() {
