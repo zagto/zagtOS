@@ -70,7 +70,8 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
                 }
             }
             if (!handled) {
-                cout << "Unhandled Page Fault in User Mode: " << readCR2() << endl;
+                cout << "Unhandled Page Fault for in User Mode address: " << readCR2() << endl;
+                activeThread->process->crash("Unhandled Page Fault", activeThread);
             }
             break;
         }
