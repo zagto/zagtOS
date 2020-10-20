@@ -14,9 +14,9 @@
 namespace zbon {
 
 enum class Type : uint8_t {
-    BINARY, NOTHING, OBJECT, STRING, BOOLEAN,
+    BINARY = 1, NOTHING, OBJECT, STRING, BOOLEAN,
     INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64,
-    FLOAT, DOUBLE, HANDLE, NUM_TYPES
+    FLOAT, DOUBLE, HANDLE, TYPES_END
 };
 static const size_t HANDLE_SIZE = 4;
 
@@ -541,7 +541,7 @@ private:
         ensureEnoughLeft(1);
 
         uint8_t value = encodedData._data[position];
-        if (value < static_cast<uint8_t>(Type::NUM_TYPES)) {
+        if (value > 0 && value < static_cast<uint8_t>(Type::TYPES_END)) {
             result = static_cast<Type>(value);
             position++;
         } else {
@@ -676,7 +676,10 @@ public:
         position++;
     }
 
-#define NUMBER_TYPE(T) void decodeValue(T &result) { return decodeNumber(result, position); }
+#define NUMBER_TYPE(T) void decodeValue(T &result) { \
+    decodeVerifyType(typeFor(result)); \
+    return decodeNumber(result, position); \
+}
     INSERT_NUMBER_TYPES
 #undef NUMBER_TYPE
 

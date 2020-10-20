@@ -10,7 +10,7 @@
  * format - they can have any number of sections. */
 
 enum Type : uint8_t {
-    BINARY, NOTHING, OBJECT, STRING, BOOLEAN,
+    BINARY = 1, NOTHING, OBJECT, STRING, BOOLEAN,
     INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64,
     FLOAT, DOUBLE, HANDLE, NUM_TYPES
 };
@@ -40,7 +40,7 @@ size_t ProgramBinary::TLSOffset() const {
 
 size_t ProgramBinary::sectionsArrayOffset() const {
     if (data[TLSOffset()] == OBJECT) {
-        return TLSOffset() + OBJECT_HEADER_SIZE + data[TLSOffset() + 1 + 2*8];
+        return TLSOffset() + OBJECT_HEADER_SIZE + readSize(TLSOffset() + 1 + 2*8);
     } else {
         return TLSOffset() + 1;
     }
@@ -118,6 +118,7 @@ void ProgramBinary::sanityChecks() const {
         sanityCheckSection(TLSOffset());
     }
 
+    cout << "sectionsArrayOffset " << sectionsArrayOffset() << endl;
     assert(data[sectionsArrayOffset()] == OBJECT);
     for (size_t index = 0; index < numSections(); index++) {
         cout << "checking section " << index << " at offset " << sectionOffset(index) << endl;
