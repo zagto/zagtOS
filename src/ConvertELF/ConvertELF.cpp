@@ -4,6 +4,7 @@
 #include <vector>
 #include <optional>
 #include <memory>
+#include <filesystem>
 #include <elf.h>
 #include <zagtos/ZBON.hpp>
 #include <zagtos/ProgramBinary.hpp>
@@ -30,10 +31,20 @@ int main(int argc, char **argv) {
                                  + std::to_string(argc)
                                  + " arguments instead)");
     }
+    /* TODO: don't use tmpnam */
+    char *tmpFileName = tmpnam(nullptr);
+    const char *stripProgram = getenv("STRIP");
+    if (stripProgram == nullptr) {
+        throw std::runtime_error("please define STRIP environment variable");
+    }
+    std::filesystem::copy(argv[1], tmpFileName);
+    if (system((std::string(stripProgram) + " " + tmpFileName).c_str())) {
+        throw std::runtime_error("could not strip input file");
+    }
 
-    std::ifstream inFile(argv[1]);
+    std::ifstream inFile(tmpFileName);
     if (!inFile.is_open()) {
-        throw std::runtime_error("could not open input file");
+        throw std::runtime_error("could not open temporary file");
     }
 
     inFile.read(reinterpret_cast<char *>(&FileHeader), sizeof(Elf64_Ehdr));
@@ -95,6 +106,8 @@ int main(int argc, char **argv) {
         }
     }
     inFile.close();
+
+    std::filesystem::remove(tmpFileName);
 
     zagtos::ProgramBinary binary = {
         .entryAddress = FileHeader.e_entry,
