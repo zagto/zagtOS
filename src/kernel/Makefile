@@ -30,6 +30,7 @@ LDFLAGS = -O2 -ffreestanding -nostdlib -static -L$(PWD)/arch/$(ARCH)/lib/crt -z 
 
 CXX = $(ARCH)-elf-g++
 CC = $(ARCH)-elf-gcc
+export STRIP = $(ARCH)-elf-strip
 CONVERTELF = $(SHBUILD_ROOT)/build/ConvertELF/ConvertELF
 
 

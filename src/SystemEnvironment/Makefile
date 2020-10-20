@@ -21,17 +21,18 @@ BINARY_OBJS = $(SHBUILD_BUILD_DIR)/binaries.o
 TARGET = $(SHBUILD_BUILD_DIR)/SYSENV.ZBN
 
 
-COMMON_FLAGS = -Os -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
+COMMON_FLAGS = -O0 -g -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD)
 
 CFLAGS = $(COMMON_FLAGS) -std=c18
 CXXFLAGS = $(COMMON_FLAGS) -std=c++2a
 
-LDFLAGS = -Os -s -Wl,--gc-sections
+LDFLAGS = -Os -Wl,--gc-sections
 
 
 CXX = $(ARCH)-zagto-zagtos-g++
 CC = $(ARCH)-zagto-zagtos-gcc
 LD = $(ARCH)-zagto-zagtos-ld
+export STRIP = $(ARCH)-zagto-zagtos-strip
 CONVERTELF = $(SHBUILD_ROOT)/build/ConvertELF/ConvertELF
 
 
