@@ -34,7 +34,7 @@ private:
                          size_t length,
                          PagingContext::AccessOperation accOp,
                          bool requireWritePermissions);
-    void coreDump();
+    void coreDump(Thread *crashedThread);
 
 public:
     mutex pagingLock;
@@ -75,6 +75,6 @@ public:
     bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
 
     size_t runMessageAddress();
-    void crash(const char *message);
+    void crash(const char *message, Thread *crashedThread);
     void exit();
 };

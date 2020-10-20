@@ -24,7 +24,8 @@ struct Futex {
         while (!threads.empty()) {
             Thread *thread = threads.top();
             threads.pop();
-            thread->process->crash("Waiting on futex in memory region that no longer exists");
+            thread->process->crash("Waiting on futex in memory region that no longer exists",
+                                   thread);
         }
         *this = {};
     }
