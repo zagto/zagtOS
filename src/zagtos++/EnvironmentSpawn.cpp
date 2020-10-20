@@ -48,12 +48,13 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
     zbon::decode(binary.data(), program);
 
     std::vector<SpawnProcessSection> sections(program.sections.begin(), program.sections.end());
+    std::optional<SpawnProcessSection> tls(program.TLSSection);
 
     SpawnProcessArgs args = {
         .entryAddress = program.entryAddress,
         .numSections = program.sections.size(),
         .sectionsAddress = sections.data(),
-        .TLSSection = program.TLSSection ? &*program.TLSSection : nullptr,
+        .TLSSection = tls ? &*tls : nullptr,
         .priority = priority,
         .messageType = {0}, /* inserted below */
         .messageAddress = runMessage.data(),
