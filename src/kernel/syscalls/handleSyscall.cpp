@@ -60,13 +60,9 @@ bool Thread::handleSyscall() {
         process->exit();
         return true;
     case SYS_CRASH:
-        cout << "Process ";
-        for (uint8_t character: process->logName) {
-            cout << static_cast<char>(character);
-        }
-        cout << " crashed.";
-        process->coreDump();
-        Halt();
+        /* Danger - the current thread (this) will be deleted */
+        process->crash("self-termination by syscall", this);
+        return true;
     case SYS_CREATE_PORT: {
         shared_ptr<Port> port = make_shared<Port>(process);
         uint32_t handle = process->handleManager.addPort(port);
