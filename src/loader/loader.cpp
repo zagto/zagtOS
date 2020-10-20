@@ -90,7 +90,7 @@ void LoaderMain() {
     cout << "Preparing handover structures..." << endl;
 
     RegisterState regState(process.entryAddress(),
-                           UserStackRegion.end() - 1,/* ensure valid UserVirtualAddress */
+                           UserStackRegion.end() - 1, /* ensure valid UserVirtualAddress */
                            process.runMessageAddress(),
                            process.TLSBase(),
                            process.masterTLSBase(),
