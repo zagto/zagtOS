@@ -46,6 +46,7 @@ Process::Process(Process &sourceProcess,
         assert(success);
     }
 
+    // TODO: stack border
     mappedAreas.insert(new MappedArea(this, UserStackRegion, Permissions::READ_WRITE));
 
     UserVirtualAddress masterTLSBase{0};
@@ -68,7 +69,7 @@ Process::Process(Process &sourceProcess,
                                               TLSSection->dataAddress,
                                               TLSSection->dataSize,
                                               false);
-        assert(success);
+        assert(success); /* TODO: source process can make this fail! */
     }
 
     runMessage.setDestinationProcess(this);
@@ -78,7 +79,8 @@ Process::Process(Process &sourceProcess,
     auto mainThread = make_shared<Thread>(shared_ptr<Process>(this),
                                           entryAddress,
                                           initialPrioriy,
-                                          UserStackRegion.start,
+                                          /* ensure valid UserVirtualAddress */
+                                          UserStackRegion.end() - 1,
                                           runMessage.infoAddress,
                                           tlsBase,
                                           masterTLSBase,
@@ -120,8 +122,13 @@ bool Process::handlePageFault(UserVirtualAddress address) {
     }
 }
 
-void Process::crash(const char *message) {
+void Process::crash(const char *message, Thread *crashedThread) {
+    /* TODO: throw an exception? This method can be called from anywhere so we need to make sure all
+    locks are clear */
     cout << "Terminating process for reason: " << message << endl;
+    if (crashedThread != nullptr) {
+        coreDump(crashedThread);
+    }
     exit();
 }
 
