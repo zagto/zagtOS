@@ -9,12 +9,12 @@ C_HEADERS = $(shell find -L . -name '*.h')
 C_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(C_SOURCES:.c=.o))
 
 
-COMMON_FLAGS = -Os -g -Wall -Wextra -Wpedantic -Werror -I$(PWD) -fsanitize=undefined -ffunction-sections -fdata-sections -flto
+COMMON_FLAGS = -Os -g -Wall -Wextra -Wpedantic -Werror -I$(PWD) -fsanitize=undefined -ffunction-sections -fdata-sections
 
 CFLAGS = $(COMMON_FLAGS) -std=c18
 CXXFLAGS = $(COMMON_FLAGS) -std=c++2a
 
-LDFLAGS = -Os -fsanitize=undefined -Wl,--gc-sections -flto
+LDFLAGS = -Os -fsanitize=undefined -Wl,--gc-sections
 
 
 CXX = $(ARCH)-zagto-zagtos-g++
