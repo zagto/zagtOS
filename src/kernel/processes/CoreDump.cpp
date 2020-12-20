@@ -145,10 +145,11 @@ void Process::coreDump(Thread *crashedThread) {
 
         for (size_t address = startAddress; address < startAddress + length; address += PAGE_SIZE) {
             static uint8_t page[PAGE_SIZE];
-            if (!copyFromUser(page, address, PAGE_SIZE, false)) {
+
+            if (mappedAreas[index]->permissions == Permissions::INVALID
+                    || !copyFromUser(page, address, PAGE_SIZE, false)) {
                 memset(page, 0, PAGE_SIZE);
             }
-
             writeDump(dumpFile, page, PAGE_SIZE);
         }
     }
