@@ -76,10 +76,10 @@ std::unique_ptr<MessageInfo> Port::receiveMessage() {
 }
 
 
-void RemotePort::sendMessage(const uuid_t messageTypeID, zbon::EncodedData message) const {
+void RemotePort::sendMessage(UUID messageTypeID, zbon::EncodedData message) const {
     zagtos_syscall5(SYS_SEND_MESSAGE,
                     _handle,
-                    reinterpret_cast<size_t>(messageTypeID),
+                    reinterpret_cast<size_t>(&messageTypeID),
                     reinterpret_cast<size_t>(message.data()),
                     message.size(),
                     message.numHandles());
@@ -91,8 +91,8 @@ const MessageInfo &receiveRunMessageInfo() {
     return *__run_message;
 }
 
-void receiveRunMessage(const uuid_t type) {
-    if (uuid_compare(type, __run_message->type) != 0) {
+void receiveRunMessage(UUID type) {
+    if (type != __run_message->type) {
         std::cout << "invalid run message type" << std::endl;
         exit(1);
     }

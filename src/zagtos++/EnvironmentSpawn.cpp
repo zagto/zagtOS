@@ -13,7 +13,7 @@ struct SpawnProcessArgs {
     void *TLSSection;
     size_t priority;
 
-    uuid_t messageType;
+    UUID messageType;
     const unsigned char *messageAddress;
     size_t messageSize;
     uint32_t numMessageHandles;
@@ -42,7 +42,7 @@ struct SpawnProcessSection {
 
 void zagtos::environmentSpawn(const ExternalBinary &binary,
                               Priority priority,
-                              const uuid_t messageType,
+                              const UUID messageType,
                               zbon::EncodedData runMessage) {
     ProgramBinary program;
     zbon::decode(binary.data(), program);
@@ -56,7 +56,7 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
         .sectionsAddress = sections.data(),
         .TLSSection = tls ? &*tls : nullptr,
         .priority = priority,
-        .messageType = {0}, /* inserted below */
+        .messageType = messageType, /* inserted below */
         .messageAddress = runMessage.data(),
         .messageSize = runMessage.size(),
         .numMessageHandles = static_cast<uint32_t>(runMessage.numHandles()),
@@ -64,8 +64,6 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
         .logNameSize = strlen(binary.logName()),
         .result = 0
     };
-
-    uuid_copy(args.messageType, messageType);
 
     zagtos_syscall1(SYS_SPAWN_PROCESS, reinterpret_cast<size_t>(&args));
 }

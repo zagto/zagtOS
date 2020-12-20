@@ -76,7 +76,7 @@ void initPCIForOS(zagtos::RemotePort &envPort) {
         return;
     }
 
-    auto msg = zbon::encode(std::make_tuple(zbon::ZBONUIID(CONTROLLER_TYPE_PCI), zbon::encode(segmentGroups)));
+    auto msg = zbon::encode(std::make_tuple(CONTROLLER_TYPE_PCI, segmentGroups));
     envPort.sendMessage(zagtos::MSG_FOUND_CONTROLLER, std::move(msg));
 }
 

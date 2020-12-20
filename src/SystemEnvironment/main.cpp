@@ -15,8 +15,9 @@ EXTERNAL_BINARY(AHCIDriver)
 
 using namespace zagtos;
 
-UUID_DEFINE(MSG_BE_INIT, 0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
-            0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55);
+static constexpr UUID MSG_BE_INIT(
+        0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
+        0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55);
 
 struct DeviceMatch {
     uint64_t id;
@@ -42,7 +43,7 @@ public:
         return false;
     }
 
-    void start(const uuid_t messageType, zbon::EncodedData runMessage) const {
+    void start(const UUID messageType, zbon::EncodedData runMessage) const {
         environmentSpawn(binary, Priority::BACKGROUND, messageType, std::move(runMessage));
     }
 
@@ -52,8 +53,8 @@ public:
 };
 
 struct ControllerType {
-    const uuid_t &id;
-    const uuid_t &driverStartMessageID;
+    const UUID &id;
+    const UUID &driverStartMessageID;
     std::vector<Driver> drivers;
 };
 
@@ -72,9 +73,9 @@ void ControllerServer(const ExternalBinary &program,
 
     while (true) {
         std::unique_ptr<MessageInfo> msgInfo = port.receiveMessage();
-        if (uuid_compare(msgInfo->type, MSG_START_CONTROLLER_DONE) == 0) {
+        if (msgInfo->type == MSG_START_CONTROLLER_DONE) {
             std::cerr << "got MSG_START_CONTROLLER_DONE, TODO: what is next?" << std::endl;
-        } else if (uuid_compare(msgInfo->type, MSG_FOUND_DEVICE) == 0) {
+        } else if (msgInfo->type == MSG_FOUND_DEVICE) {
             std::tuple<uint64_t, zbon::EncodedData> msg;
             try {
                 zbon::decode(msgInfo->data, msg);
@@ -107,7 +108,7 @@ int main() {
 
     while (true) {
         std::unique_ptr<MessageInfo> msgInfo = halServerPort.receiveMessage();
-        if (uuid_compare(msgInfo->type, MSG_START_HAL_RESULT) == 0) {
+        if (msgInfo->type == MSG_START_HAL_RESULT) {
             bool result;
             try {
                 zbon::decode(msgInfo->data, result);
@@ -121,8 +122,8 @@ int main() {
             } else {
                 std::cout << "HAL startup failed." << std::endl;
             }
-        } else if (uuid_compare(msgInfo->type, MSG_FOUND_CONTROLLER) == 0) {
-            std::tuple<uuid_t, zbon::EncodedData> msg;
+        } else if (msgInfo->type == MSG_FOUND_CONTROLLER) {
+            std::tuple<UUID, zbon::EncodedData> msg;
             try {
                 zbon::decode(msgInfo->data, msg);
             } catch(zbon::DecoderException &e) {
@@ -130,7 +131,7 @@ int main() {
                 continue;
             }
 
-            if (uuid_compare(std::get<0>(msg), CONTROLLER_TYPE_PCI) == 0) {
+            if (std::get<0>(msg) == CONTROLLER_TYPE_PCI) {
                 //new std::thread(ControllerServer, PCIController, std::move(std::get<1>(msg)), PCI);
             } else {
                 std::cout << "Received MSG_START_CONTROLLER message for unsupported controller "

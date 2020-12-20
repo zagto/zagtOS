@@ -12,7 +12,7 @@ namespace zagtos {
 
     void environmentSpawn(const ExternalBinary &binary,
                           Priority priority,
-                          const uuid_t messageType,
+                          const UUID messageType,
                           zbon::EncodedData runMessage);
 }
 

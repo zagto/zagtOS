@@ -9,7 +9,6 @@
 #include <optional>
 #include <limits>
 #include <iostream>
-#include <uuid/uuid.h>
 
 namespace zbon {
 
@@ -96,6 +95,10 @@ template<typename T, size_t count>
 static Type typeFor(const T (&)[count]) {
     return Type::OBJECT;
 }
+template<size_t count>
+static Type typeFor(const uint8_t (&)[count]) {
+    return Type::BINARY;
+}
 template<typename ...Types>
 static Type typeFor(const std::tuple<Types...> &) {
     return Type::OBJECT;
@@ -176,6 +179,11 @@ static Size sizeFor(const std::array<T, count> &array) {
         sum += sizeFor(element);
     }
     return sum;
+}
+template<size_t count>
+static Size sizeFor(const uint8_t (&array)[count]) {
+    /* uint8_t array becomes binary */
+    return {TYPE_SIZE + COUNT_SIZE + count};
 }
 template<typename T, size_t count>
 static Size sizeFor(const T (&array)[count]) {
@@ -863,27 +871,6 @@ static void decode(const EncodedData &encodedData, T &result) {
     Decoder d(encodedData);
     d.decode(result);
 }
-
-
-class ZBONUIID {
-public:
-    uuid_t value;
-    ZBONUIID(const uuid_t &uuid) {
-        uuid_copy(value, uuid);
-    }
-    static zbon::Type ZBONType() {
-        return zbon::Type::BINARY;
-    }
-    zbon::Size ZBONSize() const {
-        return zbon::sizeForBinary(16);
-    }
-    void ZBONEncode(zbon::Encoder &encoder) const {
-        encoder.encodeBinary(value, 16);
-    }
-    void ZBONDecode(zbon::Decoder &decoder) {
-        decoder.decodeBinary(value, 16);
-    }
-};
 
 #define ZBON_ENCODING_FUNCTIONS(...) \
     static constexpr zbon::Type ZBONType() { \

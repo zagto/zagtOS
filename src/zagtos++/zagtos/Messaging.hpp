@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <memory>
-#include <uuid/uuid.h>
+#include <zagtos/UUID.hpp>
 #include <zagtos/ZBON.hpp>
 #include <cstdint>
 
@@ -35,7 +35,7 @@ namespace zagtos {
         RemotePort(RemotePort &) = delete;
         RemotePort(RemotePort &&ohter);
 
-        void sendMessage(const uuid_t messageType,
+        void sendMessage(const UUID messageType,
                          zbon::EncodedData message) const;
     };
 
@@ -49,7 +49,7 @@ namespace zagtos {
     };
 
     struct MessageInfo {
-        uuid_t type;
+        UUID type;
         zbon::EncodedData data;
 
         static void *operator new(std::size_t);
@@ -66,10 +66,10 @@ namespace zagtos {
         bool ZBONDecode(zbon::Decoder &) = delete;
 
         std::unique_ptr<MessageInfo> receiveMessage();
-        template<typename T> void receiveMessage(const uuid_t type, T &result) {
+        template<typename T> void receiveMessage(UUID type, T &result) {
             while (true) {
                 std::unique_ptr<MessageInfo> msgInfo = receiveMessage();
-                if (uuid_compare(type, msgInfo->type) != 0) {
+                if (type != msgInfo->type) {
                     std::cerr << "receiveMessage: invalid message type" << std::endl;
                 } else if (!zbon::decode(msgInfo->data, result)) {
                     std::cerr << "receiveMessage: invalid data" << std::endl;
@@ -86,10 +86,10 @@ namespace zagtos {
     extern "C" void exit(int);
 
     const MessageInfo &receiveRunMessageInfo();
-    void receiveRunMessage(const uuid_t type);
-    template<typename T> T decodeRunMessage(const uuid_t type) {
+    void receiveRunMessage(UUID type);
+    template<typename T> T decodeRunMessage(UUID type) {
         const MessageInfo &msgInfo = receiveRunMessageInfo();
-        if (uuid_compare(type, msgInfo.type) != 0) {
+        if (type != msgInfo.type) {
             std::cerr << "invalid run message type" << std::endl;
             exit(1);
         }
