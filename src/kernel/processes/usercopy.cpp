@@ -93,6 +93,10 @@ bool Process::copyFromOhterUserSpace(size_t destinationAddress,
     vector<uint8_t> buffer(length);
     bool valid;
 
+    if (length == 0) {
+        return true;
+    }
+
     valid = sourceProcess.copyFromUser(&buffer[0], sourceAddress, length, false);
     if (!valid) {
         return false;
