@@ -1,0 +1,1 @@
+../gcc/check-toolchains.sh

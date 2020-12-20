@@ -1,10 +1,26 @@
 #!/bin/bash
 set -e
 
-# libstdc++ has to be built in the gcc build directory, otherwise it would
-# re-build the whole compiler
+function check_toolchain() {
+    NAME="$1"
+    TARGET="$2"
+    NOHEADERS="$3"
+    TARGET_CFLAGS="$4"
 
-GCC_BUILD_DIR="$SHBUILD_ROOT/build/gcc/system-${ARCH}"
-cd "${GCC_BUILD_DIR}"
-make -j "$PARALLEL_JOBS" all-target-libstdc++-v3 CFLAGS_FOR_TARGET='-g -Os -ffunction-sections -fdata-sections'
+    TOOLCHAIN_DIR="$SHBUILD_ROOT/out/toolchain/$NAME"
+    GCC_BUILD_DIR="$SHBUILD_ROOT/build/libstdc++"
+    GCC_SOURCE_DIR="$PWD/../gcc"
 
+    if [ "$NOHEADERS" != "yes" ]; then
+        EXTRA_FLAGS_GCC="--with-sysroot=$SYSROOT --enable-threads=posix"
+
+	mkdir -p "$GCC_BUILD_DIR"
+	pushd "$GCC_BUILD_DIR"
+	"$GCC_SOURCE_DIR/configure" --target="$TARGET" --prefix="$TOOLCHAIN_DIR" --enable-languages=c,c++,lto --disable-nls $EXTRA_FLAGS_GCC
+	make -j "$PARALLEL_JOBS" all-target-libsanitizer CFLAGS_FOR_TARGET="$TARGET_CFLAGS"
+	make -j "$PARALLEL_JOBS" all-target-libstdc++-v3 CFLAGS_FOR_TARGET="$TARGET_CFLAGS"
+	popd
+    fi
+}
+
+. check-toolchains.sh

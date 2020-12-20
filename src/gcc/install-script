@@ -14,9 +14,6 @@ function check_toolchain() {
     pushd "$GCC_BUILD_DIR"
     make install-gcc
     make install-target-libgcc
-    if [ "$NOHEADERS" != "yes" ]; then
-        make install-target-libsanitizer
-    fi
     popd
 }
 
