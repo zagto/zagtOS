@@ -53,13 +53,14 @@ public:
 };
 
 struct ControllerType {
-    const UUID &id;
-    const UUID &driverStartMessageID;
+    const UUID id;
+    const UUID driverStartMessageID;
     std::vector<Driver> drivers;
 };
 
 static Driver dACHIDriver{{{0x0106'0000'0000'0000, 0xffff'0000'0000'0000}}, AHCIDriver};
 static ControllerType PCI{CONTROLLER_TYPE_PCI, MSG_START_PCI_DRIVER, {dACHIDriver}};
+
 
 void ControllerServer(const ExternalBinary &program,
                       zbon::EncodedData startMessage,
@@ -132,7 +133,10 @@ int main() {
             }
 
             if (std::get<0>(msg) == CONTROLLER_TYPE_PCI) {
-                //new std::thread(ControllerServer, PCIController, std::move(std::get<1>(msg)), PCI);
+                new std::thread(ControllerServer,
+                                std::ref(PCIController),
+                                std::move(std::get<1>(msg)),
+                                std::ref(PCI));
             } else {
                 std::cout << "Received MSG_START_CONTROLLER message for unsupported controller "
                           << "type." << std::endl;
