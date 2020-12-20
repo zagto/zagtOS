@@ -133,7 +133,7 @@ void Decoder::decodeValue(zbon::EncodedData &value) {
         throw DecoderException();
     }
 
-    ensureEnoughLeft(dataLength);
+    ensureEnoughLeft(length);
     ensureEnoughHandlesLeft(numHandles);
 
     value._data = new uint8_t[numHandles * HANDLE_SIZE + dataLength];
