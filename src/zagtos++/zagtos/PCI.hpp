@@ -14,54 +14,21 @@ struct SegmentGroup {
     uint8_t busStart;
     uint8_t busEnd;
 
-    static constexpr zbon::Type ZBONType() {
-        return zbon::Type::OBJECT;
-    }
-    zbon::Size ZBONSize() const {
-        return zbon::sizeForObject(configBase, segmentNumber, busStart, busEnd);
-    }
-    void ZBONEncode(zbon::Encoder &encoder) const {
-        encoder.encodeObjectValue(configBase, segmentNumber, busStart, busEnd);
-    }
-    void ZBONDecode(zbon::Decoder &decoder) {
-        decoder.decodeFromObject(configBase, segmentNumber, busStart, busEnd);
-    }
+    ZBON_ENCODING_FUNCTIONS(configBase, segmentNumber, busStart, busEnd)
 };
 
 struct BaseRegister {
     SharedMemory sharedMemory;
     size_t length;
 
-    static constexpr zbon::Type ZBONType() {
-        return zbon::Type::OBJECT;
-    }
-    zbon::Size ZBONSize() const {
-        return zbon::sizeForObject(sharedMemory, length);
-    }
-    void ZBONEncode(zbon::Encoder &encoder) const {
-        encoder.encodeObjectValue(sharedMemory, length);
-    }
-    void ZBONDecode(zbon::Decoder &decoder) {
-        decoder.decodeFromObject(sharedMemory, length);
-    }
+    ZBON_ENCODING_FUNCTIONS(sharedMemory, length)
 };
 
 struct Device {
     uint64_t deviceID;
     std::array<std::optional<BaseRegister>, 5> BAR;
 
-    static constexpr zbon::Type ZBONType() {
-        return zbon::Type::OBJECT;
-    }
-    zbon::Size ZBONSize() const {
-        return zbon::sizeForObject(deviceID, BAR);
-    }
-    void ZBONEncode(zbon::Encoder &encoder) const {
-        encoder.encodeObjectValue(deviceID, BAR);
-    }
-    void ZBONDecode(zbon::Decoder &decoder) {
-        decoder.decodeFromObject(deviceID, BAR);
-    }
+    ZBON_ENCODING_FUNCTIONS(deviceID, BAR)
 };
 
 }
