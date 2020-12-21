@@ -87,14 +87,19 @@ void ControllerServer(const ExternalBinary &program,
             uint64_t deviceID = std::get<0>(msg);
             std::cout << "combined device id: " << deviceID << std::endl;
             zbon::EncodedData &startData = std::get<1>(msg);
+
+            bool foundDriver{false};
             for (const Driver &driver: controllerType.drivers) {
                 if (driver.matches(deviceID)) {
                     std::cout << "Matched driver " << driver.name() << std::endl;
                     driver.start(controllerType.driverStartMessageID, std::move(startData));
-                    continue;
+                    foundDriver = true;
+                    break;
                 }
             }
-            std::cout << "No matching driver" << std::endl;
+            if (!foundDriver) {
+                std::cout << "No matching driver" << std::endl;
+            }
         }
     }
 }
