@@ -62,25 +62,36 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
             static const size_t PAGING_ERROR_WRITE{0b10};
             static const size_t PAGING_ERROR_USER{0b100};
 
+            size_t cr2 = readCR2();
+
             size_t errorFlags{registerState->errorCode & PAGING_ERROR_FLAGS};
+            if (!(errorFlags & PAGING_ERROR_USER)) {
+                cout << "userHandler called for non user page fault" << endl;
+                Panic();
+            }
             if (errorFlags == PAGING_ERROR_USER
                     || errorFlags == (PAGING_ERROR_USER | PAGING_ERROR_WRITE)) {
-                if (activeThread->process->handlePageFault(UserVirtualAddress(readCR2()))) {
+                if (activeThread->process->handlePageFault(UserVirtualAddress(cr2))) {
                     handled = true;
                 }
             }
+            assert(&activeThread->registerState == registerState);
             if (!handled) {
-                cout << "Unhandled Page Fault for in User Mode address: " << readCR2() << endl;
+                cout << "Unhandled Page Fault for in User Mode address: " << cr2 << endl;
                 activeThread->process->crash("Unhandled Page Fault", activeThread);
             }
             break;
         }
+        case 0xd:
+            activeThread->process->crash("General Protection Fault", activeThread);
+            break;
         }
     }
 
     if (handled) {
         returnToUserMode();
     }
+
 
     cout << "Interrupt occured in User Mode (TODO: implement killing thread): " << *registerState << endl;
     Panic();
