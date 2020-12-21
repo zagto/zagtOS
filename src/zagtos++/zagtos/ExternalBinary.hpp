@@ -6,7 +6,7 @@
 namespace zagtos {
     class ExternalBinary {
     protected:
-        zbon::EncodedData _data;
+        const zbon::EncodedData _data;
         const char *_logName;
 
     public:
