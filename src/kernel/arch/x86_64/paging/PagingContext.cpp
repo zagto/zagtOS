@@ -215,7 +215,7 @@ void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool
 
     while (true) {
         PageTableEntry *entry = partialWalkEntries(address,
-                                                   MissingStrategy::CREATE,
+                                                   MissingStrategy::RETURN_NULLPTR,
                                                    changedLevel,
                                                    walkData);
 
@@ -228,6 +228,7 @@ void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool
         }
 
         /* TODO: jumps can be made in entry == nullptr case */
+        indexes[0]++;
         changedLevel = 0;
         while (indexes[changedLevel] == PageTable::NUM_ENTRIES) {
             assert(changedLevel < MASTER_LEVEL);
