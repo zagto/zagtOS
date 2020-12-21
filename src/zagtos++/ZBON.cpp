@@ -136,7 +136,10 @@ void Decoder::decodeValue(zbon::EncodedData &value) {
     ensureEnoughLeft(length);
     ensureEnoughHandlesLeft(numHandles);
 
-    value._data = new uint8_t[numHandles * HANDLE_SIZE + dataLength];
+    value._size = numHandles * HANDLE_SIZE + dataLength;
+    value._data = new uint8_t[value._size];
+    value._numHandles = numHandles;
+    value.allocatedExternally = false;
 
     memcpy(value._data, encodedData._data + handlePosition, numHandles * HANDLE_SIZE);
     memcpy(value._data + numHandles * HANDLE_SIZE, encodedData._data + headerPosition, dataLength);
