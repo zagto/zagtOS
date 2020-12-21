@@ -43,7 +43,7 @@ PhysicalAddress InitPhysicalFrameManagement() {
             maxPhysicalAddress = region->end();
         }
 
-        while (address < region->length) {
+        while (address < region->end()) {
             /* HandOverMasterPageTable and SecondaryProcessorEntry have special physical location
              * requirements to be usable in the real mode entry code.
              * Reserve suitable frames for these */
@@ -91,11 +91,14 @@ PhysicalAddress InitPhysicalFrameManagement() {
 PhysicalAddress AllocatePhysicalFrame(void) {
     PhysicalAddress address = DirtyFrameStack.pop();
     ClearFrame(reinterpret_cast<void *>(address.value()));
+    cout << "Allocating " << address.value() << endl;
+
     return address;
 }
 
 
 void FreePhysicalFrame(PhysicalAddress frame) {
+    cout << "Freeing " << frame.value() << endl;
     DirtyFrameStack.push(frame);
 }
 
