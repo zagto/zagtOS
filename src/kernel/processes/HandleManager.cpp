@@ -177,6 +177,12 @@ uint32_t HandleManager::addThread(shared_ptr<Thread> &thread) {
     return handle;
 }
 
+uint32_t HandleManager::addSharedMemory(shared_ptr<SharedMemory> &sharedMemory) {
+    scoped_lock sl(lock);
+    return _addSharedMemory(sharedMemory);
+}
+
+
 /* unlike the above, this is for internal use and expects the lock to be already hold. Nobody else
  * should create their own remote ports as they wouldn't be remote. */
 uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
@@ -187,8 +193,8 @@ uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
     return handle;
 }
 
-uint32_t HandleManager::addSharedMemory(shared_ptr<SharedMemory> &sharedMemory) {
-    scoped_lock sl(lock);
+uint32_t HandleManager::_addSharedMemory(shared_ptr<SharedMemory> &sharedMemory) {
+    assert(lock.isLocked());
 
     uint32_t handle = grabFreeNumber();
     elements[handle] = Element(sharedMemory);
@@ -286,8 +292,13 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
             handle = destination._addRemotePort(port);
             break;
         }
+        case Type::SHARED_MEMORY: {
+            shared_ptr<SharedMemory> sharedMemory(elements[handle].data.sharedMemory);
+            handle = destination._addSharedMemory(sharedMemory);
+            break;
+        }
         default:
-            cout << "Should never go here" << endl;
+            cout << "non-implemented handle type in transferHandles" << endl;
             Panic();
         }
     }
