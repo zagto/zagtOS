@@ -291,6 +291,7 @@ public:
         return _numHandles;
     }
     void ensureVerified() const {
+        assert(_size > 0);
         // TODO
     }
 
@@ -538,8 +539,8 @@ private:
     }
 
     void ensureEnoughHandlesLeft(uint64_t numHandles) {
-        if (!(handlePosition / 4 + numHandles <= encodedData.numHandles()
-              && handlePosition / 4 + numHandles >= numHandles)) {
+        if (!(handlePosition / HANDLE_SIZE + numHandles <= encodedData.numHandles()
+              && handlePosition / HANDLE_SIZE + numHandles >= numHandles)) {
             std::cerr << "ZBON: Unexpectedly lagre amount of handles" << std::endl;
             throw DecoderException();
         }
@@ -626,10 +627,10 @@ public:
             throw DecoderException();
         }
 
-        if ((handlePosition - handlePositionStart) * HANDLE_SIZE != numHandles) {
+        if ((handlePosition - handlePositionStart) / HANDLE_SIZE != numHandles) {
             std::cerr << "ZBON: Object array has numHandles value of " << numHandles
                       << " but actually has "
-                      << ((handlePosition - handlePositionStart) * HANDLE_SIZE) << " handles."
+                      << ((handlePosition - handlePositionStart) / HANDLE_SIZE) << " handles."
                       << std::endl;
             throw DecoderException();
         }
