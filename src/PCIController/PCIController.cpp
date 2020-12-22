@@ -79,7 +79,7 @@ void notifyEnvironmentOfDevice(RemotePort &port, volatile FunctionConfigSpace *c
 
     Device dev;
     dev.deviceID = combinedID;
-    for (size_t index = 0; index < 5; index++) {
+    for (size_t index = 0; index < 6; index++) {
         static const uint32_t MAPPING_IO = 0b1;
         static const uint32_t MEMORY_TYPE_32BIT = 0b0;
         static const uint32_t MEMORY_TYPE_64BIT = 0b100;

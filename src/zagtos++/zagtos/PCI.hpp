@@ -26,7 +26,7 @@ struct BaseRegister {
 
 struct Device {
     uint64_t deviceID;
-    std::array<std::optional<BaseRegister>, 5> BAR;
+    std::array<std::optional<BaseRegister>, 6> BAR;
 
     ZBON_ENCODING_FUNCTIONS(deviceID, BAR)
 };
