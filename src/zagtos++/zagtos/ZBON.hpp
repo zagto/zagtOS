@@ -668,10 +668,10 @@ public:
             throw DecoderException();
         }
 
-        if ((handlePosition - handlePositionStart) * HANDLE_SIZE != numHandles) {
+        if ((handlePosition - handlePositionStart) / HANDLE_SIZE != numHandles) {
             std::cerr << "ZBON: Object array has numHandles value of " << numHandles
                       << " but actually has "
-                      << ((handlePosition - handlePositionStart) * HANDLE_SIZE) << " handles."
+                      << ((handlePosition - handlePositionStart) / HANDLE_SIZE) << " handles."
                       << std::endl;
             throw DecoderException();
         }
@@ -724,10 +724,10 @@ public:
             throw DecoderException();
         }
 
-        if ((handlePosition - handlePositionStart) * HANDLE_SIZE != numHandles) {
+        if ((handlePosition - handlePositionStart) / HANDLE_SIZE != numHandles) {
             std::cerr << "ZBON: Object array has numHandles value of " << numHandles
                       << " but actually has "
-                      << ((handlePosition - handlePositionStart) * HANDLE_SIZE) << " handles."
+                      << ((handlePosition - handlePositionStart) / HANDLE_SIZE) << " handles."
                       << std::endl;
             throw DecoderException();
         }
@@ -776,10 +776,10 @@ public:
             throw DecoderException();
         }
 
-        if ((handlePosition - handlePositionStart) * HANDLE_SIZE != numHandles) {
+        if ((handlePosition - handlePositionStart) / HANDLE_SIZE != numHandles) {
             std::cerr << "ZBON: Object array has numHandles value of " << numHandles
                       << " but actually has "
-                      << ((handlePosition - handlePositionStart) * HANDLE_SIZE) << " handles."
+                      << ((handlePosition - handlePositionStart) / HANDLE_SIZE) << " handles."
                       << std::endl;
             throw DecoderException();
         }
