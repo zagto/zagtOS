@@ -90,7 +90,6 @@ void notifyEnvironmentOfDevice(RemotePort &port, volatile FunctionConfigSpace *c
 
         uint64_t address{0}, length{0};
         uint32_t originalValue = config->BAR[index];
-        std::cout << "originalValue " << originalValue << std::endl;
         if ((originalValue & MAPPING_MASK) == MAPPING_IO) {
             std::cout << "BAR " << index
                       << "is an I/O port mapped BAR. ignoring." << std::endl;
