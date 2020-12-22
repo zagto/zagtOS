@@ -46,6 +46,8 @@ namespace zagtos {
         SharedMemory(SharedMemory &) = delete;
         SharedMemory(SharedMemory &&ohter);
         void operator=(SharedMemory && other);
+
+        void *map(size_t offset, size_t length, int protection);
     };
 
     struct MessageInfo {

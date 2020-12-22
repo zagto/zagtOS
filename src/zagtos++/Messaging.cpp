@@ -70,6 +70,11 @@ HandleObject::~HandleObject() {
     }
 }
 
+void *SharedMemory::map(size_t offset, size_t length, int protection) {
+    assert(_handle != INVALID_HANDLE);
+    return mmap(nullptr, length, protection, MAP_SHARED, _handle, offset);
+}
+
 std::unique_ptr<MessageInfo> Port::receiveMessage() {
     size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, _handle, reinterpret_cast<size_t>(&result));
     return std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result));
