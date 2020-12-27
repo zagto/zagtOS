@@ -58,7 +58,8 @@ void LoaderMain() {
             + sizeof(hos_v1::Thread)
             + sizeof(hos_v1::Handle)
             + 17 /* SystemEnvironment string */
-            + numMappings * sizeof(hos_v1::MappedArea);
+            + numMappings * sizeof(hos_v1::MappedArea)
+            + numMappings * sizeof(hos_v1::MemoryArea);
     uint8_t *pointer = memoryMap::allocateHandOver(handOverSize / PAGE_SIZE + 1);
     auto handOverSystem = reinterpret_cast<hos_v1::System *>(pointer);
     pointer += sizeof (hos_v1::System);
@@ -70,6 +71,8 @@ void LoaderMain() {
     pointer += sizeof (hos_v1::Handle);
     auto handOverMappedAreas = reinterpret_cast<hos_v1::MappedArea *>(pointer);
     pointer += numMappings * sizeof(hos_v1::MappedArea);
+    auto handOverMemoryAreas = reinterpret_cast<hos_v1::MemoryArea *>(pointer);
+    pointer += numMappings * sizeof(hos_v1::MemoryArea);
     auto handOverString = reinterpret_cast<char *>(pointer);
 
     cout << "Getting Memory Map..." << endl;
@@ -117,8 +120,8 @@ void LoaderMain() {
         .threads = convertPointer(handOverThread),
         .numPorts = 0,
         .ports = nullptr,
-        .numSharedMemories = 0,
-        .sharedMemories = nullptr,
+        .numMemoryAreas = numMappings,
+        .memoryAreas = handOverMemoryAreas,
         .numProcessors = 1,
         .numFutexes = 0,
         .futexes = nullptr
@@ -148,34 +151,65 @@ void LoaderMain() {
     for (size_t index = 0; index < process.numSections(); index++) {
         size_t offset = process.sectionOffset(index);
         handOverMappedAreas[index] = hos_v1::MappedArea{
-            .physicalStart = 0,
+            .memoryAreaID = index,
+            .offset = 0,
             .start = process.sectionAddress(offset),
             .length = process.sectionSizeInMemory(offset),
-            .source = hos_v1::MappingSource::MEMORY,
             .permissions = process.sectionPermissions(offset)
         };
+        handOverMemoryAreas[index] = hos_v1::MemoryArea{
+            .numFrames = 0,
+            .frames = nullptr,
+            .source = hos_v1::MappingSource::ANONYMOUS,
+            .permissions = Permissions::READ_WRITE_EXECUTE,
+            .length = process.sectionSizeInMemory(offset),
+        };
     }
+    /* user stack */
     handOverMappedAreas[process.numSections()] = hos_v1::MappedArea{
-        .physicalStart = 0,
+        .memoryAreaID = process.numSections(),
+        .offset = 0,
         .start = UserStackRegion.start,
         .length = UserStackRegion.length,
-        .source = hos_v1::MappingSource::MEMORY,
         .permissions = hos_v1::Permissions::READ_WRITE
     };
+    handOverMemoryAreas[process.numSections()] = hos_v1::MemoryArea{
+        .numFrames = 0,
+        .frames = nullptr,
+        .source = hos_v1::MappingSource::ANONYMOUS,
+        .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
+        .length = UserStackRegion.length
+    };
+    /* run message */
     handOverMappedAreas[process.numSections() + 1] = hos_v1::MappedArea{
-        .physicalStart = 0,
+        .memoryAreaID = process.numSections() + 1,
+        .offset = 0,
         .start = process.runMessageAddress().value(),
         .length = PAGE_SIZE,
-        .source = hos_v1::MappingSource::MEMORY,
         .permissions = hos_v1::Permissions::READ
     };
+    handOverMemoryAreas[process.numSections() + 1] = hos_v1::MemoryArea{
+        .numFrames = 0,
+        .frames = nullptr,
+        .source = hos_v1::MappingSource::ANONYMOUS,
+        .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
+        .length = PAGE_SIZE
+    };
+    /* TLS */
     if (process.hasTLS()) {
         handOverMappedAreas[process.numSections() + 2] = hos_v1::MappedArea{
-            .physicalStart = 0,
+            .memoryAreaID = process.numSections() + 2,
+            .offset = 0,
             .start = process.TLSRegion().start,
             .length = process.TLSRegion().length,
-            .source = hos_v1::MappingSource::MEMORY,
             .permissions = hos_v1::Permissions::READ_WRITE
+        };
+        handOverMemoryAreas[process.numSections() + 2] = hos_v1::MemoryArea{
+            .numFrames = 0,
+            .frames = nullptr,
+            .source = hos_v1::MappingSource::ANONYMOUS,
+            .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
+            .length = process.TLSRegion().length
         };
     }
     isort(handOverMappedAreas, numMappings);

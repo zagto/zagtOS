@@ -42,12 +42,13 @@ namespace zagtos {
     class SharedMemory : public HandleObject {
     public:
         SharedMemory() {}
-        SharedMemory(int flags, size_t offset, size_t length);
+        SharedMemory(size_t physicalAddress, size_t length);
+        SharedMemory(size_t length);
         SharedMemory(SharedMemory &) = delete;
         SharedMemory(SharedMemory &&ohter);
         void operator=(SharedMemory && other);
 
-        void *map(size_t offset, size_t length, int protection);
+        void *map(int protection);
     };
 
     struct MessageInfo {

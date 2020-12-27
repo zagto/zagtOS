@@ -9,9 +9,11 @@
 #include <assert.h>
 #include <time.h>
 #include <semaphore.h>
-#include <semaphore.h>
+#include <limits.h>
+#include <sys/mman.h>
 #include <zagtos/acpi.h>
-#include <zagtos/memory.h>
+#include <zagtos/PortIO.h>
+#include <zagtos/Messaging.h>
 #include <zagtos/interrupt.h>
 #include <acpi.h>
 
@@ -65,18 +67,21 @@ ACPI_STATUS AcpiOsEnterSleep(UINT8 SleepState, UINT32 RegaValue, UINT32 RegbValu
  * Memory Management
  */
 void *AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length) {
-    return zagtos_map_physical_area(PhysicalAddress, Length);
+    int handle = ZoCreatePhysicalSharedMemory(PhysicalAddress, Length);
+    void *result = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_WHOLE, handle, PhysicalAddress);
+    ZoDeleteHandle(handle);
+    return result;
 }
 
 void AcpiOsUnmapMemory(void *where, ACPI_SIZE length) {
-    zagtos_unmap_physical_area(where, length);
+    munmap(where, length);
 }
 
-ACPI_STATUS AcpiOsGetPhysicalAddress(void *LogicalAddress,
+/*ACPI_STATUS AcpiOsGetPhysicalAddress(void *LogicalAddress,
                                      ACPI_PHYSICAL_ADDRESS *PhysicalAddress) {
     *PhysicalAddress = zagtos_get_physical_address(LogicalAddress);
     return AE_OK;
-}
+}*/
 
 void *AcpiOsAllocate(ACPI_SIZE Size) {
     return malloc(Size);
@@ -270,55 +275,41 @@ void AcpiOsReleaseLock(ACPI_SPINLOCK Handle, ACPI_CPU_FLAGS Flags) {
  */
 ACPI_STATUS AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 *Value, UINT32 Width) {
     assert(Width % 8 == 0 && Width <= 64);
-    void *pointer = zagtos_map_physical_area(Address, Width / 8);
-    switch(Width) {
-    case 8:
-        *Value = *(uint8_t *)pointer;
-        break;
-    case 16:
-        *Value = *(uint16_t *)pointer;
-        break;
-    case 32:
-        *Value = *(uint32_t *)pointer;
-        break;
-    case 64:
-        *Value = *(uint64_t *)pointer;
-        break;
-    }
-    zagtos_unmap_physical_area(pointer, Width / 8);
+
+    /* TODO: this assumes little endian */
+
+    size_t offset = ((size_t)Address) % PAGE_SIZE;
+    int handle = ZoCreatePhysicalSharedMemory(Address - offset, (Width / 8) + offset);
+
+    void *pointer = mmap(NULL, 0, PROT_READ, MAP_SHARED|MAP_WHOLE, handle, 0);
+    memcpy(Value, pointer, Width / 8);
+    ZoUnmapWhole(pointer);
+
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 Value, UINT32 Width) {
     assert(Width % 8 == 0 && Width <= 64);
-    void *pointer = zagtos_map_physical_area(Address, Width / 8);
-    switch(Width) {
-    case 8:
-        *(uint8_t *)pointer = Value;
-        break;
-    case 16:
-        *(uint16_t *)pointer = Value;
-        break;
-    case 32:
-        *(uint32_t *)pointer = Value;
-        break;
-    case 64:
-        *(uint64_t *)pointer = Value;
-        break;
-    }
-    zagtos_unmap_physical_area(pointer, Width / 8);
+
+    size_t offset = ((size_t)Address) % PAGE_SIZE;
+    int handle = ZoCreatePhysicalSharedMemory(Address - offset, (Width / 8) + offset);
+
+    void *pointer = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_WHOLE, handle, 0);
+    memcpy(pointer, &Value, Width / 8);
+    ZoUnmapWhole(pointer);
+
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsReadPort(ACPI_IO_ADDRESS Address, UINT32 *Value, UINT32 Width) {
     assert(Width % 8 == 0 && Width <= 32);
-    *Value = zagtos_io_port_read(Address, Width / 8);
+    *Value = ZoReadPort(Address, Width / 8);
     return AE_OK;
 }
 
 ACPI_STATUS AcpiOsWritePort(ACPI_IO_ADDRESS Address, UINT32 Value, UINT32 Width) {
     assert(Width % 8 == 0 && Width <= 32);
-    zagtos_io_port_write(Address, Width / 8, Value);
+    ZoWritePort(Address, Width / 8, Value);
     return AE_OK;
 }
 

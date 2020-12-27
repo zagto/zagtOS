@@ -10,9 +10,9 @@
 Process::Process(const hos_v1::Process &handOver,
         const vector<shared_ptr<Thread>> &allThreads,
         const vector<shared_ptr<Port>> &allPorts,
-        const vector<shared_ptr<SharedMemory>> &allSharedMemories) :
-    mappedAreas(this, handOver),
-    handleManager(handOver, allThreads, allPorts, allSharedMemories),
+        const vector<shared_ptr<MemoryArea> > &allMemoryAreas) :
+    mappedAreas(this, allMemoryAreas, handOver),
+    handleManager(handOver, allThreads, allPorts, allMemoryAreas),
     futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads)
 {
     logName.resize(handOver.numLogNameChars);
@@ -99,27 +99,22 @@ Process::~Process() {
     cout << "Process terminated" << endl;
 }
 
-PhysicalAddress Process::allocateFrame(UserVirtualAddress address,
-                                    Permissions permissions) {
-    assert(permissions == Permissions::READ_WRITE
-           || permissions == Permissions::READ_EXECUTE
-           || permissions == Permissions::READ);
-
-    PhysicalAddress physical = CurrentSystem.memory.allocatePhysicalFrame();
-    pagingContext->map(address, physical, permissions);
-    return physical;
-}
-
 bool Process::handlePageFault(UserVirtualAddress address) {
     UserVirtualAddress pageAddress{align(address.value(), PAGE_SIZE, AlignDirection::DOWN)};
     scoped_lock lg(pagingLock);
 
     MappedArea *ma = mappedAreas.findMappedArea(address);
     if (ma) {
-        return ma->handlePageFault(pageAddress);
+        ma->handlePageFault(pageAddress);
+        return true;
     } else {
         return false;
     }
+}
+
+bool Process::canAccessPhysicalMemory() const {
+    /* TODO: introduce process flags */
+    return true;
 }
 
 void Process::crash(const char *message, Thread *crashedThread) {

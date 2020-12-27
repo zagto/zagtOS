@@ -4,7 +4,7 @@
 #include <system/System.hpp>
 #include <processes/Thread.hpp>
 #include <processes/Port.hpp>
-#include <processes/SharedMemory.hpp>
+#include <processes/MemoryArea.hpp>
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <syscalls/Time.hpp>
@@ -164,27 +164,40 @@ bool Thread::handleSyscall() {
     }
     case SYS_MUNMAP: {
         scoped_lock lg(process->pagingLock);
-        MUnmap munmap(registerState.syscallParameter(0), registerState.syscallParameter(1));
+        MUnmap munmap(registerState.syscallParameter(1),
+                      registerState.syscallParameter(2),
+                      registerState.syscallParameter(0));
         munmap.perform(*process);
         registerState.setSyscallResult(munmap.error);
         return true;
     }
     case SYS_CREATE_SHARED_MEMORY: {
         /* TODO: permissions check */
-        uint32_t flags = registerState.syscallParameter(0);
+        bool isPhysical = registerState.syscallParameter(0);
         size_t offset = registerState.syscallParameter(1);
-        size_t length = registerState.syscallParameter(2);
-        /* currently this is only supported for pyhsical memory, but this may change in the
-         * future */
-        if (flags != MAP_PHYSICAL) {
-            cout << "SYS_CREATE_SHARED_MEMORY: other flag than MAP_PHYSICAL" << endl;
-            return false;
-        }
+        size_t length = align(registerState.syscallParameter(2), PAGE_SIZE, AlignDirection::UP);
 
-        auto sharedMemory = make_shared<SharedMemory>(MappedArea::Source::PHYSICAL_MEMORY,
-                                                      PhysicalAddress(offset),
-                                                      length);
-        uint32_t handle = process->handleManager.addSharedMemory(sharedMemory);
+        /* TODO: maybe don't hardcode permissions */
+        shared_ptr<MemoryArea> memoryArea;
+        if (isPhysical) {
+            if (!process->canAccessPhysicalMemory()) {
+                cout << "SYS_CREATE_SHARED_MEMORY: process which is not allowed to use physical "
+                    << "memory tried to use it" << endl;
+                return false;
+            }
+            if (offset % PAGE_SIZE != 0) {
+                cout << "SYS_CREATE_SHARED_MEMORY: offset not aligned" << endl;
+                return false;
+            }
+            memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, offset, length);
+        } else {
+            if (offset != 0) {
+                cout << "SYS_CREATE_SHARED_MEMORY: offset given for non-physical shared memory" << endl;
+                return false;
+            }
+            memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, length);
+        }
+        uint32_t handle = process->handleManager.addMemoryArea(memoryArea);
         registerState.setSyscallResult(handle);
         return true;
     }

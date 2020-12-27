@@ -3,27 +3,32 @@
 #include <common/common.hpp>
 #include <common/Region.hpp>
 #include <lib/SortedVector.hpp>
+#include <processes/MemoryArea.hpp>
 
 class Process;
 
 class MappedArea {
 private:
     Process *process;
-    PhysicalAddress physicalStart;
 
 public:
-    using Source = hos_v1::MappingSource;
-    Source source;
+    shared_ptr<MemoryArea> memoryArea;
+    size_t offset;
     Region region;
     Permissions permissions;
 
-    MappedArea(Process *process, Region region, Permissions permissions);
-    MappedArea(Process *process, Region region, Permissions permissions, PhysicalAddress physicalStart);
-    MappedArea(Process *process, Region region);
-    MappedArea(Process *process, const hos_v1::MappedArea &handOver);
+    MappedArea(Process *process,
+               Region region,
+               shared_ptr<MemoryArea> _memoryArea,
+               size_t offset,
+               Permissions permissions);
+    MappedArea(Process *process,
+               Region region,
+               Permissions permissions);
+    MappedArea(Process *process, shared_ptr<MemoryArea> _memoryArea, const hos_v1::MappedArea &handOver);
     ~MappedArea();
 
-    bool handlePageFault(UserVirtualAddress address);
+    void handlePageFault(UserVirtualAddress address);
     void unmapRange(Region range);
     void shrinkFront(size_t amount);
     void shrinkBack(size_t amount);
@@ -45,7 +50,9 @@ private:
 public:
     MappedAreaVector(Process *process):
         process{process} {}
-    MappedAreaVector(Process *process, const hos_v1::Process &handOver);
+    MappedAreaVector(Process *process,
+                     const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
+                     const hos_v1::Process &handOver);
     Region findFreeRegion(size_t length, bool &valid, size_t &index) const;
     MappedArea *findMappedArea(UserVirtualAddress address) const;
     void insert2(MappedArea *ma, size_t index);

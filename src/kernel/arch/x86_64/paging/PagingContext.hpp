@@ -56,7 +56,8 @@ public:
 
     void map(UserVirtualAddress from,
              PhysicalAddress to,
-             Permissions permissions);
+             Permissions permissions,
+             CacheType cacheType);
     PhysicalAddress resolve(UserVirtualAddress address);
     void accessRange(UserVirtualAddress address,
                      size_t numPages,

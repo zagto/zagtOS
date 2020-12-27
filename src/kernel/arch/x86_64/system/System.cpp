@@ -26,7 +26,8 @@ void System::setupSecondaryProcessorEntry(const hos_v1::System &handOver) {
     /* identity-map the entry code so it continues to work when it enables paging */
     CurrentSystem.kernelOnlyPagingContext.map(UserVirtualAddress(secondaryProcessorEntry.value()),
                                               secondaryProcessorEntry,
-                                              Permissions::READ_EXECUTE);
+                                              Permissions::READ_EXECUTE,
+                                              CacheType::NORMAL_WRITE_BACK);
 }
 
 

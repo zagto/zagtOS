@@ -9,7 +9,7 @@ static const uint32_t MAP_SHARED = 0x01,
                       MAP_PRIVATE = 0x02,
                       MAP_FIXED = 0x10,
                       MAP_ANONYMOUS = 0x20,
-                      MAP_PHYSICAL = 0x20000000;
+                      MAP_WHOLE = 0x20000000;
 
 class Process;
 
@@ -29,10 +29,14 @@ public:
 };
 
 class MUnmap : public MappingOperation {
+protected:
+    bool wholeArea;
+
 public:
     void perform(Process &process);
-    MUnmap(size_t address, size_t _length) :
-        MappingOperation(address, _length) {}
+    MUnmap(size_t address, size_t _length, bool wholeArea) :
+        MappingOperation(address, _length),
+        wholeArea{wholeArea} {}
 };
 
 class MProtect : public MappingOperation {
@@ -48,8 +52,8 @@ public:
 class MMap : public MappingOperation {
     uint32_t flags;
     size_t offset;
-    UUID target;
     size_t result;
+    uint32_t handle;
     uint32_t protection;
 
 public:

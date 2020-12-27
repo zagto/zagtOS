@@ -293,13 +293,14 @@ void PagingContext::changeRangePermissions(UserVirtualAddress address, size_t nu
 
 void PagingContext::map(UserVirtualAddress from,
                         PhysicalAddress to,
-                        Permissions permissions) {
+                        Permissions permissions,
+                        CacheType cacheType) {
     assert(process == nullptr || process->pagingLock.isLocked());
 
     PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
     assert(!entry->present());
 
-    *entry = PageTableEntry(to, permissions, true, CacheType::NORMAL_WRITE_BACK);
+    *entry = PageTableEntry(to, permissions, true, cacheType);
     if (isActive()) {
         basicInvalidate(from);
     }

@@ -1,5 +1,5 @@
-#ifndef __ZAGTOS_MESSAGING_H
-#define __ZAGTOS_MESSAGING_H
+#ifndef __ZAGTOS_LEGACY_MESSAGING_H
+#define __ZAGTOS_LEGACY_MESSAGING_H
 
 
 #include <stdint.h>
@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 
+/* legacy */
 typedef struct {
     ZUUID uuid;
 } ZMessagePort;

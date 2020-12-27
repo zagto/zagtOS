@@ -6,7 +6,7 @@
 namespace hos_v1 {
 
 enum class MappingSource : uint32_t {
-    MEMORY = 1, PHYSICAL_MEMORY = 2, GUARD = 3
+    ANONYMOUS = 1, PHYSICAL = 2, SHARED = 3,
 };
 
 enum class Permissions : uint32_t {
@@ -26,14 +26,22 @@ enum FirmwareType : uint32_t {
 };
 
 enum class HandleType : uint32_t {
-    INVALID, FREE, PORT, REMOTE_PORT, THREAD, SHARED_MEMORY
+    INVALID, FREE, PORT, REMOTE_PORT, THREAD, MEMORY_AREA
+};
+
+struct MemoryArea {
+    size_t numFrames;
+    PhysicalAddress *frames;
+    MappingSource source;
+    Permissions permissions;
+    size_t length;
 };
 
 struct MappedArea {
-    size_t physicalStart;
+    size_t memoryAreaID;
+    size_t offset;
     size_t start;
     size_t length;
-    MappingSource source;
     Permissions permissions;
 };
 
@@ -94,12 +102,6 @@ struct FrameStack {
     size_t addIndex;
 };
 
-struct SharedMemory {
-    size_t source;
-    size_t physicalStart;
-    size_t length;
-};
-
 struct System {
     size_t version;
 
@@ -121,8 +123,8 @@ struct System {
     Thread *threads;
     size_t numPorts;
     Port *ports;
-    size_t numSharedMemories;
-    SharedMemory *sharedMemories;
+    size_t numMemoryAreas;
+    MemoryArea *memoryAreas;
 
     size_t numProcessors;
     size_t numFutexes;

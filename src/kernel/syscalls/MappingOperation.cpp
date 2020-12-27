@@ -7,7 +7,7 @@ bool MappingOperation::addressLengthValid() {
     return startAddress != 0
             && !(startAddress % PAGE_SIZE)
             && UserVirtualAddress::checkInRegion(startAddress)
-            && startAddress + length > startAddress
+            && startAddress + length >= startAddress
             && length < UserSpaceRegion.end() - startAddress;
 }
 
@@ -26,8 +26,23 @@ void MMap::perform(Process &process) {
         return;
     }
 
-    length = align(length, PAGE_SIZE, AlignDirection::UP);
-    if (length == 0) {
+    if ((flags & MAP_WHOLE) && length != 0) {
+        cout << "whole-area mmap with length parameter that is not 0" << endl;
+        error = EINVAL;
+        return;
+    }
+    if ((flags & MAP_WHOLE) && offset != 0) {
+        cout << "whole-area mmap with offset parameter that is not 0" << endl;
+        error = EINVAL;
+        return;
+    }
+    if ((flags & MAP_WHOLE) && (flags & MAP_ANONYMOUS)) {
+        cout << "mmap: both MAP_WHOLE and MAP_ANONYMOUS specified" << endl;
+        error = EINVAL;
+        return;
+    }
+
+    if (!(flags & MAP_WHOLE) && length == 0) {
         cout << "mmap of length 0" << endl;
         error = EINVAL;
         return;
@@ -41,26 +56,20 @@ void MMap::perform(Process &process) {
 
     /* Shared and Private are the oposite of each other, they should not be used at the same time.
      * On Linux MAP_PRIVATE|MAP_SHARED means MAP_SHARED_VALIDATE, so treat them this the same as
-     * FLAG_SHARED. We don't offer not validating. */
+     * MAP_SHARED. We don't offer not validating. */
     if ((flags & MAP_PRIVATE) && (flags & MAP_SHARED)) {
         flags = flags & ~(MAP_PRIVATE);
     }
 
-    /* Can't do anonymous and physical memory mapping at the same time */
-    if ((flags & MAP_ANONYMOUS) && (flags & MAP_PHYSICAL)) {
-        cout << "mmap both ANONYMOUS and PHYSICAL flag set" << endl;
-        error = EINVAL;
-        return;
-    }
-
-    if ((flags & MAP_PHYSICAL) && offset % PAGE_SIZE != 0) {
-        cout << "mmap with PHYSICAL set and non-aligned offset" << endl;
+    if ((flags & MAP_SHARED) && offset % PAGE_SIZE != 0) {
+        cout << "mmap with MAP_SHARED set and non-aligned offset" << endl;
         error = EINVAL;
         return;
     }
 
     if ((flags & ~MAP_FIXED) != (MAP_PRIVATE | MAP_ANONYMOUS)
-            && (flags & ~MAP_FIXED) != (MAP_SHARED | MAP_PHYSICAL)) {
+            && (flags & ~MAP_FIXED) != MAP_SHARED
+            && (flags & ~MAP_FIXED) != (MAP_SHARED | MAP_WHOLE)) {
         cout << "MMAP: unsupported flags: " << flags << endl;
         error = EOPNOTSUPP;
         return;
@@ -82,6 +91,33 @@ void MMap::perform(Process &process) {
     }
 
     Region passedRegion(startAddress, length);
+    shared_ptr<MemoryArea> memoryArea;
+
+    if (!(flags & MAP_ANONYMOUS)) {
+        optional<shared_ptr<MemoryArea>> temp = process.handleManager.lookupMemoryArea(handle);
+        if (!memoryArea) {
+            cout << "MMAP: passed handle is not a valid MemoryArea object" << endl;
+            error = EBADF;
+            return;
+        }
+        memoryArea = *temp;
+        if (!memoryArea->allowesPermissions(permissions)) {
+            cout << "MMAP: requested permissions not allowed on this MemoryArea object" << endl;
+            error = EACCESS;
+            return;
+        }
+        if (flags & MAP_WHOLE) {
+            passedRegion.length = memoryArea->length;
+        } else {
+            if (passedRegion.length + offset < passedRegion.length
+                    || passedRegion.length + offset < memoryArea->length) {
+                cout << "MMAP: requested range to big for this MemoryArea object" << endl;
+                error = ENXIO;
+                return;
+            }
+        }
+    }
+
     size_t insertIndex;
     Region actualRegion;
     bool slotReserved = false;
@@ -112,18 +148,11 @@ void MMap::perform(Process &process) {
         }
     }
 
-    MappedArea *ma;
-    if (protection == 0) {
-        /* guard area */
-        ma = new MappedArea(&process, actualRegion);
-    } else if (flags & MAP_ANONYMOUS) {
-        ma = new MappedArea(&process, actualRegion, permissions);
-    } else if (flags & MAP_PHYSICAL) {
-        ma = new MappedArea(&process, actualRegion, permissions, offset);
-    } else {
-        Panic();
+    if (flags & MAP_ANONYMOUS) {
+        memoryArea = make_shared<MemoryArea>(actualRegion.length);
     }
 
+    MappedArea *ma = new MappedArea(&process, actualRegion, move(memoryArea), offset, permissions);
     if (slotReserved) {
         assert(process.mappedAreas[insertIndex] == nullptr);
         process.mappedAreas[insertIndex] = ma;
@@ -180,14 +209,30 @@ void MUnmap::perform(Process &process) {
     error = 0;
 
     length = align(length, PAGE_SIZE, AlignDirection::UP);
-    if (length == 0) {
-        cout << "munmap of length 0" << endl;
+
+    if (!addressLengthValid()) {
+        cout << "munmap with invalid address " << startAddress << " length " << length << endl;
         error = EINVAL;
         return;
     }
 
-    if (!addressLengthValid()) {
-        cout << "munmap with invalid address " << startAddress << " length " << length << endl;
+    if (wholeArea) {
+        if (length != 0) {
+            cout << "whole-area munmap with length parameter that is not 0" << endl;
+            error = EINVAL;
+            return;
+        }
+
+        MappedArea *area = process.mappedAreas.findMappedArea(startAddress);
+        if (area == nullptr || area->region.start != startAddress) {
+            cout << "whole-area munmap address not the beginning of an area" << endl;
+            error = EINVAL;
+            return;
+        }
+        length = area->region.length;
+    }
+    if (length == 0) {
+        cout << "sized munmap of length 0" << endl;
         error = EINVAL;
         return;
     }

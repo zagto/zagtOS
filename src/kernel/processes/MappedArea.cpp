@@ -3,49 +3,36 @@
 #include <processes/Process.hpp>
 
 
-MappedArea::MappedArea(Process *process, Region region, Permissions permissions) :
+MappedArea::MappedArea(Process *process,
+                       Region region,
+                       shared_ptr<MemoryArea> _memoryArea,
+                       size_t offset,
+                       Permissions permissions) :
         process{process},
-        source{Source::MEMORY},
+        memoryArea{move(_memoryArea)},
+        offset{offset},
         region{region},
         permissions{permissions} {
     assert(UserVirtualAddress::checkInRegion(region.start));
     assert(UserVirtualAddress::checkInRegion(region.end() - 1));
     assert(region.isPageAligned());
     assert(permissions != Permissions::READ_WRITE_EXECUTE && permissions != Permissions::INVALID);
+    assert(memoryArea->allowesPermissions(permissions));
 }
-
 
 MappedArea::MappedArea(Process *process,
                        Region region,
-                       Permissions permissions,
-                       PhysicalAddress pyhsicalStart) :
+                       Permissions permissions) :
+    MappedArea(process,
+               region,
+               make_shared<MemoryArea>(region.length),
+               0,
+               permissions) {}
+
+
+MappedArea::MappedArea(Process *process, shared_ptr<MemoryArea> _memoryArea, const hos_v1::MappedArea &handOver) :
         process{process},
-        physicalStart{pyhsicalStart},
-        source{Source::PHYSICAL_MEMORY},
-        region{region},
-        permissions{permissions} {
-    assert(UserVirtualAddress::checkInRegion(region.start));
-    assert(UserVirtualAddress::checkInRegion(region.end() - 1));
-    assert(region.isPageAligned());
-    assert(permissions != Permissions::READ_WRITE_EXECUTE && permissions != Permissions::INVALID);
-}
-
-
-MappedArea::MappedArea(Process *process, Region region) :
-        process{process},
-        source{Source::MEMORY},
-        region{region},
-        permissions{Permissions::INVALID} {
-    assert(UserVirtualAddress::checkInRegion(region.start));
-    assert(UserVirtualAddress::checkInRegion(region.end() - 1));
-    assert(region.isPageAligned());
-}
-
-
-MappedArea::MappedArea(Process *process, const hos_v1::MappedArea &handOver) :
-        process{process},
-        physicalStart{handOver.physicalStart},
-        source{handOver.source},
+        memoryArea{move(_memoryArea)},
         region(handOver.start, handOver.length),
         permissions{handOver.permissions} {
     cout << "handover MappedArea " << handOver.start << " len " << handOver.length << endl;
@@ -57,45 +44,22 @@ MappedArea::~MappedArea() {
 }
 
 
-bool MappedArea::handlePageFault(UserVirtualAddress address) {
+void MappedArea::handlePageFault(UserVirtualAddress address) {
     assert(process->pagingLock.isLocked());
-    if (process->pagingContext->isMapped(address)) {
-        process->pagingContext->invalidateLocally(address);
+    assert(address.isInRegion(region));
+
+    PagingContext *context = process->pagingContext;
+    if (context->isMapped(address)) {
+        context->invalidateLocally(address);
     } else {
-        switch (source) {
-        case Source::MEMORY:
-            process->allocateFrame(address, permissions);
-            break;
-        case Source::PHYSICAL_MEMORY:
-            process->pagingContext->map(address,
-                                       physicalStart + (address.value() - region.start),
-                                       permissions);
-            break;
-        case Source::GUARD:
-            return false;
-        default:
-            Panic();
-        }
+        PhysicalAddress newFrame = memoryArea->makePresent(address.value() - region.start + offset);
+        context->map(address, newFrame, permissions, memoryArea->cacheType());
     }
-    return true;
 }
 
 void MappedArea::unmapRange(Region range) {
     assert(range.isPageAligned());
-
-    switch (source) {
-    case Source::MEMORY:
-        process->pagingContext->unmapRange(range.start, range.length / PAGE_SIZE, true);
-        break;
-    case Source::PHYSICAL_MEMORY:
-        process->pagingContext->unmapRange(range.start, range.length / PAGE_SIZE, false);
-        break;
-    case Source::GUARD:
-        /* do nothing */
-        break;
-    default:
-        Panic();
-    }
+    process->pagingContext->unmapRange(range.start, range.length / PAGE_SIZE, memoryArea->isAnonymous());
 }
 
 void MappedArea::shrinkFront(size_t amount) {
@@ -114,29 +78,20 @@ void MappedArea::shrinkBack(size_t amount) {
 }
 
 void MappedArea::changePermissions(Permissions newPermissions) {
-    if (source == Source::GUARD) {
-        if (newPermissions != Permissions::INVALID) {
-            source = Source::MEMORY;
-        }
-    } else {
-        if (newPermissions == Permissions::INVALID) {
-            unmapRange(region);
-            source = Source::GUARD;
-        } else {
-            process->pagingContext->changeRangePermissions(region.start,
-                                                           region.length / PAGE_SIZE,
-                                                           newPermissions);
-        }
-    }
+    assert(memoryArea->allowesPermissions(newPermissions));
     permissions = newPermissions;
 }
 
 
-MappedAreaVector::MappedAreaVector(Process *process, const hos_v1::Process &handOver) :
+MappedAreaVector::MappedAreaVector(Process *process,
+                                   const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
+                                   const hos_v1::Process &handOver) :
         process{process} {
     resize(handOver.numMappedAreas);
     for (size_t index = 0; index < handOver.numMappedAreas; index++) {
-        _data[index] = new MappedArea(process, handOver.mappedAreas[index]);
+        _data[index] = new MappedArea(process,
+                                      allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
+                                      handOver.mappedAreas[index]);
         assert(_data[index]->region.isPageAligned());
         if (index > 0) {
             assert(_data[index]->region.start >= _data[index - 1]->region.end());
@@ -272,7 +227,8 @@ MappedArea *MappedAreaVector::addNew(size_t length, Permissions permissions) {
         return nullptr;
     }
 
-    MappedArea *ma = new MappedArea(process, region, permissions);
+    shared_ptr memoryArea = make_shared<MemoryArea>(region.length);
+    MappedArea *ma = new MappedArea(process, region, memoryArea, 0, permissions);
     insert2(ma, index);
     return ma;
 }

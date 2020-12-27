@@ -49,7 +49,7 @@ public:
     Process(const hos_v1::Process &handOver,
             const vector<shared_ptr<Thread>> &allThreads,
             const vector<shared_ptr<Port>> &allPorts,
-            const vector<shared_ptr<SharedMemory>> &allSharedMemories);
+            const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
     Process(Process &sourceProcess,
             vector<SpawnProcessSection> &sections,
             optional<SpawnProcessSection> &TLSSection,
@@ -59,8 +59,6 @@ public:
             vector<uint8_t> logName);
     ~Process();
     void activate();
-    PhysicalAddress allocateFrame(UserVirtualAddress address,
-                                  Permissions permissions);
     void freeFrame(UserVirtualAddress address);
     bool handlePageFault(UserVirtualAddress address);
 
@@ -73,6 +71,8 @@ public:
     bool copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
     bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
     bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
+
+    bool canAccessPhysicalMemory() const;
 
     size_t runMessageAddress();
     void crash(const char *message, Thread *crashedThread);

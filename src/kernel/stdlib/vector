@@ -65,6 +65,14 @@ public:
            numElements{numElements},
            numAllocated{numElements}  {
     }
+    vector(size_t numElements, ElementType fill):
+           _data{new ElementType[numElements]},
+           numElements{numElements},
+           numAllocated{numElements}  {
+        for (size_t index = 0; index < numElements; index++) {
+            _data[index] = fill;
+        }
+    }
     /* There is currently no reason to copy vectors in kernel. Implement this if neeeded */
     vector(vector &other) = delete;
     vector(vector &&other) {

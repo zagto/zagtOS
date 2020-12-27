@@ -54,12 +54,8 @@ public:
 public:
     MappedSegmentGroup(SegmentGroup segmentGroup) :
             segmentGroup{segmentGroup} {
-        void *address = mmap(nullptr,
-                             numSpaces() * sizeof(FunctionConfigSpace),
-                             PROT_READ|PROT_WRITE,
-                             MAP_SHARED|MAP_PHYSICAL,
-                             -1,
-                             segmentGroup.configBase);
+        SharedMemory mem(segmentGroup.configBase, numSpaces() * sizeof(FunctionConfigSpace));
+        void *address = mem.map(PROT_READ | PROT_WRITE);
         configSpace = reinterpret_cast<FunctionConfigSpace *>(address);
     }
 };
@@ -134,7 +130,7 @@ void notifyEnvironmentOfDevice(RemotePort &port, volatile FunctionConfigSpace *c
                 && address + length > address
                 && static_cast<size_t>(address + length) == address + length) {
 
-                BaseRegister BAR{SharedMemory(MAP_PHYSICAL, address, length),
+                BaseRegister BAR{SharedMemory(address, length),
                                  length};
                 dev.BAR[index].emplace(std::move(BAR));
             } else {

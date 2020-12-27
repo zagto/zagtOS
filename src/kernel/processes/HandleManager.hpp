@@ -7,7 +7,7 @@
 #include <memory>
 #include <processes/Port.hpp>
 #include <processes/Thread.hpp>
-#include <processes/SharedMemory.hpp>
+#include <processes/MemoryArea.hpp>
 
 namespace handleManager {
 
@@ -24,7 +24,7 @@ struct Element {
         shared_ptr<Port> port;
         weak_ptr<Port> remotePort;
         shared_ptr<Thread> thread;
-        shared_ptr<SharedMemory> sharedMemory;
+        shared_ptr<MemoryArea> memoryArea;
         HandleData() {}
     } data;
 
@@ -33,7 +33,7 @@ struct Element {
     Element(shared_ptr<Port> &port);
     Element(weak_ptr<Port> &port);
     Element(shared_ptr<Thread> &thread);
-    Element(shared_ptr<SharedMemory> &sharedMemory);
+    Element(shared_ptr<MemoryArea> &memoryArea);
     Element(const Element &other);
     ~Element();
     void operator=(const Element &other);
@@ -49,7 +49,7 @@ private:
     uint32_t grabFreeNumber();
     bool handleValidFor(uint32_t number, Type type);
     uint32_t _addRemotePort(weak_ptr<Port> &port);
-    uint32_t _addSharedMemory(shared_ptr<SharedMemory> &sharedMemory);
+    uint32_t _addMemoryArea(shared_ptr<MemoryArea> &memoryArea);
     bool _removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
 
 public:
@@ -57,15 +57,16 @@ public:
     HandleManager(const hos_v1::Process &handOver,
                   const vector<shared_ptr<Thread>> &allThreads,
                   const vector<shared_ptr<Port>> &allPorts,
-                  const vector<shared_ptr<SharedMemory>> &allSharedMemories);
+                  const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
     HandleManager(HandleManager &) = delete;
 
     uint32_t addPort(shared_ptr<Port> &port);
     uint32_t addThread(shared_ptr<Thread> &thread);
-    uint32_t addSharedMemory(shared_ptr<SharedMemory> &sharedMemory);
+    uint32_t addMemoryArea(shared_ptr<MemoryArea> &sharedMemory);
     optional<shared_ptr<Port>> lookupPort(uint32_t number);
     optional<weak_ptr<Port>> lookupRemotePort(uint32_t number);
     optional<shared_ptr<Thread>> lookupThread(uint32_t number);
+    optional<shared_ptr<MemoryArea>> lookupMemoryArea(uint32_t number);
     shared_ptr<Thread> extractThread();
     bool removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
     bool transferHandles(vector<uint32_t> &elements,

@@ -1,7 +1,7 @@
 #include <common/common.hpp>
 #include <setup/HandOverState.hpp>
 #include <processes/Thread.hpp>
-#include <processes/SharedMemory.hpp>
+#include <processes/MemoryArea.hpp>
 #include <processes/Port.hpp>
 #include <processes/Process.hpp>
 #include <processes/MappedArea.hpp>
@@ -18,9 +18,9 @@ void hos_v1::System::decodeProcesses() {
         allPorts[index] = make_shared<::Port>(ports[index], allThreads);
     }
 
-    vector<shared_ptr<::SharedMemory>> allSharedMemories(numSharedMemories);
-    for (size_t index = 0; index < numSharedMemories; index++) {
-        allSharedMemories[index] = make_shared<::SharedMemory>(sharedMemories[index]);
+    vector<shared_ptr<::MemoryArea>> allMemoryAreas(numMemoryAreas);
+    for (size_t index = 0; index < numMemoryAreas; index++) {
+        allMemoryAreas[index] = make_shared<::MemoryArea>(memoryAreas[index]);
     }
 
     vector<shared_ptr<::Process>> allProcesses(numProcesses);
@@ -28,7 +28,7 @@ void hos_v1::System::decodeProcesses() {
         allProcesses[index] = make_shared<::Process>(processes[index],
                                                      allThreads,
                                                      allPorts,
-                                                     allSharedMemories);
+                                                     allMemoryAreas);
     }
     void insertAllProcessPointersAfterKernelHandover();
 

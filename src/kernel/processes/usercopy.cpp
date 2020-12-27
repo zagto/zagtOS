@@ -34,9 +34,11 @@ bool Process::accessUserSpace(uint8_t *buffer,
         return false;
     }
 
-    if (area->source != MappedArea::Source::MEMORY) {
-        cout << "accessUserSpace at address " << start
-             << ", which is not a standard memory mapping" << endl;
+    if (!area->memoryArea->isAnonymous()) {
+        cout << "area for accessUserSpace at address " << start
+             << ", {" << area->region.start << ", length: " << area->region.length << "}"
+             << " which is not a standard anonymous memory mapping, but type"
+             << static_cast<uint64_t>(area->memoryArea->source) << endl;
         return false;
     }
 

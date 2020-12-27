@@ -26,9 +26,9 @@ Element::Element(shared_ptr<Thread> &thread) {
     new (&data.thread) shared_ptr<Thread>(thread);
 }
 
-Element::Element(shared_ptr<SharedMemory> &sharedMemory) {
-    type = Type::SHARED_MEMORY;
-    new (&data.sharedMemory) shared_ptr<SharedMemory>(sharedMemory);
+Element::Element(shared_ptr<MemoryArea> &memoryArea) {
+    type = Type::MEMORY_AREA;
+    new (&data.memoryArea) shared_ptr<MemoryArea>(memoryArea);
 }
 
 Element::Element(const Element &other) {
@@ -48,8 +48,8 @@ Element::Element(const Element &other) {
     case Type::THREAD:
         new (&data.thread) shared_ptr<Thread>(other.data.thread);
         break;
-    case Type::SHARED_MEMORY:
-        new (&data.sharedMemory) shared_ptr<SharedMemory>(other.data.sharedMemory);
+    case Type::MEMORY_AREA:
+        new (&data.memoryArea) shared_ptr<MemoryArea>(other.data.memoryArea);
         break;
     }
 }
@@ -77,8 +77,8 @@ void Element::destructData() {
     case Type::THREAD:
         data.thread.~shared_ptr();
         break;
-    case Type::SHARED_MEMORY:
-        data.sharedMemory.~shared_ptr();
+    case Type::MEMORY_AREA:
+        data.memoryArea.~shared_ptr();
         break;
     }
     type = Type::INVALID;
@@ -87,7 +87,7 @@ void Element::destructData() {
 HandleManager::HandleManager(const hos_v1::Process &handOver,
               const vector<shared_ptr<Thread>> &allThreads,
               const vector<shared_ptr<Port>> &allPorts,
-              const vector<shared_ptr<SharedMemory>> &allSharedMemories) {
+              const vector<shared_ptr<MemoryArea> > &allMemoryAreas) {
     uint32_t maxHandle = 0;
     for (size_t index = 0; index < handOver.numHandles; index++) {
         maxHandle = max(handOver.handles[index].handle, maxHandle);
@@ -119,8 +119,8 @@ HandleManager::HandleManager(const hos_v1::Process &handOver,
             thread->setHandle(hosHandle.handle);
             break;
         }
-        case Type::SHARED_MEMORY:
-            element = Element(allSharedMemories[hosHandle.objectID]);
+        case Type::MEMORY_AREA:
+            element = Element(allMemoryAreas[hosHandle.objectID]);
             break;
         default:
             /* Could never ever reach this */
@@ -177,9 +177,9 @@ uint32_t HandleManager::addThread(shared_ptr<Thread> &thread) {
     return handle;
 }
 
-uint32_t HandleManager::addSharedMemory(shared_ptr<SharedMemory> &sharedMemory) {
+uint32_t HandleManager::addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
     scoped_lock sl(lock);
-    return _addSharedMemory(sharedMemory);
+    return _addMemoryArea(memoryArea);
 }
 
 
@@ -193,11 +193,11 @@ uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
     return handle;
 }
 
-uint32_t HandleManager::_addSharedMemory(shared_ptr<SharedMemory> &sharedMemory) {
+uint32_t HandleManager::_addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
     assert(lock.isLocked());
 
     uint32_t handle = grabFreeNumber();
-    elements[handle] = Element(sharedMemory);
+    elements[handle] = Element(memoryArea);
     return handle;
 }
 
@@ -228,6 +228,15 @@ optional<shared_ptr<Thread>> HandleManager::lookupThread(uint32_t number) {
     }
     return elements[number].data.thread;
 }
+
+optional<shared_ptr<MemoryArea>> HandleManager::lookupMemoryArea(uint32_t number) {
+    scoped_lock sl(lock);
+    if (!handleValidFor(number, Type::MEMORY_AREA)) {
+        return {};
+    }
+    return elements[number].data.memoryArea;
+}
+
 
 shared_ptr<Thread> HandleManager::extractThread() {
     scoped_lock sl(lock);
@@ -292,9 +301,9 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
             handle = destination._addRemotePort(port);
             break;
         }
-        case Type::SHARED_MEMORY: {
-            shared_ptr<SharedMemory> sharedMemory(elements[handle].data.sharedMemory);
-            handle = destination._addSharedMemory(sharedMemory);
+        case Type::MEMORY_AREA: {
+            shared_ptr<MemoryArea> memoryArea(elements[handle].data.memoryArea);
+            handle = destination._addMemoryArea(memoryArea);
             break;
         }
         default:

@@ -55,8 +55,12 @@ RemotePort::RemotePort(RemotePort &&other) {
     other._handle = INVALID_HANDLE;
 }
 
-SharedMemory::SharedMemory(int flags, size_t offset, size_t length) {
-    _handle = {static_cast<uint32_t>(zagtos_syscall3(SYS_CREATE_SHARED_MEMORY, flags, offset, length))};
+SharedMemory::SharedMemory(size_t physicalAddress, size_t length) {
+    _handle = {static_cast<uint32_t>(zagtos_syscall3(SYS_CREATE_SHARED_MEMORY, 1, physicalAddress, length))};
+}
+
+SharedMemory::SharedMemory(size_t length) {
+    _handle = {static_cast<uint32_t>(zagtos_syscall3(SYS_CREATE_SHARED_MEMORY, 0, 0, length))};
 }
 
 SharedMemory::SharedMemory(SharedMemory &&other) {
@@ -70,9 +74,9 @@ HandleObject::~HandleObject() {
     }
 }
 
-void *SharedMemory::map(size_t offset, size_t length, int protection) {
+void *SharedMemory::map(int protection) {
     assert(_handle != INVALID_HANDLE);
-    return mmap(nullptr, length, protection, MAP_SHARED, _handle, offset);
+    return mmap(nullptr, 0, protection, MAP_SHARED|MAP_WHOLE, _handle, 0);
 }
 
 std::unique_ptr<MessageInfo> Port::receiveMessage() {
