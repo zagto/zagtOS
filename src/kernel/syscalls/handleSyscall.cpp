@@ -126,7 +126,6 @@ bool Thread::handleSyscall() {
     }
     case SYS_DELETE_HANDLE: {
         uint32_t handle = static_cast<uint32_t>(registerState.syscallParameter(0));
-        cout << "SYS_DELETE_HANDLE " << handle << endl;
         shared_ptr<Thread> removedThread;
         bool success = process->handleManager.removeHandle(handle, removedThread);
         if (!success) {
@@ -172,7 +171,6 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_CREATE_SHARED_MEMORY: {
-        /* TODO: permissions check */
         bool isPhysical = registerState.syscallParameter(0);
         size_t offset = registerState.syscallParameter(1);
         size_t length = align(registerState.syscallParameter(2), PAGE_SIZE, AlignDirection::UP);

@@ -18,7 +18,7 @@ void MMap::perform(Process &process) {
     result = 0;
     error = 0;
 
-    //cout << "MMAP addr " << start_address << " length " << length << " flags " << flags << " offset " << offset << endl;
+    //cout << "MMAP addr " << startAddress << " length " << length << " flags " << flags << " offset " << offset << endl;
 
     if (offset % PAGE_SIZE != 0) {
         cout << "mmap offset not page-aligned" << endl;
@@ -95,8 +95,8 @@ void MMap::perform(Process &process) {
 
     if (!(flags & MAP_ANONYMOUS)) {
         optional<shared_ptr<MemoryArea>> temp = process.handleManager.lookupMemoryArea(handle);
-        if (!memoryArea) {
-            cout << "MMAP: passed handle is not a valid MemoryArea object" << endl;
+        if (!temp) {
+            cout << "MMAP: passed handle " << handle << " is not a valid MemoryArea object" << endl;
             error = EBADF;
             return;
         }
@@ -107,6 +107,7 @@ void MMap::perform(Process &process) {
             return;
         }
         if (flags & MAP_WHOLE) {
+            length = memoryArea->length;
             passedRegion.length = memoryArea->length;
         } else {
             if (passedRegion.length + offset < passedRegion.length
@@ -132,14 +133,14 @@ void MMap::perform(Process &process) {
                 actualRegion = passedRegion;
                 slotReserved = true;
             } else {
-                cout << "MMAP: address " << startAddress << " length " << length
+                cout << "MMAP: address " << startAddress << " length " << passedRegion.length
                      << " invalid and FIXED flag set" << endl;
                 error = ENOMEM;
                 return;
             }
         } else {
             bool valid;
-            actualRegion = process.mappedAreas.findFreeRegion(length, valid, insertIndex);
+            actualRegion = process.mappedAreas.findFreeRegion(passedRegion.length, valid, insertIndex);
             if (!valid) {
                 cout << "MMAP: unable to auto-choose region\n";
                 error = ENOMEM;

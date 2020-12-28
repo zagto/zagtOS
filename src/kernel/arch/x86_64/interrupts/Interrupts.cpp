@@ -48,6 +48,8 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
         case SYSCALL_INTERRUPT:
             if (activeThread->handleSyscall()) {
                 handled = true;
+            } else {
+                activeThread->process->crash("Bad Syscall", activeThread);
             }
             break;
         case PIC1_SPURIOUS_IRQ:

@@ -16,7 +16,7 @@ MappedArea::MappedArea(Process *process,
     assert(UserVirtualAddress::checkInRegion(region.start));
     assert(UserVirtualAddress::checkInRegion(region.end() - 1));
     assert(region.isPageAligned());
-    assert(permissions != Permissions::READ_WRITE_EXECUTE && permissions != Permissions::INVALID);
+    assert(permissions != Permissions::READ_WRITE_EXECUTE);
     assert(memoryArea->allowesPermissions(permissions));
 }
 
