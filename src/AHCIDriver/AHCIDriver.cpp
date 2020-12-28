@@ -20,7 +20,7 @@ int main() {
         throw std::runtime_error("device claims to be AHCI device but does not implement BAR 5");
     }
     pci::BaseRegister &ABARDesc = *dev.BAR[5];
-    ABAR = static_cast<ABARStruct *>(ABARDesc.sharedMemory.map(0, ABARDesc.length, PROT_READ|PROT_WRITE));
+    ABAR = static_cast<ABARStruct *>(ABARDesc.sharedMemory.map(PROT_READ|PROT_WRITE));
     assert(ABAR != nullptr);
 
     std::cout << "Mapped ABAR" << std::endl;
