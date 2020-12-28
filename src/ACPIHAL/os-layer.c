@@ -67,10 +67,13 @@ ACPI_STATUS AcpiOsEnterSleep(UINT8 SleepState, UINT32 RegaValue, UINT32 RegbValu
  * Memory Management
  */
 void *AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length) {
-    int handle = ZoCreatePhysicalSharedMemory(PhysicalAddress, Length);
-    void *result = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_WHOLE, handle, PhysicalAddress);
+    size_t offset = ((size_t)PhysicalAddress) % PAGE_SIZE;
+
+    int handle = ZoCreatePhysicalSharedMemory(PhysicalAddress - offset, Length + offset);
+    void *result = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_WHOLE, handle, 0);
+    assert(result != NULL);
     ZoDeleteHandle(handle);
-    return result;
+    return (void *)((size_t)result + offset);
 }
 
 void AcpiOsUnmapMemory(void *where, ACPI_SIZE length) {
@@ -282,6 +285,8 @@ ACPI_STATUS AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 *Value, UINT3
     int handle = ZoCreatePhysicalSharedMemory(Address - offset, (Width / 8) + offset);
 
     void *pointer = mmap(NULL, 0, PROT_READ, MAP_SHARED|MAP_WHOLE, handle, 0);
+    assert(pointer != NULL);
+
     memcpy(Value, pointer, Width / 8);
     ZoUnmapWhole(pointer);
 
@@ -295,6 +300,8 @@ ACPI_STATUS AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 Value, UINT3
     int handle = ZoCreatePhysicalSharedMemory(Address - offset, (Width / 8) + offset);
 
     void *pointer = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_WHOLE, handle, 0);
+    assert(pointer != NULL);
+
     memcpy(pointer, &Value, Width / 8);
     ZoUnmapWhole(pointer);
 
