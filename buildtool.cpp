@@ -55,19 +55,35 @@ std::time_t to_time_t(TP tp)
     return system_clock::to_time_t(sctp);
 }
 
+std::filesystem::file_time_type lastModifiedDir(std::string path) {
+    std::filesystem::file_time_type result = std::filesystem::file_time_type::min();
+
+    for (const std::filesystem::directory_entry& entry:
+            std::filesystem::recursive_directory_iterator(path)) {
+
+        std::string filename = entry.path().string();
+        if (filename.find(".creator.") == std::string::npos
+                && filename.substr(filename.length() - 4) != ".bak"
+                && filename.substr(filename.length() - 7) != ".config"
+                && filename.substr(filename.length() - 8) != ".creator"
+                && filename.substr(filename.length() - 6) != ".files"
+                && filename.substr(filename.length() - 9) != ".includes"
+                && filename.substr(filename.length() - 7) != ".cflags"
+                && filename.substr(filename.length() - 9) != ".cxxflags") {
+
+            result = max(result, entry.last_write_time());
+        }
+    }
+    return result;
+}
+
 Module::Module(std::string moduleName, uint32_t _id) :
         name{moduleName},
         id{_id},
         numDependencies{0},
         dependenciesUpdated{false} {
 
-    lastModified = std::filesystem::file_time_type::min();
-
-    for (const std::filesystem::directory_entry& entry:
-            std::filesystem::recursive_directory_iterator("src/" + name)) {
-
-        lastModified = max(lastModified, entry.last_write_time());
-    }
+    lastModified = lastModifiedDir("src/" + name);
 
     /* if the module used sources from other directories, it specifies them is this file */
     std::string sourceFileName = "src/" + name + "/source-dirs";
@@ -87,11 +103,7 @@ Module::Module(std::string moduleName, uint32_t _id) :
                 continue;
             }
 
-            for (const std::filesystem::directory_entry& entry:
-                    std::filesystem::recursive_directory_iterator("src/" + sourceDir)) {
-
-                lastModified = max(lastModified, entry.last_write_time());
-            }
+            lastModified = max(lastModified, lastModifiedDir("src/" + sourceDir));
         }
     }
 
