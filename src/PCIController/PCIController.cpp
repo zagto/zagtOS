@@ -10,12 +10,31 @@ using namespace zagtos::pci;
 
 /* This assumes little-endian everywhere */
 
+enum Command {
+    InterruptDisable = 1<<10,
+    BusMasterEnable = 1<<2,
+    MemorySpaceEnable = 1<<1,
+    IOSpaceEnable = 1<<0,
+};
+
+enum Status {
+    HasCapabilitiesList = 1<<4,
+};
+
 struct alignas(0x1000) FunctionConfigSpace {
     uint32_t vendorDevice;
     uint32_t commandStatus;
     uint32_t classCodeProgIFRevisionID;
     uint32_t BISTHeaderTypeLatencyTimerCacheLineSize;
     uint32_t BAR[6];
+    uint32_t subsystemID;
+    uint32_t expansionROMBase;
+    uint32_t capabilitiesPointer;
+    uint32_t reserved;
+    uint32_t maxLatencyMinGrantInterruptInfo;
+
+    uint32_t unused0[0x100 - 0x40];
+    uint32_t firstExtendedCapability;
 
     uint16_t classCode() volatile {
         return classCodeProgIFRevisionID >> 16;
@@ -25,6 +44,41 @@ struct alignas(0x1000) FunctionConfigSpace {
     }
     uint8_t headerType() volatile {
         return BISTHeaderTypeLatencyTimerCacheLineSize >> 16;
+    }
+    void setCommand(uint16_t setBits) volatile {
+        uint32_t value = commandStatus;
+        value |= static_cast<uint32_t>(setBits) << 16;
+        commandStatus = value;
+    }
+    void clearCommand(uint16_t clearBits) volatile {
+        uint32_t value = commandStatus;
+        value &= ~(static_cast<uint32_t>(clearBits) << 16);
+        commandStatus = value;
+    }
+    bool checkStatus(uint16_t statusBit) volatile {
+        return commandStatus & statusBit;
+    }
+    uint32_t readRegister(size_t offset) volatile {
+        return *reinterpret_cast<uint32_t *>(reinterpret_cast<size_t>(this) + offset);
+    }
+    std::vector<uint8_t> findCapabilities() volatile {
+        if (!checkStatus(Status::HasCapabilitiesList)) {
+            return {};
+        }
+
+        static const uint8_t pointerMask = 0xfc;
+        uint8_t pointer = capabilitiesPointer & pointerMask;
+        std::vector<uint8_t> result;
+        while (pointer != 0) {
+            uint32_t reg = readRegister(pointer);
+            uint8_t id = (reg >> 8) & 0xff;
+            if (id != 0) {
+                /* NULL capability is ignored */
+                result.push_back(id);
+            }
+            pointer = reg & pointerMask;
+        }
+        return result;
     }
 };
 
@@ -63,7 +117,7 @@ public:
 std::vector<MappedSegmentGroup> segments;
 
 
-void notifyEnvironmentOfDevice(RemotePort &port, volatile FunctionConfigSpace *config) {
+void handlePotentialDevice(RemotePort &port, volatile FunctionConfigSpace *config) {
     uint32_t classCode = config->classCode();
     uint32_t vendorDevice = config->vendorDevice;
     uint64_t highPart = config->classCodeProgIFRevisionID;
@@ -75,6 +129,9 @@ void notifyEnvironmentOfDevice(RemotePort &port, volatile FunctionConfigSpace *c
 
     Device dev;
     dev.deviceID = combinedID;
+
+    bool hasAnyMemoryBAR{false};
+
     for (size_t index = 0; index < 6; index++) {
         static const uint32_t MAPPING_IO = 0b1;
         static const uint32_t MEMORY_TYPE_32BIT = 0b0;
@@ -90,6 +147,7 @@ void notifyEnvironmentOfDevice(RemotePort &port, volatile FunctionConfigSpace *c
             std::cout << "BAR " << index
                       << "is an I/O port mapped BAR. ignoring." << std::endl;
         } else { /* Memory mapped */
+            hasAnyMemoryBAR = true;
             switch (originalValue & MEMORY_TYPE_MASK) {
             case MEMORY_TYPE_32BIT:
                 address = originalValue & MEMORY_ADDRESS_MASK;
@@ -139,6 +197,17 @@ void notifyEnvironmentOfDevice(RemotePort &port, volatile FunctionConfigSpace *c
         }
     }
 
+    if (!hasAnyMemoryBAR) {
+        std::cout << "did not find any memory BAR" << std::endl;
+        return;
+    }
+    config->setCommand(Command::BusMasterEnable);
+    config->setCommand(Command::MemorySpaceEnable);
+    /* avoid sending any legacy interrupts - we only support MSI-X */
+    config->setCommand(Command::InterruptDisable);
+
+    dev.capabilites = config->findCapabilities();
+
     zbon::EncodedData driverData = zbon::encode(dev);
     port.sendMessage(MSG_FOUND_DEVICE,
                      zbon::encode(std::tuple(combinedID,
@@ -164,7 +233,7 @@ int main() {
                     uint32_t vendorDevice = config->vendorDevice;
                     if ((vendorDevice >> 16) != 0xffff) {
                         if (config->headerType() == 0) {
-                            notifyEnvironmentOfDevice(envPort, config);
+                            handlePotentialDevice(envPort, config);
                         }
                     }
                 }

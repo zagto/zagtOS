@@ -24,9 +24,15 @@ struct BaseRegister {
     ZBON_ENCODING_FUNCTIONS(sharedMemory, length)
 };
 
+enum Capability {
+    POWER_MANAGEMENT = 0x01,
+    MSI_X = 0x11
+};
+
 struct Device {
     uint64_t deviceID;
     std::array<std::optional<BaseRegister>, 6> BAR;
+    std::vector<uint8_t> capabilites;
 
     ZBON_ENCODING_FUNCTIONS(deviceID, BAR)
 };
