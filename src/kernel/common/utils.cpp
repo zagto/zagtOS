@@ -87,7 +87,7 @@ void operator delete(void *object) {
     CurrentSystem.memory.freeVirtualArea(KernelVirtualAddress(object));
 }
 
-void operator delete(void *object, size_t size) {
+void operator delete(void *object, size_t) {
     operator delete(object);
 }
 
@@ -95,7 +95,7 @@ void operator delete[](void *object) {
     operator delete(object);
 }
 
-void operator delete[](void *object, size_t size) {
+void operator delete[](void *object, size_t) {
     operator delete(object);
 }
 #endif
