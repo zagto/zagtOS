@@ -5,34 +5,43 @@
 
 extern "C" int init_mparams(void);
 
-Memory::Memory(const hos_v1::System &handOver) :
-        usedFrameStack(handOver.usedFrameStack),
-        freshFrameStack(handOver.freshFrameStack) {
+Memory::Memory(const hos_v1::System &handOver) {
+    for (size_t stackIndex = 0; stackIndex < NUM_STACKS; stackIndex++) {
+        usedFrameStack[stackIndex] = handOver.usedFrameStack[stackIndex];
+        freshFrameStack[stackIndex] = handOver.freshFrameStack[stackIndex];
+    }
     init_mparams();
 }
 
 PhysicalAddress Memory::allocatePhysicalFrame() {
     scoped_lock lg(frameManagementLock);
-    if (freshFrameStack.isEmpty()) {
-        //Log << "Warning: fresh physical frame stack empty on alloc, trying recycle" << EndLine;
-        recyclePhysicalFrame();
+    for (int stackIndex = hos_v1::DMAZone::COUNT - 1; stackIndex >= 0; stackIndex--) {
+        if (!freshFrameStack[stackIndex].isEmpty() || !usedFrameStack[stackIndex].isEmpty()) {
+            if (freshFrameStack[stackIndex].isEmpty()) {
+                recyclePhysicalFrame(stackIndex);
+            }
+            return freshFrameStack[stackIndex].pop();
+        }
     }
-    return freshFrameStack.pop();
+    cout << "out of memory" << endl;
+    Panic();
 }
 
 void Memory::freePhysicalFrame(PhysicalAddress address) {
     scoped_lock lg(frameManagementLock);
-    usedFrameStack.push(address);
+    for (size_t stackIndex = 0; stackIndex < NUM_STACKS; stackIndex++) {
+        if (address.value() <= hos_v1::DMAZoneMax[stackIndex]) {
+            usedFrameStack[stackIndex].push(address);
+        }
+    }
+    cout << "should not reach here" << endl;
+    Panic();
 }
 
-void Memory::recyclePhysicalFrame() {
-    if (usedFrameStack.isEmpty()) {
-        cout << "Out of memory." << endl;
-        Panic();
-    }
-    PhysicalAddress frame = usedFrameStack.pop();
+void Memory::recyclePhysicalFrame(size_t stackIndex) {
+    PhysicalAddress frame = usedFrameStack[stackIndex].pop();
     memset(frame.identityMapped().asPointer<uint8_t>(), 0, PAGE_SIZE);
-    freshFrameStack.push(frame);
+    freshFrameStack[stackIndex].push(frame);
 }
 
 extern "C" {

@@ -108,9 +108,8 @@ public:
 public:
     MappedSegmentGroup(SegmentGroup segmentGroup) :
             segmentGroup{segmentGroup} {
-        SharedMemory mem(segmentGroup.configBase, numSpaces() * sizeof(FunctionConfigSpace));
-        void *address = mem.map(PROT_READ | PROT_WRITE);
-        configSpace = reinterpret_cast<FunctionConfigSpace *>(address);
+        auto mem = SharedMemory::Physical(segmentGroup.configBase, numSpaces() * sizeof(FunctionConfigSpace));
+        configSpace = mem.map<FunctionConfigSpace>(PROT_READ|PROT_WRITE);
     }
 };
 
@@ -188,7 +187,7 @@ void handlePotentialDevice(RemotePort &port, volatile FunctionConfigSpace *confi
                 && address + length > address
                 && static_cast<size_t>(address + length) == address + length) {
 
-                BaseRegister BAR{SharedMemory(address, length),
+                BaseRegister BAR{SharedMemory::Physical(address, length),
                                  length};
                 dev.BAR[index].emplace(std::move(BAR));
             } else {

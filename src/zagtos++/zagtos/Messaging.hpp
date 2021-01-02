@@ -40,16 +40,24 @@ namespace zagtos {
     };
 
     class SharedMemory : public HandleObject {
+    private:
+        void *_map(int protection);
+
     public:
+        static SharedMemory DMA(size_t deviceMax, size_t length, std::vector<size_t> &deviceAddresses);
+        static SharedMemory Physical(size_t physicalAddress, size_t length);
+        static SharedMemory Standard(size_t length);
+
+        template<typename T> T *map(int protection) {
+            return reinterpret_cast<T *>(_map(protection));
+        }
+
         SharedMemory() {}
-        SharedMemory(size_t physicalAddress, size_t length);
-        SharedMemory(size_t length);
         SharedMemory(SharedMemory &) = delete;
         SharedMemory(SharedMemory &&ohter);
         void operator=(SharedMemory && other);
-
-        void *map(int protection);
     };
+    void UnmapWhole(void *pointer);
 
     struct MessageInfo {
         UUID type;

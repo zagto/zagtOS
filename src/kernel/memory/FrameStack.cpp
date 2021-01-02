@@ -2,13 +2,16 @@
 #include <system/System.hpp>
 #endif
 #include <memory/FrameStack.hpp>
+#include <log/Logger.hpp>
 
 
 bool FrameStack::isEmpty() {
 #ifndef ZAGTOS_LOADER
     assert(CurrentSystem.memory.frameManagementLock.isLocked());
+    return head == nullptr;
+#else
+    return reinterpret_cast<size_t>(head) == PhysicalAddress::NULL;
 #endif
-    return head->next == nullptr && addIndex == 0;
 }
 
 
@@ -41,6 +44,7 @@ PhysicalAddress FrameStack::pop() {
 #endif
 
     if (isEmpty()) {
+        cout << "out of memory" << endl;
         Panic();
     }
 

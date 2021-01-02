@@ -18,6 +18,9 @@ namespace frameStack {
         Node *head;
         size_t addIndex;
 
+        FrameStack() :
+            head{nullptr},
+            addIndex{0} {} /* (invalid state) */
         FrameStack(const hos_v1::FrameStack &handOver) :
             head{reinterpret_cast<Node *>(handOver.head)},
             addIndex{handOver.addIndex} {}
@@ -26,8 +29,7 @@ namespace frameStack {
             addIndex{addIndex} {}
 
         ~FrameStack() {
-            // Can't destruct the frame stack
-            Panic();
+            assert(head == nullptr && addIndex == 0); /* (invalid state) */
         }
 
         bool isEmpty();

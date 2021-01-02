@@ -6,16 +6,18 @@
 
 class Memory
 {
+public:
+    static const size_t NUM_STACKS = hos_v1::DMAZone::COUNT;
 public: /* TODO: make private */
-    FrameStack usedFrameStack;
-    FrameStack freshFrameStack;
+    FrameStack usedFrameStack[NUM_STACKS];
+    FrameStack freshFrameStack[NUM_STACKS];
     KernelVirtualAddress heapEnd{KernelHeapRegion.start};
     KernelVirtualAddress halfwayDeallocatedHeapEnd{KernelHeapRegion.start};
     mutex heapLock;
     mutex frameManagementLock;
     mutex kernelPagingLock;
 
-    void recyclePhysicalFrame();
+    void recyclePhysicalFrame(size_t stackIndex);
 
 public:
     Memory(const hos_v1::System &handOver);

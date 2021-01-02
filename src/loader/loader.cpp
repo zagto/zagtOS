@@ -14,10 +14,17 @@
 /* converts pointers to physical memory for use in kernel where the identity mapping is offset at
  * an address in high kernel memory */
 template<typename T> T *convertPointer(T *loaderPointer) {
-    return reinterpret_cast<T *>(reinterpret_cast<size_t>(loaderPointer) + IdentityMapping.start);
+    if (reinterpret_cast<size_t>(loaderPointer) == PhysicalAddress::NULL) {
+        return nullptr;
+    } else {
+        return reinterpret_cast<T *>(reinterpret_cast<size_t>(loaderPointer) + IdentityMapping.start);
+    }
 }
 
 void convertFrameStack(frameStack::Node *head) {
+    if (reinterpret_cast<size_t>(head) == PhysicalAddress::NULL) {
+        return;
+    }
     frameStack::Node *node = head;
     while (reinterpret_cast<size_t>(node->next) != PhysicalAddress::NULL) {
         frameStack::Node *last = node;
@@ -102,14 +109,8 @@ void LoaderMain() {
     *handOverSystem = hos_v1::System{
         .version = 1,
         .framebufferInfo = framebufferInfo,
-        .freshFrameStack = {
-            convertPointer(CleanFrameStack.head),
-            CleanFrameStack.addIndex
-        },
-        .usedFrameStack = {
-            convertPointer(DirtyFrameStack.head),
-            DirtyFrameStack.addIndex
-        },
+        .freshFrameStack = {}, /* correct data will be filled in later */
+        .usedFrameStack = {},  /* correct data will be filled in later */
         .handOverPagingContext = reinterpret_cast<size_t>(HandOverMasterPageTable),
         .firmwareType = GetFirmwareType(),
         .firmwareRoot = GetFirmwareRoot(),
@@ -126,6 +127,16 @@ void LoaderMain() {
         .numFutexes = 0,
         .futexes = nullptr
     };
+    for (size_t stackIndex = 0; stackIndex < hos_v1::DMAZone::COUNT; stackIndex++) {
+        handOverSystem->freshFrameStack[stackIndex] = {
+            convertPointer(CleanFrameStack[stackIndex].head),
+            CleanFrameStack[stackIndex].addIndex
+        };
+        handOverSystem->usedFrameStack[stackIndex] = {
+            convertPointer(DirtyFrameStack[stackIndex].head),
+            DirtyFrameStack[stackIndex].addIndex
+        };
+    }
     *handOverProcess = {
         .pagingContext = reinterpret_cast<size_t>(ProcessMasterPageTable),
         .numMappedAreas = numMappings,
@@ -216,8 +227,12 @@ void LoaderMain() {
     memcpy(handOverString, "SystemEnvironment", 17);
 
     cout << "Converting frame stacks..." << endl;
-    convertFrameStack(CleanFrameStack.head);
-    convertFrameStack(DirtyFrameStack.head);
+    for (FrameStack &stack: CleanFrameStack) {
+        convertFrameStack(stack.head);
+    }
+    for (FrameStack &stack: DirtyFrameStack) {
+        convertFrameStack(stack.head);
+    }
 
     cout << "Exiting to Kernel..." << endl;
 

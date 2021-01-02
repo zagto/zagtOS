@@ -171,13 +171,23 @@ bool Thread::handleSyscall() {
         return true;
     }
     case SYS_CREATE_SHARED_MEMORY: {
-        bool isPhysical = registerState.syscallParameter(0);
+        size_t type = registerState.syscallParameter(0);
         size_t offset = registerState.syscallParameter(1);
         size_t length = align(registerState.syscallParameter(2), PAGE_SIZE, AlignDirection::UP);
 
         /* TODO: maybe don't hardcode permissions */
         shared_ptr<MemoryArea> memoryArea;
-        if (isPhysical) {
+        switch (type) {
+        case 0:
+            /* Standard */
+            if (offset != 0) {
+                cout << "SYS_CREATE_SHARED_MEMORY: offset given for standard shared memory" << endl;
+                return false;
+            }
+            memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, length);
+            break;
+        case 1:
+            /* Physical */
             if (!process->canAccessPhysicalMemory()) {
                 cout << "SYS_CREATE_SHARED_MEMORY: process which is not allowed to use physical "
                     << "memory tried to use it" << endl;
@@ -188,12 +198,14 @@ bool Thread::handleSyscall() {
                 return false;
             }
             memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, offset, length);
-        } else {
-            if (offset != 0) {
-                cout << "SYS_CREATE_SHARED_MEMORY: offset given for non-physical shared memory" << endl;
-                return false;
-            }
-            memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, length);
+            break;
+        case 2:
+        case 3:
+            /* DMA */
+            break;
+        default:
+            cout << "SYS_CREATE_SHARED_MEMORY: got invalid type parameter " << type << endl;
+            return false;
         }
         uint32_t handle = process->handleManager.addMemoryArea(memoryArea);
         registerState.setSyscallResult(handle);

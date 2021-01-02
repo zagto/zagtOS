@@ -7,8 +7,8 @@
 static frameStack::Node *const FRAMESTACK_NULL =
         reinterpret_cast<frameStack::Node *>(PhysicalAddress::NULL);
 
-FrameStack DirtyFrameStack(FRAMESTACK_NULL, 0);
-FrameStack CleanFrameStack(FRAMESTACK_NULL, 0);
+FrameStack DirtyFrameStack[hos_v1::DMAZone::COUNT];
+FrameStack CleanFrameStack[hos_v1::DMAZone::COUNT];
 
 PhysicalAddress SecondaryProcessorEntry{PhysicalAddress::NULL};
 static bool secondaryProcessorEntryFound{false};
@@ -21,6 +21,15 @@ static const size_t HAND_OVER_MASTER_PAGE_TABLE_MAX{1ul << 32};
 
 /* returns the maximum physical address that is part of usable memory */
 PhysicalAddress InitPhysicalFrameManagement() {
+    for (FrameStack &stack: DirtyFrameStack) {
+        stack.head = FRAMESTACK_NULL;
+        stack.addIndex = 0;
+    }
+    for (FrameStack &stack: CleanFrameStack) {
+        stack.head = FRAMESTACK_NULL;
+        stack.addIndex = 0;
+    }
+
     optional<Region> region;
     PhysicalAddress maxPhysicalAddress{0};
 
@@ -30,13 +39,16 @@ PhysicalAddress InitPhysicalFrameManagement() {
         Halt();
     }
 
-    // The first available frame will be the first frame list frame
-    DirtyFrameStack.head = reinterpret_cast<frameStack::Node *>(region->start);
-    ClearFrame(DirtyFrameStack.head);
-    DirtyFrameStack.head->next = FRAMESTACK_NULL;
-
-    /* start with second frame because the first is our stack node frame, so it is not available */
-    size_t address = region->start + PAGE_SIZE;
+    /* Initialize Frame Stacks */
+    for (FrameStack &stack: DirtyFrameStack) {
+        stack.head = FRAMESTACK_NULL;
+        stack.addIndex = frameStack::Node::NUM_ENTRIES;
+    }
+    for (FrameStack &stack: CleanFrameStack) {
+        stack.head = FRAMESTACK_NULL;
+        stack.addIndex = frameStack::Node::NUM_ENTRIES;
+    }
+    size_t address = region->start;
 
     while (region) {
         if (region->end() > maxPhysicalAddress.value()) {
@@ -54,7 +66,7 @@ PhysicalAddress InitPhysicalFrameManagement() {
                 HandOverMasterPageTable = (PageTable *)address;
                 handOvermasterPageTableFound = true;
             } else {
-                DirtyFrameStack.push(address);
+                FreePhysicalFrame(address);
             }
             address += PAGE_SIZE;
         }
@@ -74,29 +86,50 @@ PhysicalAddress InitPhysicalFrameManagement() {
     /* Process Master Page Tables can be at any place in memory */
     ProcessMasterPageTable = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
 
-    CleanFrameStack.head = reinterpret_cast<frameStack::Node *>(AllocatePhysicalFrame().value());
-    ClearFrame(CleanFrameStack.head);
-    CleanFrameStack.head->next = FRAMESTACK_NULL;
-
     // clean 100 frames so kernel can allocate memory before it's cleaning mechanism works
+    int stackIndex = hos_v1::DMAZone::COUNT - 1;
     for (size_t i = 0; i < 100; i++) {
-        PhysicalAddress frame = DirtyFrameStack.pop();
+        while (DirtyFrameStack[stackIndex].isEmpty()) {
+            stackIndex--;
+            if (stackIndex < 0) {
+                cout << "Less than 100 frames available. This will not work." << endl;
+                Panic();
+            }
+        }
+        PhysicalAddress frame = DirtyFrameStack[stackIndex].pop();
         ClearFrame(reinterpret_cast<void *>(frame.value()));
-        CleanFrameStack.push(frame);
+        CleanFrameStack[stackIndex].push(frame);
     }
     return maxPhysicalAddress;
 }
 
 
 PhysicalAddress AllocatePhysicalFrame(void) {
-    PhysicalAddress address = DirtyFrameStack.pop();
+    PhysicalAddress address;
+    for (int stackIndex = hos_v1::DMAZone::COUNT - 1; stackIndex >= 0; stackIndex--) {
+        if (!DirtyFrameStack[stackIndex].isEmpty()) {
+            address = DirtyFrameStack[stackIndex].pop();
+            break;
+        }
+    }
+    if (address == PhysicalAddress::NULL) {
+        cout << "out of memory" << endl;
+        Panic();
+    }
     ClearFrame(reinterpret_cast<void *>(address.value()));
     return address;
 }
 
 
 void FreePhysicalFrame(PhysicalAddress frame) {
-    DirtyFrameStack.push(frame);
+    for (size_t stackIndex = 0; stackIndex < hos_v1::DMAZone::COUNT; stackIndex++) {
+        if (frame.value() <= hos_v1::DMAZoneMax[stackIndex]) {
+            DirtyFrameStack[stackIndex].push(frame);
+            return;
+        }
+    }
+    cout << "should not reach here" << endl;
+    Halt();
 }
 
 

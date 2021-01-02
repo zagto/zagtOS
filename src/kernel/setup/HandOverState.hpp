@@ -29,6 +29,12 @@ enum class HandleType : uint32_t {
     INVALID, FREE, PORT, REMOTE_PORT, THREAD, MEMORY_AREA
 };
 
+/* TODO: other architectures */
+enum DMAZone {
+    BITS32 = 0, BITS64, COUNT
+};
+static const size_t DMAZoneMax[DMAZone::COUNT] = {(1ul << 32) - 1, static_cast<size_t>(-1)};
+
 struct MemoryArea {
     size_t numFrames;
     PhysicalAddress *frames;
@@ -106,8 +112,8 @@ struct System {
     size_t version;
 
     FramebufferInfo framebufferInfo;
-    FrameStack freshFrameStack;
-    FrameStack usedFrameStack;
+    FrameStack freshFrameStack[DMAZone::COUNT];
+    FrameStack usedFrameStack[DMAZone::COUNT];
     PhysicalAddress handOverPagingContext;
     FirmwareType firmwareType;
     PhysicalAddress firmwareRoot;
