@@ -19,7 +19,7 @@ ASM_REGULER_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJ
 TARGET = $(SHBUILD_BUILD_DIR)/ZAGTKERN.ZBN
 
 
-COMMON_FLAGS = -Os -g -fsanitize=undefined -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/stdlib
+COMMON_FLAGS = -Os -g -mgeneral-regs-only -fsanitize=undefined -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/stdlib
 COMMON_FLAGS += $(KERNEL_CFLAGS_$(ARCH))
 
 CFLAGS = $(COMMON_FLAGS) -std=c99 -Wno-expansion-to-defined -include memory/dlmalloc-glue.hpp
