@@ -93,6 +93,7 @@ protected:
 
 public:
     RegisterState registerState;
+    VectorRegisterState vectorState;
     shared_ptr<Process> process;
     UserVirtualAddress tlsBase;
 
@@ -124,7 +125,12 @@ public:
         _currentPriority{handOver.currentPriority},
         _state{State::Transition()},
         registerState{handOver.registerState},
-        tlsBase{handOver.TLSBase} {}
+        tlsBase{handOver.TLSBase} {
+
+        cout << reinterpret_cast<size_t>(&_currentProcessor) - reinterpret_cast<size_t>(this) << endl;
+        cout << reinterpret_cast<size_t>(&registerState) - reinterpret_cast<size_t>(this) << endl;
+        assert(reinterpret_cast<size_t>(&registerState) - reinterpret_cast<size_t>(&_currentProcessor) == 4*8);
+    }
 
     ~Thread();
 

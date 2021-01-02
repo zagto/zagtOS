@@ -28,6 +28,7 @@ section .data
 %define CR4_PGE (1 << 7)
 %define CR4_OSFXSR (1 << 9)
 %define CR4_OSXMMEXCPT (1 << 10)
+%define CR4_OSXAVE (1 << 18)
 
 [bits 16]
 
@@ -66,7 +67,7 @@ flushCS:
     or eax, CR0_COPROCESSOR_MONITORING
     ;mov cr0, eax
     mov eax, cr4
-    or eax, CR4_OSFXSR | CR4_OSXMMEXCPT | CR4_PAE | CR4_PGE
+    or eax, CR4_OSFXSR | CR4_OSXAVE | CR4_OSXMMEXCPT | CR4_PAE | CR4_PGE
     mov cr4, eax
 
     ; load the MPT address to CR3

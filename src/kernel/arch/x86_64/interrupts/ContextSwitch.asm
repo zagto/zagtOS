@@ -10,6 +10,10 @@ extern kernelStackEnd
 
 section .text
 
+
+%define XSAVE_SSE (1<<1)
+%define XSAVE_X87 (1<<0)
+
 InterruptServiceRoutines:
 
 ; %1 - interrupt number
@@ -75,7 +79,8 @@ commonISR:
     cmp qword [rsp+(18*8)], 0x18|3
     jne alreadyOnKernelStack
 
-    ; currentProcessor is the field three before registerState (which is align(16))
+    ; currentProcessor is the field three before registerState (which is align(4), ensure
+    ; layout in struct!)
     ; this pointer is put in r15 (as the CurrentProcessor variable)
     mov r15, [rdi - 8*4]
     ; kernelStack is the first field of Processor class
@@ -168,4 +173,19 @@ returnFromInKernelInterrupt:
 
     iretq
 
+saveVectorRegisters:
+    ; for user-space, save vector registers
+    sub rsp, 1024
+    mov rdx, 0
+    mov rax, XSAVE_SSE|XSAVE_X87
+    xsave [rsp]
+
+restoreVectorRegisters:
+    mov rdx, 0
+    mov rax, XSAVE_SSE|XSAVE_X87
+    xrstor [rsp]
+    add rsp, 1024
+
+
+section .data
 

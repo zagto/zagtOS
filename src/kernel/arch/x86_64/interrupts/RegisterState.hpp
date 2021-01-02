@@ -52,3 +52,12 @@ public:
         r8 = value;
     }
 };
+
+class alignas(64) VectorRegisterState {
+private:
+    uint8_t data[1024];
+
+public:
+    void save();
+    void restore();
+};
