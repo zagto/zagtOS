@@ -5,7 +5,7 @@
 #define TEMPORY_STACK_SIZE 128 // in size_ts
 
 void ExitToKernel(size_t entry, PageTable *newMasterPageTable, const hos_v1::System *bootInfo) {
-    static size_t temporaryStack[TEMPORY_STACK_SIZE];
+    alignas (__uint128_t) static size_t temporaryStack[TEMPORY_STACK_SIZE];
     cout << "Temporary stack at: " << reinterpret_cast<size_t>(&temporaryStack) << endl;
     cout << "kernel entry at: " << entry << endl;
     cout << "Handover master page table at: " << reinterpret_cast<size_t>(newMasterPageTable) << endl;

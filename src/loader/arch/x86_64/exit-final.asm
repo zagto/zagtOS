@@ -70,14 +70,8 @@ ExitFinalize:
     ; switch to new master page table
     mov cr3, rsi
 
+    ; correctly mis-align stack
+    push 0
     push rdi
     mov rdi, r10
     ret
-
-
-setCS:
-    ; this magic instruction was found in the UEFI loader of the Essence operating system
-    ; https://bitbucket.org/nakst/essence
-    ; file: essence/boot/x86/uefi_loader.s
-    db 0x48, 0xcb
-
