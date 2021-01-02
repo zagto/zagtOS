@@ -32,6 +32,7 @@ void Memory::freePhysicalFrame(PhysicalAddress address) {
     for (size_t stackIndex = 0; stackIndex < NUM_STACKS; stackIndex++) {
         if (address.value() <= hos_v1::DMAZoneMax[stackIndex]) {
             usedFrameStack[stackIndex].push(address);
+            return;
         }
     }
     cout << "should not reach here" << endl;

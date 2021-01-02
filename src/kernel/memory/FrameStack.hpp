@@ -28,6 +28,21 @@ namespace frameStack {
             head{head},
             addIndex{addIndex} {}
 
+        FrameStack(FrameStack &other) = delete;
+        FrameStack(FrameStack &&other) {
+            head = other.head;
+            addIndex = other.addIndex;
+            other.head = nullptr;
+            other.addIndex = 0;
+        }
+        void operator=(FrameStack &other) = delete;
+        void operator=(FrameStack &&other) {
+            assert(head == nullptr && addIndex == 0); /* (invalid state) */
+            head = other.head;
+            addIndex = other.addIndex;
+            other.head = nullptr;
+            other.addIndex = 0;
+        }
         ~FrameStack() {
             assert(head == nullptr && addIndex == 0); /* (invalid state) */
         }
