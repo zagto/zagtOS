@@ -9,8 +9,7 @@ bool Process::accessUserSpace(uint8_t *buffer,
                            PagingContext::AccessOperation accOp,
                            bool requireWritePermissions) {
     assert(pagingLock.isLocked());
-
-    if (!VirtualAddress(start).isInRegion(UserSpaceRegion)) {
+    if (!VirtualAddress::checkInRegion(UserSpaceRegion, start)) {
         return false;
     }
     if (length > UserSpaceRegion.end() - start) {
