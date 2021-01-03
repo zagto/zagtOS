@@ -71,9 +71,9 @@ SharedMemory SharedMemory::DMA(size_t deviceMax,
     shm._handle = static_cast<uint32_t>(
                 zagtos_syscall4(SYS_CREATE_SHARED_MEMORY,
                                 SharedType::DMA,
-                                reinterpret_cast<size_t>(deviceAddresses.data()),
+                                static_cast<size_t>(deviceMax),
                                 length,
-                                static_cast<size_t>(deviceMax)));
+                                reinterpret_cast<size_t>(deviceAddresses.data())));
     return shm;
 }
 
