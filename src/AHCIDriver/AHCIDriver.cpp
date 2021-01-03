@@ -1,5 +1,8 @@
+/* for nanosleep */
+#define _GNU_SOURCE 1
 #include <iostream>
 #include <memory>
+#include <ctime>
 #include <sys/mman.h>
 #include <zagtos/Controller.hpp>
 #include <zagtos/Messaging.hpp>
@@ -18,10 +21,30 @@ static const uint32_t
     CAP_NCS_SHIFT = 8,
     CAP_S64A = 1<<31,
 
+    CAP2_BOH = 1<<0,
+    CAP2_NVMP = 1<<1,
+    CAP2_APST = 1<<2,
+    CAP2_SDS = 1<<3,
+    CAP2_SADM = 1<<4,
+    CAP2_DESO = 1<<5,
+
+    BOHC_BOS = 1<<0,
+    BOHC_OOS = 1<<1,
+    BOHC_SOOE = 1<<2,
+    BOHC_OOC = 1<<3,
+    BOHC_BB = 1<<4,
+
     GHC_HBA_RESET = 1<<0,
     GHC_INTERRUPT_ENABLE = 1<<1,
     GHC_MSI_REVERT_TO_SINGLE_MESSAGE = 1<<2,
     GHC_AHCI_ENABLE = 1<<31,
+
+    Px_INTR_DHRE = 1<<0,
+    Px_INTR_DSS = 1<<2,
+    Px_INTR_SDBS = 1<<3,
+    Px_INTR_UFS = 1<<4,
+    Px_INTR_DPS = 1<<5,
+    Px_INTR_PCS = 1<<6,
 
     PxCMD_ST = 1<<0,
     PxCMD_SUD = 1<<1,
@@ -44,9 +67,26 @@ static const uint32_t
     PxCMD_DLAE = 1<<25,
     PxCMD_ALPE = 1<<26,
     PxCMD_ASP = 1<<27,
-    PxCMD_ICC_SHIFT = 28;
+    PxCMD_ICC_SHIFT = 28,
 
+    PxSSTS_DET_MASK = 0b1111,
+    PxSSTS_DET_SHIFT = 0,
+    PxSSTS_DET_PRESENT = 3,
+    PxSSTS_DET_NONE = 0,
+    PxSSTS_IPM_MASK = 0b1111<<8,
+    PxSSTS_IPM_SHIFT = 8,
+    PxSSTS_IPM_ACTIVE = 1,
+    PxSSTS_IPM_PARTIAL = 2,
+    PxSSTS_IPM_SLUMBER = 6,
+    PxSSTS_IPM_DEVSLEEP = 8,
 
+    PxSERR_ERR_I = 1<<0,
+    PxSERR_ERR_M = 1<<1,
+    PxSERR_ERR_T = 1<<8,
+    PxSERR_ERR_C = 1<<9,
+    PxSERR_ERR_P = 1<<10,
+    PxSERR_ERR_E = 1<<11,
+    PxSERR_ERR = PxSERR_ERR_I|PxSERR_ERR_M|PxSERR_ERR_T|PxSERR_ERR_C|PxSERR_ERR_P|PxSERR_ERR_E;
 static bool Support64Bit;
 static size_t NumCommandSlots;
 
@@ -95,12 +135,18 @@ struct PortRegisters {
             assert(isIdle());
         }
     }
+    uint32_t DET() volatile {
+        return (SATAStatus & PxSSTS_DET_MASK) >> PxSSTS_DET_SHIFT;
+    }
+    uint32_t IPM() volatile {
+        return (SATAStatus & PxSSTS_IPM_MASK) >> PxSSTS_IPM_SHIFT;
+    }
 };
 
 static volatile struct ABARStruct {
     uint32_t HostCapabilities;
     uint32_t globalHostControl;
-    uint32_t interruptStatusRegister;
+    uint32_t interruptStatus;
     uint32_t portsImplemented;
     uint32_t version;
     uint32_t CCCCtl;
@@ -144,9 +190,21 @@ struct ImplementedPort {
 
         FIS = sharedMemoryFIS.map<FISStruct>(PROT_READ|PROT_WRITE);
         commandList = sharedMemoryCommandList.map<CommandList>(PROT_READ|PROT_WRITE);
+
+        registers->FISBase = static_cast<uint32_t>(deviceAddressFIS[0]);
+        registers->commandListBase = static_cast<uint32_t>(deviceAddressCommandList[0]);
+        if (Support64Bit) {
+            registers->FISBaseUpper = deviceAddressFIS[0] >> 32;
+            registers->FISBaseUpper = deviceAddressCommandList[0] >> 32;
+        }
     }
 };
 static std::vector<ImplementedPort> ImplementedPorts;
+
+struct Device {
+    ImplementedPort &port;
+};
+//static std::vector<Device> Devices;
 
 void determinePortsImplemented() {
     uint32_t reg = ABAR->portsImplemented;
@@ -169,6 +227,67 @@ void allocatePortMemory() {
     for (ImplementedPort &port: ImplementedPorts) {
         port.allocateMemory();
     }
+    __sync_synchronize();
+    for (ImplementedPort &port: ImplementedPorts) {
+        setBit(port.registers->commandStatus, PxCMD_FRE);
+    }
+}
+
+void setupErrorRegister() {
+    __sync_synchronize();
+    for (ImplementedPort &port: ImplementedPorts) {
+        setBit(port.registers->SATAError, PxSERR_ERR);
+    }
+}
+
+void resetController() {
+    setBit(ABAR->globalHostControl, GHC_HBA_RESET);
+    setBit(ABAR->globalHostControl, GHC_AHCI_ENABLE);
+}
+
+void BIOSHandoff() {
+    if (!(ABAR->hostCapabilitiesExtended & CAP2_BOH)) {
+        std::cout << "No BIOS Handoff supported" << std::endl;
+        return;
+    }
+    setBit(ABAR->BIOSHandoff, BOHC_OOS);
+    while (ABAR->BIOSHandoff & BOHC_BOS) {}
+
+    timespec ts{0, 25000};
+    nanosleep(&ts, nullptr);
+
+    while (ABAR->BIOSHandoff & BOHC_BB) {}
+    std::cout << "BIOS Handoff finished" << std::endl;
+}
+
+void enableInterrupts() {
+    __sync_synchronize();
+    for (ImplementedPort &port: ImplementedPorts) {
+        port.registers->interruptStatus = 0;
+    }
+    __sync_synchronize();
+    ABAR->interruptStatus = 0;
+    for (ImplementedPort &port: ImplementedPorts) {
+        port.registers->interruptEnable =
+                Px_INTR_DHRE|Px_INTR_DSS|Px_INTR_SDBS|Px_INTR_UFS|Px_INTR_DPS|Px_INTR_PCS;
+
+    }
+    setBit(ABAR->globalHostControl, GHC_INTERRUPT_ENABLE);
+}
+
+void detectDevices() {
+    for (ImplementedPort &port: ImplementedPorts) {
+        uint32_t det = port.registers->DET();
+        if (det == PxSSTS_DET_PRESENT) {
+            if (port.registers->IPM() == PxSSTS_IPM_ACTIVE) {
+                std::cout << "device signature: " << port.registers->signature << std::endl;
+            } else {
+                std::cout << "device is not in active IPM state" << std::endl;
+            }
+        } else if (det != PxSSTS_DET_NONE) {
+            std::cout << "device in unsupported detection state: " << det << std::endl;
+        }
+    }
 }
 
 int main() {
@@ -176,7 +295,7 @@ int main() {
     std::cout << "Hello from AHCI" << std::endl;
 
     if (!dev.BAR[5]) {
-        throw std::runtime_error("device claims to be AHCI device but does not implement BAR 5");
+        throw std::runtime_error("PCI device claims to be AHCI device but does not implement BAR 5");
     }
     pci::BaseRegister &ABARDesc = *dev.BAR[5];
     ABAR = ABARDesc.sharedMemory.map<ABARStruct>(PROT_READ|PROT_WRITE);
@@ -185,14 +304,19 @@ int main() {
     std::cout << "Mapped ABAR" << std::endl;
 
     setBit(ABAR->globalHostControl, GHC_AHCI_ENABLE);
-    setBit(ABAR->globalHostControl, GHC_HBA_RESET);
-
-    setBit(ABAR->globalHostControl, GHC_AHCI_ENABLE);
+    BIOSHandoff();
+    resetController();
     determinePortsImplemented();
     ensureControllerNotRunning();
     NumCommandSlots = ((ABAR->HostCapabilities & CAP_NCS_MASK) >> CAP_NCS_SHIFT) + 1;
     std::cout << "This controller supports " << NumCommandSlots << " command slots" << std::endl;
     Support64Bit = (ABAR->HostCapabilities & CAP_S64A);
     std::cout << (Support64Bit ? "Support" : "No support") << " for 64-bit addresses" << std::endl;
+    allocatePortMemory();
+    setupErrorRegister();
+    enableInterrupts();
+    detectDevices();
 
+    __sync_synchronize();
+    std::cout << "Controller initialization OK" << std::endl;
 }
