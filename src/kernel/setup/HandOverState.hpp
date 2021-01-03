@@ -6,7 +6,7 @@
 namespace hos_v1 {
 
 enum class MappingSource : uint32_t {
-    ANONYMOUS = 1, PHYSICAL = 2, SHARED = 3,
+    ANONYMOUS = 1, PHYSICAL = 2, SHARED = 3, DMA = 4,
 };
 
 enum class Permissions : uint32_t {

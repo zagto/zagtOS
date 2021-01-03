@@ -17,6 +17,7 @@ public:
     MemoryArea(size_t length);
     MemoryArea(Permissions permissions, size_t length);
     MemoryArea(Permissions permissions, PhysicalAddress physicalStart, size_t length);
+    MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceAddresses);
     MemoryArea(const hos_v1::MemoryArea &handOver);
 
     PhysicalAddress makePresent(size_t offset);

@@ -156,6 +156,7 @@ bool Thread::handleSyscall() {
         UserSpaceObject<MMap, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
                                                                 process);
         if (!uso.valid) {
+            cout << "SYS_MMAP: process passed non-accessible regions as parameters structure" << endl;
             return false;
         }
         uso.object.perform(*process);
@@ -174,6 +175,7 @@ bool Thread::handleSyscall() {
         size_t type = registerState.syscallParameter(0);
         size_t offset = registerState.syscallParameter(1);
         size_t length = align(registerState.syscallParameter(2), PAGE_SIZE, AlignDirection::UP);
+        size_t deviceAddressesPointer = registerState.syscallParameter(3);
 
         /* TODO: maybe don't hardcode permissions */
         shared_ptr<MemoryArea> memoryArea;
@@ -199,10 +201,31 @@ bool Thread::handleSyscall() {
             }
             memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, offset, length);
             break;
-        case 2:
-        case 3:
+        case 2: {
             /* DMA */
+            scoped_lock sl(process->pagingLock);
+            size_t numPages = length / PAGE_SIZE;
+
+            int frameStack = hos_v1::DMAZone::COUNT - 1;
+            while (offset > hos_v1::DMAZoneMax[frameStack]) {
+                frameStack--;
+                if (frameStack < 0) {
+                    cout << "SYS_CREATE_SHARED_MEMORY: requested device address ceiling impossible"
+                         << "on this architecture." << endl;
+                    return false;
+                }
+            }
+
+            vector<size_t> deviceAddresses;
+            memoryArea = make_shared<MemoryArea>(frameStack, length, deviceAddresses);
+            if (!process->copyToUser(deviceAddressesPointer,
+                                     reinterpret_cast<uint8_t *>(deviceAddresses.data()),
+                                     numPages * sizeof(size_t),
+                                     true)) {
+                return false;
+            }
             break;
+        }
         default:
             cout << "SYS_CREATE_SHARED_MEMORY: got invalid type parameter " << type << endl;
             return false;

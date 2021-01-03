@@ -20,6 +20,23 @@ MemoryArea::MemoryArea(Permissions permissions, size_t length) :
     assert(length % PAGE_SIZE == 0);
 }
 
+MemoryArea::MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceAddresses):
+    frames(length / PAGE_SIZE, PhysicalAddress::NULL),
+    source{Source::DMA},
+    permissions{Permissions::READ_WRITE},
+    length{length} {
+
+    size_t numFrames = length / PAGE_SIZE;
+    deviceAddresses.resize(numFrames);
+    for (size_t frameIndex = 0; frameIndex < numFrames; frameIndex++) {
+        PhysicalAddress addr = Memory::instance()->allocatePhysicalFrame(frameStack);
+        frames[frameIndex] = addr;
+        /* TODO: IO-MMU support */
+        deviceAddresses[frameIndex] = addr.value();
+    }
+}
+
+
 MemoryArea::MemoryArea(Permissions permissions, PhysicalAddress physicalStart, size_t length) :
     frames(1, physicalStart),
     source{Source::PHYSICAL},
@@ -39,6 +56,7 @@ MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver) :
     assert(source != Source::ANONYMOUS || frames.size() == 0);
     assert(source != Source::PHYSICAL || frames.size() == 1);
     assert(source != Source::SHARED || frames.size() * PAGE_SIZE == length);
+    assert(source != Source::DMA || frames.size() * PAGE_SIZE == length);
 
     for (size_t index = 0; index < frames.size(); index++) {
         frames[index] = handOver.frames[index];
@@ -54,7 +72,8 @@ PhysicalAddress MemoryArea::makePresent(size_t offset) {
         return CurrentSystem.memory.allocatePhysicalFrame();
     case Source::PHYSICAL:
         return frames[0] + offset;
-    case Source::SHARED: {
+    case Source::SHARED:
+    case Source::DMA: {
         size_t frameIndex = offset / PAGE_SIZE;
         assert(frames[frameIndex] == PhysicalAddress::NULL);
 

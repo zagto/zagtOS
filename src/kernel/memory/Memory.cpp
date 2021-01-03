@@ -13,9 +13,11 @@ Memory::Memory(const hos_v1::System &handOver) {
     init_mparams();
 }
 
-PhysicalAddress Memory::allocatePhysicalFrame() {
+PhysicalAddress Memory::allocatePhysicalFrame(size_t maxStack) {
     scoped_lock lg(frameManagementLock);
-    for (int stackIndex = hos_v1::DMAZone::COUNT - 1; stackIndex >= 0; stackIndex--) {
+    assert(maxStack < hos_v1::DMAZone::COUNT);
+
+    for (int stackIndex = maxStack; stackIndex >= 0; stackIndex--) {
         if (!freshFrameStack[stackIndex].isEmpty() || !usedFrameStack[stackIndex].isEmpty()) {
             if (freshFrameStack[stackIndex].isEmpty()) {
                 recyclePhysicalFrame(stackIndex);

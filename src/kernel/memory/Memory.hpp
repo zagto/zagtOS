@@ -22,7 +22,7 @@ public: /* TODO: make private */
 public:
     Memory(const hos_v1::System &handOver);
 
-    PhysicalAddress allocatePhysicalFrame();
+    PhysicalAddress allocatePhysicalFrame(size_t maxStack = hos_v1::DMAZone::COUNT - 1);
     void freePhysicalFrame(PhysicalAddress address);
 
     KernelVirtualAddress allocateVirtualArea(size_t length, size_t align = 0);
