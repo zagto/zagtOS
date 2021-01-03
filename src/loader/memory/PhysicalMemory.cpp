@@ -85,21 +85,6 @@ PhysicalAddress InitPhysicalFrameManagement() {
 
     /* Process Master Page Tables can be at any place in memory */
     ProcessMasterPageTable = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
-
-    // clean 100 frames so kernel can allocate memory before it's cleaning mechanism works
-    int stackIndex = hos_v1::DMAZone::COUNT - 1;
-    for (size_t i = 0; i < 100; i++) {
-        while (DirtyFrameStack[stackIndex].isEmpty()) {
-            stackIndex--;
-            if (stackIndex < 0) {
-                cout << "Less than 100 frames available. This will not work." << endl;
-                Panic();
-            }
-        }
-        PhysicalAddress frame = DirtyFrameStack[stackIndex].pop();
-        ClearFrame(reinterpret_cast<void *>(frame.value()));
-        CleanFrameStack[stackIndex].push(frame);
-    }
     return maxPhysicalAddress;
 }
 
