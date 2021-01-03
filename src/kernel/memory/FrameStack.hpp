@@ -11,7 +11,7 @@ namespace frameStack {
         Node *next;
         PhysicalAddress entries[NUM_ENTRIES];
 
-        Node(Node *nextNode) : next{nextNode} {}
+        Node() = delete;
     };
 
     struct FrameStack {

@@ -26,10 +26,10 @@ void FrameStack::push(PhysicalAddress address) {
         /* re-use frame for new node instead of freeing it */
 #ifdef ZAGTOS_LOADER
         head = reinterpret_cast<Node *>(address.value());
-        head->next = oldHead;
 #else
-        head = new (address.identityMapped()) Node(oldHead);
+        head = reinterpret_cast<Node *>(address.identityMapped().value());
 #endif
+        head->next = oldHead;
         addIndex = 0;
     } else {
         head->entries[addIndex] = address;
@@ -60,6 +60,7 @@ PhysicalAddress FrameStack::pop() {
 #ifdef ZAGTOS_LOADER
         return {reinterpret_cast<size_t>(oldHead)};
 #else
+        //memset(oldHead, 0, PAGE_SIZE);
         return PhysicalAddress::fromIdentitdyMappedPointer(oldHead);
 #endif
     } else {
