@@ -62,11 +62,9 @@ enum SharedType {
     DMA = 2,
 };
 
-SharedMemory SharedMemory::DMA(size_t deviceMax,
-                               size_t length,
-                               std::vector<size_t> &deviceAddresses) {
+std::tuple<SharedMemory, std::vector<size_t>> SharedMemory::DMA(size_t deviceMax, size_t length) {
     size_t numPages = (length - 1) / PAGE_SIZE + 1;
-    deviceAddresses.resize(numPages);
+    std::vector<size_t> deviceAddresses(numPages);
     SharedMemory shm;
     shm._handle = static_cast<uint32_t>(
                 zagtos_syscall4(SYS_CREATE_SHARED_MEMORY,
@@ -74,7 +72,7 @@ SharedMemory SharedMemory::DMA(size_t deviceMax,
                                 static_cast<size_t>(deviceMax),
                                 length,
                                 reinterpret_cast<size_t>(deviceAddresses.data())));
-    return shm;
+    return {std::move(shm), std::move(deviceAddresses)};
 }
 
 SharedMemory SharedMemory::Physical(size_t physicalAddress, size_t length) {

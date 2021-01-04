@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <tuple>
 #include <memory>
 #include <zagtos/UUID.hpp>
 #include <zagtos/ZBON.hpp>
@@ -44,7 +45,7 @@ namespace zagtos {
         void *_map(int protection);
 
     public:
-        static SharedMemory DMA(size_t deviceMax, size_t length, std::vector<size_t> &deviceAddresses);
+        static std::tuple<SharedMemory, std::vector<size_t>> DMA(size_t deviceMax, size_t length);
         static SharedMemory Physical(size_t physicalAddress, size_t length);
         static SharedMemory Standard(size_t length);
 
