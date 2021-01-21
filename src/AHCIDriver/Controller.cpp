@@ -56,4 +56,9 @@ Controller::Controller(ABAR &abar) :
         port.enableInterrupts();
     }
     regs.GHC.IE(1);
+
+    for (Port &port: ports) {
+        port.detectDevice();
+    }
+
 }

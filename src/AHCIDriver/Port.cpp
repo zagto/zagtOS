@@ -52,7 +52,5 @@ Port::Port(PortRegisters &regs):
     regs.CMD.FRE(1);
     regs.SERR.ERR(0xffff);
 
-    detectDevice();
-
     regs.IS(0);
 }
