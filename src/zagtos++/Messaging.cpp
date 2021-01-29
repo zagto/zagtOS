@@ -1,6 +1,7 @@
 #define _GNU_SOURCE 1
 #include <zagtos/syscall.h>
 #include <zagtos/Messaging.hpp>
+#include <zagtos/Align.hpp>
 #include <cassert>
 #include <sys/mman.h>
 #include <climits>
@@ -63,7 +64,7 @@ enum SharedType {
 };
 
 std::tuple<SharedMemory, std::vector<size_t>> SharedMemory::DMA(size_t deviceMax, size_t length) {
-    size_t numPages = (length - 1) / PAGE_SIZE + 1;
+    size_t numPages = zagtos::align(length, PAGE_SIZE, zagtos::AlignDirection::UP) / PAGE_SIZE;
     std::vector<size_t> deviceAddresses(numPages);
     SharedMemory shm;
     shm._handle = static_cast<uint32_t>(
