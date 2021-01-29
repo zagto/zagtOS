@@ -1,7 +1,8 @@
 #pragma once
 
-namespace zagtos {
 #include <cstddef>
+
+namespace zagtos {
 
 enum class AlignDirection {
     DOWN,
