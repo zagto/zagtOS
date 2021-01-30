@@ -20,7 +20,9 @@ namespace zagtos {
 
     public:
         HandleObject();
+        HandleObject(HandleObject &) = delete;
         ~HandleObject();
+        HandleObject(HandleObject &&other);
 
         static constexpr zbon::Type ZBONType() {
             return zbon::Type::HANDLE;
@@ -34,7 +36,7 @@ namespace zagtos {
     public:
         RemotePort() {}
         RemotePort(RemotePort &) = delete;
-        RemotePort(RemotePort &&ohter);
+        RemotePort(RemotePort &&other) : HandleObject(std::move(other)) {}
 
         void sendMessage(const UUID messageType,
                          zbon::EncodedData message) const;
@@ -49,14 +51,15 @@ namespace zagtos {
         static SharedMemory Physical(size_t physicalAddress, size_t length);
         static SharedMemory Standard(size_t length);
 
+        SharedMemory() {}
+        SharedMemory(SharedMemory &) = delete;
+        SharedMemory(SharedMemory &&other) : HandleObject(std::move(other)) {}
+
+        void operator=(SharedMemory && other);
+
         template<typename T> T *map(int protection) {
             return reinterpret_cast<T *>(_map(protection));
         }
-
-        SharedMemory() {}
-        SharedMemory(SharedMemory &) = delete;
-        SharedMemory(SharedMemory &&ohter);
-        void operator=(SharedMemory && other);
     };
     void UnmapWhole(void *pointer);
 
@@ -73,7 +76,7 @@ namespace zagtos {
     public:
         Port();
         Port(Port &) = delete;
-        Port(Port &&ohter);
+        Port(Port &&other) : HandleObject(std::move(other)) {}
 
         bool ZBONDecode(zbon::Decoder &) = delete;
 

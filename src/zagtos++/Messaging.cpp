@@ -24,6 +24,11 @@ void HandleObject::ZBONDecode(zbon::Decoder &decoder) {
     decoder.decodeHandle(_handle);
 }
 
+HandleObject::HandleObject(HandleObject &&other) {
+    _handle = other._handle;
+    other._handle = INVALID_HANDLE;
+}
+
 
 void *MessageInfo::operator new(std::size_t) {
     throw std::logic_error("MessageInfo objects should only be allocated by the kernel");
@@ -45,16 +50,6 @@ void MessageInfo::operator delete(void *object) {
 
 Port::Port() {
     _handle = {static_cast<uint32_t>(zagtos_syscall0(SYS_CREATE_PORT))};
-}
-
-Port::Port(Port &&other) {
-    _handle = other._handle;
-    other._handle = INVALID_HANDLE;
-}
-
-RemotePort::RemotePort(RemotePort &&other) {
-    _handle = other._handle;
-    other._handle = INVALID_HANDLE;
 }
 
 enum SharedType {
@@ -96,11 +91,6 @@ SharedMemory SharedMemory::Standard(size_t length) {
                                 length,
                                 0));
     return shm;
-}
-
-SharedMemory::SharedMemory(SharedMemory &&other) {
-    _handle = other._handle;
-    other._handle = INVALID_HANDLE;
 }
 
 HandleObject::~HandleObject() {
