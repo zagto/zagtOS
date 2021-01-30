@@ -5,6 +5,7 @@
 #include "Controller.hpp"
 
 size_t MaximumDMAAddress;
+size_t NumCommandSlots;
 
 void Controller::BIOSHandoff() {
     if (!regs.CAP2.BOH()) {
@@ -43,6 +44,7 @@ Controller::Controller(ABAR &abar) :
     } else {
         MaximumDMAAddress = std::numeric_limits<uint32_t>::max();
     }
+    NumCommandSlots = regs.CAP.NCS();
 
     uint32_t implementedMask = regs.PI();
     for (size_t portID = 0; portID < 32; portID++) {

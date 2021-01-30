@@ -1,18 +1,31 @@
 #pragma once
 
 #include "Registers.hpp"
-#include "FIS.hpp"
-#include "CommandList.hpp"
+#include "PortStructures.hpp"
+
+class Command;
 
 class Port {
 private:
     PortRegisters &regs;
-    FIS *DSFIS;
-    FIS *PSFIS;
-    FIS *RFIS;
+    DSFISClass *dsfis;
+    PSFISClass *psfis;
+    RFISClass *rfis;
+    UFISClass *ufis;
+    std::array<bool, MAX_NUM_COMMAND_SLOTS> slotInUse{false};
     bool devicePresent;
 
     void ensureNotRunning();
+    void waitWhileBusy();
+    void executeCommand(Command &command);
+
+protected:
+    friend class Command;
+    CommandHeader *commandList;
+    CommandTable *commandTables;
+
+    size_t allocateCommandSlot();
+    void freeCommandSlot(size_t);
 
 public:
     /* called after initizalization by the contoller it cleared IS.IPS. This sequence is

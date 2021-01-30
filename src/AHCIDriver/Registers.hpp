@@ -19,13 +19,13 @@ struct PortRegisters {
              BIT(ESP,21) BIT(FBSCP,22) BIT(APSTE,23) BIT(ATAPI,24) BIT(DLAE,25) BIT(ALPE,26)
              BIT(ASP,27) BITS(ICC,28,4))
     uint32_t reserved0;
-    REGISTER(TFD)
+    REGISTER(TFD, BIT(STS_ERR,0) BIT(STS_DRQ,3) BIT(STS_BSY,7) BITS(ERR,8,8))
     REGISTER(SIG)
     REGISTER(SSTS, BITS(DET,0,4) BITS(SPD,4,4) BITS(IPM,8,4))
     REGISTER(SCTL, BITS(DET,0,4) BITS(SPD,4,4) BITS(IPM,8,4))
     REGISTER(SERR, BITS(ERR,0,16) BITS(DIAG,16,16))
     uint32_t SATAActive;
-    uint32_t commandIssue;
+    REGISTER(CI)
     uint32_t SATANotification;
     uint32_t FISBasedSwitchingControl;
     uint32_t deviceSleep;
@@ -53,3 +53,4 @@ struct ABAR {
 };
 
 extern size_t MaximumDMAAddress;
+extern size_t NumCommandSlots;
