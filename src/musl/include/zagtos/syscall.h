@@ -2,7 +2,6 @@
 #define __ZAGTOS_SYSCALL_H
 
 #include <stdint.h>
-#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
