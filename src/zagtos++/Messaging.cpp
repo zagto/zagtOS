@@ -29,6 +29,12 @@ HandleObject::HandleObject(HandleObject &&other) {
     other._handle = INVALID_HANDLE;
 }
 
+HandleObject::~HandleObject() {
+    if (_handle != INVALID_HANDLE) {
+        zagtos_syscall1(SYS_DELETE_HANDLE, _handle);
+    }
+}
+
 
 void *MessageInfo::operator new(std::size_t) {
     throw std::logic_error("MessageInfo objects should only be allocated by the kernel");
@@ -93,10 +99,12 @@ SharedMemory SharedMemory::Standard(size_t length) {
     return shm;
 }
 
-HandleObject::~HandleObject() {
+void SharedMemory::operator=(SharedMemory &&other) {
     if (_handle != INVALID_HANDLE) {
         zagtos_syscall1(SYS_DELETE_HANDLE, _handle);
     }
+    _handle = other._handle;
+    other._handle = INVALID_HANDLE;
 }
 
 void *SharedMemory::_map(int protection) {
