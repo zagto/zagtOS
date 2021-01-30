@@ -1,6 +1,7 @@
 #ifndef __ZAGTOS_SYSCALL_H
 #define __ZAGTOS_SYSCALL_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
