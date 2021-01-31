@@ -26,6 +26,7 @@ section .text
 
 %define MSR_EFER 0xc0000080
 %define EFER_NXE 0x800
+%define EFER_SCE 0x1
 
 %define MSR_PAT 0x277
 %define PAT_WRITE_BACK 6
@@ -56,10 +57,10 @@ ExitFinalize:
     or rax, CR4_OSFXSR | CR4_OSXMMEXCPT
     mov cr4, rax
 
-    ; set NXE bit in EFER MSR to enable Non-Execute feature
+    ; set NXE bit in EFER MSR to enable Non-Execute and Syscall instruction features
     mov rcx, MSR_EFER
     rdmsr
-    or rax, EFER_NXE
+    or rax, EFER_NXE | EFER_SCE
     wrmsr
 
     ; set up PAT to correspond to the cache types defined in paging.h
