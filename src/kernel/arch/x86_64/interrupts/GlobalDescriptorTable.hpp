@@ -19,8 +19,8 @@ private:
     uint64_t nullEntry;
     uint64_t kernelCodeEntry;
     uint64_t kernelDataEntry;
-    uint64_t userCodeEntry;
     uint64_t userDataEntry;
+    uint64_t userCodeEntry;
     uint64_t taskStateSegmentEntry[2];
 
 public:

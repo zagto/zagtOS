@@ -25,8 +25,8 @@ RegisterState::RegisterState(VirtualAddress entry,
         cs = 0x08;
         ss = 0x10;
     } else {
-        cs = 0x18 | 3;
-        ss = 0x20 | 3;
+        cs = 0x20 | 3;
+        ss = 0x18 | 3;
         rflags = FLAG_USER_IOPL;
     }
     rip = entry.value();

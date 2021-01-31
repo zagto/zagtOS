@@ -185,10 +185,10 @@ void Process::coreDump(Thread *crashedThread) {
     prRegs[20] = regs.ss;
     prRegs[21] = crashedThread->tlsBase.value();
     prRegs[22] = 0; /* gsbase */
-    prRegs[23] = 0x20|3;
-    prRegs[24] = 0x20|3;
-    prRegs[25] = 0x20|3;
-    prRegs[26] = 0x20|3;
+    prRegs[23] = 0x18|3;
+    prRegs[24] = 0x18|3;
+    prRegs[25] = 0x18|3;
+    prRegs[26] = 0x18|3;
 
     writeDump(dumpFile, &noteHeader, 12);
     writeDump(dumpFile, noteHeader.name, 8);

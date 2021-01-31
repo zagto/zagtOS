@@ -108,8 +108,9 @@ __attribute__((noreturn)) void Interrupts::returnToUserMode() {
 
 __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState) {
     assert(this == &CurrentProcessor->interrupts);
+    assert(registerState->cs == (0x20|3) || registerState->cs == 0x8);
 
-    if (registerState->cs == static_cast<uint64_t>(0x18u|3u)) {
+    if (registerState->cs == static_cast<uint64_t>(0x20|3)) {
         userHandler(registerState);
     } else {
         kernelHandler(registerState);
@@ -119,7 +120,6 @@ __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState)
 
 /* called from interrupt service routine */
 extern "C" __attribute__((noreturn)) void handleInterrupt(RegisterState* registerState) {
-    assert(registerState->cs < 0x20);
     CurrentProcessor->interrupts.handler(registerState);
 }
 
@@ -133,7 +133,7 @@ void Interrupts::wakeSecondaryProcessor(size_t hardwareID) {
 void Interrupts::setupSyscalls() {
     cout << "registering syscall entry " << reinterpret_cast<uint64_t>(&syscallEntry) << endl;
     writeModelSpecificRegister(MSR::LSTAR, reinterpret_cast<uint64_t>(&syscallEntry));
-    writeModelSpecificRegister(MSR::STAR, (static_cast<uint64_t>(0x08) << 32) | (static_cast<uint64_t>(0x08) << 48));
+    writeModelSpecificRegister(MSR::STAR, (static_cast<uint64_t>(0x08) << 32) | (static_cast<uint64_t>(0x10) << 48));
     writeModelSpecificRegister(MSR::SFMASK, RegisterState::FLAG_INTERRUPTS | RegisterState::FLAG_USER_IOPL);
 
 }

@@ -68,10 +68,10 @@ syscallEntry:
     ; r11-errorCode no need to save
 
     mov [gs:0x98], rcx ; rip
-    mov qword [gs:0xa0], 0x18|3 ; cs
+    mov qword [gs:0xa0], 0x20|3 ; cs
     mov [gs:0xa8], r11 ; rflags
     mov [gs:0xb0], rsp
-    mov qword [gs:0xb8], 0x20|3 ; ss
+    mov qword [gs:0xb8], 0x18|3 ; ss
 
     ; fromSyscall = 1
     mov qword [gs:0x8], 1
@@ -129,10 +129,10 @@ commonISR:
     mov rdi, rsp
 
     ; switch to real stack if coming from user space interrupt
-    ; check if the cs on stack is 0x18|3
+    ; check if the cs on stack is 0x20|3
     cmp qword [rsp+(20*8)], 0x08
     je alreadyOnKernelStack
-    cmp qword [rsp+(20*8)], 0x18|3
+    cmp qword [rsp+(20*8)], 0x20|3
     jne loop1 ; should never happen
 
     ; currentProcessor is the field at the beginning of registerState
@@ -155,13 +155,13 @@ returnFromInterrupt:
     mov rsp, rdi
 
     ; switch to real stack if coming from user space interrupt
-    ; check if the cs on stack is 0x18|3
+    ; check if the cs on stack is 0x20|3
     cmp qword [rsp+(20*8)], 0x08
     je inKernelReturn
-    cmp qword [rsp+(20*8)], 0x18|3
+    cmp qword [rsp+(20*8)], 0x20|3
     jne loop1 ; should never happen
 
-    mov ax, 0x20|3
+    mov ax, 0x18|3
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -188,7 +188,7 @@ inKernelReturn:
     ; if the fromSyscall field is set we can skip restoring caller-saved registers
     pop rax
     cmp rax, 1
-   ; je fromSyscall
+    je fromSyscall
 
     ; pop saved registers
     pop r15
@@ -217,23 +217,7 @@ inKernelReturn:
 
 
 fromSyscall:
-    ; switch to state-save-stack passed as parameter
-    mov rsp, rdi
-
-    mov ax, 0x20|3
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-
-    %define FSBASE_MSR 0xC0000100
-
-    mov rax, rsi
-    mov rdx, rsi
-    shr rdx, 32
-    mov rcx, FSBASE_MSR
-    wrmsr
-
+    ; callee-saved registers
     pop r15
     pop r14
     pop r13
@@ -241,33 +225,22 @@ fromSyscall:
     pop rbp
     pop rbx
 
+    ; ignore r11-rcx
+    add rsp, 8*8
+    xor r10, r10
     xor r10, r10
     xor r9, r9
     xor r8, r8
-
     xor rdi, rdi
     xor rsi, rsi
 
-    add rax, 9*8
-
-    ; save pointer to RegisterState end into cr2 for use by syscall handler
-    mov rax, rsp
-    add rax, 7*8 ; intNr-ss
-    mov cr2, rax
-
-    pop rdx ; return value
+    pop rax ; return value
     add rsp, 2*8 ; intNr, errorCode
 
     pop rcx ; rip
     add rsp, 8 ; cs
     pop r11 ; rflags
-
     pop rsp
-
-    mov ax, 0x20|3
-    mov ss, ax
-
-    mov rax, rdx ; return value
     o64 sysret
 
 
