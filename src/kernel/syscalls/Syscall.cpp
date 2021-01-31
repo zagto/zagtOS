@@ -12,30 +12,43 @@
 #include <syscalls/SyscallNumbers.hpp>
 #include <portio.hpp>
 #include <system/Processor.hpp>
+#include <interrupts/Interrupts.hpp>
 
 
-bool Thread::handleSyscall() {
-    switch (registerState.syscallNumber()) {
+extern "C" __attribute__((noreturn))
+bool Syscall(uint64_t syscallNr,
+             uint64_t arg0,
+             int64_t arg1,
+             uint64_t arg2,
+             uint64_t arg3,
+             uint64_t arg4,
+             uint64_t) {
+    Thread *thread = CurrentProcessor->scheduler.activeThread();
+    shared_ptr<Process> process = thread->process;
+
+    size_t result = 0;
+
+    switch (syscallNr) {
     case SYS_LOG: {
         scoped_lock lg(process->pagingLock);
         static const size_t MAX_LOG_SIZE = 10000;
-        size_t address = registerState.syscallParameter(0);
-        size_t length = registerState.syscallParameter(1);
+        size_t address = arg0;
+        size_t length = arg1;
 
         if (length > MAX_LOG_SIZE) {
             cout << "Process attempted to send huge log. ignoring.\n";
-            return true;
+            break;
         }
 
         if (length == 0) {
-            return true;
+            break;
         }
 
         vector<uint8_t> buffer(length);
         bool valid = process->copyFromUser(&buffer[0], address, length, false);
         if (!valid) {
             cout << "SYS_LOG: invalid buffer\n";
-            return false;
+            Panic(); // TODO: exception
         }
         /* do not print program name for small invisible stuff */
         if (!(length == 0 || (length == 1 && buffer[0] <= ' '))) {
@@ -52,52 +65,49 @@ bool Thread::handleSyscall() {
             cout << static_cast<char>(character);
         }
         cout.setKernelColor();
-        return true;
+        break;
     }
     case SYS_EXIT:
         cout << "Process Exit" << endl;
         /* Danger - the current thread (this) will be deleted */
         process->exit();
-        return true;
+        break;
     case SYS_CRASH:
         /* Danger - the current thread (this) will be deleted */
-        process->crash("self-termination by syscall", this);
-        return true;
+        process->crash("self-termination by syscall", thread);
+        break;
     case SYS_CREATE_PORT: {
         shared_ptr<Port> port = make_shared<Port>(process);
         uint32_t handle = process->handleManager.addPort(port);
-        registerState.setSyscallResult(handle);
-
-        cout << "created port " << handle << endl;
-        return true;
+        result = handle;
+        break;
     }
     case SYS_SEND_MESSAGE: {
-        uint32_t handle = static_cast<uint32_t>(registerState.syscallParameter(0));
-        size_t messageTypeAddress = registerState.syscallParameter(1);
-        size_t messageAddress = registerState.syscallParameter(2);
-        size_t messageSize = registerState.syscallParameter(3);
-        size_t numMessageHandles = registerState.syscallParameter(4);
+        uint32_t handle = static_cast<uint32_t>(arg0);
+        size_t messageTypeAddress = arg1;
+        size_t messageAddress = arg2;
+        size_t messageSize = arg3;
+        size_t numMessageHandles = arg4;
 
         optional<weak_ptr<Port>> weakPort = process->handleManager.lookupRemotePort(handle);
         if (!weakPort) {
             cout << "sendMessage: invalid port handle " << handle << endl;
-            return false;
+            Panic(); // TODO: exception
         }
 
-        registerState.setSyscallResult(0);
         shared_ptr<Port> port = weakPort->lock();
         if (!port) {
             cout << "sendMessage: destination port no longer exists: " << handle << endl;
-            return false;
+            Panic(); // TODO: exception
         }
 
         scoped_lock sl(process->pagingLock, port->process->pagingLock);
         if (!process->verifyMessageAccess(messageAddress, messageSize, numMessageHandles)) {
-            return false;
+            Panic(); // TODO: exception
         }
         UserSpaceObject<UUID, USOOperation::READ> messageType(messageTypeAddress, process);
         if (!messageType.valid) {
-            return false;
+            Panic(); // TODO: exception
         }
 
         unique_ptr<Message> message = make_unique<Message>(process.get(),
@@ -108,74 +118,69 @@ bool Thread::handleSyscall() {
                                                            numMessageHandles);
         message->transfer();
         port->addMessage(move(message));
-        return true;
+        break;
     }
     case SYS_RECEIVE_MESSAGE: {
-        uint32_t portHandle = static_cast<uint32_t>(registerState.syscallParameter(0));
+        uint32_t portHandle = static_cast<uint32_t>(arg0);
         optional<shared_ptr<Port>> port = process->handleManager.lookupPort(portHandle);
         if (!port) {
             cout << "receiveMessage: invalid port handle " << portHandle << endl;
-            return false;
+            Panic(); // TODO: exception
         }
 
-        unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(this);
+        unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(thread);
         if (msg) {
-            registerState.setSyscallResult(msg->infoAddress.value());
+            result = msg->infoAddress.value();
         }
-        return true;
+        break;
     }
     case SYS_DELETE_HANDLE: {
-        uint32_t handle = static_cast<uint32_t>(registerState.syscallParameter(0));
+        uint32_t handle = static_cast<uint32_t>(arg0);
         shared_ptr<Thread> removedThread;
         bool success = process->handleManager.removeHandle(handle, removedThread);
         if (!success) {
-            return false;
+            Panic(); // TODO: exception
         }
         if (removedThread) {
             removedThread->terminate();
         }
-        return true;
+        break;
     }
     case SYS_RANDOM:
         // todo: should write to memory here
         // 0 = pointer,
         // 1 = length
-        return true;
+        break;
 
     case SYS_MPROTECT: {
         scoped_lock lg(process->pagingLock);
-        MProtect mprotect(registerState.syscallParameter(0),
-                          registerState.syscallParameter(1),
-                          registerState.syscallParameter(2));
+        MProtect mprotect(arg0, arg1, arg2);
         mprotect.perform(*process);
-        registerState.setSyscallResult(mprotect.error);
-        return true;
+        result = mprotect.error;
+        break;
     }
     case SYS_MMAP: {
         scoped_lock lg(process->pagingLock);
-        UserSpaceObject<MMap, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
-                                                                process);
+        UserSpaceObject<MMap, USOOperation::READ_AND_WRITE> uso(arg0, process);
         if (!uso.valid) {
             cout << "SYS_MMAP: process passed non-accessible regions as parameters structure" << endl;
-            return false;
+            Panic(); // TODO: exception
         }
         uso.object.perform(*process);
-        return true;
+        break;
     }
     case SYS_MUNMAP: {
         scoped_lock lg(process->pagingLock);
-        MUnmap munmap(registerState.syscallParameter(1),
-                      registerState.syscallParameter(2),
-                      registerState.syscallParameter(0));
+        MUnmap munmap(arg1, arg2, arg0);
         munmap.perform(*process);
-        registerState.setSyscallResult(munmap.error);
-        return true;
+        result = munmap.error;
+        break;
     }
     case SYS_CREATE_SHARED_MEMORY: {
-        size_t type = registerState.syscallParameter(0);
-        size_t offset = registerState.syscallParameter(1);
-        size_t length = align(registerState.syscallParameter(2), PAGE_SIZE, AlignDirection::UP);
-        size_t deviceAddressesPointer = registerState.syscallParameter(3);
+        size_t type = arg0;
+        size_t offset = arg1;
+        size_t length = align(arg2, PAGE_SIZE, AlignDirection::UP);
+        size_t deviceAddressesPointer = arg3;
 
         /* TODO: maybe don't hardcode permissions */
         shared_ptr<MemoryArea> memoryArea;
@@ -184,7 +189,7 @@ bool Thread::handleSyscall() {
             /* Standard */
             if (offset != 0) {
                 cout << "SYS_CREATE_SHARED_MEMORY: offset given for standard shared memory" << endl;
-                return false;
+                Panic(); // TODO: exception
             }
             memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, length);
             break;
@@ -193,11 +198,11 @@ bool Thread::handleSyscall() {
             if (!process->canAccessPhysicalMemory()) {
                 cout << "SYS_CREATE_SHARED_MEMORY: process which is not allowed to use physical "
                     << "memory tried to use it" << endl;
-                return false;
+                Panic(); // TODO: exception
             }
             if (offset % PAGE_SIZE != 0) {
                 cout << "SYS_CREATE_SHARED_MEMORY: offset not aligned" << endl;
-                return false;
+                Panic(); // TODO: exception
             }
             memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, offset, length);
             break;
@@ -212,7 +217,7 @@ bool Thread::handleSyscall() {
                 if (frameStack < 0) {
                     cout << "SYS_CREATE_SHARED_MEMORY: requested device address ceiling impossible"
                          << "on this architecture." << endl;
-                    return false;
+                    Panic(); // TODO: exception
                 }
             }
 
@@ -222,32 +227,31 @@ bool Thread::handleSyscall() {
                                      reinterpret_cast<uint8_t *>(deviceAddresses.data()),
                                      numPages * sizeof(size_t),
                                      true)) {
-                return false;
+                Panic(); // TODO: exception
             }
             break;
         }
         default:
             cout << "SYS_CREATE_SHARED_MEMORY: got invalid type parameter " << type << endl;
-            return false;
+            Panic(); // TODO: exception
         }
         uint32_t handle = process->handleManager.addMemoryArea(memoryArea);
-        registerState.setSyscallResult(handle);
-        return true;
+        result = handle;
+        break;
     }
     case SYS_CREATE_THREAD: {
         scoped_lock lg1(process->pagingLock);
-        scoped_lock lg2(stateLock);
-        size_t entry = registerState.syscallParameter(0);
-        size_t stack = registerState.syscallParameter(1);
-        uint32_t priority = registerState.syscallParameter(2);
-        size_t tls = registerState.syscallParameter(3);
+        size_t entry = arg0;
+        size_t stack = arg1;
+        uint32_t priority = arg2;
+        size_t tls = arg3;
 
         Thread::Priority actualPriority;
         if (priority == Thread::KEEP_PRIORITY) {
-            actualPriority = _ownPriority;
+            actualPriority = thread->ownPriority();
         } else if (priority >= Thread::NUM_PRIORITIES) {
             cout << "SYS_CREATE_THREAD: invalid priority " << priority << endl;
-            return true;
+            Panic(); // TODO: exception
         } else {
             actualPriority = static_cast<Thread::Priority>(priority);
         }
@@ -255,50 +259,55 @@ bool Thread::handleSyscall() {
         auto newThread = make_shared<Thread>(process, entry, actualPriority, stack, tls);
         uint32_t handle = process->handleManager.addThread(newThread);
         Scheduler::schedule(newThread.get());
-        registerState.setSyscallResult(handle);
+        result = handle;
         cout << "Created Thread " << handle << endl;
-        return true;
+        break;
     }
-    case SYS_FUTEX: {
-        return Futex(this, registerState);
-    }
+    case SYS_FUTEX:
+        Futex(thread, arg0, arg1, arg2, arg3);
+        break;
     case SYS_CLOCK_GETTIME:
-        return GetTime(registerState, process);
+        GetTime(process, arg0, arg1);
+        break;
     case SYS_GET_ACPI_ROOT: {
         /* TODO: permissions checking */
-        registerState.setSyscallResult(CurrentSystem.ACPIRoot.value());
-        return true;
+        result = CurrentSystem.ACPIRoot.value();
+        break;
     }
     case SYS_IO_PORT_READ: {
         /* TODO: permissions checking */
-        uint32_t result = portio::read(static_cast<uint16_t>(registerState.syscallParameter(0)),
-                                       registerState.syscallParameter(1));
-        registerState.setSyscallResult(result);
-        return true;
+        result = portio::read(static_cast<uint16_t>(arg0), arg1);
+        break;
     }
     case SYS_IO_PORT_WRITE: {
         /* TODO: permissions checking */
-        portio::write(static_cast<uint16_t>(registerState.syscallParameter(0)),
-                      registerState.syscallParameter(1),
-                      static_cast<uint32_t>(registerState.syscallParameter(2)));
-        return true;
+        portio::write(static_cast<uint16_t>(arg0),
+                      arg1,
+                      static_cast<uint32_t>(arg2));
+        break;
     }
     case SYS_ADD_PROCESSOR: {
         /* TODO: permissions checking */
-        size_t hardwareID = registerState.syscallParameter(0);
+        size_t hardwareID = arg0;
         CurrentProcessor->interrupts.wakeSecondaryProcessor(hardwareID);
-        return true;
+        break;
     }
     case SYS_SPAWN_PROCESS: {
         scoped_lock lg(process->pagingLock);
-        UserSpaceObject<SpawnProcess, USOOperation::READ_AND_WRITE> uso(registerState.syscallParameter(0),
+        UserSpaceObject<SpawnProcess, USOOperation::READ_AND_WRITE> uso(arg0,
                                                                     process);
         if (!uso.valid) {
-            return false;
+            Panic(); // TODO: exception
         }
-        return uso.object.perform(process);
+        if (uso.object.perform(process)) {
+            break;
+        } else {
+            Panic(); // TODO: exception
+        }
     }
     default:
-        return false;
-    }
+        Panic(); // TODO: exception
+    };
+    thread->registerState.setSyscallResult(result);
+    CurrentProcessor->interrupts.returnToUserMode();
 }

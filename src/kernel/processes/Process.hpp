@@ -16,19 +16,6 @@
 
 class Process {
 private:
-    friend class PagingContext;
-    friend class Thread;
-    friend class MMap;
-    friend class MProtect;
-    friend class MUnmap;
-    friend class Message;
-    friend struct hos_v1::System;
-    /* For returnToUserMode - TODO: review if there is a better design for this */
-    //friend class Interrupts;
-    MappedAreaVector mappedAreas;
-    HandleManager handleManager;
-    vector<uint8_t> logName;
-
     bool accessUserSpace(uint8_t *buffer,
                          size_t start,
                          size_t length,
@@ -37,6 +24,9 @@ private:
     void coreDump(Thread *crashedThread);
 
 public:
+    MappedAreaVector mappedAreas;
+    HandleManager handleManager;
+    vector<uint8_t> logName;
     mutex pagingLock;
     mutex threadsLock;
     PagingContext *pagingContext;

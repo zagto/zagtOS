@@ -6,7 +6,7 @@
 
 
 extern "C" void _init();
-extern "C" __attribute__((noreturn)) void switchStack(KernelStack *newStack,
+extern "C" __attribute__((noreturn)) void switchStack(uint8_t *newStack,
                                                       void nextCode(hos_v1::System *),
                                                       hos_v1::System *nextCodeArg);
 

@@ -15,11 +15,12 @@ Interrupts::Interrupts(bool bootProcessor) :
         globalDescriptorTableRecord(&globalDescriptorTable),
         interruptDescriptorTableRecord(&INTERRUPT_DESCRIPTOR_TABLE),
         legacyPIC(bootProcessor),
-        localAPIC(readModelSpecificRegister(0x001b)) {
+        localAPIC(readModelSpecificRegister(MSR::IA32_APIC_BASE)) {
 
     globalDescriptorTableRecord.load();
     interruptDescriptorTableRecord.load();
     loadTaskStateSegment();
+    setupSyscalls();
 }
 
 
@@ -45,13 +46,6 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
         assert(&activeThread->registerState == registerState);
 
         switch (registerState->intNr) {
-        case SYSCALL_INTERRUPT:
-            if (activeThread->handleSyscall()) {
-                handled = true;
-            } else {
-                activeThread->process->crash("Bad Syscall", activeThread);
-            }
-            break;
         case PIC1_SPURIOUS_IRQ:
         case PIC2_SPURIOUS_IRQ:
             cout << "Spurious IRQ in user mode!" << endl;
@@ -115,7 +109,7 @@ __attribute__((noreturn)) void Interrupts::returnToUserMode() {
 __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState) {
     assert(this == &CurrentProcessor->interrupts);
 
-    if (registerState->cs == (0x18|3)) {
+    if (registerState->cs == static_cast<uint64_t>(0x18u|3u)) {
         userHandler(registerState);
     } else {
         kernelHandler(registerState);
@@ -123,15 +117,23 @@ __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState)
 }
 
 
-// called from interrupt service routine
+/* called from interrupt service routine */
 extern "C" __attribute__((noreturn)) void handleInterrupt(RegisterState* registerState) {
+    assert(registerState->cs < 0x20);
     CurrentProcessor->interrupts.handler(registerState);
 }
-
 
 void Interrupts::wakeSecondaryProcessor(size_t hardwareID) {
     CurrentSystem.processorsLock.lock();
     localAPIC.sendInit(static_cast<uint32_t>(hardwareID));
     localAPIC.timer.delayMilliseconds(10);
     localAPIC.sendStartup(static_cast<uint32_t>(hardwareID), PhysicalAddress(CurrentSystem.secondaryProcessorEntry));
+}
+
+void Interrupts::setupSyscalls() {
+    cout << "registering syscall entry " << reinterpret_cast<uint64_t>(&syscallEntry) << endl;
+    writeModelSpecificRegister(MSR::LSTAR, reinterpret_cast<uint64_t>(&syscallEntry));
+    writeModelSpecificRegister(MSR::STAR, (static_cast<uint64_t>(0x08) << 32) | (static_cast<uint64_t>(0x08) << 48));
+    writeModelSpecificRegister(MSR::SFMASK, RegisterState::FLAG_INTERRUPTS | RegisterState::FLAG_USER_IOPL);
+
 }

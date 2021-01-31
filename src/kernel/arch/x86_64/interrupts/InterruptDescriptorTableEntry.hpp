@@ -1,5 +1,4 @@
-#ifndef INTERRUPTDESCRIPTORTABLEENTRY_HPP
-#define INTERRUPTDESCRIPTORTABLEENTRY_HPP
+#pragma once
 
 #include <common/common.hpp>
 #include <interrupts/ContextSwitch.hpp>
@@ -15,7 +14,5 @@ private:
     uint32_t unused2;
 
 public:
-    void init(InterruptServiceRoutine *interruptServiceRoutine, bool user);
+    void init(InterruptServiceRoutine *interruptServiceRoutine);
 };
-
-#endif // INTERRUPTDESCRIPTORTABLEENTRY_HPP

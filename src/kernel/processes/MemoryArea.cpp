@@ -72,15 +72,20 @@ PhysicalAddress MemoryArea::makePresent(size_t offset) {
         return CurrentSystem.memory.allocatePhysicalFrame();
     case Source::PHYSICAL:
         return frames[0] + offset;
-    case Source::SHARED:
-    case Source::DMA: {
+    case Source::SHARED: {
+        /* TODO: locking / handle second mapping !!! */
         size_t frameIndex = offset / PAGE_SIZE;
         assert(frames[frameIndex] == PhysicalAddress::NULL);
 
         PhysicalAddress newFrame = CurrentSystem.memory.allocatePhysicalFrame();
         frames[frameIndex] = newFrame;
         return newFrame;
-    }}
+    }
+    case Source::DMA:
+        size_t frameIndex = offset / PAGE_SIZE;
+        assert(frames[frameIndex] != PhysicalAddress::NULL);
+        return frames[frameIndex];
+    }
 
     cout << "unimplemented memeory source" << endl;
     Panic();

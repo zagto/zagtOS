@@ -1,5 +1,4 @@
-#ifndef INTERRUPTS_HPP
-#define INTERRUPTS_HPP
+#pragma once
 
 #include <common/common.hpp>
 #include <interrupts/InterruptDescriptorTable.hpp>
@@ -11,7 +10,6 @@
 
 class Interrupts {
 public:
-    static const size_t SYSCALL_INTERRUPT = 0xff;
     static const size_t PIC1_SPURIOUS_IRQ = 0x20;
     static const size_t PIC2_SPURIOUS_IRQ = 0x21;
 
@@ -24,6 +22,7 @@ private:
 
     __attribute__((noreturn)) void userHandler(RegisterState *registerState);
     __attribute__((noreturn)) void kernelHandler(RegisterState *registerState);
+    void setupSyscalls();
 
 protected:
     friend class Time;
@@ -38,5 +37,3 @@ public:
 };
 
 extern InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
-
-#endif // INTERRUPTS_HPP

@@ -21,7 +21,7 @@ void Scheduler::List::append(Thread *thread) {
 void Scheduler::List::remove(Thread *thread) {
     assert(thread->previous || thread == head);
     assert(thread->next || thread == tail);
-    assert(&thread->_currentProcessor->scheduler.threads[thread->currentPriority()] == this);
+    assert(&thread->currentProcessor()->scheduler.threads[thread->currentPriority()] == this);
 
     if (thread == head) {
         head = thread->next;
@@ -64,16 +64,16 @@ Scheduler::Scheduler(Processor *_processor)
                             0, 0);
     processor = _processor;
     _activeThread = idleThread;
-    _activeThread->_currentProcessor = processor;
+    _activeThread->currentProcessor(processor);
     _activeThread->setState(Thread::State::Active(processor));
 }
 
 void Scheduler::add(Thread *thread) {
     // TODO: ensure current processor
-    assert(thread->_currentProcessor == nullptr);
+    assert(thread->currentProcessor() == nullptr);
     scoped_lock sl(lock);
 
-    thread->_currentProcessor = processor;
+    thread->currentProcessor(processor);
 
     if (thread->currentPriority() > _activeThread->currentPriority()) {
         /* new thread has heigher proirity - switch */
@@ -108,7 +108,7 @@ void Scheduler::removeLocked(Thread *thread) {
         threads[thread->currentPriority()].remove(thread);
     }
     thread->setState(Thread::State::Transition());
-    thread->_currentProcessor = nullptr;
+    thread->currentProcessor(nullptr);
 }
 
 Thread *Scheduler::activeThread() const {

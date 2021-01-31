@@ -20,15 +20,7 @@ static constexpr uint32_t FUTEX_HANDLE_MASK = 0x4fffffff;
 static constexpr uint32_t FUTEX_WAITERS_BIT = 0x80000000;
 
 
-bool Futex(Thread *thread, RegisterState &registerState) {
-
-    size_t address = registerState.syscallParameter(0);
-    uint32_t operation = registerState.syscallParameter(1);
-    size_t timeoutOrValue2 = registerState.syscallParameter(2);
-    int32_t passedValue = registerState.syscallParameter(3);
-
-    registerState.setSyscallResult(0);
-
+size_t Futex(Thread *thread, size_t address, uint32_t operation, size_t timeoutOrValue2, int32_t passedValue) {
     bool isPrivate = operation & FUTEX_PRIVATE;
     operation = operation & ~FUTEX_PRIVATE;
     FutexManager &manager = isPrivate ? CurrentSystem.futexManager : thread->process->futexManager;
@@ -38,7 +30,7 @@ bool Futex(Thread *thread, RegisterState &registerState) {
 
     if (address % 4 != 0 || !thread->process->verifyUserAccess(address, 4, true)) {
         cout << "Futex: invalid address" << endl;
-        return false;
+        Panic(); // TODO: exception
     }
 
     auto physicalAddress = thread->process->pagingContext->resolve(UserVirtualAddress(address));
@@ -48,11 +40,10 @@ bool Futex(Thread *thread, RegisterState &registerState) {
 
     if (operation == FUTEX_WAIT || operation == FUTEX_LOCK_PI) {
         if (timeoutOrValue2 != 0) {
-            UserSpaceObject<timespec, USOOperation::READ> timeoutUSO(registerState.syscallParameter(2),
-                                                          thread->process);
+            UserSpaceObject<timespec, USOOperation::READ> timeoutUSO(timeoutOrValue2, thread->process);
             if (!timeoutUSO.valid) {
                 cout << "Futex: invalid pointer to timeout" << endl;
-                return false;
+                Panic(); // TODO: exception
             }
         }
     }
@@ -68,40 +59,37 @@ bool Futex(Thread *thread, RegisterState &registerState) {
     case FUTEX_WAIT:
         /* read value back - otherwise a wake may have occured inbetween and we wait forever */
         if (*directValue != passedValue) {
-            registerState.setSyscallResult(EAGAIN);
-            return true;
+            return EAGAIN;
         }
         manager.wait(physicalAddress, thread);
-        return true;
+        return 0;
     case FUTEX_WAKE: {
         size_t numWoken = manager.wake(physicalAddress, passedValue);
-        registerState.setSyscallResult(numWoken);
-        return true;
+        return numWoken;
     }
     case FUTEX_LOCK_PI:
         while (true) {
             int32_t value = *directValue;
             if (value == 0) {
                 if (compare_exchange_i32(*directValue, value, thread->handle())) {
-                    return true;
+                    return 0;
                 }
             } else {
                 if (compare_exchange_i32(*directValue, value, value | FUTEX_WAITERS_BIT)) {
                     manager.wait(physicalAddress, thread);
-                    return true;
+                    return 0;
                 }
             }
         }
     case FUTEX_UNLOCK_PI:
         if ((*directValue & FUTEX_HANDLE_MASK) != thread->handle()) {
             cout << "Attempt to unlock Priority-inheritance futex from wrong thread" << endl;
-            registerState.setSyscallResult(EPERM);
-            return true;
+            return EPERM;
         }
         manager.wake(physicalAddress, 1);
-        return true;
+        return 0;
     default:
         cout << "Futex: unsupported operation " << operation << endl;
-        return false;
+        Panic(); // TODO: exception
     }
 }

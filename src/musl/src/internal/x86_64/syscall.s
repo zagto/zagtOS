@@ -19,6 +19,6 @@ zagtos_syscall2:
 zagtos_syscall3:
 zagtos_syscall4:
 zagtos_syscall5:
-    movq %rcx, %rax
+    movq %rcx, %r10
     syscall
     ret

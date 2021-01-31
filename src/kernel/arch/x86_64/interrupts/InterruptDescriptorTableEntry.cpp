@@ -1,7 +1,7 @@
 #include <interrupts/InterruptDescriptorTableEntry.hpp>
 
 
-void InterruptDescriptorTableEntry::init(InterruptServiceRoutine *interruptServiceRoutine, bool user) {
+void InterruptDescriptorTableEntry::init(InterruptServiceRoutine *interruptServiceRoutine) {
     size_t address = reinterpret_cast<size_t>(interruptServiceRoutine);
 
     // Address 0-15
@@ -16,9 +16,6 @@ void InterruptDescriptorTableEntry::init(InterruptServiceRoutine *interruptServi
     // 0    - Should be 0 fer interrupt gates
     // 1110 - Type: i386 interrupt gate
     typeAtts = 0b10001110;
-    if (user) {
-        typeAtts |= 0b01100000;
-    }
 
     // Address 13-31
     addressMid = address >> 16;

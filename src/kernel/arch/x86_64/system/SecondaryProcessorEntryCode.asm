@@ -12,6 +12,7 @@ section .data
 %define MSR_EFER 0xc0000080
 %define EFER_LME 0x100
 %define EFER_NXE 0x800
+%define EFER_SCE 0x1
 
 %define MSR_PAT 0x277
 %define PAT_WRITE_BACK 6
@@ -77,10 +78,10 @@ flushCS:
     mov cr3, ecx
 
 
-    ; set bits in EFER MSR to enable Long Mode and Non-Execute feature
+    ; set bits in EFER MSR to enable Long Mode and Non-Execute and Syscall instruction features
     mov ecx, MSR_EFER
     rdmsr
-    or eax, EFER_NXE | EFER_LME
+    or eax, EFER_NXE | EFER_LME | EFER_SCE
     wrmsr
 
     ; set up PAT to correspond to the cache types defined in CacheType

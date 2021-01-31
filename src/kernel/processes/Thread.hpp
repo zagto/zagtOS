@@ -85,7 +85,6 @@ private:
 protected:
     /* State */
     friend class Scheduler;
-    Processor *_currentProcessor{nullptr};
 
     /* stuff only to be changed with stateLock aquired */
     Thread *previous{nullptr};
@@ -125,12 +124,7 @@ public:
         _currentPriority{handOver.currentPriority},
         _state{State::Transition()},
         registerState{handOver.registerState},
-        tlsBase{handOver.TLSBase} {
-
-        cout << reinterpret_cast<size_t>(&_currentProcessor) - reinterpret_cast<size_t>(this) << endl;
-        cout << reinterpret_cast<size_t>(&registerState) - reinterpret_cast<size_t>(this) << endl;
-        assert(reinterpret_cast<size_t>(&registerState) - reinterpret_cast<size_t>(&_currentProcessor) == 4*8);
-    }
+        tlsBase{handOver.TLSBase} {}
 
     ~Thread();
 
@@ -142,7 +136,6 @@ public:
             return {};
         }
     }
-    bool handleSyscall();
 
     Priority ownPriority() const;
     Priority currentPriority() const;
@@ -150,6 +143,7 @@ public:
     State state();
     void setState(State newValue);
     Processor *currentProcessor() const;
+    void currentProcessor(Processor *processor);
     void setHandle(uint32_t handle);
     uint32_t handle() const;
 

@@ -1,5 +1,4 @@
-#ifndef INTERRUPTSERIVCEROUTINE_HPP
-#define INTERRUPTSERIVCEROUTINE_HPP
+#pragma once
 
 #include <common/common.hpp>
 #include <interrupts/RegisterState.hpp>
@@ -18,4 +17,7 @@ extern "C" __attribute__((noreturn)) void returnFromInterrupt(RegisterState *reg
 
 extern "C" __attribute__((noreturn)) void returnFromInKernelInterrupt(RegisterState *registerState);
 
-#endif // INTERRUPTSERIVCEROUTINE_HPP
+extern "C" __attribute__((noreturn)) void returnFromSyscall(RegisterState *registerState,
+                                                            UserVirtualAddress fsBase);
+
+extern "C" char syscallEntry;

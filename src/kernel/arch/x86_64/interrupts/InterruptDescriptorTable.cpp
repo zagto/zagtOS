@@ -5,7 +5,6 @@
 
 InterruptDescriptorTable::InterruptDescriptorTable() {
     for (size_t index = 0; index < NUM_INTERRUPT_SERIVICE_ROUTINES; index++) {
-        entries[index].init(&InterruptServiceRoutines[index],
-                            index == Interrupts::SYSCALL_INTERRUPT);
+        entries[index].init(&InterruptServiceRoutines[index]);
     }
 }

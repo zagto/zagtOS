@@ -3,15 +3,12 @@
 #include <memory/UserSpaceObject.hpp>
 #include <system/System.hpp>
 
-bool GetTime(RegisterState &registerState, const shared_ptr<Process> &process) {
-    uint32_t clockID = registerState.syscallParameter(0);
-    size_t resultAddress = registerState.syscallParameter(1);
-
+void GetTime(const shared_ptr<Process> &process, uint32_t clockID, size_t resultAddress) {
     scoped_lock sl(process->pagingLock);
     assert(process->pagingLock.isLocked());
     UserSpaceObject<timespec, USOOperation::WRITE> result(resultAddress, process);
     if (!result.valid) {
-        return false;
+        Panic(); // TODO: exception
     }
 
     uint64_t timerValue = readTimerValue();
@@ -34,5 +31,5 @@ bool GetTime(RegisterState &registerState, const shared_ptr<Process> &process) {
             time.tv_nsec = 0;
         }
     }
-    return true;
+    return;
 }

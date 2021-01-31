@@ -4,7 +4,7 @@
 
 
 Thread::~Thread() {
-    assert(_currentProcessor == CurrentProcessor);
+    assert(currentProcessor() == CurrentProcessor);
     /* don't try deleting special threads */
     assert(process);
 }
@@ -51,7 +51,11 @@ void Thread::setHandle(uint32_t handle) {
 }
 
 Processor *Thread::currentProcessor() const {
-    return _currentProcessor;
+    return registerState.currentProcessor;
+}
+
+void Thread::currentProcessor(Processor *processor) {
+    registerState.currentProcessor = processor;
 }
 
 void Thread::terminate() noexcept {
