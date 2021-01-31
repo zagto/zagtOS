@@ -2,7 +2,6 @@
 
 global InterruptServiceRoutines
 global returnFromInterrupt
-global returnFromInKernelInterrupt
 global syscallEntry
 global KERNEL_STACK_SIZE
 
@@ -129,7 +128,7 @@ commonISR:
     ; place a pointer to the saved register state in rdi
     mov rdi, rsp
 
-    ; switch to real stack if coming from user space exception
+    ; switch to real stack if coming from user space interrupt
     ; check if the cs on stack is 0x18|3
     cmp qword [rsp+(20*8)], 0x08
     je alreadyOnKernelStack
@@ -155,6 +154,13 @@ returnFromInterrupt:
     ; switch to state-save-stack passed as parameter
     mov rsp, rdi
 
+    ; switch to real stack if coming from user space interrupt
+    ; check if the cs on stack is 0x18|3
+    cmp qword [rsp+(20*8)], 0x08
+    je inKernelReturn
+    cmp qword [rsp+(20*8)], 0x18|3
+    jne loop1 ; should never happen
+
     mov ax, 0x20|3
     mov ds, ax
     mov es, ax
@@ -175,6 +181,7 @@ returnFromInterrupt:
     mov rcx, KERNEL_GSBASE_MSR
     wrmsr
 
+inKernelReturn:
     ; ignore currentProcessor
     add rsp, 8
 
@@ -263,37 +270,6 @@ fromSyscall:
     mov rax, rdx ; return value
     o64 sysret
 
-
-returnFromInKernelInterrupt:
-    ; switch to state-save-stack passed as parameter
-    mov rsp, rdi
-
-    ; fromSyscall and currentProcessor fields (dummy for in-kernel interrupts)
-    add rsp, 2*8
-
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop rbp
-    pop rbx
-
-    pop r11
-    pop r10
-    pop r9
-    pop r8
-
-    pop rdi
-    pop rsi
-
-    pop rdx
-    pop rcx
-    pop rax
-
-    ; pop interrupt number and error code
-    add rsp, 2*8
-
-    iretq
 
 saveVectorRegisters:
     ; for user-space, save vector registers

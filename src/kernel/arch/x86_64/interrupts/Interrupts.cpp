@@ -30,7 +30,7 @@ __attribute__((noreturn)) void Interrupts::kernelHandler(RegisterState *register
     case PIC2_SPURIOUS_IRQ:
         cout << "Spurious IRQ in kernel mode!" << endl;
         legacyPIC.handleSpuriousIRQ(registerState->intNr);
-        returnFromInKernelInterrupt(registerState);
+        returnFromInterrupt(registerState, {});
     default:
         cout << "Unhandled Interrupt occured In Kernel Mode:" << *registerState << endl;
         Panic();
