@@ -4,11 +4,13 @@
 #include <processes/Thread.hpp>
 
 
-void TaskStateSegment::update(Thread *thread)
-{
-    size_t rsp = reinterpret_cast<size_t>(&thread->registerState) + sizeof(RegisterState);
-    rspLow = static_cast<uint32_t>(rsp);
-    rspHigh = static_cast<uint32_t>(rsp >> 32);
+TaskStateSegment::TaskStateSegment(uint64_t *NMIStack, uint64_t *MCEStack) {
+    IST1 = NMIStack;
+    IST2 = MCEStack;
+}
 
+
+void TaskStateSegment::update(Thread *thread) {
+    rsp = reinterpret_cast<size_t>(&thread->registerState) + sizeof(RegisterState);
     loadTaskStateSegment();
 }

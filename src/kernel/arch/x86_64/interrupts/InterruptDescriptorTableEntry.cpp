@@ -1,14 +1,14 @@
 #include <interrupts/InterruptDescriptorTableEntry.hpp>
 
 
-void InterruptDescriptorTableEntry::init(InterruptServiceRoutine *interruptServiceRoutine) {
+void InterruptDescriptorTableEntry::init(InterruptServiceRoutine *interruptServiceRoutine, uint8_t ISTOffset) {
     size_t address = reinterpret_cast<size_t>(interruptServiceRoutine);
 
     // Address 0-15
     addressLow = address;
 
     codeSegment = 0x8;
-    unused1 = 0;
+    this->ISTOffset = ISTOffset;
 
     // Type/attributes
     // 1    - Present: yes

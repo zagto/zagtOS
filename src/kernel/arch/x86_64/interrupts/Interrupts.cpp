@@ -14,6 +14,7 @@ Interrupts::Interrupts(bool bootProcessor) :
         globalDescriptorTable(&taskStateSegment),
         globalDescriptorTableRecord(&globalDescriptorTable),
         interruptDescriptorTableRecord(&INTERRUPT_DESCRIPTOR_TABLE),
+        taskStateSegment(new uint64_t[6] + 6, new uint64_t[6] + 6),
         legacyPIC(bootProcessor),
         localAPIC(readModelSpecificRegister(MSR::IA32_APIC_BASE)) {
 

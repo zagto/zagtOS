@@ -27,16 +27,23 @@ InterruptServiceRoutines:
 ; %2 - has error code?
 %macro createISR 1
 %%stubStart:
-    ; if this interrupt has no error code, push 0 as replacement
-    ; to keep the stack layout always the same
-    %if !(%1 == 8 || (%1 >= 10 && %1 <= 14) || %1 == 17)
-        push qword 0
+    %if (%1 == 0x02 || %1 == 0x12)
+        ; ignore MCE or NMI
+        ; these have a special small stack! If you want do da more than ignoring here, change their size
+        ; in Interrupts.cpp
+        iretq
+    %else
+        ; if this interrupt has no error code, push 0 as replacement
+        ; to keep the stack layout always the same
+        %if !(%1 == 8 || (%1 >= 10 && %1 <= 14) || %1 == 17)
+            push qword 0
+        %endif
+
+        ; push interrupt number on stack
+        push qword %1
+
+        jmp commonISR
     %endif
-
-    ; push interrupt number on stack
-    push qword %1
-
-    jmp commonISR
 
 %%stubEnd:
     ; pad some zeros to keep the code exactly 12 bytes
@@ -261,4 +268,5 @@ restoreVectorRegisters:
 section .data
 KERNEL_STACK_SIZE:
     dq KERNEL_STACK_SIZE_DEF
+
 

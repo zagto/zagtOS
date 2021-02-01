@@ -1,23 +1,23 @@
-#ifndef TASKSTATESEGMENT_HPP
-#define TASKSTATESEGMENT_HPP
+#pragma once
 
 #include <common/common.hpp>
 
 class Thread;
-template<typename T> class shared_ptr;
 
 class __attribute__((__packed__)) TaskStateSegment
 {
 public:
     uint32_t ununsed0{0};
-    uint32_t rspLow{0};
-    uint32_t rspHigh{0};
-    uint32_t unused1[22]{0};
-    uint16_t unused2{0};
+    uint64_t rsp;
+    uint32_t unused1[6]{0};
+    uint64_t *IST1;
+    uint64_t *IST2;
+    uint32_t unused2[12]{0};
+    uint16_t unused3{0};
     uint16_t ioBase{0};
 
 public:
+    TaskStateSegment(uint64_t *NMIStack, uint64_t *MCEStack);
     void update(Thread *thread);
 };
 
-#endif // TASKSTATESEGMENT_HPP
