@@ -12,18 +12,17 @@
 #include "Controller.hpp"
 
 using namespace zagtos;
-using namespace zagtos::pci;
 
 
 int main() {
-    pci::Device dev = decodeRunMessage<pci::Device>(MSG_START_PCI_DRIVER);
+    auto [controllerPort, dev] = decodeRunMessage<std::tuple<RemotePort, pci::Device>>(MSG_START_PCI_DRIVER);
     std::cout << "Hello from AHCI" << std::endl;
 
     if (!dev.BAR[5]) {
         throw std::runtime_error("PCI device claims to be AHCI device but does not implement BAR 5");
     }
-    pci::BaseRegister &ABARDesc = *dev.BAR[5];
-    ABAR *abar = ABARDesc.sharedMemory.map<ABAR>(PROT_READ|PROT_WRITE);
+    SharedMemory &ABARMemory = *dev.BAR[5];
+    ABAR *abar = ABARMemory.map<ABAR>(PROT_READ|PROT_WRITE);
     assert(abar != nullptr);
 
     std::cout << "Mapped ABAR" << std::endl;

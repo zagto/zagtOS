@@ -62,5 +62,4 @@ Controller::Controller(ABAR &abar) :
     for (Port &port: ports) {
         port.detectDevice();
     }
-
 }

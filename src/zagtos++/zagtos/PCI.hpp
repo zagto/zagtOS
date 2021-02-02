@@ -17,13 +17,6 @@ struct SegmentGroup {
     ZBON_ENCODING_FUNCTIONS(configBase, segmentNumber, busStart, busEnd)
 };
 
-struct BaseRegister {
-    SharedMemory sharedMemory;
-    size_t length;
-
-    ZBON_ENCODING_FUNCTIONS(sharedMemory, length)
-};
-
 enum Capability {
     POWER_MANAGEMENT = 0x01,
     MSI_X = 0x11
@@ -31,8 +24,7 @@ enum Capability {
 
 struct Device {
     uint64_t deviceID;
-    std::array<std::optional<BaseRegister>, 6> BAR;
-    std::vector<uint8_t> capabilites;
+    std::array<std::optional<SharedMemory>, 6> BAR;
 
     ZBON_ENCODING_FUNCTIONS(deviceID, BAR)
 };
