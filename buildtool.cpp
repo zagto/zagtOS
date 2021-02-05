@@ -11,6 +11,19 @@
 
 
 class Module {
+private:
+    enum class Type {
+        SCRIPTS, MAKE, AUTOTOOLS
+    };
+
+    std::filesystem::path srcDir;
+    std::filesystem::path buildDir;
+    Type type;
+
+    void detectType();
+    void compile();
+    void install();
+
 public:
     std::string name;
     uint32_t id;
@@ -23,9 +36,6 @@ public:
     Module(std::string moduleName, uint32_t _id);
     void loadDependencies();
     void build();
-    void compile();
-    void install();
-    bool hasBuildScripts();
 };
 
 static int ParallelJobs;
@@ -82,6 +92,12 @@ Module::Module(std::string moduleName, uint32_t _id) :
         id{_id},
         numDependencies{0},
         dependenciesUpdated{false} {
+    buildDir = BuildRoot;
+    srcDir = BuildRoot;
+    buildDir += "/build/" + name;
+    srcDir += "/src/" + name;
+
+    detectType();
 
     lastModified = lastModifiedDir("src/" + name);
 
@@ -148,10 +164,6 @@ void Module::loadDependencies() {
 
 
 void Module::build() {
-    auto buildDir = BuildRoot;
-    auto srcDir = BuildRoot;
-    buildDir += "/build/" + name;
-    srcDir += "/src/" + name;
     std::string buildDirString = buildDir.string();
 
     std::filesystem::current_path(srcDir);
@@ -201,27 +213,39 @@ void Module::build() {
 }
 
 
-bool Module::hasBuildScripts() {
+void Module::detectType() {
     if (std::filesystem::exists("build-script")) {
-        return true;
+        type = Type::SCRIPTS;
+    } else if (std::filesystem::exists("configure")) {
+        type = Type::AUTOTOOLS;
     } else if (std::filesystem::exists("Makefile")) {
-        return false;
+        type = Type::MAKE;
     } else {
-        std::cerr << "Module " << name << " has neiter build-script nor Makefile." << std::endl;
+        std::cerr << "Could not detect type of module " << name << "."
+                  << "It has neiter build-script nor Makefile nor configure." << std::endl;
         exit(1);
     }
 }
 
 
 void Module::compile() {
-    if (hasBuildScripts()) {
-        if (system("./build-script > /dev/null")) {
-            std::cerr << "Could not run build-script of module " << name << "." << std::endl;
+    switch (type) {
+    case Type::AUTOTOOLS:
+        std::filesystem::current_path(buildDir);
+        if (system(("./configure --host=" + TargetArchitecture + "-zagto-zagtos").c_str())) {
+            std::cerr << "Could not run configure script of module " << name << "." << std::endl;
             exit(1);
         }
-    } else {
+        /* fall-through */
+    case Type::MAKE:
         if (system(("make -j" + ParallelJobsString + " > /dev/null").c_str())) {
             std::cerr << "Could not run Makefile of module " << name << "." << std::endl;
+            exit(1);
+        }
+        break;
+    case Type::SCRIPTS:
+        if (system("./build-script > /dev/null")) {
+            std::cerr << "Could not run build-script of module " << name << "." << std::endl;
             exit(1);
         }
     }
@@ -231,14 +255,19 @@ void Module::compile() {
 void Module::install() {
     std::cout << "buildtool: installing " << name << std::endl;
 
-    if (hasBuildScripts()) {
-        if (system("./install-script > /dev/null")) {
-            std::cerr << "Could not run install-script of module " << name << "." << std::endl;
-            exit(1);
-        }
-    } else {
+    switch (type) {
+    case Type::AUTOTOOLS:
+        std::filesystem::current_path(buildDir);
+        /* fall through */
+    case Type::MAKE:
         if (system(("make install -j" + ParallelJobsString + " > /dev/null").c_str())) {
             std::cerr << "Could not run Makefile Install target of module " << name << "." << std::endl;
+            exit(1);
+        }
+        break;
+    case Type::SCRIPTS:
+        if (system("./install-script > /dev/null")) {
+            std::cerr << "Could not run install-script of module " << name << "." << std::endl;
             exit(1);
         }
     }
@@ -447,12 +476,12 @@ int main(int argc, char **argv) {
         return 1;
     }
     loadConfig();
+    prepareEnvironment();
     loadModules();
     for (auto &mod: Modules) {
         mod.loadDependencies();
     }
     solveBuildOrder();
-    prepareEnvironment();
     buildModules();
     createBootImage();
 }
