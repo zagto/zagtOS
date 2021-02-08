@@ -214,6 +214,7 @@ void Module::build() {
 
 
 void Module::detectType() {
+    std::filesystem::current_path(srcDir);
     if (std::filesystem::exists("build-script")) {
         type = Type::SCRIPTS;
     } else if (std::filesystem::exists("configure")) {
@@ -225,6 +226,7 @@ void Module::detectType() {
                   << "It has neiter build-script nor Makefile nor configure." << std::endl;
         exit(1);
     }
+    std::filesystem::current_path(BuildRoot);
 }
 
 
@@ -232,7 +234,8 @@ void Module::compile() {
     switch (type) {
     case Type::AUTOTOOLS:
         std::filesystem::current_path(buildDir);
-        if (system(("./configure --host=" + TargetArchitecture + "-zagto-zagtos").c_str())) {
+
+        if (system((srcDir.string() + "/configure --host=" + TargetArchitecture + "-zagto-zagtos").c_str())) {
             std::cerr << "Could not run configure script of module " << name << "." << std::endl;
             exit(1);
         }
@@ -258,7 +261,11 @@ void Module::install() {
     switch (type) {
     case Type::AUTOTOOLS:
         std::filesystem::current_path(buildDir);
-        /* fall through */
+        if (system(("make install -j" + ParallelJobsString + " DESTDIR=" + BuildRootString).c_str())) {
+            std::cerr << "Could not run Makefile Install target of module " << name << "." << std::endl;
+            exit(1);
+        }
+        break;
     case Type::MAKE:
         if (system(("make install -j" + ParallelJobsString + " > /dev/null").c_str())) {
             std::cerr << "Could not run Makefile Install target of module " << name << "." << std::endl;
