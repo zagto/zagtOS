@@ -63,23 +63,23 @@ void *operator new(size_t, KernelVirtualAddress address) {
 }
 
 
-void *operator new(size_t size) {
+void *operator new(size_t size, Status &status) {
     return CurrentSystem.memory.allocateVirtualArea(size).asPointer<void>();
+    status = {};
 }
 
-namespace std {
-    enum class align_val_t: size_t {};
-}
 
-void *operator new(size_t size, std::align_val_t align) {
+void *operator new(size_t size, std::align_val_t align, Status &status) {
     // HACK
     //size_t *align_ptr = reinterpret_cast<size_t *>(&align);
     return CurrentSystem.memory.allocateVirtualArea(size, static_cast<size_t>(align)).asPointer<void>();
+    status = {};
 }
 
 
-void *operator new[](size_t size) {
+void *operator new[](size_t size, Status &status) {
     return operator new(size);
+    status = {};
 }
 
 

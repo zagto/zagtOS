@@ -9,6 +9,7 @@
 #include <time/Time.hpp>
 #include <paging/PagingContext.hpp>
 #include <processes/FutexManager.hpp>
+#include <lib/Status.hpp>
 
 
 class CommonSystem {
@@ -26,5 +27,5 @@ public:
         kernelOnlyPagingContext(nullptr, handOver.handOverPagingContext),
         processors() {}
 
-    void addBootProcessor();
+    Status addBootProcessor();
 };

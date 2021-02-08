@@ -3,6 +3,8 @@
 #include <common/inttypes.hpp>
 #include <common/utils.hpp>
 #include <mutex>
+#include <memory/Memory.hpp>
+#include <lib/Status.hpp>
 
 template<typename T> class unique_ptr {
 private:
@@ -225,4 +227,9 @@ shared_ptr<T> make_shared(ArgumentTypes &&...args) {
 template <typename T, typename ...ArgumentTypes>
 unique_ptr<T> make_unique(ArgumentTypes &&...args) {
     return move(unique_ptr(new T(args...)));
+}
+
+template <typename T>
+Result<T *> make_raw_array(size_t count) {
+    //Result<void *>
 }

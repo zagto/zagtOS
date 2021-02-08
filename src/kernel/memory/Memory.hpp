@@ -3,6 +3,7 @@
 #include <setup/HandOverState.hpp>
 #include <memory/ArchRegions.hpp>
 #include <mutex>
+#include <lib/Status.hpp>
 
 class Memory
 {
@@ -22,14 +23,14 @@ public: /* TODO: make private */
 public:
     Memory(const hos_v1::System &handOver);
 
-    PhysicalAddress allocatePhysicalFrame(size_t maxStack = hos_v1::DMAZone::COUNT - 1);
+    Result<PhysicalAddress> allocatePhysicalFrame(size_t maxStack = hos_v1::DMAZone::COUNT - 1);
     void freePhysicalFrame(PhysicalAddress address);
 
-    KernelVirtualAddress allocateVirtualArea(size_t length, size_t align = 0);
-    KernelVirtualAddress resizeVirtualArea(KernelVirtualAddress address, size_t length);
+    Result<KernelVirtualAddress> allocateVirtualArea(size_t length, size_t align = 0);
+    Result<KernelVirtualAddress> resizeVirtualArea(KernelVirtualAddress address, size_t length);
     void freeVirtualArea(KernelVirtualAddress address);
 
     static Memory *instance();
 
-    KernelVirtualAddress resizeHeapArea(ssize_t change);
+    Result<KernelVirtualAddress> resizeHeapArea(ssize_t change);
 };

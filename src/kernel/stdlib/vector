@@ -3,6 +3,7 @@
 #include <common/common.hpp>
 #include <memory/Memory.hpp>
 #include <log/Logger.hpp>
+#include <lib/Status.hpp>
 #include <memory>
 
 template<typename ElementType> class vector {
@@ -32,30 +33,42 @@ protected:
     size_t numElements{0};
     size_t numAllocated{0};
 
-    void changeAllocatedSize(size_t newNumAllocated) {
+    Status changeAllocatedSize(size_t newNumAllocated) {
         /* TODO: make sure making it smaller never goes OOM */
         if (newNumAllocated == numAllocated) {
-            return;
+            return Status::OK();
         }
 
-        ElementType *newData = new ElementType[newNumAllocated];
+        Result<ElementType *> newData = make_raw_array<ElementType>(newNumAllocated);
+        if (!newData) {
+            return newData.status();
+        }
+
         size_t elementsToMove = min(numAllocated, newNumAllocated);
         if (_data != nullptr) {
             for (size_t index = 0; index < elementsToMove; index++) {
-                newData[index] = move(_data[index]);
+                (*newData)[index] = move(_data[index]);
             }
             delete[] _data;
         }
-        _data = newData;
+        _data = *newData;
         numAllocated = newNumAllocated;
+
+        return Status::OK();
     }
-    void adjustAllocatedSize() {
-        if (numElements >= numAllocated) {
-            changeAllocatedSize((numElements + 1) * 3 / 2);
+    Status adjustAllocatedSize(size_t newNumElements) {
+        Status status;
+        if (newNumElements >= numAllocated) {
+            status = changeAllocatedSize((newNumElements + 1) * 3 / 2);
         }
-        if (numElements < numAllocated >> 1) {
-            changeAllocatedSize(numElements);
+        if (newNumElements < numAllocated >> 1) {
+            status = changeAllocatedSize(newNumElements);
         }
+        if (!status) {
+            return status;
+        }
+        numElements = newNumElements;
+        return Status::OK();
     }
 
 public:
@@ -115,27 +128,37 @@ public:
         return numElements;
     }
 
-    void push_back(ElementType &&element) {
-        numElements++;
-        adjustAllocatedSize();
+    Status push_back(ElementType &&element) {
+        Status status = adjustAllocatedSize(numElements + 1);
+        if (!status) {
+            return status;
+        }
         _data[numElements - 1] = move(element);
+        return Status::OK();
     }
-    void push_back(const ElementType &element) {
-        numElements++;
-        adjustAllocatedSize();
+    Status push_back(const ElementType &element) {
+        Status status = adjustAllocatedSize(numElements + 1);
+        if (!status) {
+            return status;
+        }
         _data[numElements - 1] = element;
+        return Status::OK();
     }
 
-    void insert(ElementType element, size_t index) {
+    Status insert(ElementType element, size_t index) {
         assert(index <= numElements);
-        numElements++;
-        adjustAllocatedSize();
+
+        Status status = adjustAllocatedSize(numElements + 1);
+        if (!status) {
+            return status;
+        }
 
         for (size_t moveIndex = numElements - 1; moveIndex > index; moveIndex--) {
             _data[moveIndex] = move(_data[moveIndex - 1]);
         }
 
         _data[index] = element;
+        return Status::OK();
     }
 
     void remove(const ElementType &element) {
@@ -157,7 +180,8 @@ public:
         for (size_t moveIndex = index; moveIndex < numElements; moveIndex++) {
             _data[moveIndex] = move(_data[moveIndex + 1]);
         }
-        adjustAllocatedSize();
+        /* ignore status of adjustAllocatedSize - even if it failed we have removed the element */
+        adjustAllocatedSize(numElements);
     }
 
     void reserve(size_t amount) {
@@ -167,13 +191,19 @@ public:
         }
     }
 
-    void resize(size_t newSize) {
+    Status resize(size_t newSize) {
         while (newSize < numElements) {
             numElements--;
             _data[numElements] = ElementType();
         }
-        numElements = newSize;
-        adjustAllocatedSize();
+        Status status = adjustAllocatedSize(newSize);
+        if (newSize == numElements) {
+            /* ignore status of adjustAllocatedSize for shrinks - even if it failed we have
+             * removed the element */
+            return Status::OK();
+        }
+        assert(!status);
+        return status;
     }
 
     ElementType *data() const {

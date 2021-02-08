@@ -7,7 +7,7 @@
 extern "C" {
 #endif
     __attribute__((noreturn)) void BasicDLMallocPanic(const char *location);
-    void *sbrk(ssize_t increment);
+    size_t KernelMoreCore(ssize_t increment, void *result);
 
     #define STR2(x) #x
     #define STR1(x) STR2(x)

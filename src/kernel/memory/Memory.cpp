@@ -13,7 +13,7 @@ Memory::Memory(const hos_v1::System &handOver) {
     init_mparams();
 }
 
-PhysicalAddress Memory::allocatePhysicalFrame(size_t maxStack) {
+Result<PhysicalAddress> Memory::allocatePhysicalFrame(size_t maxStack) {
     scoped_lock lg(frameManagementLock);
     assert(maxStack < hos_v1::DMAZone::COUNT);
 
@@ -54,7 +54,7 @@ extern "C" {
     void  dlfree(void*);
 }
 
-KernelVirtualAddress Memory::allocateVirtualArea(size_t length, size_t align) {
+Result<KernelVirtualAddress> Memory::allocateVirtualArea(size_t length, size_t align) {
     scoped_lock lg(heapLock);
     KernelVirtualAddress result;
     if (align > 0) {
@@ -65,7 +65,7 @@ KernelVirtualAddress Memory::allocateVirtualArea(size_t length, size_t align) {
     return result;
 }
 
-KernelVirtualAddress Memory::resizeVirtualArea(KernelVirtualAddress address, size_t length) {
+Result<KernelVirtualAddress> Memory::resizeVirtualArea(KernelVirtualAddress address, size_t length) {
     scoped_lock lg(heapLock);
     return KernelVirtualAddress(dlrealloc(address.asPointer<void>(), length));
 }
@@ -80,7 +80,7 @@ Memory *Memory::instance() {
     return &CurrentSystem.memory;
 }
 
-KernelVirtualAddress Memory::resizeHeapArea(ssize_t change) {
+Result<KernelVirtualAddress> Memory::resizeHeapArea(ssize_t change) {
     assert(change % PAGE_SIZE == 0);
     assert(heapLock.isLocked());
 
