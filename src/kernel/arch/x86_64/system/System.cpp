@@ -2,6 +2,8 @@
 #include <system/System.hpp>
 
 
+System CurrentSystem;
+
 void System::setupSecondaryProcessorEntry(const hos_v1::System &handOver) {
     size_t length = static_cast<size_t>(&SecondaryProcessorEntryCodeEnd
                                         - &SecondaryProcessorEntryCode);

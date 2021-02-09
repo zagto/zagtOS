@@ -6,19 +6,6 @@
 #include <memory/PhysicalMemory.hpp>
 
 
-void InitVirtualMemory() {
-    static_assert(KERNEL_STATIC_DATA_SIZE == PAGE_SIZE,
-                  "KERNEL_STATIC_DATA_SIZE ist not exactly one page");
-    MapAddress(PagingContext::GLOBAL,
-               KernelStaticDataRegion.start,
-               AllocatePhysicalFrame(),
-               true,
-               false,
-               false,
-               CacheType::CACHE_NORMAL_WRITE_BACK);
-}
-
-
 void InitPaging(void) {
     cout << "Handover Master Page Table is at: "
          << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
@@ -27,7 +14,6 @@ void InitPaging(void) {
     ClearPageTable(HandOverMasterPageTable);
     ClearPageTable(ProcessMasterPageTable);
     CreateGlobalMasterPageTableEntries();
-    InitVirtualMemory();
 }
 
 

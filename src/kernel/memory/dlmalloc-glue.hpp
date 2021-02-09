@@ -1,5 +1,4 @@
-#ifndef DLMALLOCGLUE_HPP
-#define DLMALLOCGLUE_HPP
+#pragma once
 
 #include <common/utils.hpp>
 
@@ -7,7 +6,8 @@
 extern "C" {
 #endif
     __attribute__((noreturn)) void BasicDLMallocPanic(const char *location);
-    size_t KernelMoreCore(ssize_t increment, void *result);
+    void KernelMUnmap(void *address, size_t length);
+    void *KernelMMap(size_t length);
 
     #define STR2(x) #x
     #define STR1(x) STR2(x)
@@ -16,5 +16,3 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-#endif // DLMALLOCGLUE_HPP

@@ -32,17 +32,7 @@ SECTIONS
     {
         *(.bss)
         *(COMMON)
-    }
-    
-    . = 0xffffa00000000000;
-    mparams = .;
-    . += 30 * 8;
-    _gm_ = .;
-    . += 270 * 8;
-    CurrentSystem = .;
-    . += 0x1000 - 300 * 8;
-    _kernelHeapStart = .;
-    
+    }    
 
    /DISCARD/ :
    {
