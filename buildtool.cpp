@@ -297,7 +297,7 @@ void prepareEnvironment() {
     SysrootString = BuildRootString + "/out/toolchain/sysroot-" + TargetArchitecture;
     setenv("SYSROOT", SysrootString.c_str(), 1);
 
-    setenv("KERNEL_CFLAGS_x86_64", "-mcmodel=large -mno-red-zone -ffixed-r15", 1);
+    setenv("KERNEL_CFLAGS_x86_64", "-mgeneral-regs-only -mcmodel=large -mno-red-zone -ffixed-r15", 1);
 
     setenv("ARCH", TargetArchitecture.c_str(), 1);
 
