@@ -63,7 +63,7 @@ void *operator new(size_t, KernelVirtualAddress address) {
 }
 
 
-void *operator new(size_t size, Status &status) {
+/*void *operator new(size_t size, Status &status) {
     return CurrentSystem.memory.allocateVirtualArea(size).asPointer<void>();
     status = {};
 }
@@ -80,7 +80,7 @@ void *operator new(size_t size, std::align_val_t align, Status &status) {
 void *operator new[](size_t size, Status &status) {
     return operator new(size);
     status = {};
-}
+}*/
 
 
 void operator delete(void *object) {

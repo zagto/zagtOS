@@ -3,6 +3,9 @@
 #include <common/utils.hpp>
 
 #ifdef __cplusplus
+#include <lib/Status.hpp>
+extern Status DLMallocStatus;
+
 extern "C" {
 #endif
     __attribute__((noreturn)) void BasicDLMallocPanic(const char *location);

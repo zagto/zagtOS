@@ -57,7 +57,7 @@ class MMap : public MappingOperation {
     uint32_t protection;
 
 public:
-    void perform(Process &process);
+    Status perform(Process &process);
     /* only called before USO is loaded, does nothing */
     MMap() {}
 };

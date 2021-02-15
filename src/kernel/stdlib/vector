@@ -73,17 +73,24 @@ protected:
 
 public:
     vector() {}
-    vector(size_t numElements):
-           _data{new ElementType[numElements]},
+    vector(size_t numElements, Status &status):
+           _data{nullptr},
            numElements{numElements},
            numAllocated{numElements}  {
+
+        Result<ElementType *> result = make_raw_array<ElementType>(numElements);
+        if (result) {
+            _data = *result;
+        } else {
+            status = result.status();
+        }
     }
-    vector(size_t numElements, ElementType fill):
-           _data{new ElementType[numElements]},
-           numElements{numElements},
-           numAllocated{numElements}  {
-        for (size_t index = 0; index < numElements; index++) {
-            _data[index] = fill;
+    vector(size_t numElements, ElementType fill, Status &status):
+           vector(numElements, status) {
+        if (status) {
+            for (size_t index = 0; index < numElements; index++) {
+                _data[index] = fill;
+            }
         }
     }
     /* There is currently no reason to copy vectors in kernel. Implement this if neeeded */
@@ -109,9 +116,7 @@ public:
         other.numAllocated = 0;
     }
     ~vector() {
-        if (_data != nullptr) {
-            delete[] _data;
-        }
+        clear();
     }
 
     ElementType &operator[](size_t index) {
@@ -184,13 +189,6 @@ public:
         adjustAllocatedSize(numElements);
     }
 
-    void reserve(size_t amount) {
-        assert(amount >= numElements);
-        if (amount != numAllocated) {
-            changeAllocatedSize(amount);
-        }
-    }
-
     Status resize(size_t newSize) {
         while (newSize < numElements) {
             numElements--;
@@ -198,12 +196,17 @@ public:
         }
         Status status = adjustAllocatedSize(newSize);
         if (newSize == numElements) {
-            /* ignore status of adjustAllocatedSize for shrinks - even if it failed we have
-             * removed the element */
+            /* ignore status of adjustAllocatedSize for shrinks - even if it failed to shrink the
+             * allocated memory we have removed the element */
             return Status::OK();
         }
-        assert(!status);
         return status;
+    }
+
+    void clear() {
+        if (_data != nullptr) {
+            delete[] _data;
+        }
     }
 
     ElementType *data() const {

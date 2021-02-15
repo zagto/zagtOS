@@ -50,7 +50,7 @@ private:
     bool handleValidFor(uint32_t number, Type type);
     uint32_t _addRemotePort(weak_ptr<Port> &port);
     uint32_t _addMemoryArea(shared_ptr<MemoryArea> &memoryArea);
-    bool _removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
+    Status _removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
 
 public:
     HandleManager() {}
@@ -60,17 +60,16 @@ public:
                   const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
     HandleManager(HandleManager &) = delete;
 
-    uint32_t addPort(shared_ptr<Port> &port);
-    uint32_t addThread(shared_ptr<Thread> &thread);
-    uint32_t addMemoryArea(shared_ptr<MemoryArea> &sharedMemory);
+    Result<uint32_t> addPort(shared_ptr<Port> &port);
+    Result<uint32_t> addThread(shared_ptr<Thread> &thread);
+    Result<uint32_t> addMemoryArea(shared_ptr<MemoryArea> &sharedMemory);
     optional<shared_ptr<Port>> lookupPort(uint32_t number);
     optional<weak_ptr<Port>> lookupRemotePort(uint32_t number);
     optional<shared_ptr<Thread>> lookupThread(uint32_t number);
     optional<shared_ptr<MemoryArea>> lookupMemoryArea(uint32_t number);
     shared_ptr<Thread> extractThread();
-    bool removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
-    bool transferHandles(vector<uint32_t> &elements,
-                         HandleManager &destination);
+    Status removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
+    Status transferHandles(vector<uint32_t> &elements, HandleManager &destination);
     uint32_t numFreeHandles();
     void insertAllProcessPointersAfterKernelHandover(const shared_ptr<Process> &process);
 };

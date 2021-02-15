@@ -5,12 +5,24 @@
 Port::Port(const shared_ptr<Process> process) :
     process{process} {}
 
-Port::Port(const hos_v1::Port &handOver, const vector<shared_ptr<Thread>> &allThreads) {
+Port::Port(const hos_v1::Port &handOver,
+           const vector<shared_ptr<Thread>> &allThreads,
+           Status status) {
+    status = Status::OK();
     if (handOver.threadWaits) {
         waitingThread = allThreads[handOver.waitingThreadID].get();
     }
     for (size_t index = 0; index < handOver.numMessages; index++) {
-        messages.push_back(make_unique<Message>(handOver.messages[index]));
+        auto msg = make_unique<Message>(handOver.messages[index]);
+        if (!msg) {
+            status = msg.status();
+            messages.clear();
+            return;
+        }
+        status = messages.push_back(move(*msg));
+        if (!status) {
+            return;
+        }
     }
 }
 

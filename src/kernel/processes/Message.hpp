@@ -21,10 +21,10 @@ private:
     size_t numHandles{0};
     bool transferred{false};
 
-    bool prepareMemoryArea();
-    void transferMessageInfo();
-    bool transferHandles();
-    bool transferData();
+    Status prepareMemoryArea();
+    Status transferMessageInfo();
+    Status transferHandles();
+    Status transferData();
     UserVirtualAddress destinationAddress() const;
     size_t handlesSize() const;
     size_t simpleDataSize() const;
@@ -39,17 +39,24 @@ public:
             UserVirtualAddress sourceAddress,
             UUID messageType,
             size_t numBytes,
-            size_t numHandles) :
+            size_t numHandles,
+            Status &status) :
         sourceProcess{sourceProcess},
         destinationProcess{destinationProcess},
         sourceAddress{sourceAddress},
         messageType{messageType},
         numBytes{numBytes},
-        numHandles{numHandles} {}
-    Message(const hos_v1::Message &handOver) :
-        infoAddress{handOver.infoAddress} {}
+        numHandles{numHandles} {
 
-    bool transfer();
+        status = Status::OK();
+    }
+    Message(const hos_v1::Message &handOver, Status status) :
+        infoAddress{handOver.infoAddress} {
+
+        status = Status::OK();
+    }
+
+    Status transfer();
     void setDestinationProcess(Process *process);
 };
 

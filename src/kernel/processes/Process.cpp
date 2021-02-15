@@ -10,14 +10,27 @@
 Process::Process(const hos_v1::Process &handOver,
         const vector<shared_ptr<Thread>> &allThreads,
         const vector<shared_ptr<Port>> &allPorts,
-        const vector<shared_ptr<MemoryArea> > &allMemoryAreas) :
+        const vector<shared_ptr<MemoryArea> > &allMemoryAreas, Status &status) :
     mappedAreas(this, allMemoryAreas, handOver),
     handleManager(handOver, allThreads, allPorts, allMemoryAreas),
-    futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads)
+    futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads, status)
 {
-    logName.resize(handOver.numLogNameChars);
+    if (!status) {
+        return;
+    }
+
+    status = logName.resize(handOver.numLogNameChars);
+    if (!status) {
+        return;
+    }
     memcpy(logName.data(), handOver.logName, handOver.numLogNameChars);
-    pagingContext = new PagingContext(this, handOver.pagingContext);
+
+    Result result = make_raw<PagingContext>(this, handOver.pagingContext);
+    if (!result) {
+        status = result.status();
+        return;
+    }
+    pagingContext = *result;
 }
 
 
@@ -27,16 +40,22 @@ Process::Process(Process &sourceProcess,
                  UserVirtualAddress entryAddress,
                  Thread::Priority initialPrioriy,
                  Message &runMessage,
-                 vector<uint8_t> logName):
+                 vector<uint8_t> logName,
+                 Status &status):
         mappedAreas(this),
         logName{move(logName)} {
+
     scoped_lock lg(pagingLock);
+    status = Status::OK();
 
     pagingContext = new PagingContext(this);
 
     for (const auto &section: sections) {
-        MappedArea *ma = new MappedArea(this, section.region(), section.permissions());
-        mappedAreas.insert(ma);
+        Result result = mappedAreas.addNew(section.region(), section.permissions());
+        if (!result) {
+            status = result.status();
+            return;
+        }
 
         bool success = copyFromOhterUserSpace(section.address,
                                               sourceProcess,
@@ -47,7 +66,11 @@ Process::Process(Process &sourceProcess,
     }
 
     // TODO: stack border
-    mappedAreas.insert(new MappedArea(this, UserStackRegion, Permissions::READ_WRITE));
+    Result result = mappedAreas.addNew(UserStackRegion, Permissions::READ_WRITE);
+    if (!result) {
+        status = result.status();
+        return;
+    }
 
     UserVirtualAddress masterTLSBase{0};
     size_t TLSSize{0};
@@ -56,25 +79,30 @@ Process::Process(Process &sourceProcess,
         masterTLSBase = TLSSection->address;
     }
 
-    MappedArea *tlsArea = mappedAreas.addNew(TLSSize + THREAD_STRUCT_AREA_SIZE, Permissions::READ_WRITE);
-    if (tlsArea == nullptr) {
-        cout << "TODO: whatever should happen if there is no memory" << endl;
-        Panic();
+    result = mappedAreas.addNew(TLSSize + THREAD_STRUCT_AREA_SIZE, Permissions::READ_WRITE);
+    if (!result) {
+        status = result.status();
+        return;
     }
+    MappedArea *tlsArea = *result;
 
     UserVirtualAddress tlsBase(tlsArea->region.start + THREAD_STRUCT_AREA_SIZE);
     if (TLSSection) {
-        bool success = copyFromOhterUserSpace(tlsArea->region.start,
-                                              sourceProcess,
-                                              TLSSection->dataAddress,
-                                              TLSSection->dataSize,
-                                              false);
-        assert(success); /* TODO: source process can make this fail! */
+        status = copyFromOhterUserSpace(tlsArea->region.start,
+                                        sourceProcess,
+                                        TLSSection->dataAddress,
+                                        TLSSection->dataSize,
+                                        false);
+        if (!status) {
+            return;
+        }
     }
 
     runMessage.setDestinationProcess(this);
-    bool success = runMessage.transfer();
-    assert(success);
+    status = runMessage.transfer();
+    if (!status) {
+        return;
+    }
 
     auto mainThread = make_shared<Thread>(shared_ptr<Process>(this),
                                           entryAddress,
@@ -85,9 +113,17 @@ Process::Process(Process &sourceProcess,
                                           tlsBase,
                                           masterTLSBase,
                                           TLSSize);
+    if (!mainThread) {
+        status = mainThread.status();
+        return;
+    }
 
-    handleManager.addThread(mainThread);
-    Scheduler::schedule(mainThread.get());
+    Result handle = handleManager.addThread(*mainThread);
+    if (handle) {
+        Scheduler::schedule(mainThread->get());
+    } else {
+        status = handle.status();
+    }
 }
 
 Process::~Process() {

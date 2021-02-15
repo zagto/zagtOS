@@ -21,6 +21,6 @@ public:
     Process *currentProcess{nullptr};
     PagingContext *activePagingContext;
 
-    Processor(bool bootProcessor);
+    Processor(bool bootProcessor, Status &status);
     ~Processor();
 };

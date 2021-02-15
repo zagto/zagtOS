@@ -220,16 +220,52 @@ public:
 };
 
 template <typename T, typename ...ArgumentTypes>
-shared_ptr<T> make_shared(ArgumentTypes &&...args) {
-    return move(shared_ptr(new T(args...)));
+Result<shared_ptr<T>> make_shared(ArgumentTypes &&...args) {
+    Result<T *> raw = make_raw<T>(args...);
+    if (raw) {
+        return move(shared_ptr(*raw));
+    } else {
+        return raw.status();
+    }
 }
 
 template <typename T, typename ...ArgumentTypes>
-unique_ptr<T> make_unique(ArgumentTypes &&...args) {
-    return move(unique_ptr(new T(args...)));
+Result<unique_ptr<T>> make_unique(ArgumentTypes &&...args) {
+    Result<T *> raw = make_raw<T>(args...);
+    if (raw) {
+        return move(unique_ptr(*raw));
+    } else {
+        return raw.status();
+    }
+}
+
+template <typename T, typename ...ArgumentTypes>
+Result<T *> make_raw(ArgumentTypes &&...args) {
+    Result<KernelVirtualAddress> address = Memory::instance()->allocateVirtualArea(sizeof(T), alignof(T));
+    if (!address) {
+        return address.status();
+    }
+
+    Status status = Status::OK();
+    /* placement new to run constructor */
+    T *pointer = new (*address) T(args..., status);
+    if (!status) {
+        delete pointer;
+        return status;
+    }
+    return pointer;
 }
 
 template <typename T>
 Result<T *> make_raw_array(size_t count) {
-    //Result<void *>
+    Result<KernelVirtualAddress> address = Memory::instance()->allocateVirtualArea(sizeof(T) * count, alignof(T));
+    if (!address) {
+        return address.status();
+    }
+
+    for (size_t index = 0; index < count; index++) {
+        /* placement new to run constructor */
+        new (address + sizeof(T) * index) T;
+    }
+    return address->asPointer<T>();
 }

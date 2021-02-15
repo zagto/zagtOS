@@ -193,8 +193,7 @@ void PagingContext::accessRange(UserVirtualAddress address,
 }
 
 
-void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames) {
-    assert(process == nullptr || process->pagingLock.isLocked());
+void PagingContext::_unmapRange(VirtualAddress address, size_t numPages, bool freeFrames) {
     assert(address.isPageAligned());
 
     if (numPages == 0) {
@@ -242,6 +241,18 @@ void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool
         }
         address = address.value() + PAGE_SIZE;
     }
+}
+
+
+void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames) {
+    assert(process == nullptr || process->pagingLock.isLocked());
+    _unmapRange(address, numPages, freeFrames);
+}
+
+
+void PagingContext::unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames) {
+    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
+    CurrentSystem.kernelOnlyPagingContext._unmapRange(address, numPages, freeFrames);
 }
 
 

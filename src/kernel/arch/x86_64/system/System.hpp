@@ -20,5 +20,4 @@ extern uint8_t SecondaryProcessorEntryCode;
 extern uint8_t SecondaryProcessorEntryCodeEnd;
 extern uint8_t SecondaryProcessorEntryMasterPageTable;
 
-extern System CurrentSystem;
-
+extern System &CurrentSystem;

@@ -64,24 +64,33 @@ void FutexManager::moveData(vector<Futex> &newData) {
     data = move(newData);
 }
 
-void FutexManager::grow() {
+Status FutexManager::grow() {
     if (!(numElements >= numAllocated() / 2)) {
-        return;
+        return Status::OK();
     }
-    vector<Futex> newData(numAllocated() * 2);
-    /* at this point there can be no more exceptions, start changing the data */
+    Status status;
+    vector<Futex> newData(numAllocated() * 2, status);
+    if (!status) {
+        return status;
+    }
+
     numBits++;
     moveData(newData);
+    return Status::OK();
 }
 
 void FutexManager::shrink() {
     if (!(numElements < (numAllocated() / 4) && numBits > MIN_BITS)) {
         return;
     }
-    vector<Futex> newData(numAllocated() / 2);
-    /* at this point there can be no more exceptions, start changing the data */
-    numBits--;
-    moveData(newData);
+    Status status;
+    vector<Futex> newData(numAllocated() / 2, status);
+    /* in case of problems, just skip the shrinking - we need to be able to remove
+     * futexes under all circumstances */
+    if (status) {
+        numBits--;
+        moveData(newData);
+    }
 }
 
 size_t FutexManager::indexForNew(size_t address) {
@@ -106,20 +115,24 @@ void FutexManager::removeElement(size_t index) {
     }
 }
 
-FutexManager::FutexManager():
-    data(1ul << MIN_BITS),
+FutexManager::FutexManager(Status &status):
+    data(1ul << MIN_BITS, status),
     numBits{MIN_BITS},
     numElements{0} {}
 
 
 FutexManager::FutexManager(hos_v1::Futex *futexes,
                            size_t numFutexes,
-                           const vector<shared_ptr<Thread>> &allThreads) {
+                           const vector<shared_ptr<Thread>> &allThreads,
+                           Status &status) {
     numBits = MIN_BITS;
     while (numFutexes >= numAllocated() / 2) {
         numBits++;
     }
-    data.resize(numAllocated());
+    status = data.resize(numAllocated());
+    if (!status) {
+        return;
+    }
 
     for (size_t sourceIndex = 0; sourceIndex < numFutexes; sourceIndex++) {
         const hos_v1::Futex &handOver = futexes[sourceIndex];
@@ -136,14 +149,26 @@ FutexManager::FutexManager(hos_v1::Futex *futexes,
         assert(handOver.numWaitingThreads > 0);
         for (size_t index = 0; index < handOver.numWaitingThreads; index++) {
             size_t threadIndex = handOver.waitingThreadIDs[index];
-            element.threads.push_back(allThreads[threadIndex].get());
-            allThreads[threadIndex]->setState(Thread::State::Futex(this, handOver.address));
+
+            status = element.threads.push_back(allThreads[threadIndex].get());
+            if (!status) {
+                return;
+            }
         }
 
         element.active = true;
         element.address = handOver.address;
         element.hash = hash;
         numElements++;
+    }
+
+    /* set Thread states once all the futexes are created successfully */
+    for (size_t sourceIndex = 0; sourceIndex < numFutexes; sourceIndex++) {
+        const hos_v1::Futex &handOver = futexes[sourceIndex];
+        for (size_t index = 0; index < handOver.numWaitingThreads; index++) {
+            size_t threadIndex = handOver.waitingThreadIDs[index];
+            allThreads[threadIndex]->setState(Thread::State::Futex(this, handOver.address));
+        }
     }
 }
 

@@ -10,35 +10,50 @@ MemoryArea::MemoryArea(size_t length) :
     assert(length % PAGE_SIZE == 0);
 }
 
-MemoryArea::MemoryArea(Permissions permissions, size_t length) :
-    frames(length / PAGE_SIZE, PhysicalAddress::NULL),
+MemoryArea::MemoryArea(Permissions permissions, size_t length, Status &status) :
+    frames(length / PAGE_SIZE, PhysicalAddress::NULL, status),
     source{Source::SHARED},
     permissions{permissions},
     length{length} {
 
-    assert(false);
+    assert(false);//TODO
     assert(length % PAGE_SIZE == 0);
 }
 
-MemoryArea::MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceAddresses):
-    frames(length / PAGE_SIZE, PhysicalAddress::NULL),
+MemoryArea::MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceAddresses, Status &status):
+    frames(length / PAGE_SIZE, PhysicalAddress::NULL, status),
     source{Source::DMA},
     permissions{Permissions::READ_WRITE},
     length{length} {
 
+    if (!status) {
+        return;
+    }
+
     size_t numFrames = length / PAGE_SIZE;
-    deviceAddresses.resize(numFrames);
+    status = deviceAddresses.resize(numFrames);
+    if (!status) {
+        return;
+    }
+
     for (size_t frameIndex = 0; frameIndex < numFrames; frameIndex++) {
-        PhysicalAddress addr = Memory::instance()->allocatePhysicalFrame(frameStack);
-        frames[frameIndex] = addr;
+        Result<PhysicalAddress> addr = Memory::instance()->allocatePhysicalFrame(frameStack);
+        if (!addr) {
+            status = addr.status();
+            return;
+        }
+        frames[frameIndex] = *addr;
         /* TODO: IO-MMU support */
-        deviceAddresses[frameIndex] = addr.value();
+        deviceAddresses[frameIndex] = addr->value();
     }
 }
 
 
-MemoryArea::MemoryArea(Permissions permissions, PhysicalAddress physicalStart, size_t length) :
-    frames(1, physicalStart),
+MemoryArea::MemoryArea(Permissions permissions,
+                       PhysicalAddress physicalStart,
+                       size_t length,
+                       Status &status) :
+    frames(1, physicalStart, status),
     source{Source::PHYSICAL},
     permissions{permissions},
     length{length} {
@@ -47,11 +62,15 @@ MemoryArea::MemoryArea(Permissions permissions, PhysicalAddress physicalStart, s
     assert(length % PAGE_SIZE == 0);
 }
 
-MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver) :
-    frames(handOver.numFrames),
+MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver, Status &status) :
+    frames(handOver.numFrames, status),
     source{handOver.source},
     permissions{handOver.permissions},
     length{handOver.length} {
+
+    if (!status) {
+        return;
+    }
 
     assert(source != Source::ANONYMOUS || frames.size() == 0);
     assert(source != Source::PHYSICAL || frames.size() == 1);
@@ -63,7 +82,18 @@ MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver) :
     }
 }
 
-PhysicalAddress MemoryArea::makePresent(size_t offset) {
+MemoryArea::~MemoryArea() {
+    if (source == Source::SHARED) {
+        for (PhysicalAddress address: frames) {
+            /* the constructor may allocate only some frames on failure, so check for NULL */
+            if (address != PhysicalAddress::NULL) {
+                Memory::instance()->freePhysicalFrame(address);
+            }
+        }
+    }
+}
+
+Result<PhysicalAddress> MemoryArea::makePresent(size_t offset) {
     offset = align(offset, PAGE_SIZE, AlignDirection::DOWN);
     assert(offset < length);
 
@@ -77,8 +107,10 @@ PhysicalAddress MemoryArea::makePresent(size_t offset) {
         size_t frameIndex = offset / PAGE_SIZE;
         assert(frames[frameIndex] == PhysicalAddress::NULL);
 
-        PhysicalAddress newFrame = CurrentSystem.memory.allocatePhysicalFrame();
-        frames[frameIndex] = newFrame;
+        Result<PhysicalAddress> newFrame = CurrentSystem.memory.allocatePhysicalFrame();
+        if (newFrame) {
+            frames[frameIndex] = *newFrame;
+        }
         return newFrame;
     }
     case Source::DMA:

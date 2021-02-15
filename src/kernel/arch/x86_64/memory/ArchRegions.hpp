@@ -13,7 +13,7 @@ static constexpr Region FramebufferRegion(
     0xffff900000000000,
     0x0000100000000000
 );
-static const Region KernelHeapRegion(
+static constexpr Region KernelHeapRegion(
     0xffffa00000000000,
     KERNEL_HEAP_SIZE
 );

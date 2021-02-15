@@ -24,7 +24,7 @@
  *                  | simple data     | --     copy    -->  | simple data     |
  *                  +-----------------+                     +-----------------+
  */
-bool Message::transfer() {
+Status Message::transfer() {
     /* a message should not be transferred more than once */
     assert(!transferred);
     /* destination process may be null at first, but must exist now (see setDestinationProcess)*/
@@ -33,15 +33,25 @@ bool Message::transfer() {
     assert(!sourceProcess || sourceProcess->pagingLock.isLocked());
     assert(destinationProcess->pagingLock.isLocked());
 
-    if (!prepareMemoryArea()) {
-        return false;
+    Status status = prepareMemoryArea();
+    if (!status) {
+        return status;
     }
-    transferMessageInfo();
-    if (!transferHandles()) {
+
+    status = transferMessageInfo();
+    if (!status) {
         goto fail;
     }
 
-    if (!transferData()) {
+    status = transferData();
+    if (!status) {
+        goto fail;
+    }
+
+    /* handles transfer should happen last - if something after it would fail, we leak the handles
+     * in destination process */
+    status = transferHandles();
+    if (!status) {
         goto fail;
     }
 
@@ -60,39 +70,40 @@ bool Message::transfer() {
     numHandles = 0;
 
     transferred = true;
-    return true;
+    return Status::OK();
 
 fail:
     /* In case of failure, do not leave a MappedArea in the destination Process behind. */
     destinationProcess->mappedAreas.remove(messageArea);
-    return false;
+    return status;
 }
 
 /* Adds a MappedArea to the destination Process where the message+info will be written to. */
-bool Message::prepareMemoryArea() {
+Status Message::prepareMemoryArea() {
     if (numHandles * HANDLE_SIZE > numBytes) {
         cout << "Message transfer failed: Message too small to contain all handles" << endl;
-        return false;
+        return BadUserSpace;
     }
 
     /* The message metadata needs to be passed along with the run message, so for our purposes the
      * required size is the combined size of both. */
     size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
 
-    messageArea = destinationProcess->mappedAreas.addNew(messageRegionSize, Permissions::READ);
-    if (messageArea == nullptr) {
+    Result result = destinationProcess->mappedAreas.addNew(messageRegionSize, Permissions::READ);
+    if (!) {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
         Panic();
     }
+    messageArea = *result;
 
     /* Holds the address of the message info (UserMessageInfo class) in the destination address
      * space. */
     infoAddress = messageArea->region.start;
-    return true;
+    return Status::OK();
 }
 
 /* Writes the UserMessageInfo structure in the destination process. */
-void Message::transferMessageInfo() {
+Status Message::transferMessageInfo() {
     UserMessageInfo msgInfo = {
         messageType,
         destinationAddress().value(),
@@ -101,48 +112,61 @@ void Message::transferMessageInfo() {
         true,
     };
 
-    destinationProcess->copyToUser(infoAddress.value(),
-                                   reinterpret_cast<uint8_t *>(&msgInfo),
-                                   sizeof(UserMessageInfo),
-                                   false);
+   return destinationProcess->copyToUser(infoAddress.value(),
+                                         reinterpret_cast<uint8_t *>(&msgInfo),
+                                         sizeof(UserMessageInfo),
+                                         false);
 }
 
 /* creates a handle on destination side for each resource that was sent with the message and writes
  * them into destination memory */
-bool Message::transferHandles() {
+Status Message::transferHandles() {
     if (numHandles == 0) {
-        return true;
+        return Status::OK();
     }
     /* The run message to the initial Process is sent by the kernel (i.e. sourceProcess is null),
      * but does not contain handles. */
     assert(sourceProcess);
 
-    vector<uint32_t> handles(numHandles);
-    bool success = sourceProcess->copyFromUser(reinterpret_cast<uint8_t *>(handles.data()),
-                                               sourceAddress.value(),
-                                               handlesSize(),
-                                               false);
-    assert(success);
-
-    success = sourceProcess->handleManager.transferHandles(handles, destinationProcess->handleManager);
-    if (!success) {
-        cout << "Message transfer failed: some handles were invalid." << endl;
-        return false;
+    Status status;
+    vector<uint32_t> handles(numHandles, status);
+    if (!status) {
+        return status;
+    }
+    status = sourceProcess->copyFromUser(reinterpret_cast<uint8_t *>(handles.data()),
+                                         sourceAddress.value(),
+                                         handlesSize(),
+                                         false);
+    if (!status) {
+        return status;
     }
 
-    success = destinationProcess->copyToUser(destinationAddress().value(),
-                                             reinterpret_cast<uint8_t *>(handles.data()),
-                                             handlesSize(),
-                                             false);
-    assert(success);
-    return true;
+    status = sourceProcess->handleManager.transferHandles(handles, destinationProcess->handleManager);
+    if (!status) {
+        cout << "Message transfer failed: some handles were invalid." << endl;
+        return status;
+    }
+
+    status = destinationProcess->copyToUser(destinationAddress().value(),
+                                            reinterpret_cast<uint8_t *>(handles.data()),
+                                            handlesSize(),
+                                            false);
+    if (!status) {
+        /* undo creating destination handles */
+        for (uint32_t handle: handles) {
+            shared_ptr<Thread> dummy;
+            destinationProcess->handleManager.removeHandle(handle, dummy);
+            assert(!dummy);
+        }
+    }
+    return status;
 }
 
 /* Copies directly copyable message data from source to destination Process.
  * Returns true on success, false if source area is not accessible (not mapped) */
-bool Message::transferData() {
+Status Message::transferData() {
     if (simpleDataSize() == 0) {
-        return true;
+        return Status::OK();
     }
     /* The run message to the initial Process is sent by the kernel (i.e. sourceProcess is null),
      * but does not contain data. */

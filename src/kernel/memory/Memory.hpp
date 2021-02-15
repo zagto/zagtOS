@@ -12,8 +12,6 @@ public:
 public: /* TODO: make private */
     FrameStack usedFrameStack[NUM_STACKS];
     FrameStack freshFrameStack[NUM_STACKS];
-    KernelVirtualAddress heapEnd{KernelHeapRegion.start};
-    KernelVirtualAddress halfwayDeallocatedHeapEnd{KernelHeapRegion.start};
     mutex heapLock;
     mutex frameManagementLock;
     mutex kernelPagingLock;
@@ -31,6 +29,4 @@ public:
     void freeVirtualArea(KernelVirtualAddress address);
 
     static Memory *instance();
-
-    Result<KernelVirtualAddress> resizeHeapArea(ssize_t change);
 };

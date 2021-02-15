@@ -22,10 +22,11 @@ public:
     mutex processorsLock;
     FutexManager futexManager;
 
-    CommonSystem(const hos_v1::System &handOver) :
+    CommonSystem(const hos_v1::System &handOver, Status &status) :
         memory(handOver),
         kernelOnlyPagingContext(nullptr, handOver.handOverPagingContext),
-        processors() {}
+        processors(),
+        futexManager(status) {}
 
     Status addBootProcessor();
 };

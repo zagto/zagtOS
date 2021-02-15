@@ -4,7 +4,7 @@
 #include <paging/PagingContext.hpp>
 #include <vector>
 
-struct MemoryArea {
+class MemoryArea {
 private:
     vector<PhysicalAddress> frames;
 
@@ -15,12 +15,13 @@ public:
     const size_t length;
 
     MemoryArea(size_t length);
-    MemoryArea(Permissions permissions, size_t length);
-    MemoryArea(Permissions permissions, PhysicalAddress physicalStart, size_t length);
-    MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceAddresses);
-    MemoryArea(const hos_v1::MemoryArea &handOver);
+    MemoryArea(Permissions permissions, size_t length, Status &status);
+    MemoryArea(Permissions permissions, PhysicalAddress physicalStart, size_t length, Status &status);
+    MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceAddresses, Status &status);
+    MemoryArea(const hos_v1::MemoryArea &handOver, Status &status);
+    ~MemoryArea();
 
-    PhysicalAddress makePresent(size_t offset);
+    Result<PhysicalAddress> makePresent(size_t offset);
     CacheType cacheType() const;
     bool allowesPermissions(Permissions toTest) const;
     bool isAnonymous() const;

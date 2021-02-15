@@ -256,9 +256,9 @@ shared_ptr<Thread> HandleManager::extractThread() {
  * this handleManager, not a REMOTE_THREAD type), removing it's handle leads to thread termination,
  * which requires further action by the caller. Such a thread is returned in the removedThread
  * argument */
-bool HandleManager::_removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
+Status HandleManager::_removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
     if (number == 0 || elements[number].type == Type::FREE) {
-        return false;
+        return Status::BadUserSpace();
     }
     assert(elements[number].type != Type::INVALID);
 
@@ -271,22 +271,22 @@ bool HandleManager::_removeHandle(uint32_t number, shared_ptr<Thread> &removedTh
 
     elements[number] = nextFreeNumber;
     nextFreeNumber = number;
-    return true;
+    return Status::OK();
 }
 
-bool HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
+Status HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
     scoped_lock sl(lock);
     return _removeHandle(number, removedThread);
 }
 
-bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
-                                    HandleManager &destination) {
+Status HandleManager::transferHandles(vector<uint32_t> &handleValues,
+                                      HandleManager &destination) {
     scoped_lock sl(lock, destination.lock);
 
     for (uint32_t &handle: handleValues) {
         if (handle == 0 || handle >= elements.size() || elements[handle].type == Type::FREE) {
             cout << "transferHandles: attempt to transfer non-existing handle." << endl;
-            return false;
+            return Status::BadUserSpace();
         }
 
         /* Check each possible handle type as they all need to be treated differently */
@@ -311,7 +311,7 @@ bool HandleManager::transferHandles(vector<uint32_t> &handleValues,
             Panic();
         }
     }
-    return true;
+    return Status::OK();
 }
 
 /*void HandleManager::removeAllHandles() {

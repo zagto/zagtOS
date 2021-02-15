@@ -20,7 +20,7 @@ public:
     shared_ptr<Process> process;
 
     Port(const shared_ptr<Process> process);
-    Port(const hos_v1::Port &handOver, const vector<shared_ptr<Thread>> &allThreads);
+    Port(const hos_v1::Port &handOver, const vector<shared_ptr<Thread>> &allThreads, Status status);
     Port(Port &) = delete;
     ~Port();
 

@@ -12,24 +12,8 @@ uint32_t LocalAPIC::readRegister(Register reg) {
 }
 
 void LocalAPIC::setupMap(PhysicalAddress base) {
-    /* ugly way to map the APIC into kernel memory.
-     * since this is currently the only memory-mapped device the kernel uses directly, this works
-     * ok for now.
-     * TODO: build a genenerec way the kernel accesses memory-mapped devices */
     assert(base.value() / PAGE_SIZE == (base.value() + static_cast<size_t>(Register::END) - 1) / PAGE_SIZE);
-    PhysicalAddress apicFrame{align(base.value(), PAGE_SIZE, AlignDirection::DOWN)};
-
-    KernelVirtualAddress mapAddress = CurrentSystem.memory.allocateVirtualArea(PAGE_SIZE, PAGE_SIZE);
-    {
-        scoped_lock lg(CurrentSystem.memory.kernelPagingLock);
-
-        PhysicalAddress physical = PagingContext::resolve(mapAddress);
-        PagingContext::unmap(mapAddress);
-        CurrentSystem.memory.freePhysicalFrame(physical);
-        PagingContext::map(mapAddress, apicFrame, Permissions::READ_WRITE, CacheType::NONE);
-        PagingContext::invalidateLocally(mapAddress);
-    }
-    map = mapAddress.asPointer<uint8_t>();
+    map = base.identityMapped().asPointer<uint8_t>();
 }
 
 LocalAPIC::LocalAPIC(PhysicalAddress base) :

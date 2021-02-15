@@ -33,6 +33,7 @@ private:
                                        size_t startLevel,
                                        WalkData &walkData);
     PageTableEntry *walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
+    void _unmapRange(VirtualAddress address, size_t numPages, bool freeFrames);
 
 public:
     enum class AccessOperation {
@@ -53,6 +54,7 @@ public:
     static void unmap(KernelVirtualAddress address);
     static bool isMapped(KernelVirtualAddress address);
     static void invalidateLocally(KernelVirtualAddress address);
+    static void unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames);
 
     void map(UserVirtualAddress from,
              PhysicalAddress to,

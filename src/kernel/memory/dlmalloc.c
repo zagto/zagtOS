@@ -540,6 +540,8 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #define LACKS_SYS_PARAM_H 1
 #define HAVE_MORECORE 0
 #define HAVE_MMAP 1
+#define LACKS_SYS_MMAN_H 1
+#define LACKS_FCNTL_H 1
 
 #define USE_DL_PREFIX 1
 

@@ -4,8 +4,10 @@
 #include <common/utils.hpp>
 
 enum StatusType {
-    OK, OutOfMemory, BadUserSpace
+    OK, OutOfMemory, OutOfKernelHeap, BadUserSpace
 };
+
+class Process;
 
 #ifdef __cplusplus
 class Status {
@@ -27,6 +29,10 @@ public:
     static Status OK() {
         return Status(StatusType::OK);
     }
+    static Status BadUserSpace() {
+        return Status(StatusType::BadUserSpace);
+    }
+    static Status OutOfKernelHeap(/*Process &initiator, size_t allocationSize*/);
     operator bool() const {
         return type == StatusType::OK;
     }
@@ -40,7 +46,7 @@ private:
 public:
     constexpr Result() {}
     Result(T value):
-        _value{value} {}
+        _value{move(value)} {}
     Result(Status status):
             _status{status} {
         assert(!_status);

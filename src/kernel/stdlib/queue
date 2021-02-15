@@ -18,11 +18,11 @@ public:
         other.firstIndex = 0;
     }
 
-    void push_back(T &&newElement) {
-        buffer.push_back(move(newElement));
+    Status push_back(T &&newElement) {
+        return buffer.push_back(move(newElement));
     }
-    void push_back(const T& newElement) {
-        buffer.push_back(newElement);
+    Status push_back(const T& newElement) {
+        return buffer.push_back(newElement);
     }
     bool empty() const {
         assert(firstIndex <= buffer.size());
@@ -41,6 +41,7 @@ public:
             for (size_t index = 0; index < size(); index++) {
                 buffer[index] = move(buffer[index + firstIndex]);
             }
+            /* resize to smaller size should always succeed */
             buffer.resize(size());
             firstIndex = 0;
         }
@@ -51,5 +52,9 @@ public:
     /* non-standard */
     void remove(const T &element) {
         buffer.remove(element);
+    }
+    void clear() {
+        buffer.clear();
+        firstIndex = 0;
     }
 };

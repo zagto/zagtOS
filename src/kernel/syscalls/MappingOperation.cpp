@@ -12,7 +12,7 @@ bool MappingOperation::addressLengthValid() {
 }
 
 
-void MMap::perform(Process &process) {
+Status MMap::perform(Process &process) {
     assert(process.pagingLock.isLocked());
 
     result = 0;
@@ -23,35 +23,35 @@ void MMap::perform(Process &process) {
     if (offset % PAGE_SIZE != 0) {
         cout << "mmap offset not page-aligned" << endl;
         error = EINVAL;
-        return;
+        return Status::OK();
     }
 
     if ((flags & MAP_WHOLE) && length != 0) {
         cout << "whole-area mmap with length parameter that is not 0" << endl;
         error = EINVAL;
-        return;
+        return Status::OK();
     }
     if ((flags & MAP_WHOLE) && offset != 0) {
         cout << "whole-area mmap with offset parameter that is not 0" << endl;
         error = EINVAL;
-        return;
+        return Status::OK();
     }
     if ((flags & MAP_WHOLE) && (flags & MAP_ANONYMOUS)) {
         cout << "mmap: both MAP_WHOLE and MAP_ANONYMOUS specified" << endl;
         error = EINVAL;
-        return;
+        return Status::OK();
     }
 
     if (!(flags & MAP_WHOLE) && length == 0) {
         cout << "mmap of length 0" << endl;
         error = EINVAL;
-        return;
+        return Status::OK();
     }
 
     if (!(flags & (MAP_SHARED | MAP_PRIVATE))) {
         cout << "mmap with neither SHARED nor PRIVATE flag set" << endl;
         error = EINVAL;
-        return;
+        return Status::OK();
     }
 
     /* Shared and Private are the oposite of each other, they should not be used at the same time.
@@ -64,7 +64,7 @@ void MMap::perform(Process &process) {
     if ((flags & MAP_SHARED) && offset % PAGE_SIZE != 0) {
         cout << "mmap with MAP_SHARED set and non-aligned offset" << endl;
         error = EINVAL;
-        return;
+        return Status::OK();
     }
 
     if ((flags & ~MAP_FIXED) != (MAP_PRIVATE | MAP_ANONYMOUS)
@@ -72,7 +72,7 @@ void MMap::perform(Process &process) {
             && (flags & ~MAP_FIXED) != (MAP_SHARED | MAP_WHOLE)) {
         cout << "MMAP: unsupported flags: " << flags << endl;
         error = EOPNOTSUPP;
-        return;
+        return Status::OK();
     }
 
     Permissions permissions;
@@ -87,7 +87,7 @@ void MMap::perform(Process &process) {
     } else {
         cout << "mmap: unsupported protection " << static_cast<uint64_t>(protection) << "\n";
         error = EINVAL;
-        return;
+        return Status::OK();
     }
 
     Region passedRegion(startAddress, length);
@@ -98,13 +98,13 @@ void MMap::perform(Process &process) {
         if (!temp) {
             cout << "MMAP: passed handle " << handle << " is not a valid MemoryArea object" << endl;
             error = EBADF;
-            return;
+            return Status::OK();
         }
         memoryArea = *temp;
         if (!memoryArea->allowesPermissions(permissions)) {
             cout << "MMAP: requested permissions not allowed on this MemoryArea object" << endl;
             error = EACCESS;
-            return;
+            return Status::OK();
         }
         if (flags & MAP_WHOLE) {
             length = memoryArea->length;
@@ -114,7 +114,7 @@ void MMap::perform(Process &process) {
                     || passedRegion.length + offset < memoryArea->length) {
                 cout << "MMAP: requested range to big for this MemoryArea object" << endl;
                 error = ENXIO;
-                return;
+                return Status::OK();
             }
         }
     }
@@ -136,7 +136,7 @@ void MMap::perform(Process &process) {
                 cout << "MMAP: address " << startAddress << " length " << passedRegion.length
                      << " invalid and FIXED flag set" << endl;
                 error = ENOMEM;
-                return;
+                return Status::OK();
             }
         } else {
             bool valid;
@@ -144,13 +144,17 @@ void MMap::perform(Process &process) {
             if (!valid) {
                 cout << "MMAP: unable to auto-choose region\n";
                 error = ENOMEM;
-                return;
+                return Status::OK();
             }
         }
     }
 
     if (flags & MAP_ANONYMOUS) {
-        memoryArea = make_shared<MemoryArea>(actualRegion.length);
+        Result result = make_shared<MemoryArea>(actualRegion.length);
+        if (!result) {
+            return result.status();
+        }
+        memoryArea = *result;
     }
 
     MappedArea *ma = new MappedArea(&process, actualRegion, move(memoryArea), offset, permissions);

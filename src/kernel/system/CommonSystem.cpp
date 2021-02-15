@@ -4,11 +4,13 @@
 
 Status CommonSystem::addBootProcessor() {
     cout << "Initializing first processor..." << endl;
-    CurrentProcessor = new Processor(true);
+    Result<Processor *> processor = make_raw<Processor>(true);
+    if (!processor) {
+        return processor.status();
+    }
+    CurrentProcessor = *processor;
     CurrentProcessor->activePagingContext = &CurrentSystem.kernelOnlyPagingContext;
     cout << "Processor object created at " << CurrentProcessor << ". registering..." << endl;
-    /* register variables can't be pushed */
-    auto tmp = CurrentProcessor;
     cout << "Processor initialized." << endl;
-    return processors.push_back(tmp);
+    return processors.push_back(*processor);
 }

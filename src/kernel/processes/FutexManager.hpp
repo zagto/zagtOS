@@ -20,7 +20,7 @@ private:
     constexpr uint32_t getHash(size_t address);
     constexpr uint32_t reduceHash(uint32_t hash);
     void moveData(vector<Futex> &newData);
-    void grow();
+    Status grow();
     void shrink();
     size_t indexForNew(size_t address);
     void removeElement(size_t index);
@@ -30,8 +30,9 @@ public:
 
     FutexManager(hos_v1::Futex *futexes,
                  size_t numFutexes,
-                 const vector<shared_ptr<Thread>> &allThreads);
-    FutexManager();
+                 const vector<shared_ptr<Thread>> &allThreads,
+                 Status &status);
+    FutexManager(Status &status);
     ~FutexManager();
     FutexManager(FutexManager &) = delete;
 

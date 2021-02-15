@@ -16,11 +16,11 @@
 
 class Process {
 private:
-    bool accessUserSpace(uint8_t *buffer,
-                         size_t start,
-                         size_t length,
-                         PagingContext::AccessOperation accOp,
-                         bool requireWritePermissions);
+    Status accessUserSpace(uint8_t *buffer,
+                           size_t start,
+                           size_t length,
+                           PagingContext::AccessOperation accOp,
+                           bool requireWritePermissions);
     void coreDump(Thread *crashedThread);
 
 public:
@@ -39,26 +39,28 @@ public:
     Process(const hos_v1::Process &handOver,
             const vector<shared_ptr<Thread>> &allThreads,
             const vector<shared_ptr<Port>> &allPorts,
-            const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
+            const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
+            Status &status);
     Process(Process &sourceProcess,
             vector<SpawnProcessSection> &sections,
             optional<SpawnProcessSection> &TLSSection,
             UserVirtualAddress entryAddress,
             Thread::Priority initialPrioriy,
             Message &runMessage,
-            vector<uint8_t> logName);
+            vector<uint8_t> logName,
+            Status &status);
     ~Process();
     void activate();
     void freeFrame(UserVirtualAddress address);
     bool handlePageFault(UserVirtualAddress address);
 
-    bool copyFromOhterUserSpace(size_t destinationAddress,
-                                Process &sourceProcess,
-                                size_t sourceAddress,
-                                size_t length,
+    Status copyFromOhterUserSpace(size_t destinationAddress,
+                                  Process &sourceProcess,
+                                  size_t sourceAddress,
+                                  size_t length,
                                 bool requireWriteAccessToDestination);
-    bool copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions);
-    bool copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
+    Status copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions);
+    Status copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
     bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
     bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
 
