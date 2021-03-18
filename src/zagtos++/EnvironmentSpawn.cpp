@@ -20,8 +20,6 @@ struct SpawnProcessArgs {
 
     const char* logName;
     size_t logNameSize;
-
-    uint32_t result;
 };
 
 /* Points to the same data as a ProgramSection. Used to pass data to kernel */
@@ -62,8 +60,10 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
         .numMessageHandles = static_cast<uint32_t>(runMessage.numHandles()),
         .logName = binary.logName(),
         .logNameSize = strlen(binary.logName()),
-        .result = 0
     };
 
-    zagtos_syscall1(SYS_SPAWN_PROCESS, reinterpret_cast<size_t>(&args));
+    size_t ok = zagtos_syscall1(SYS_SPAWN_PROCESS, reinterpret_cast<size_t>(&args));
+    if (ok == 0) {
+        throw std::invalid_argument("invalid executable to spawn process");
+    }
 }

@@ -4,38 +4,52 @@
 #include <syscalls/SpawnProcess.hpp>
 #include <memory/UserSpaceObject.hpp>
 
-bool SpawnProcess::perform(const shared_ptr<Process> &process) {
+Status SpawnProcess::perform(const shared_ptr<Process> &process) {
     /* TODO: permissions checking */
 
-    /* make all the returns in the error handlers return 0 */
+    /* make all the returns in the error handlers return 0 to user space.
+     * return OK as kernel status so the process continues running.
+     * Processes should be able to handle broken SpawnProcesses gracefully
+     * since processes like UserEnvironment they may be launching processes
+     * on behalf of others which are not fully trusted */
     result = 0;
 
     if (priority >= Thread::NUM_PRIORITIES) {
         cout << "SYS_SPAWN_PROCESS: invalid priority\n";
-        return true;
+        return Status::BadUserSpace();
     }
 
     if (numSections < 1) {
         cout << "SYS_SPAWN_PROCESS: tried to spawn process with 0 sections\n";
-        return true;
+        return Status::OK();
     }
 
-    /* TODO: handle out of memory */
-    vector<SpawnProcessSection> sections(numSections);
-    bool valid = process->copyFromUser(reinterpret_cast<uint8_t *>(&sections[0]),
-                                       sectionsAddress,
-                                       numSections * sizeof(SpawnProcessSection),
-                                       false);
-    if (!valid) {
-        cout << "SYS_SPAWN_PROCESS: invalid sections info buffer\n";
-        return true;
+    Status status = Status::OK();
+    vector<SpawnProcessSection> sections(numSections, status);
+    if (!status) {
+        return status;
+    }
+    status = process->copyFromUser(reinterpret_cast<uint8_t *>(&sections[0]),
+                                   sectionsAddress,
+                                   numSections * sizeof(SpawnProcessSection),
+                                   false);
+    if (!status) {
+        if (status == Status::BadUserSpace()) {
+            cout << "SYS_SPAWN_PROCESS: invalid sections info buffer\n";
+        }
+        return status;
     }
 
-    vector<uint8_t> logNameBuffer(logNameSize);
-    valid = process->copyFromUser(&logNameBuffer[0], logNameAddress, logNameSize, false);
-    if (!valid) {
-        cout << "SYS_SPAWN_PROCESS: invalid log name buffer\n";
-        return true;
+    vector<uint8_t> logNameBuffer(logNameSize, status);
+    if (!status) {
+        return status;
+    }
+    status = process->copyFromUser(&logNameBuffer[0], logNameAddress, logNameSize, false);
+    if (!status) {
+        if (status == Status::BadUserSpace()) {
+            cout << "SYS_SPAWN_PROCESS: invalid log name buffer\n";
+        }
+        return status;
     }
 
     for (size_t index = 0; index < numSections; index++) {
@@ -43,25 +57,26 @@ bool SpawnProcess::perform(const shared_ptr<Process> &process) {
 
         if (section.address + section.sizeInMemory < section.address) {
             cout << "SYS_SPAWN_PROCESS: Integer Overflow in section target address + size" << endl;
-            return true;
+            return Status::OK();
         }
 
         if (!section.region().isPageAligned()
                 || section.dataSize % PAGE_SIZE != 0) {
             cout << "SYS_SPAWN_PROCESS: section region is not page-aligned" << endl;
+            return Status::OK();
         }
 
         static_assert(UserSpaceRegion.start == 0, "This code assumes user space starts at 0");
         if (!VirtualAddress::checkInRegion(UserSpaceRegion, section.region().end())) {
             cout << "SYS_SPAWN_PROCESS: segment does not fit in user space" << endl;
-            return true;
+            return Status::OK();
         }
 
         if ((section.flags & section.FLAG_WRITEABLE)
                 && (section.flags & section.FLAG_EXECUTABLE)) {
             cout << "SYS_SPAWN_PROCESS: Segment is marked as writeable and executable at the same time"
                 << endl;
-            return true;
+            return Status::OK();
         }
 
         for (size_t otherIndex = index + 1; otherIndex < numSections; otherIndex++) {
@@ -72,7 +87,7 @@ bool SpawnProcess::perform(const shared_ptr<Process> &process) {
                      << section.sizeInMemory << ", "
                      << otherSection.address << ":"
                      << otherSection.sizeInMemory << endl;
-                return true;
+                return Status::OK();
             }
         }
     }

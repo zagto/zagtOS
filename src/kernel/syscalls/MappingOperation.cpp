@@ -94,8 +94,9 @@ Status MMap::perform(Process &process) {
     shared_ptr<MemoryArea> memoryArea;
 
     if (!(flags & MAP_ANONYMOUS)) {
-        optional<shared_ptr<MemoryArea>> temp = process.handleManager.lookupMemoryArea(handle);
+        Result<shared_ptr<MemoryArea>> temp = process.handleManager.lookupMemoryArea(handle);
         if (!temp) {
+            assert(temp.status() == Status::BadUserSpace());
             cout << "MMAP: passed handle " << handle << " is not a valid MemoryArea object" << endl;
             error = EBADF;
             return Status::OK();

@@ -16,57 +16,18 @@
 
 
 extern "C" __attribute__((noreturn))
-bool Syscall(uint64_t syscallNr,
+void Syscall(uint64_t syscallNr,
              uint64_t arg0,
-             int64_t arg1,
+             uint64_t arg1,
              uint64_t arg2,
              uint64_t arg3,
-             uint64_t arg4,
-             uint64_t) {
+             uint64_t arg4) {
     Thread *thread = CurrentProcessor->scheduler.activeThread();
     shared_ptr<Process> process = thread->process;
 
     size_t result = 0;
 
     switch (syscallNr) {
-    case SYS_LOG: {
-        scoped_lock lg(process->pagingLock);
-        static const size_t MAX_LOG_SIZE = 10000;
-        size_t address = arg0;
-        size_t length = arg1;
-
-        if (length > MAX_LOG_SIZE) {
-            cout << "Process attempted to send huge log. ignoring.\n";
-            break;
-        }
-
-        if (length == 0) {
-            break;
-        }
-
-        vector<uint8_t> buffer(length);
-        bool valid = process->copyFromUser(&buffer[0], address, length, false);
-        if (!valid) {
-            cout << "SYS_LOG: invalid buffer\n";
-            Panic(); // TODO: exception
-        }
-        /* do not print program name for small invisible stuff */
-        if (!(length == 0 || (length == 1 && buffer[0] <= ' '))) {
-            cout.setProgramNameColor();
-            for (uint8_t character: process->logName) {
-                cout << static_cast<char>(character);
-            }
-            cout.setProgramColor();
-            cout << ": ";
-        } else {
-            cout.setProgramColor();
-        }
-        for (uint8_t character: buffer) {
-            cout << static_cast<char>(character);
-        }
-        cout.setKernelColor();
-        break;
-    }
     case SYS_EXIT:
         cout << "Process Exit" << endl;
         /* Danger - the current thread (this) will be deleted */
@@ -167,6 +128,8 @@ bool Syscall(uint64_t syscallNr,
             Panic(); // TODO: exception
         }
         uso.object.perform(*process);
+        uso.writeOut();
+
         break;
     }
     case SYS_MUNMAP: {

@@ -138,15 +138,19 @@ HandleManager::HandleManager(const hos_v1::Process &handOver,
     }
 }
 
-uint32_t HandleManager::grabFreeNumber() {
+Result<uint32_t> HandleManager::grabFreeNumber() {
     /* should go out of kernel memory way before this happens */
     assert(elements.size() < NUMBER_END);
 
     if (nextFreeNumber == NUMBER_END) {
         /* Avoid giving out handle 0. This is because handles of Zagtos may be used like Linux
          * Thread IDs, where the handle expected to be non-zero */
-        elements.resize(elements.size() > 0 ? elements.size() + 1 : 2);
-        return static_cast<uint32_t>(elements.size() - 1);
+        Status status = elements.resize(elements.size() > 0 ? elements.size() + 1 : 2);
+        if (status) {
+            return static_cast<uint32_t>(elements.size() - 1);
+        } else {
+            return status;
+        }
     } else {
         uint32_t handle = nextFreeNumber;
         assert(elements[handle].type == Type::FREE);
@@ -160,24 +164,28 @@ bool HandleManager::handleValidFor(uint32_t number, Type type) {
 }
 
 /* generate a new handle for the given pointer */
-uint32_t HandleManager::addPort(shared_ptr<Port> &port) {
+Result<uint32_t> HandleManager::addPort(shared_ptr<Port> &port) {
     scoped_lock sl(lock);
 
-    uint32_t handle = grabFreeNumber();
-    elements[handle] = Element(port);
+    Result handle = grabFreeNumber();
+    if (handle) {
+        elements[*handle] = Element(port);
+    }
     return handle;
 }
 
-uint32_t HandleManager::addThread(shared_ptr<Thread> &thread) {
+Result<uint32_t> HandleManager::addThread(shared_ptr<Thread> &thread) {
     scoped_lock sl(lock);
 
-    uint32_t handle = grabFreeNumber();
-    elements[handle] = Element(thread);
-    thread->setHandle(handle);
+    Result handle = grabFreeNumber();
+    if (handle) {
+        elements[*handle] = Element(thread);
+        thread->setHandle(*handle);
+    }
     return handle;
 }
 
-uint32_t HandleManager::addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
+Result<uint32_t> HandleManager::addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
     scoped_lock sl(lock);
     return _addMemoryArea(memoryArea);
 }
@@ -185,19 +193,23 @@ uint32_t HandleManager::addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
 
 /* unlike the above, this is for internal use and expects the lock to be already hold. Nobody else
  * should create their own remote ports as they wouldn't be remote. */
-uint32_t HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
+Result<uint32_t> HandleManager::_addRemotePort(weak_ptr<Port> &remotePort) {
     assert(lock.isLocked());
 
-    uint32_t handle = grabFreeNumber();
-    elements[handle] = Element(remotePort);
+    Result handle = grabFreeNumber();
+    if (handle) {
+        elements[*handle] = Element(remotePort);
+    }
     return handle;
 }
 
-uint32_t HandleManager::_addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
+Result<uint32_t> HandleManager::_addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
     assert(lock.isLocked());
 
-    uint32_t handle = grabFreeNumber();
-    elements[handle] = Element(memoryArea);
+    Result handle = grabFreeNumber();
+    if (handle) {
+        elements[handle] = Element(memoryArea);
+    }
     return handle;
 }
 
@@ -205,34 +217,34 @@ uint32_t HandleManager::_addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
  * returns no value if given handle is bogus
  * returns true and sets result to the pointer, which may be null if the object the handle was
  * referring to no longer exists */
-optional<shared_ptr<Port>> HandleManager::lookupPort(uint32_t number) {
+Result<shared_ptr<Port>> HandleManager::lookupPort(uint32_t number) {
     scoped_lock sl(lock);
     if (!handleValidFor(number, Type::PORT)) {
-        return {};
+        return Status::BadUserSpace();
     }
     return elements[number].data.port;
 }
 
-optional<weak_ptr<Port>> HandleManager::lookupRemotePort(uint32_t number) {
+Result<weak_ptr<Port>> HandleManager::lookupRemotePort(uint32_t number) {
     scoped_lock sl(lock);
     if (!handleValidFor(number, Type::REMOTE_PORT)) {
-        return {};
+        return Status::BadUserSpace();
     }
     return elements[number].data.remotePort;
 }
 
-optional<shared_ptr<Thread>> HandleManager::lookupThread(uint32_t number) {
+Result<shared_ptr<Thread>> HandleManager::lookupThread(uint32_t number) {
     scoped_lock sl(lock);
     if (!handleValidFor(number, Type::THREAD)) {
-        return {};
+        return Status::BadUserSpace();
     }
     return elements[number].data.thread;
 }
 
-optional<shared_ptr<MemoryArea>> HandleManager::lookupMemoryArea(uint32_t number) {
+Result<shared_ptr<MemoryArea>> HandleManager::lookupMemoryArea(uint32_t number) {
     scoped_lock sl(lock);
     if (!handleValidFor(number, Type::MEMORY_AREA)) {
-        return {};
+        return Status::BadUserSpace();
     }
     return elements[number].data.memoryArea;
 }

@@ -40,5 +40,5 @@ private:
     uint32_t result;
 public:
 
-    bool perform(const shared_ptr<Process> &process);
+    Status perform(const shared_ptr<Process> &process);
 };
