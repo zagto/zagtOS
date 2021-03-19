@@ -1608,6 +1608,19 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 #endif /* HAVE_MREMAP */
 
 /**
+ * Define CALL_MORECORE
+ */
+#if HAVE_MORECORE
+    #ifdef MORECORE
+        #define CALL_MORECORE(S)    MORECORE(S)
+    #else  /* MORECORE */
+        #define CALL_MORECORE(S)    MORECORE_DEFAULT(S)
+    #endif /* MORECORE */
+#else  /* HAVE_MORECORE */
+    #define CALL_MORECORE(S)        MFAIL
+#endif /* HAVE_MORECORE */
+
+/**
  * Define CALL_MMAP/CALL_MUNMAP/CALL_DIRECT_MMAP
  */
 #if HAVE_MMAP

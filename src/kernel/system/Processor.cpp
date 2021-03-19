@@ -6,9 +6,13 @@ extern size_t KERNEL_STACK_SIZE;
 
 Processor::Processor(bool bootProcessor, Status &status) :
         logBufferIndex{0},
-        scheduler(this),
+        scheduler(this, status),
         interrupts(bootProcessor),
         activePagingContext{nullptr} {
+
+    if (!status) {
+        return;
+    }
 
     Result<KernelVirtualAddress> address = CurrentSystem.memory.allocateVirtualArea(KERNEL_STACK_SIZE, 16);
     if (address) {

@@ -43,8 +43,8 @@ public:
     static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
     static const size_t NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
 
-    PagingContext(Process *process);
-    PagingContext(Process *process, PhysicalAddress masterPageTableAddress);
+    PagingContext(Process *process, Status &status);
+    PagingContext(Process *process, PhysicalAddress masterPageTableAddress, Status &);
 
     static void map(KernelVirtualAddress from,
                     PhysicalAddress to,

@@ -10,7 +10,7 @@ enum StatusType {
 class Process;
 
 #ifdef __cplusplus
-class Status {
+class [[nodiscard("Status code ignored")]] Status  {
 private:
     StatusType type;
     bool handled{false};
@@ -38,7 +38,7 @@ public:
     }
 };
 
-template<typename T> class Result {
+template<typename T> class [[nodiscard("Result value ignored")]] Result {
 private:
     Status _status;
     T _value;

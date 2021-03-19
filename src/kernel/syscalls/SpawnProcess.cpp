@@ -1,18 +1,31 @@
 #include <mutex>
-#include <processes/Process.hpp>
 #include <processes/Thread.hpp>
 #include <syscalls/SpawnProcess.hpp>
+#include <syscalls/ErrorCodes.hpp>
 #include <memory/UserSpaceObject.hpp>
 
-Status SpawnProcess::perform(const shared_ptr<Process> &process) {
+Result<size_t> SpawnProcess(const shared_ptr<Process> &process,
+                            uint64_t structAddress,
+                            uint64_t,
+                            uint64_t,
+                            uint64_t,
+                            uint64_t) {
+    Status status;
+    UserSpaceObject<SpawnProcessStruct, USOOperation::READ> uso(structAddress, status);
+    if (!status) {
+        return status;
+    }
+    return uso.object.perform(process);
+}
+
+Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
     /* TODO: permissions checking */
 
-    /* make all the returns in the error handlers return 0 to user space.
+    /* make all the some returns in the error handlers return EINVAL to user space.
      * return OK as kernel status so the process continues running.
      * Processes should be able to handle broken SpawnProcesses gracefully
      * since processes like UserEnvironment they may be launching processes
      * on behalf of others which are not fully trusted */
-    result = 0;
 
     if (priority >= Thread::NUM_PRIORITIES) {
         cout << "SYS_SPAWN_PROCESS: invalid priority\n";
@@ -21,7 +34,7 @@ Status SpawnProcess::perform(const shared_ptr<Process> &process) {
 
     if (numSections < 1) {
         cout << "SYS_SPAWN_PROCESS: tried to spawn process with 0 sections\n";
-        return Status::OK();
+        return EINVAL;
     }
 
     Status status = Status::OK();
@@ -44,7 +57,7 @@ Status SpawnProcess::perform(const shared_ptr<Process> &process) {
     if (!status) {
         return status;
     }
-    status = process->copyFromUser(&logNameBuffer[0], logNameAddress, logNameSize, false);
+    status = process->copyFromUser(logNameBuffer.data(), logNameAddress, logNameSize, false);
     if (!status) {
         if (status == Status::BadUserSpace()) {
             cout << "SYS_SPAWN_PROCESS: invalid log name buffer\n";
@@ -57,26 +70,26 @@ Status SpawnProcess::perform(const shared_ptr<Process> &process) {
 
         if (section.address + section.sizeInMemory < section.address) {
             cout << "SYS_SPAWN_PROCESS: Integer Overflow in section target address + size" << endl;
-            return Status::OK();
+            return EINVAL;
         }
 
         if (!section.region().isPageAligned()
                 || section.dataSize % PAGE_SIZE != 0) {
             cout << "SYS_SPAWN_PROCESS: section region is not page-aligned" << endl;
-            return Status::OK();
+            return EINVAL;
         }
 
         static_assert(UserSpaceRegion.start == 0, "This code assumes user space starts at 0");
         if (!VirtualAddress::checkInRegion(UserSpaceRegion, section.region().end())) {
             cout << "SYS_SPAWN_PROCESS: segment does not fit in user space" << endl;
-            return Status::OK();
+            return EINVAL;
         }
 
         if ((section.flags & section.FLAG_WRITEABLE)
                 && (section.flags & section.FLAG_EXECUTABLE)) {
             cout << "SYS_SPAWN_PROCESS: Segment is marked as writeable and executable at the same time"
                 << endl;
-            return Status::OK();
+            return EINVAL;
         }
 
         for (size_t otherIndex = index + 1; otherIndex < numSections; otherIndex++) {
@@ -87,7 +100,7 @@ Status SpawnProcess::perform(const shared_ptr<Process> &process) {
                      << section.sizeInMemory << ", "
                      << otherSection.address << ":"
                      << otherSection.sizeInMemory << endl;
-                return Status::OK();
+                return EINVAL;
             }
         }
     }
@@ -95,13 +108,15 @@ Status SpawnProcess::perform(const shared_ptr<Process> &process) {
     optional<SpawnProcessSection> TLSSection;
     if (TLSSectionAddress != 0) {
         SpawnProcessSection section;
-        bool valid = process->copyFromUser(reinterpret_cast<uint8_t *>(&section),
+        status = process->copyFromUser(reinterpret_cast<uint8_t *>(&section),
                                            TLSSectionAddress,
                                            sizeof(SpawnProcessSection),
                                            false);
-        if (!valid) {
-            cout << "SYS_SPAWN_PROCESS: invalid TLS sections info buffer\n";
-            return true;
+        if (!status) {
+            if (status == Status::BadUserSpace()) {
+                cout << "SYS_SPAWN_PROCESS: invalid TLS sections info buffer\n";
+            }
+            return status;
         }
 
         if (section.sizeInMemory % PAGE_SIZE != 0
@@ -113,7 +128,7 @@ Status SpawnProcess::perform(const shared_ptr<Process> &process) {
                 && (section.flags & section.FLAG_EXECUTABLE)) {
             cout << "ELF: Segment is marked as writeable and executable at the same time"
                 << endl;
-            return true;
+            return EINVAL;
         }
         TLSSection = section;
     }
@@ -127,17 +142,24 @@ Status SpawnProcess::perform(const shared_ptr<Process> &process) {
                        messageAddress,
                        messageType,
                        messageSize,
-                       numMessageHandles);
-    new Process(*process,
-                sections,
-                TLSSection,
-                entryAddress,
-                static_cast<Thread::Priority>(priority),
-                runMessage,
-                move(logNameBuffer));
+                       numMessageHandles,
+                       status);
+    if (!status) {
+        return status;
+    }
 
-    result = 1;
-    return true;
+    Result newProcess = make_raw<Process>(*process,
+                        sections,
+                        TLSSection,
+                        entryAddress,
+                        static_cast<Thread::Priority>(priority),
+                        runMessage,
+                        logNameBuffer);
+    if (newProcess) {
+        return 0;
+    } else {
+        return newProcess.status();
+    }
 }
 
 Permissions SpawnProcessSection::permissions() const {

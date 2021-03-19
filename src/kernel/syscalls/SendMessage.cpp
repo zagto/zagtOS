@@ -20,22 +20,31 @@ Result<size_t> SendMessage(const shared_ptr<Process> &process,
         return ENXIO;
     }
 
-    scoped_lock sl(process->pagingLock, port->process->pagingLock);
-    if (!process->verifyMessageAccess(messageAddress, messageSize, numMessageHandles)) {
-        Panic(); // TODO: exception
-    }
-    UserSpaceObject<UUID, USOOperation::READ> messageType(messageTypeAddress, process);
-    if (!messageType.valid) {
-        Panic(); // TODO: exception
+    Status status;
+    UserSpaceObject<UUID, USOOperation::READ> messageType(messageTypeAddress, status);
+    if (!status) {
+        return status;
     }
 
-    unique_ptr<Message> message = make_unique<Message>(process.get(),
-                                                       port->process.get(),
-                                                       messageAddress,
-                                                       messageType.object,
-                                                       messageSize,
-                                                       numMessageHandles);
-    message->transfer();
-    port->addMessage(move(message));
-    return 0;
+    Result message = make_unique<Message>(process.get(),
+                                          port->process.get(),
+                                          messageAddress,
+                                          messageType.object,
+                                          messageSize,
+                                          numMessageHandles);
+    if (!message) {
+        return message.status();
+    }
+
+    status = (*message)->transfer();
+    if (!status) {
+        return status;
+    }
+
+    status = port->addMessage(move(*message));
+    if (status) {
+        return 0;
+    } else {
+        return status;
+    }
 }

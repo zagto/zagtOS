@@ -1,8 +1,11 @@
 #pragma once
 
-#include <common/inttypes.hpp>
+#include <common/common.hpp>
+#include <processes/Process.hpp>
 
-class Thread;
-class RegisterState;
-
-bool Futex(Thread *thread, size_t address, uint32_t operation, size_t timeoutOrValue2, int32_t passedValue);
+Result<size_t> Futex(const shared_ptr<Process> &,
+                     size_t address,
+                     size_t operation,
+                     size_t timeoutOrValue2,
+                     size_t passedValue,
+                     size_t);

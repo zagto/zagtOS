@@ -56,12 +56,21 @@ bool Scheduler::List::empty() {
     return head == nullptr;
 }
 
-Scheduler::Scheduler(Processor *_processor)
+Scheduler::Scheduler(Processor *_processor, Status &status)
 {
-    idleThread = new Thread(shared_ptr<Process>{},
-                            VirtualAddress(reinterpret_cast<size_t>(&idleEntry)),
-                            Thread::Priority::IDLE,
-                            0, 0);
+    if (!status) {
+        return;
+    }
+
+    Result result = make_raw<Thread>(shared_ptr<Process>{},
+                                     VirtualAddress(reinterpret_cast<size_t>(&idleEntry)),
+                                     Thread::Priority::IDLE,
+                                     0, 0);
+    if (!result) {
+        status = result.status();
+        return;
+    }
+
     processor = _processor;
     _activeThread = idleThread;
     _activeThread->currentProcessor(processor);

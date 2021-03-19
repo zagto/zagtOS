@@ -87,13 +87,18 @@ void Element::destructData() {
 HandleManager::HandleManager(const hos_v1::Process &handOver,
               const vector<shared_ptr<Thread>> &allThreads,
               const vector<shared_ptr<Port>> &allPorts,
-              const vector<shared_ptr<MemoryArea> > &allMemoryAreas) {
+              const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
+              Status &status) {
     uint32_t maxHandle = 0;
     for (size_t index = 0; index < handOver.numHandles; index++) {
         maxHandle = max(handOver.handles[index].handle, maxHandle);
     }
 
-    elements.resize(maxHandle + 1);
+    status = elements.resize(maxHandle + 1);
+    if (!status) {
+        return;
+    }
+
     for (size_t index = 0; index < handOver.numHandles; index++) {
         hos_v1::Handle hosHandle = handOver.handles[index];
         assert(hosHandle.handle != 0);
@@ -161,6 +166,14 @@ Result<uint32_t> HandleManager::grabFreeNumber() {
 
 bool HandleManager::handleValidFor(uint32_t number, Type type) {
     return number > 0 && number < elements.size() && elements[number].type == type;
+}
+
+/* Checks if this number is currently a valid handle to any object */
+bool HandleManager::handleValid(uint32_t number) {
+    return number > 0
+            && number < elements.size()
+            && elements[number].type != Type::FREE
+            && elements[number].type != Type::INVALID;
 }
 
 /* generate a new handle for the given pointer */
@@ -255,7 +268,9 @@ shared_ptr<Thread> HandleManager::extractThread() {
     for (uint32_t number = 0; number < elements.size(); number++) {
         if (elements[number].type == Type::THREAD) {
             shared_ptr<Thread> result;
-            _removeHandle(number, result);
+            Status success = _removeHandle(number, result);
+            /* number is valid, we just found it and are locked */
+            assert(success);
             return result;
         }
     }
@@ -291,39 +306,73 @@ Status HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedT
     return _removeHandle(number, removedThread);
 }
 
+/* creates handles in destination for all objects referenced by the initial values handleValues.
+ * On success, handleValues will contain the new destination handle numbers. In case of failure,
+ * these that were not created will have the number handleManager::NUMBER_END. */
 Status HandleManager::transferHandles(vector<uint32_t> &handleValues,
                                       HandleManager &destination) {
     scoped_lock sl(lock, destination.lock);
 
-    for (uint32_t &handle: handleValues) {
-        if (handle == 0 || handle >= elements.size() || elements[handle].type == Type::FREE) {
+    Status status = Status::OK();
+    size_t transferIndex;
+    for (transferIndex = 0; transferIndex < handleValues.size(); transferIndex++) {
+        uint32_t sourceHanlde = handleValues[transferIndex];
+        Result<uint32_t> result;
+
+        if (!handleValid(sourceHanlde)) {
             cout << "transferHandles: attempt to transfer non-existing handle." << endl;
-            return Status::BadUserSpace();
+            status = Status::BadUserSpace();
+            break;
         }
 
         /* Check each possible handle type as they all need to be treated differently */
-        switch(elements[handle].type) {
+        switch(elements[sourceHanlde].type) {
         case Type::PORT: {
-            weak_ptr<Port> port(elements[handle].data.port);
-            handle = destination._addRemotePort(port);
+            weak_ptr<Port> port(elements[sourceHanlde].data.port);
+            result = destination._addRemotePort(port);
             break;
         }
         case Type::REMOTE_PORT: {
-            weak_ptr<Port> port = elements[handle].data.remotePort;
-            handle = destination._addRemotePort(port);
+            weak_ptr<Port> port = elements[sourceHanlde].data.remotePort;
+            result = destination._addRemotePort(port);
             break;
         }
         case Type::MEMORY_AREA: {
-            shared_ptr<MemoryArea> memoryArea(elements[handle].data.memoryArea);
-            handle = destination._addMemoryArea(memoryArea);
+            shared_ptr<MemoryArea> memoryArea(elements[sourceHanlde].data.memoryArea);
+            result = destination._addMemoryArea(memoryArea);
             break;
         }
         default:
             cout << "non-implemented handle type in transferHandles" << endl;
             Panic();
         }
+
+        if (result) {
+            handleValues[transferIndex] = *result;
+        } else {
+            status = result.status();
+            break;
+        }
+
+        sl.checkWaiters();
     }
-    return Status::OK();
+
+    /* on error, destroy any newly created handles */
+    if (!status) {
+        for (size_t destroyIndex = 0; destroyIndex < transferIndex; destroyIndex++) {
+            shared_ptr<Thread> dummy;
+            Status removeSuccess = _removeHandle(handleValues[destroyIndex], dummy);
+            if (!removeSuccess || dummy) {
+                cout << "transferHandles: destination process has messed with handles that were "
+                     << "not even passed to it yet and deserves to crash." << endl;
+                /* removing handles should only fail if invalid handle numbers are passed */
+                assert(removeSuccess == Status::BadUserSpace());
+            }
+        }
+
+        sl.checkWaiters();
+    }
+    return status;
 }
 
 /*void HandleManager::removeAllHandles() {

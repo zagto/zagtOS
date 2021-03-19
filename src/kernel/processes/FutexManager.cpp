@@ -125,6 +125,10 @@ FutexManager::FutexManager(hos_v1::Futex *futexes,
                            size_t numFutexes,
                            const vector<shared_ptr<Thread>> &allThreads,
                            Status &status) {
+    if (!status) {
+        return;
+    }
+
     numBits = MIN_BITS;
     while (numFutexes >= numAllocated() / 2) {
         numBits++;
@@ -183,7 +187,7 @@ FutexManager::~FutexManager() {
     }
 }
 
-void FutexManager::wait(PhysicalAddress address, Thread *&thread) {
+Status FutexManager::wait(PhysicalAddress address, Thread *&thread) {
     assert(lock.isLocked());
 
     /* Thread can only do the syscall if it's active. */
@@ -195,20 +199,31 @@ void FutexManager::wait(PhysicalAddress address, Thread *&thread) {
     while (data[index].active) {
         if (data[index].address == address.value()) {
             /* found - add thread to queue */
-            data[index].threads.push_back(thread);
+            Status status = data[index].threads.push_back(thread);
+            if (!status) {
+                return status;
+            }
 
             thread->currentProcessor()->scheduler.remove(thread);
             thread->setState(Thread::State::Futex(this, address));
-            return;
+            return Status::OK();
         }
         index = (index + 1) % numAllocated();
     }
 
     /* nobody waits on this address yet - create new data element */
-    grow();
+    Status status = grow();
+    if (!status) {
+        return status;
+    }
+
     Futex &element = data[index];
     assert(element.threads.empty());
-    element.threads.push_back(thread);
+
+    status = element.threads.push_back(thread);
+    if (!status) {
+        return status;
+    }
 
     thread->currentProcessor()->scheduler.remove(thread);
     thread->setState(Thread::State::Futex(this, address));
@@ -217,6 +232,7 @@ void FutexManager::wait(PhysicalAddress address, Thread *&thread) {
     element.address = address.value();
     element.hash = hash;
     numElements++;
+    return Status::OK();
 }
 
 size_t FutexManager::wake(PhysicalAddress address, size_t numWake) {

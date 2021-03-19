@@ -1,15 +1,17 @@
-#include <syscalls/Time.hpp>
-#include <time/Time.hpp>
+#include <syscalls/GetTime.hpp>
 #include <memory/UserSpaceObject.hpp>
 #include <system/System.hpp>
 
-void GetTime(const shared_ptr<Process> &process, uint32_t clockID, size_t resultAddress) {
+Result<size_t> GetTime(const shared_ptr<Process> &process,
+                       size_t clockID,
+                       size_t resultAddress,
+                       size_t,
+                       size_t,
+                       size_t) {
     scoped_lock sl(process->pagingLock);
     assert(process->pagingLock.isLocked());
+
     UserSpaceObject<timespec, USOOperation::WRITE> result(resultAddress, process);
-    if (!result.valid) {
-        Panic(); // TODO: exception
-    }
 
     uint64_t timerValue = readTimerValue();
     uint64_t frequency = CurrentSystem.time.timerFrequency;
@@ -31,6 +33,13 @@ void GetTime(const shared_ptr<Process> &process, uint32_t clockID, size_t result
             time.tv_nsec = 0;
         }
     }
-    result.writeOut();
-    return;
+
+    Status status = result.writeOut();
+    if (status) {
+        return 0;
+    } else {
+        return status;
+    }
 }
+
+

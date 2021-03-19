@@ -64,13 +64,17 @@ uint8_t digitToChar(uint8_t digit) {
 }
 
 
-void writeDump(vector<uint8_t> &dumpFile, void *data, size_t length) {
+Status writeDump(vector<uint8_t> &dumpFile, void *data, size_t length) {
     size_t offset = dumpFile.size();
-    dumpFile.resize(offset + length);
+    Status status = dumpFile.resize(offset + length);
+    if (!status) {
+        return status;
+    }
     memcpy(&dumpFile[offset], data, length);
+    return Status::OK();
 }
 
-void Process::coreDump(Thread *crashedThread) {
+Status Process::coreDump(Thread *crashedThread) {
     cout << "Sending Core Dump to Serial Port..." << endl;
     vector<uint8_t> dumpFile;
 
@@ -106,7 +110,10 @@ void Process::coreDump(Thread *crashedThread) {
         .shnum = 0,
         .shstrndx = 0,
     };
-    writeDump(dumpFile, &fileHeader, sizeof(FileHeader));
+    Status status = writeDump(dumpFile, &fileHeader, sizeof(FileHeader));
+    if (!status) {
+        return status;
+    }
 
     size_t dataOffset = sizeof(FileHeader) + numProgramHeaders * sizeof(ProgramHeader);
     for (size_t index = 0; index < numProgramHeaders - 1; index++) {
@@ -123,7 +130,10 @@ void Process::coreDump(Thread *crashedThread) {
             .memsz = length,
             .align = 1
         };
-        writeDump(dumpFile, &programHeader, sizeof(ProgramHeader));
+        status = writeDump(dumpFile, &programHeader, sizeof(ProgramHeader));
+        if (!status) {
+            return status;
+        }
         dataOffset += length;
     }
 
@@ -137,7 +147,10 @@ void Process::coreDump(Thread *crashedThread) {
         .memsz = 0,
         .align = 4
     };
-    writeDump(dumpFile, &noteProgramHeader, sizeof(ProgramHeader));
+    status = writeDump(dumpFile, &noteProgramHeader, sizeof(ProgramHeader));
+    if (!status) {
+        return status;
+    }
 
     for (size_t index = 0; index < numProgramHeaders - 1; index++) {
         size_t startAddress = mappedAreas[index]->region.start;
@@ -150,7 +163,10 @@ void Process::coreDump(Thread *crashedThread) {
                     || !copyFromUser(page, address, PAGE_SIZE, false)) {
                 memset(page, 0, PAGE_SIZE);
             }
-            writeDump(dumpFile, page, PAGE_SIZE);
+            status = writeDump(dumpFile, page, PAGE_SIZE);
+            if (!status) {
+                return status;
+            }
         }
     }
 
@@ -190,14 +206,23 @@ void Process::coreDump(Thread *crashedThread) {
     prRegs[25] = 0x18|3;
     prRegs[26] = 0x18|3;
 
-    writeDump(dumpFile, &noteHeader, 12);
-    writeDump(dumpFile, noteHeader.name, 8);
-    writeDump(dumpFile, &prStatus, sizeof(PRStatus));
+    status = writeDump(dumpFile, &noteHeader, 12);
+    if (!status) {
+        return status;
+    }
+    status = writeDump(dumpFile, noteHeader.name, 8);
+    if (!status) {
+        return status;
+    }
+    status = writeDump(dumpFile, &prStatus, sizeof(PRStatus));
+    if (!status) {
+        return status;
+    }
 
     assert(dumpFile.size() == dataOffset + 12 + 8 + sizeof(PRStatus));
 
     cout.sendCoreDump(logName.size(), logName.data(), dumpFile.size(), dumpFile.data());
 
     cout << "End core dump" << endl;
-
+    return Status::OK();
 }

@@ -12,9 +12,9 @@ static FramebufferBackend framebufferBackend;
 static mutex logLock;
 
 
-void Logger::init(const hos_v1::FramebufferInfo &handOver) {
+Logger::Logger() {
     serialBackend.init();
-    framebufferBackend.init(handOver);
+    framebufferBackend.init(_HandOverSystem->framebufferInfo);
     setKernelColor();
 }
 

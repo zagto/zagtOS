@@ -21,7 +21,7 @@ struct SpawnProcessSection {
     Region region() const;
 };
 
-class SpawnProcess {
+class SpawnProcessStruct {
 private:
     size_t entryAddress;
     size_t numSections;
@@ -36,9 +36,14 @@ private:
 
     size_t logNameAddress;
     size_t logNameSize;
-
-    uint32_t result;
 public:
 
-    Status perform(const shared_ptr<Process> &process);
+    Result<size_t> perform(const shared_ptr<Process> &process);
 };
+
+Result<size_t> SpawnProcess(const shared_ptr<Process> &process,
+                            uint64_t structAddress,
+                            uint64_t,
+                            uint64_t,
+                            uint64_t,
+                            uint64_t);

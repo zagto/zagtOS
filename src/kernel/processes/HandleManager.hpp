@@ -48,6 +48,7 @@ private:
 
     Result<uint32_t> grabFreeNumber();
     bool handleValidFor(uint32_t number, Type type);
+    bool handleValid(uint32_t number);
     Result<uint32_t> _addRemotePort(weak_ptr<Port> &port);
     Result<uint32_t> _addMemoryArea(shared_ptr<MemoryArea> &memoryArea);
     Status _removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
@@ -57,7 +58,8 @@ public:
     HandleManager(const hos_v1::Process &handOver,
                   const vector<shared_ptr<Thread>> &allThreads,
                   const vector<shared_ptr<Port>> &allPorts,
-                  const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
+                  const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
+                  Status &status);
     HandleManager(HandleManager &) = delete;
 
     Result<uint32_t> addPort(shared_ptr<Port> &port);
@@ -69,7 +71,7 @@ public:
     Result<shared_ptr<MemoryArea>> lookupMemoryArea(uint32_t number);
     shared_ptr<Thread> extractThread();
     Status removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
-    Status transferHandles(vector<uint32_t> &elements, HandleManager &destination);
+    Status transferHandles(vector<uint32_t> &handleValues, HandleManager &destination);
     uint32_t numFreeHandles();
     void insertAllProcessPointersAfterKernelHandover(const shared_ptr<Process> &process);
 };

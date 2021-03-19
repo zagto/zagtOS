@@ -21,7 +21,7 @@ private:
                            size_t length,
                            PagingContext::AccessOperation accOp,
                            bool requireWritePermissions);
-    void coreDump(Thread *crashedThread);
+    Status coreDump(Thread *crashedThread);
 
 public:
     MappedAreaVector mappedAreas;
@@ -47,12 +47,12 @@ public:
             UserVirtualAddress entryAddress,
             Thread::Priority initialPrioriy,
             Message &runMessage,
-            vector<uint8_t> logName,
+            vector<uint8_t> &logName,
             Status &status);
     ~Process();
     void activate();
     void freeFrame(UserVirtualAddress address);
-    bool handlePageFault(UserVirtualAddress address);
+    Status handlePageFault(UserVirtualAddress address);
 
     Status copyFromOhterUserSpace(size_t destinationAddress,
                                   Process &sourceProcess,
@@ -70,3 +70,5 @@ public:
     void crash(const char *message, Thread *crashedThread);
     void exit();
 };
+
+shared_ptr<Process> CurrentProcess();

@@ -18,7 +18,6 @@ public:
 public:
     Scheduler scheduler;
     Interrupts interrupts;
-    Process *currentProcess{nullptr};
     PagingContext *activePagingContext;
 
     Processor(bool bootProcessor, Status &status);

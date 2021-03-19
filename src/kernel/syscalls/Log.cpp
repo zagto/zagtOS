@@ -2,23 +2,25 @@
 #include <processes/Process.hpp>
 
 Result<size_t> Log(const shared_ptr<Process> &process,
-           uint64_t _address,
-           uint64_t _length,
-           uint64_t,
-           uint64_t,
-           uint64_t) {
+                   size_t _address,
+                   size_t _length,
+                   size_t,
+                   size_t,
+                   size_t) {
     scoped_lock lg(process->pagingLock);
     static const size_t MAX_LOG_SIZE = 10000;
     size_t address = _address;
     size_t length = _length;
 
     if (length > MAX_LOG_SIZE) {
+        // TODO
         cout << "Process attempted to send huge log. ignoring.\n";
         return 0;
     }
 
+    /* zero-size log */
     if (length == 0) {
-        0;
+        return 0;
     }
 
     Status status;

@@ -10,9 +10,10 @@
 Process::Process(const hos_v1::Process &handOver,
         const vector<shared_ptr<Thread>> &allThreads,
         const vector<shared_ptr<Port>> &allPorts,
-        const vector<shared_ptr<MemoryArea> > &allMemoryAreas, Status &status) :
+        const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
+        Status &status) :
     mappedAreas(this, allMemoryAreas, handOver),
-    handleManager(handOver, allThreads, allPorts, allMemoryAreas),
+    handleManager(handOver, allThreads, allPorts, allMemoryAreas, status),
     futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads, status)
 {
     if (!status) {
@@ -40,15 +41,23 @@ Process::Process(Process &sourceProcess,
                  UserVirtualAddress entryAddress,
                  Thread::Priority initialPrioriy,
                  Message &runMessage,
-                 vector<uint8_t> logName,
+                 vector<uint8_t> &logName,
                  Status &status):
         mappedAreas(this),
-        logName{move(logName)} {
+        logName{move(logName)},
+        futexManager(status) {
+    if (!status) {
+        return;
+    }
 
     scoped_lock lg(pagingLock);
-    status = Status::OK();
 
-    pagingContext = new PagingContext(this);
+    Result pagingContextResult = make_raw<PagingContext>(this);
+    if (!pagingContextResult) {
+        status = pagingContextResult.status();
+        return;
+    }
+    pagingContext = *pagingContextResult;
 
     for (const auto &section: sections) {
         Result result = mappedAreas.addNew(section.region(), section.permissions());
@@ -57,12 +66,14 @@ Process::Process(Process &sourceProcess,
             return;
         }
 
-        bool success = copyFromOhterUserSpace(section.address,
+        status = copyFromOhterUserSpace(section.address,
                                               sourceProcess,
                                               section.dataAddress,
                                               section.dataSize,
                                               false);
-        assert(success);
+        if (!status) {
+            return;
+        }
     }
 
     // TODO: stack border
@@ -104,15 +115,15 @@ Process::Process(Process &sourceProcess,
         return;
     }
 
-    auto mainThread = make_shared<Thread>(shared_ptr<Process>(this),
-                                          entryAddress,
-                                          initialPrioriy,
-                                          /* ensure valid UserVirtualAddress */
-                                          UserStackRegion.end() - 1,
-                                          runMessage.infoAddress,
-                                          tlsBase,
-                                          masterTLSBase,
-                                          TLSSize);
+    Result mainThread = make_shared<Thread>(shared_ptr<Process>(this),
+                                            entryAddress,
+                                            initialPrioriy,
+                                            /* ensure valid UserVirtualAddress */
+                                            UserStackRegion.end() - 1,
+                                            runMessage.infoAddress,
+                                            tlsBase,
+                                            masterTLSBase,
+                                            TLSSize);
     if (!mainThread) {
         status = mainThread.status();
         return;
@@ -135,16 +146,15 @@ Process::~Process() {
     cout << "Process terminated" << endl;
 }
 
-bool Process::handlePageFault(UserVirtualAddress address) {
+Status Process::handlePageFault(UserVirtualAddress address) {
     UserVirtualAddress pageAddress{align(address.value(), PAGE_SIZE, AlignDirection::DOWN)};
     scoped_lock lg(pagingLock);
 
     MappedArea *ma = mappedAreas.findMappedArea(address);
     if (ma) {
-        ma->handlePageFault(pageAddress);
-        return true;
+        return ma->handlePageFault(pageAddress);
     } else {
-        return false;
+        return Status::BadUserSpace();
     }
 }
 
@@ -158,7 +168,10 @@ void Process::crash(const char *message, Thread *crashedThread) {
     locks are clear */
     cout << "Terminating process for reason: " << message << endl;
     if (crashedThread != nullptr) {
-        coreDump(crashedThread);
+        Status status = coreDump(crashedThread);
+        if (!status) {
+            cout << "unable to core dump because of Exception" << endl;
+        }
     }
     exit();
 }
@@ -172,4 +185,8 @@ void Process::exit() {
         }
         thread->terminate();
     }
+}
+
+shared_ptr<Process> CurrentProcess() {
+    return CurrentProcessor->scheduler.activeThread()->process;
 }

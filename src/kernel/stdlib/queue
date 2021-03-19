@@ -42,7 +42,7 @@ public:
                 buffer[index] = move(buffer[index + firstIndex]);
             }
             /* resize to smaller size should always succeed */
-            buffer.resize(size());
+            buffer.shrinkTo(size());
             firstIndex = 0;
         }
     }

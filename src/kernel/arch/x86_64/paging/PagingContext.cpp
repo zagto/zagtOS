@@ -50,10 +50,19 @@ PageTableEntry *PagingContext::walkEntries(VirtualAddress address, MissingStrate
 }
 
 
-PagingContext::PagingContext(Process *process) :
-    PagingContext(process, CurrentSystem.memory.allocatePhysicalFrame()) {
+PagingContext::PagingContext(Process *process, Status &status) :
+    process{process} {
 
     assert(this != CurrentProcessor->activePagingContext);
+
+    Result<PhysicalAddress> result = CurrentSystem.memory.allocatePhysicalFrame();
+    if (!result) {
+        status = result.status();
+        return;
+    }
+
+    masterPageTableAddress = *result;
+    masterPageTable = masterPageTableAddress.identityMapped().asPointer<PageTable>();
 
     for (size_t index = KERNEL_ENTRIES_OFFSET;
          index < PageTable::NUM_ENTRIES - 1;
@@ -63,7 +72,7 @@ PagingContext::PagingContext(Process *process) :
 }
 
 
-PagingContext::PagingContext(Process *process, PhysicalAddress masterPageTableAddress) :
+PagingContext::PagingContext(Process *process, PhysicalAddress masterPageTableAddress, Status &) :
         process{process},
         masterPageTableAddress{masterPageTableAddress},
         masterPageTable{masterPageTableAddress.identityMapped().asPointer<PageTable>()} {

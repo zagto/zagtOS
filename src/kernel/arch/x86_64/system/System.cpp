@@ -2,7 +2,13 @@
 #include <system/System.hpp>
 
 
+Status _handOverStatus;
+hos_v1::System *_HandOverSystem;
+
+/* global contructors - initialization order matters. Do not reorder or move tho ad different
+ * compilation unit */
 System CurrentSystem;
+Logger cout;
 
 void System::setupSecondaryProcessorEntry(const hos_v1::System &handOver) {
     size_t length = static_cast<size_t>(&SecondaryProcessorEntryCodeEnd
@@ -33,9 +39,13 @@ void System::setupSecondaryProcessorEntry(const hos_v1::System &handOver) {
 }
 
 
-System::System(hos_v1::System handOver) :
-        CommonSystem(handOver),
-        ACPIRoot{handOver.firmwareRoot},
-        secondaryProcessorEntry{handOver.secondaryProcessorEntry} {
-    setupSecondaryProcessorEntry(handOver);
+System::System() :
+        CommonSystem(*_HandOverSystem, _handOverStatus),
+        ACPIRoot{_HandOverSystem->firmwareRoot},
+        secondaryProcessorEntry{_HandOverSystem->secondaryProcessorEntry} {
+    if (_handOverStatus) {
+        cout << "Exception during System initialization" << endl;
+        Panic();
+    }
+    setupSecondaryProcessorEntry(*_HandOverSystem);
 }

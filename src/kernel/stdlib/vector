@@ -186,7 +186,7 @@ public:
             _data[moveIndex] = move(_data[moveIndex + 1]);
         }
         /* ignore status of adjustAllocatedSize - even if it failed we have removed the element */
-        adjustAllocatedSize(numElements);
+        Status ignored = adjustAllocatedSize(numElements);
     }
 
     Status resize(size_t newSize) {
@@ -202,6 +202,15 @@ public:
         }
         return status;
     }
+
+    /* version of size that only allows shrinking or leaving the size the same and always
+     * succeeds */
+    void shrinkTo(size_t newSize) {
+        assert(newSize <= numElements);
+        Status success = resize(newSize);
+        assert(success);
+    }
+
 
     void clear() {
         if (_data != nullptr) {

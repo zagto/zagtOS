@@ -16,25 +16,32 @@ private:
 public:
     T object;
 
-    UserSpaceObject(size_t address, const shared_ptr<Process> &process, Status &status) :
+    UserSpaceObject(size_t address, Status &status) :
             address{address},
             process{process} {
-        if (op == USOOperation::WRITE) {
-            status = process->verifyUserAccess(address, sizeof(T), true);
-        } else {
-            status = process->copyFromUser(reinterpret_cast<uint8_t *>(&object),
-                                           address,
-                                           sizeof(T),
-                                           /* already check for write permissions if we need them
-                                            * later */
-                                           op == USOOperation::READ_AND_WRITE);
+        if (op != USOOperation::WRITE) {
+            status = CurrentProcess()->copyFromUser(reinterpret_cast<uint8_t *>(&object),
+                                                    address,
+                                                    sizeof(T),
+                                                    false);
         }
         valid = status;
     }
 
+    /* constructor for write-only USOs which does not require status checking */
+    UserSpaceObject(size_t address, const shared_ptr<Process> &process) :
+        address{address},
+        process{process},
+        valid{true} {
+
+        static_assert(op == USOOperation::WRITE, "readable USOs require status-checking on constructor");
+    }
+
     Status writeOut() {
-        assert(op != USOOperation::READ);
+        static_assert(op != USOOperation::READ, "read-only USOs cannot be written out");
         assert(valid);
-        return process->copyToUser(address, reinterpret_cast<uint8_t *>(&object), sizeof(T), true);
+        return CurrentProcess()->copyToUser(address, reinterpret_cast<uint8_t *>(&object),
+                                            sizeof(T),
+                                            true);
     }
 };

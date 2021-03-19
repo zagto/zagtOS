@@ -2,12 +2,12 @@
 #include <system/System.hpp>
 #include <processes/Port.hpp>
 
-Port::Port(const shared_ptr<Process> process) :
+Port::Port(const shared_ptr<Process> process, Status &) :
     process{process} {}
 
 Port::Port(const hos_v1::Port &handOver,
            const vector<shared_ptr<Thread>> &allThreads,
-           Status status) {
+           Status &status) {
     status = Status::OK();
     if (handOver.threadWaits) {
         waitingThread = allThreads[handOver.waitingThreadID].get();
@@ -52,7 +52,7 @@ unique_ptr<Message> Port::getMessageOrMakeThreadWait(Thread *thread) {
     }
 }
 
-void Port::addMessage(unique_ptr<Message> message) {
+Status Port::addMessage(unique_ptr<Message> message) {
     scoped_lock sl(lock);
 
     if (waitingThread) {
@@ -60,7 +60,8 @@ void Port::addMessage(unique_ptr<Message> message) {
         waitingThread->setState(Thread::State::Transition());
         Scheduler::schedule(waitingThread);
         waitingThread = nullptr;
+        return Status::OK();
     } else {
-        messages.push_back(move(message));
+        return messages.push_back(move(message));
     }
 }

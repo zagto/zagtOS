@@ -103,7 +103,8 @@ public:
            UserVirtualAddress runMessageAddress,
            UserVirtualAddress tlsBase,
            UserVirtualAddress masterTLSBase,
-           size_t tlsSize) :
+           size_t tlsSize,
+           Status &) :
         _ownPriority{priority},
         _currentPriority{priority},
         _state {State::Transition()},
@@ -115,11 +116,12 @@ public:
            VirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,
-           UserVirtualAddress tlsBase) :
-        Thread(process, entry, priority, stackPointer, stackPointer, tlsBase, 0, 0) {}
+           UserVirtualAddress tlsBase,
+           Status &status) :
+        Thread(process, entry, priority, stackPointer, stackPointer, tlsBase, 0, 0, status) {}
     /* constructor used during kernel handover. process and handle fields need to be inserted
      * later. */
-    Thread(const hos_v1::Thread &handOver) :
+    Thread(const hos_v1::Thread &handOver, Status &) :
         _ownPriority{handOver.ownPriority},
         _currentPriority{handOver.currentPriority},
         _state{State::Transition()},

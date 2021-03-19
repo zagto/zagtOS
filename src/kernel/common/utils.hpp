@@ -29,10 +29,9 @@ struct remove_reference<T &&> {
     typedef T type;
 };
 template<typename T>
-typename remove_reference<T>::type&& move (T&& original) {
+typename remove_reference<T>::type&& move (T &&original) {
     return static_cast<typename remove_reference<T>::type &&>(original);
 }
-
 
 template<typename T>
 void swap(T &a, T&b) {

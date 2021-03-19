@@ -54,7 +54,6 @@ public:
         first->lock();
         second->lock();
     }
-
     scoped_lock(const scoped_lock &other) = delete;
     void operator=(scoped_lock &) =delete;
     ~scoped_lock() {
@@ -62,5 +61,9 @@ public:
             second->unlock();
         }
         first->unlock();
+    }
+
+    void checkWaiters() {
+        // TODO: make this an actual mutex
     }
 };

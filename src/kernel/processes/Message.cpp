@@ -90,7 +90,7 @@ Status Message::prepareMemoryArea() {
     size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
 
     Result result = destinationProcess->mappedAreas.addNew(messageRegionSize, Permissions::READ);
-    if (!) {
+    if (!result) {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
         Panic();
     }
@@ -155,8 +155,13 @@ Status Message::transferHandles() {
         /* undo creating destination handles */
         for (uint32_t handle: handles) {
             shared_ptr<Thread> dummy;
-            destinationProcess->handleManager.removeHandle(handle, dummy);
-            assert(!dummy);
+            Status removeSuccess = destinationProcess->handleManager.removeHandle(handle, dummy);
+            if (!removeSuccess || dummy) {
+                cout << "transferHandles: destination process has messed with handles that were "
+                     << "not even passed to it yet and deserves to crash." << endl;
+                /* removing handles should only fail if invalid handle numbers are passed */
+                assert(removeSuccess == Status::BadUserSpace());
+            }
         }
     }
     return status;

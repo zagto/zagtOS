@@ -11,6 +11,7 @@ section .text
 ; output:
 ; rax - 0 = failure, 1 = success
 compare_exchange_i32:
+compare_exchange_u32:
     mov eax, [rsi]
     lock cmpxchg [rdi], edx
     mov [rsi], eax

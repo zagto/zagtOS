@@ -9,7 +9,6 @@
 struct mmap_args {
     void *start_address;
     size_t length;
-    uint32_t error;
     uint32_t flags;
     size_t offset;
     void *result;
@@ -32,8 +31,8 @@ void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
         .handle = fd,
         .flags = flags
     };
-    zagtos_syscall(SYS_MMAP, &args);
-    if (args.error) {
+    uint32_t error = zagtos_syscall(SYS_MMAP, &args);
+    if (error != 0) {
         errno = args.error;
         return MAP_FAILED;
     }

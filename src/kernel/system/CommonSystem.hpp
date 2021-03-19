@@ -24,7 +24,7 @@ public:
 
     CommonSystem(const hos_v1::System &handOver, Status &status) :
         memory(handOver),
-        kernelOnlyPagingContext(nullptr, handOver.handOverPagingContext),
+        kernelOnlyPagingContext(nullptr, handOver.handOverPagingContext, status),
         processors(),
         futexManager(status) {}
 

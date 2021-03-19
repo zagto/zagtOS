@@ -17,16 +17,19 @@ void KernelEntrySecondaryProcessor2(hos_v1::System *handOver);
 extern "C" __attribute__((noreturn)) void KernelEntry(hos_v1::System *handOver) {
     CurrentProcessor = nullptr;
 
+    /* glocal constructor for System and cout needs this */
+    _HandOverSystem = handOver;
+
     /* Call global constructors */
     _init();
 
-    cout.init(handOver->framebufferInfo);
     cout << "Hello World. Log initialized." << endl;
 
-    new (&CurrentSystem) System(*handOver);
-    cout << "System Object created." << endl;
-
-    CurrentSystem.addBootProcessor();
+    Status status = CurrentSystem.addBootProcessor();
+    if (!status) {
+        cout << "Exception during boot processor initialization" << endl;
+        Panic();
+    }
     cout << "Processor added." << endl;
 
     /* TODO: wait for eventual already running secondary processors */
@@ -54,12 +57,18 @@ __attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
 extern "C" __attribute__((noreturn)) void KernelEntrySecondaryProcessor() {
     assert(CurrentSystem.processorsLock.isLocked());
 
-    CurrentProcessor = new Processor(false);
+    Result result = make_raw<Processor>(false);
+    if (!result) {
+        cout << "Exception during boot processor initialization" << endl;
+        Panic();
+    }
 
-    /* create local variable as CurrentProcessor is a register variable that can't be passed by
-     * const reference for push_back */
-    Processor *tmp = CurrentProcessor;
-    CurrentSystem.processors.push_back(tmp);
+    CurrentProcessor = *result;
+    Status status = CurrentSystem.processors.push_back(*result);
+    if (!status) {
+        cout << "Exception during boot processor initialization" << endl;
+        Panic();
+    }
 
     switchStack(CurrentProcessor->kernelStack, KernelEntrySecondaryProcessor2, nullptr);
 }

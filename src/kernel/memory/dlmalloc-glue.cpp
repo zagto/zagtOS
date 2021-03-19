@@ -24,7 +24,7 @@ extern "C" void BasicDLMallocPanic(const char *location) {
     Panic();
 }
 
-extern "C" void KernelMUnmap(void *_address, size_t length) {
+extern "C" int KernelMUnmap(void *_address, size_t length) {
     size_t address = reinterpret_cast<size_t>(_address);
     Region region(address, length);
 
@@ -54,6 +54,8 @@ extern "C" void KernelMUnmap(void *_address, size_t length) {
     mask &= (1ul << lastBit) - 1;
     assert((bitmap[lastGroup] & mask) == mask);
     bitmap[lastGroup] &= ~mask;
+
+    return 0;
 }
 
 /* TODO: optimze, or change to something better than bitmap */

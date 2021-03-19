@@ -8,7 +8,8 @@ struct BootInfo;
 
 class Logger {
 public:
-    void init(const hos_v1::FramebufferInfo &handOver);
+    Logger();
+
     void flush();
     void setKernelColor();
     void setProgramNameColor();

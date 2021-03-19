@@ -7,7 +7,6 @@
 #include <processes/MemoryArea.hpp>
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/SpawnProcess.hpp>
-#include <syscalls/Time.hpp>
 #include <syscalls/Futex.hpp>
 #include <syscalls/SyscallNumbers.hpp>
 #include <portio.hpp>
@@ -28,85 +27,6 @@ void Syscall(uint64_t syscallNr,
     size_t result = 0;
 
     switch (syscallNr) {
-    case SYS_EXIT:
-        cout << "Process Exit" << endl;
-        /* Danger - the current thread (this) will be deleted */
-        process->exit();
-        break;
-    case SYS_CRASH:
-        /* Danger - the current thread (this) will be deleted */
-        process->crash("self-termination by syscall", thread);
-        break;
-    case SYS_CREATE_PORT: {
-        shared_ptr<Port> port = make_shared<Port>(process);
-        uint32_t handle = process->handleManager.addPort(port);
-        result = handle;
-        break;
-    }
-    case SYS_SEND_MESSAGE: {
-        uint32_t handle = static_cast<uint32_t>(arg0);
-        size_t messageTypeAddress = arg1;
-        size_t messageAddress = arg2;
-        size_t messageSize = arg3;
-        size_t numMessageHandles = arg4;
-
-        optional<weak_ptr<Port>> weakPort = process->handleManager.lookupRemotePort(handle);
-        if (!weakPort) {
-            cout << "sendMessage: invalid port handle " << handle << endl;
-            Panic(); // TODO: exception
-        }
-
-        shared_ptr<Port> port = weakPort->lock();
-        if (!port) {
-            cout << "sendMessage: destination port no longer exists: " << handle << endl;
-            Panic(); // TODO: exception
-        }
-
-        scoped_lock sl(process->pagingLock, port->process->pagingLock);
-        if (!process->verifyMessageAccess(messageAddress, messageSize, numMessageHandles)) {
-            Panic(); // TODO: exception
-        }
-        UserSpaceObject<UUID, USOOperation::READ> messageType(messageTypeAddress, process);
-        if (!messageType.valid) {
-            Panic(); // TODO: exception
-        }
-
-        unique_ptr<Message> message = make_unique<Message>(process.get(),
-                                                           port->process.get(),
-                                                           messageAddress,
-                                                           messageType.object,
-                                                           messageSize,
-                                                           numMessageHandles);
-        message->transfer();
-        port->addMessage(move(message));
-        break;
-    }
-    case SYS_RECEIVE_MESSAGE: {
-        uint32_t portHandle = static_cast<uint32_t>(arg0);
-        optional<shared_ptr<Port>> port = process->handleManager.lookupPort(portHandle);
-        if (!port) {
-            cout << "receiveMessage: invalid port handle " << portHandle << endl;
-            Panic(); // TODO: exception
-        }
-
-        unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(thread);
-        if (msg) {
-            result = msg->infoAddress.value();
-        }
-        break;
-    }
-    case SYS_DELETE_HANDLE: {
-        uint32_t handle = static_cast<uint32_t>(arg0);
-        shared_ptr<Thread> removedThread;
-        bool success = process->handleManager.removeHandle(handle, removedThread);
-        if (!success) {
-            Panic(); // TODO: exception
-        }
-        if (removedThread) {
-            removedThread->terminate();
-        }
-        break;
-    }
     case SYS_RANDOM:
         // todo: should write to memory here
         // 0 = pointer,

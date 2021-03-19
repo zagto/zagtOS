@@ -29,7 +29,7 @@ private:
 public:
     mutex lock;
 
-    Scheduler(Processor *processor);
+    Scheduler(Processor *processor, Status &status);
     ~Scheduler();
     /* new threads should be added to any scheduler in the system for even load distribution */
     static void schedule(Thread *thread);
