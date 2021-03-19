@@ -1,7 +1,7 @@
 #include <syscalls/MMap.hpp>
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/ErrorCodes.hpp>
-#include <memory/UserSpaceObject.hpp>
+#include <syscalls/UserSpaceObject.hpp>
 
 struct MMapStruct {
     size_t startAddress;

@@ -3,7 +3,7 @@
 #include <lib/atomic.hpp>
 #include <processes/Thread.hpp>
 #include <interrupts/RegisterState.hpp>
-#include <memory/UserSpaceObject.hpp>
+#include <syscalls/UserSpaceObject.hpp>
 #include <processes/FutexManager.hpp>
 #include <system/System.hpp>
 #include <syscalls/ErrorCodes.hpp>

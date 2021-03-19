@@ -1,5 +1,5 @@
 #include <syscalls/GetTime.hpp>
-#include <memory/UserSpaceObject.hpp>
+#include <syscalls/UserSpaceObject.hpp>
 #include <system/System.hpp>
 
 Result<size_t> GetTime(const shared_ptr<Process> &process,

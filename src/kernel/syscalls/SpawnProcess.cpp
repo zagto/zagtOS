@@ -2,7 +2,7 @@
 #include <processes/Thread.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <syscalls/ErrorCodes.hpp>
-#include <memory/UserSpaceObject.hpp>
+#include <syscalls/UserSpaceObject.hpp>
 
 Result<size_t> SpawnProcess(const shared_ptr<Process> &process,
                             uint64_t structAddress,

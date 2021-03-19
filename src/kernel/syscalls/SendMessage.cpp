@@ -1,6 +1,6 @@
 #include <syscalls/SendMessage.hpp>
 #include <syscalls/ErrorCodes.hpp>
-#include <memory/UserSpaceObject.hpp>
+#include <syscalls/UserSpaceObject.hpp>
 
 Result<size_t> SendMessage(const shared_ptr<Process> &process,
            uint64_t handle,
