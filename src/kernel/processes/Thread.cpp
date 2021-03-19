@@ -4,7 +4,8 @@
 
 
 Thread::~Thread() {
-    assert(currentProcessor() == CurrentProcessor);
+    /* Thread should either be destructed while active or directly on creation failure */
+    assert(currentProcessor() == CurrentProcessor || currentProcessor() == nullptr);
     /* don't try deleting special threads */
     assert(process);
 }
@@ -100,4 +101,8 @@ void Thread::terminate() noexcept {
         // TODO: find good time
         CurrentSystem.time.delayMilliseconds(1);
     }
+}
+
+Thread *CurrentThread() {
+    return CurrentProcessor->scheduler.activeThread();
 }

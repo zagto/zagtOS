@@ -48,7 +48,7 @@ Result<size_t> Futex(const shared_ptr<Process> &,
     if (operation == FUTEX_WAIT || operation == FUTEX_LOCK_PI) {
         if (timeoutOrValue2 != 0) {
             Status status = Status::OK();
-            UserSpaceObject<timespec, USOOperation::READ> timeoutUSO(timeoutOrValue2, thread->process);
+            UserSpaceObject<timespec, USOOperation::READ> timeoutUSO(timeoutOrValue2, status);
             if (!status) {
                 if (status == Status::BadUserSpace()) {
                     cout << "Futex: invalid pointer to timeout" << endl;

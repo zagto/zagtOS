@@ -11,7 +11,7 @@ Result<size_t> GetTime(const shared_ptr<Process> &process,
     scoped_lock sl(process->pagingLock);
     assert(process->pagingLock.isLocked());
 
-    UserSpaceObject<timespec, USOOperation::WRITE> result(resultAddress, process);
+    UserSpaceObject<timespec, USOOperation::WRITE> result(resultAddress);
 
     uint64_t timerValue = readTimerValue();
     uint64_t frequency = CurrentSystem.time.timerFrequency;

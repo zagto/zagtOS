@@ -1,5 +1,4 @@
-#ifndef THREAD_HPP
-#define THREAD_HPP
+#pragma once
 
 #include <interrupts/RegisterState.hpp>
 #include <memory>
@@ -154,4 +153,4 @@ public:
     void terminate() noexcept;
 };
 
-#endif
+Thread *CurrentThread();

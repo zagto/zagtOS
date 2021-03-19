@@ -56,10 +56,13 @@ Status Port::addMessage(unique_ptr<Message> message) {
     scoped_lock sl(lock);
 
     if (waitingThread) {
-        waitingThread->registerState.setSyscallResult(message->infoAddress.value());
+        //waitingThread->registerState.setSyscallResult(message->infoAddress.value());
+        cout << "TODO: implement kernel threading" << endl;
+        Panic();
         waitingThread->setState(Thread::State::Transition());
-        Scheduler::schedule(waitingThread);
+        Thread *tmp = waitingThread;
         waitingThread = nullptr;
+        Scheduler::schedule(tmp);
         return Status::OK();
     } else {
         return messages.push_back(move(message));

@@ -36,12 +36,12 @@ struct pthread {
 	void *result;
 	struct __ptcb *cancelbuf;
 	void **tsd;
-	struct {
-		volatile void *volatile head;
-		long off;
-		volatile void *volatile pending;
-	} robust_list;
-	volatile int timer_id;
+    struct {
+        volatile void *volatile head;
+        long off;
+        volatile void *volatile pending;
+    } robust_list;
+    volatile int timer_id;
 	locale_t locale;
 	volatile int killlock[1];
 	char *dlerror_buf;

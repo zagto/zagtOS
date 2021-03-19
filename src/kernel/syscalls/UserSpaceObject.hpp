@@ -9,29 +9,28 @@ enum class USOOperation {
 
 template <typename T, USOOperation op> class UserSpaceObject {
 private:
-    bool valid;
     size_t address;
-    const shared_ptr<Process> &process;
+    bool valid;
 
 public:
     T object;
 
     UserSpaceObject(size_t address, Status &status) :
-            address{address},
-            process{process} {
+            address{address} {
         if (op != USOOperation::WRITE) {
             status = CurrentProcess()->copyFromUser(reinterpret_cast<uint8_t *>(&object),
                                                     address,
                                                     sizeof(T),
                                                     false);
+            valid = status;
+        } else {
+            valid = true;
         }
-        valid = status;
     }
 
     /* constructor for write-only USOs which does not require status checking */
-    UserSpaceObject(size_t address, const shared_ptr<Process> &process) :
+    UserSpaceObject(size_t address) :
         address{address},
-        process{process},
         valid{true} {
 
         static_assert(op == USOOperation::WRITE, "readable USOs require status-checking on constructor");

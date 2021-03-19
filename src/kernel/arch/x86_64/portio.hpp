@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common/common.hpp>
+#include <lib/Status.hpp>
 
 namespace portio {
 
@@ -11,8 +12,8 @@ extern "C" void OutW(uint16_t port, uint16_t data);
 extern "C" uint32_t InD(uint16_t port);
 extern "C" void OutD(uint16_t port, uint32_t data);
 
-uint32_t read(uint16_t port, size_t size);
-void write(uint16_t port, size_t size, uint32_t data);
+Result<size_t> read(uint16_t port, size_t size);
+Status write(uint16_t port, size_t size, size_t data);
 
 inline void waitIO() {
     /*

@@ -155,10 +155,10 @@ Result<size_t> MMapStruct::perform(shared_ptr<Process> &process) {
     }
 
     if (slotReserved) {
-        assert(process.mappedAreas[insertIndex] == nullptr);
-        process.mappedAreas[insertIndex] = *ma;
+        assert(process->mappedAreas[insertIndex] == nullptr);
+        process->mappedAreas[insertIndex] = *ma;
     } else {
-        process.mappedAreas.insert2(*ma, insertIndex);
+        process->mappedAreas.insert2(*ma, insertIndex);
     }
     result = (*ma)->region.start;
 }
@@ -169,7 +169,7 @@ Result<size_t> MMap(const shared_ptr<Process> &process,
                     size_t,
                     size_t,
                     size_t) {
-    UserSpaceObject<MMap, USOOperation::READ_AND_WRITE> uso(arg0, process);
+    UserSpaceObject<MMapStruct, USOOperation::READ_AND_WRITE> uso(structAddress, process);
     if (!uso.valid) {
         cout << "SYS_MMAP: process passed non-accessible regions as parameters structure" << endl;
         Panic(); // TODO: exception

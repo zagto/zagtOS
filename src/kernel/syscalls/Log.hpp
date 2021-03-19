@@ -4,8 +4,8 @@
 #include <processes/Process.hpp>
 
 Result<size_t> Log(const shared_ptr<Process> &process,
-           uint64_t _address,
-           uint64_t _length,
-           uint64_t,
-           uint64_t,
-           uint64_t);
+           size_t _address,
+           size_t _length,
+           size_t,
+           size_t,
+           size_t);

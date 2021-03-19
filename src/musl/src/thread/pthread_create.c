@@ -118,20 +118,6 @@ _Noreturn void __pthread_exit(void *result)
 		 * signals, since they will not have a stack in their last
 		 * moments of existence. */
 
-	/* Robust list will no longer be valid, and was already
-	 * processed above, so unregister it with the kernel. */
-	if (self->robust_list.off)
-		zagtos_syscall(SYS_SET_ROBUST_LIST, 0, 3*sizeof(long));
-
-		/* Since __unmapself bypasses the normal munmap code path,
-		 * explicitly wait for vmlock holders first. */
-		__vm_wait();
-
-		/* The following call unmaps the thread's stack mapping
-		 * and then exits without touching the stack. */
-		__unmapself(self->map_base, self->map_size);
-	}
-
 	/* Wake any joiner. */
 	__wake(&self->detach_state, 1, 1);
 

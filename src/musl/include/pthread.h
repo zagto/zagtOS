@@ -167,7 +167,6 @@ int pthread_mutexattr_init(pthread_mutexattr_t *);
 int pthread_mutexattr_setprioceiling(pthread_mutexattr_t *, int);
 int pthread_mutexattr_setprotocol(pthread_mutexattr_t *, int);
 int pthread_mutexattr_setpshared(pthread_mutexattr_t *, int);
-int pthread_mutexattr_setrobust(pthread_mutexattr_t *, int);
 int pthread_mutexattr_settype(pthread_mutexattr_t *, int);
 
 int pthread_condattr_init(pthread_condattr_t *);
