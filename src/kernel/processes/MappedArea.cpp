@@ -7,12 +7,16 @@ MappedArea::MappedArea(Process *process,
                        Region region,
                        shared_ptr<MemoryArea> _memoryArea,
                        size_t offset,
-                       Permissions permissions) :
+                       Permissions permissions,
+                       Status &status) :
         process{process},
         memoryArea{move(_memoryArea)},
         offset{offset},
         region{region},
         permissions{permissions} {
+    if (!status) {
+        return;
+    }
     assert(UserVirtualAddress::checkInRegion(region.start));
     assert(UserVirtualAddress::checkInRegion(region.end() - 1));
     assert(region.isPageAligned());
@@ -43,10 +47,12 @@ Status MappedArea::handlePageFault(UserVirtualAddress address) {
         context->invalidateLocally(address);
     } else {
         Result<PhysicalAddress> newFrame = memoryArea->makePresent(address.value() - region.start + offset);
-        if (newFrame) {
-            context->map(address, *newFrame, permissions, memoryArea->cacheType());
-        } else {
+        if (!newFrame) {
             return newFrame.status();
+        }
+        Status status = context->map(address, *newFrame, permissions, memoryArea->cacheType());
+        if (!status) {
+            return status;
         }
     }
     return Status::OK();
@@ -79,12 +85,13 @@ void MappedArea::changePermissions(Permissions newPermissions) {
     permissions = newPermissions;
 }
 
-/*
+
 MappedAreaVector::MappedAreaVector(Process *process,
                                    const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
                                    const hos_v1::Process &handOver) :
         process{process} {
-    resize(handOver.numMappedAreas);
+    Status status = resize(handOver.numMappedAreas);
+    assert(status); // TODO
     for (size_t index = 0; index < handOver.numMappedAreas; index++) {
         _data[index] = new MappedArea(process,
                                       allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
@@ -213,10 +220,11 @@ fail:
 void MappedAreaVector::insert2(MappedArea *ma, size_t index) {
     assert(index == this->findIndexFor(ma));
     assert(ma != nullptr);
-    static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
+    Status status = static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
+    assert(status); // TODO
 }
 
-MappedArea *MappedAreaVector::addNew(size_t length, Permissions permissions) {
+Result<MappedArea *> MappedAreaVector::addNew(size_t length, Permissions permissions) {
     bool valid;
     size_t index;
     Region region = findFreeRegion(length, valid, index);
@@ -224,10 +232,18 @@ MappedArea *MappedAreaVector::addNew(size_t length, Permissions permissions) {
         return nullptr;
     }
 
-    shared_ptr memoryArea = make_shared<MemoryArea>(region.length);
-    MappedArea *ma = new MappedArea(process, region, memoryArea, 0, permissions);
-    insert2(ma, index);
-    return ma;
+    Result memoryArea = make_shared<MemoryArea>(region.length);
+    if (!memoryArea) {
+        return memoryArea.status();
+    }
+
+    Result ma = make_raw<MappedArea>(process, region, *memoryArea, 0, permissions);
+    if (!ma) {
+        return ma.status();
+    }
+
+    insert2(*ma, index);
+    return *ma;
 }
 
 bool MappedAreaVector::isRegionFree(Region region, size_t &insertIndex) const {
@@ -254,8 +270,9 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
 
     size_t numMove = numElements - index - 1;
 
-    numElements += numAddBetween + 1;
-    adjustAllocatedSize();
+
+    Status status = adjustAllocatedSize(numElements += numAddBetween + 1);
+    assert(status); // TODO
 
     memmove(&_data[index + numAddBetween + 2],
             &_data[index + 1],
@@ -266,7 +283,11 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
 
     size_t newElementIndex = index + numAddBetween + 1;
     Region newElementRegion(removeRegion.end(), oldElement.region.end() - removeRegion.end());
-    _data[newElementIndex] = new MappedArea(oldElement);
+
+    cout << "TODO\n";
+    Panic();
+
+    //_data[newElementIndex] = *make_raw<MappedArea>(oldElement); // TODO
     _data[newElementIndex]->region = newElementRegion;
 
     // oldElement will still be responsible for the first part
@@ -276,7 +297,7 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
     for (size_t i = index + 1; i < newElementIndex; i++) {
         _data[i] = nullptr;
     }
-}*/
+}
 
 /*
  * Unmaps all MappedAreas that are inside range. MappedAreas crossing range boundaries will be
@@ -285,7 +306,7 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
  * removed range. No MappedArea object will be created for these, they will be initialized to
  * nullptr. The index of the first of theses slots is returned
  */
-/*size_t MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
+Result<size_t> MappedAreaVector::unmapRange(Region range, size_t numAddInstead) {
     size_t index;
     if (!isRegionFree(range, index)) {
         assert(index < numElements);
@@ -325,14 +346,17 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
 
     size_t numMove = numElements - endIndex;
 
-    numElements = numElements - (endIndex - index) + numAddInstead;
     if (numAddInstead > endIndex - index) {
-        adjustAllocatedSize();
+        Status status = adjustAllocatedSize(numElements - (endIndex - index) + numAddInstead);
+        if (!status) {
+            cout << "Oh no but this will be changed anyways" << endl;
+        }
     }
     memmove(&_data[index + numAddInstead],
             &_data[endIndex],
             numMove * sizeof(MappedArea *));
-    adjustAllocatedSize();
+    Status status = adjustAllocatedSize(numElements - (endIndex - index) + numAddInstead);
+    assert(status);
 
     for (size_t i = index; i < index + numAddInstead; i++) {
         _data[i] = nullptr;
@@ -340,7 +364,7 @@ void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t nu
 
     return index;
 }
-*/
+
 
 bool MappedAreaVector::isRegionFullyMapped(Region range, size_t &index) const {
     if (isRegionFree(range, index)) {

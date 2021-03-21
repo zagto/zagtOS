@@ -49,13 +49,16 @@ Status Process::accessUserSpace(uint8_t *buffer,
     if (accOp != PagingContext::AccessOperation::VERIFY_ONLY) {
         size_t pagePrefix = start - alignedStart;
 
-        pagingContext->accessRange(UserVirtualAddress(alignedStart),
-                                     alignedLength / PAGE_SIZE,
-                                     pagePrefix,
-                                     alignedLength - length - pagePrefix,
-                                     buffer,
-                                     accOp,
-                                     area->permissions);
+        Status status = pagingContext->accessRange(UserVirtualAddress(alignedStart),
+                                                   alignedLength / PAGE_SIZE,
+                                                   pagePrefix,
+                                                   alignedLength - length - pagePrefix,
+                                                   buffer,
+                                                   accOp,
+                                                   area->permissions);
+        if (!status) {
+            return status;
+        }
     }
 
     return Status::OK();

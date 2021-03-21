@@ -4,13 +4,14 @@
 #include <processes/Process.hpp>
 
 
+/* TODO: invalidating properly is a lot harder then this on SMP */
 extern "C" void basicInvalidate(VirtualAddress address);
 
 
-PageTableEntry *PagingContext::partialWalkEntries(VirtualAddress address,
-                                                  MissingStrategy missingStrategy,
-                                                  size_t startLevel,
-                                                  WalkData &data) {
+Result<PageTableEntry *> PagingContext::partialWalkEntries(VirtualAddress address,
+                                                           MissingStrategy missingStrategy,
+                                                           size_t startLevel,
+                                                           WalkData &data) {
     assert(!address.isInRegion(IdentityMapping));
 
     for (size_t level = startLevel; level > 0; level--) {
@@ -28,8 +29,12 @@ PageTableEntry *PagingContext::partialWalkEntries(VirtualAddress address,
                 }
                 return nullptr;
             case MissingStrategy::CREATE: {
-                PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
-                *entry = PageTableEntry(frame,
+                Result<PhysicalAddress> frame = CurrentSystem.memory.allocatePhysicalFrame();
+                if (!frame) {
+                    return frame.status();
+                }
+
+                *entry = PageTableEntry(*frame,
                                         Permissions::READ_WRITE_EXECUTE,
                                         true,
                                         CacheType::NORMAL_WRITE_BACK);
@@ -44,7 +49,7 @@ PageTableEntry *PagingContext::partialWalkEntries(VirtualAddress address,
 }
 
 
-PageTableEntry *PagingContext::walkEntries(VirtualAddress address, MissingStrategy ms) {
+Result<PageTableEntry *> PagingContext::walkEntries(VirtualAddress address, MissingStrategy ms) {
     WalkData walkData(masterPageTable);
     return partialWalkEntries(address, ms, MASTER_LEVEL, walkData);
 }
@@ -85,10 +90,11 @@ void PagingContext::map(KernelVirtualAddress from,
                           CacheType cacheType) {
     assert(CurrentSystem.memory.kernelPagingLock.isLocked());
 
-    PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(from, MissingStrategy::CREATE);
-    assert(!entry->present());
+    Result<PageTableEntry *>entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(from,
+                                                                                      MissingStrategy::CREATE);
+    assert(!(*entry)->present());
 
-    *entry = PageTableEntry(to, permissions, false, cacheType);
+    **entry = PageTableEntry(to, permissions, false, cacheType);
     basicInvalidate(from);
 }
 
@@ -97,25 +103,18 @@ PhysicalAddress PagingContext::resolve(KernelVirtualAddress address) {
     assert(CurrentSystem.memory.kernelPagingLock.isLocked());
 
     size_t offset = address.value() % PAGE_SIZE;
-    return CurrentSystem.kernelOnlyPagingContext.walkEntries(
+    return (*CurrentSystem.kernelOnlyPagingContext.walkEntries(
                 address - offset,
-                MissingStrategy::NONE)->addressValue() + offset;
-}
-
-
-void PagingContext::unmap(KernelVirtualAddress address) {
-    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
-
-    PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(address, MissingStrategy::NONE);
-    *entry = PageTableEntry();
+                MissingStrategy::NONE))->addressValue() + offset;
 }
 
 
 bool PagingContext::isMapped(KernelVirtualAddress address) {
     assert(CurrentSystem.memory.kernelPagingLock.isLocked());
 
-    PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(address, MissingStrategy::RETURN_NULLPTR);
-    return entry != nullptr && entry->present();
+    Result<PageTableEntry *> entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(address, MissingStrategy::RETURN_NULLPTR);
+    assert(entry);
+    return *entry != nullptr && (*entry)->present();
 }
 
 
@@ -123,11 +122,11 @@ PhysicalAddress PagingContext::resolve(UserVirtualAddress address) {
     assert(process == nullptr || process->pagingLock.isLocked());
 
     size_t offset = address.value() % PAGE_SIZE;
-    return walkEntries(address - offset, MissingStrategy::NONE)->addressValue() + offset;
+    return (*walkEntries(address - offset, MissingStrategy::NONE))->addressValue() + offset;
 }
 
 
-void PagingContext::accessRange(UserVirtualAddress address,
+Status PagingContext::accessRange(UserVirtualAddress address,
                                   size_t numPages,
                                   size_t startOffset,
                                   size_t endOffset,
@@ -141,7 +140,7 @@ void PagingContext::accessRange(UserVirtualAddress address,
     assert(numPages > 1 || startOffset + endOffset < PAGE_SIZE);
 
     if (numPages == 0) {
-        return;
+        return Status::OK();
     }
 
     WalkData walkData(masterPageTable);
@@ -154,13 +153,20 @@ void PagingContext::accessRange(UserVirtualAddress address,
     size_t changedLevel = MASTER_LEVEL;
 
     while (true) {
-        PageTableEntry *entry = partialWalkEntries(address,
-                                                   MissingStrategy::CREATE,
-                                                   changedLevel,
-                                                   walkData);
+        Result result = partialWalkEntries(address,
+                                           MissingStrategy::CREATE,
+                                           changedLevel,
+                                           walkData);
+        if (!result) {
+            return result.status();
+        }
+        PageTableEntry *entry = *result;
         if (!entry->present()) {
-            PhysicalAddress frame = CurrentSystem.memory.allocatePhysicalFrame();
-            *entry = PageTableEntry(frame, newPagesPermissions, true, CacheType::NORMAL_WRITE_BACK);
+            Result<PhysicalAddress> frame = CurrentSystem.memory.allocatePhysicalFrame();
+            if (!frame) {
+                return frame.status();
+            }
+            *entry = PageTableEntry(*frame, newPagesPermissions, true, CacheType::NORMAL_WRITE_BACK);
         }
 
         size_t lengthInPage = PAGE_SIZE - startOffset;
@@ -195,7 +201,7 @@ void PagingContext::accessRange(UserVirtualAddress address,
         }
         numPages--;
         if (numPages == 0) {
-            return;
+            return Status::OK();
         }
         address = address.value() + PAGE_SIZE;
     }
@@ -222,17 +228,20 @@ void PagingContext::_unmapRange(VirtualAddress address, size_t numPages, bool fr
     size_t changedLevel = MASTER_LEVEL;
 
     while (true) {
-        PageTableEntry *entry = partialWalkEntries(address,
-                                                   MissingStrategy::RETURN_NULLPTR,
-                                                   changedLevel,
-                                                   walkData);
+        Result result = partialWalkEntries(address,
+                                           MissingStrategy::RETURN_NULLPTR,
+                                           changedLevel,
+                                           walkData);
+        /* RETURN_NULLPTR should never go OOM */
+        assert(result);
+        PageTableEntry *entry = *result;
 
         if (entry != nullptr && entry->present()) {
             if (freeFrames) {
                 CurrentSystem.memory.freePhysicalFrame(entry->addressValue());
             }
             *entry = PageTableEntry();
-            invalidateLocally(address);
+            basicInvalidate(address);
         }
 
         /* TODO: jumps can be made in entry == nullptr case */
@@ -283,11 +292,12 @@ void PagingContext::changeRangePermissions(UserVirtualAddress address, size_t nu
     size_t changedLevel = MASTER_LEVEL;
 
     while (true) {
-        PageTableEntry *entry = partialWalkEntries(address,
-                                                   MissingStrategy::CREATE,
-                                                   changedLevel,
-                                                   walkData);
-
+        Result result = partialWalkEntries(address,
+                                           MissingStrategy::RETURN_NULLPTR,
+                                           changedLevel,
+                                           walkData);
+        assert(result);
+        PageTableEntry *entry = *result;
         if (entry != nullptr && entry->present()) {
             entry->setPermissions(newPermissions);
         }
@@ -311,35 +321,33 @@ void PagingContext::changeRangePermissions(UserVirtualAddress address, size_t nu
 
 
 
-void PagingContext::map(UserVirtualAddress from,
-                        PhysicalAddress to,
-                        Permissions permissions,
-                        CacheType cacheType) {
+Status PagingContext::map(UserVirtualAddress from,
+                          PhysicalAddress to,
+                          Permissions permissions,
+                          CacheType cacheType) {
     assert(process == nullptr || process->pagingLock.isLocked());
 
-    PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
-    assert(!entry->present());
 
-    *entry = PageTableEntry(to, permissions, true, cacheType);
+    Result<PageTableEntry *> entry = walkEntries(from, MissingStrategy::CREATE);
+    if (!entry) {
+        return entry.status();
+    }
+    assert(!(*entry)->present());
+
+    **entry = PageTableEntry(to, permissions, true, cacheType);
     if (isActive()) {
         basicInvalidate(from);
     }
-}
-
-
-void PagingContext::unmap(UserVirtualAddress address) {
-    assert(process == nullptr || process->pagingLock.isLocked());
-
-    PageTableEntry *entry = walkEntries(address, MissingStrategy::NONE);
-    *entry = PageTableEntry();
+    return Status::OK();
 }
 
 
 bool PagingContext::isMapped(UserVirtualAddress address) {
     assert(process == nullptr || process->pagingLock.isLocked());
 
-    PageTableEntry *entry = walkEntries(address, MissingStrategy::RETURN_NULLPTR);
-    return entry != nullptr && entry->present();
+    Result<PageTableEntry *> entry = walkEntries(address, MissingStrategy::RETURN_NULLPTR);
+    assert(entry);
+    return *entry != nullptr && (*entry)->present();
 }
 
 

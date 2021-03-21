@@ -14,7 +14,7 @@ public:
     const Permissions permissions;
     const size_t length;
 
-    MemoryArea(size_t length);
+    MemoryArea(size_t length, Status &);
     MemoryArea(Permissions permissions, size_t length, Status &status);
     MemoryArea(Permissions permissions, PhysicalAddress physicalStart, size_t length, Status &status);
     MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceAddresses, Status &status);

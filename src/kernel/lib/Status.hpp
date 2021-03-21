@@ -32,7 +32,9 @@ public:
     static Status BadUserSpace() {
         return Status(StatusType::BadUserSpace);
     }
-    static Status OutOfKernelHeap(/*Process &initiator, size_t allocationSize*/);
+    static Status OutOfKernelHeap(/*Process &initiator, size_t allocationSize*/) {
+        return  Status(StatusType::OutOfKernelHeap);
+    }
     operator bool() const {
         return type == StatusType::OK;
     }

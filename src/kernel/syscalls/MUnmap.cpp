@@ -37,6 +37,10 @@ Result<size_t> MUnmap(const shared_ptr<Process> &process,
         return EINVAL;
     }
 
-    process->mappedAreas.unmapRange(Region(startAddress, length));
-    return 0;
+    Result result = process->mappedAreas.unmapRange(Region(startAddress, length));
+    if (result) {
+        return 0;
+    } else {
+        return result.status();
+    }
 }

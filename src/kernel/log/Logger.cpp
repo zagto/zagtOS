@@ -4,7 +4,9 @@
 #include <system/System.hpp>
 
 
+#ifdef ZAGTOS_LOADER
 Logger cout;
+#endif
 
 static SerialBackend serialBackend;
 static FramebufferBackend framebufferBackend;

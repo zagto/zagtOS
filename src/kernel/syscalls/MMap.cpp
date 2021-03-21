@@ -12,10 +12,10 @@ struct MMapStruct {
     uint32_t handle;
     uint32_t protection;
 
-    Result<size_t> perform(shared_ptr<Process> &process);
+    Result<size_t> perform(const shared_ptr<Process> &process);
 };
 
-Result<size_t> MMapStruct::perform(shared_ptr<Process> &process) {
+Result<size_t> MMapStruct::perform(const shared_ptr<Process> &process) {
     result = 0;
 
     //cout << "MMAP addr " << startAddress << " length " << length << " flags " << flags << " offset " << offset << endl;
@@ -149,7 +149,7 @@ Result<size_t> MMapStruct::perform(shared_ptr<Process> &process) {
         memoryArea = *result;
     }
 
-    Result<MappedArea *> ma = make_raw<MappedArea>(&process, actualRegion, move(memoryArea), offset, permissions);
+    Result<MappedArea *> ma = make_raw<MappedArea>(process.get(), actualRegion, move(memoryArea), offset, permissions);
     if (!ma) {
         return ma.status();
     }
@@ -161,6 +161,7 @@ Result<size_t> MMapStruct::perform(shared_ptr<Process> &process) {
         process->mappedAreas.insert2(*ma, insertIndex);
     }
     result = (*ma)->region.start;
+    return 0;
 }
 
 Result<size_t> MMap(const shared_ptr<Process> &process,
@@ -169,14 +170,25 @@ Result<size_t> MMap(const shared_ptr<Process> &process,
                     size_t,
                     size_t,
                     size_t) {
-    UserSpaceObject<MMapStruct, USOOperation::READ_AND_WRITE> uso(structAddress, process);
-    if (!uso.valid) {
-        cout << "SYS_MMAP: process passed non-accessible regions as parameters structure" << endl;
-        Panic(); // TODO: exception
+    Status status = Status::OK();
+    UserSpaceObject<MMapStruct, USOOperation::READ_AND_WRITE> uso(structAddress, status);
+    if (!status) {
+        if (status == Status::BadUserSpace()) {
+            cout << "SYS_MMAP: process passed non-accessible regions as parameters structure" << endl;
+        }
+        return status;
     }
-    uso.object.perform(*process);
-    uso.writeOut();
 
-    return 0;
+    Result result = uso.object.perform(process);
+    if (!result) {
+        return result.status();
+    }
+
+    status = uso.writeOut();
+    if (status) {
+        return *result;
+    } else {
+        return status;
+    }
 }
 

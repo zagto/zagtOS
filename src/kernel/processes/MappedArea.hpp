@@ -21,8 +21,9 @@ public:
                Region region,
                shared_ptr<MemoryArea> _memoryArea,
                size_t offset,
-               Permissions permissions);
-    MappedArea(Process *process, shared_ptr<MemoryArea> _memoryArea, const hos_v1::MappedArea &handOver);
+               Permissions permissions,
+               Status &status);
+    MappedArea(Process *process, shared_ptr<MemoryArea> _memoryArea, const hos_v1::MappedArea &handOver, Status &status);
     ~MappedArea();
 
     Status handlePageFault(UserVirtualAddress address);
@@ -57,7 +58,7 @@ public:
     Result<MappedArea *> addNew(Region region, Permissions permissions);
     bool isRegionFree(Region region, size_t &insertIndex) const;
     void splitElement(size_t index, Region removeRegion, size_t numAddBetween);
-    size_t unmapRange(Region range, size_t numAddInstead = 0);
+    Result<size_t> unmapRange(Region range, size_t numAddInstead = 0);
     bool isRegionFullyMapped(Region range, size_t &index) const;
     bool changeRangePermissions(Region range, Permissions newPermissions);
 };

@@ -1,6 +1,7 @@
 [bits 64]
 
 global compare_exchange_i32
+global compare_exchange_u32
 
 section .text
 

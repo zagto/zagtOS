@@ -115,7 +115,12 @@ Process::Process(Process &sourceProcess,
         return;
     }
 
-    Result mainThread = make_shared<Thread>(shared_ptr<Process>(this),
+    shared_ptr<Process> sharedProcess = shared_ptr<Process>(this, status);
+    if (!status) {
+        return;
+    }
+
+    Result mainThread = make_shared<Thread>(sharedProcess,
                                             entryAddress,
                                             initialPrioriy,
                                             /* ensure valid UserVirtualAddress */

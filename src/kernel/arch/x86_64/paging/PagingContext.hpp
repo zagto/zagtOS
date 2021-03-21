@@ -1,5 +1,6 @@
 #pragma once
 #include <paging/PageTable.hpp>
+#include <lib/Status.hpp>
 
 class Process;
 
@@ -28,11 +29,11 @@ private:
 
     /* The partial version of this method exposes the path taken by the page walk via the walkData
      * parameter, which can be used to skip parts of the page walk on subsequent calls */
-    PageTableEntry *partialWalkEntries(VirtualAddress address,
-                                       MissingStrategy missingStrategy,
-                                       size_t startLevel,
-                                       WalkData &walkData);
-    PageTableEntry *walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
+    Result<PageTableEntry *> partialWalkEntries(VirtualAddress address,
+                                                MissingStrategy missingStrategy,
+                                                size_t startLevel,
+                                                WalkData &walkData);
+    Result<PageTableEntry *> walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
     void _unmapRange(VirtualAddress address, size_t numPages, bool freeFrames);
 
 public:
@@ -51,28 +52,26 @@ public:
                     Permissions permissions,
                     CacheType cacheType);
     static PhysicalAddress resolve(KernelVirtualAddress address);
-    static void unmap(KernelVirtualAddress address);
     static bool isMapped(KernelVirtualAddress address);
     static void invalidateLocally(KernelVirtualAddress address);
     static void unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames);
 
-    void map(UserVirtualAddress from,
-             PhysicalAddress to,
-             Permissions permissions,
-             CacheType cacheType);
+    Status map(UserVirtualAddress from,
+               PhysicalAddress to,
+               Permissions permissions,
+               CacheType cacheType);
     PhysicalAddress resolve(UserVirtualAddress address);
-    void accessRange(UserVirtualAddress address,
-                     size_t numPages,
-                     size_t startOffset,
-                     size_t endOffset,
-                     uint8_t *buffer,
-                     AccessOperation accOp,
-                     Permissions newPagesPermissions);
+    Status accessRange(UserVirtualAddress address,
+                       size_t numPages,
+                       size_t startOffset,
+                       size_t endOffset,
+                       uint8_t *buffer,
+                       AccessOperation accOp,
+                       Permissions newPagesPermissions);
     void unmapRange(UserVirtualAddress address, size_t numPages, bool freeFrames);
     void changeRangePermissions(UserVirtualAddress address,
                                 size_t numPages,
                                 Permissions newPermissions);
-    void unmap(UserVirtualAddress address);
     bool isMapped(UserVirtualAddress address);
     void invalidateLocally(UserVirtualAddress address);
 

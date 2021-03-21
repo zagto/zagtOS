@@ -55,7 +55,7 @@ protected:
         bool valid{true};
         T *const rawPointer;
 
-        InternalPointer(T *rawPointer):
+        InternalPointer(T *rawPointer, Status &):
             rawPointer{rawPointer} {}
         ~InternalPointer() {
             if (rawPointer) {
@@ -80,8 +80,17 @@ protected:
 
 public:
     shared_ptr() {}
-    explicit shared_ptr(T *rawPointer) {
-        internalPointer = new InternalPointer(rawPointer);
+    explicit shared_ptr(T *rawPointer, Status &status) {
+        if (!status) {
+            return;
+        }
+        Result result = make_raw<InternalPointer>(rawPointer);
+        if (!result) {
+            status = result.status();
+            return;
+        }
+
+        internalPointer = *result;
         assert(internalPointer);
     }
     shared_ptr(const shared_ptr &other) {
@@ -220,26 +229,6 @@ public:
 };
 
 template <typename T, typename ...ArgumentTypes>
-Result<shared_ptr<T>> make_shared(ArgumentTypes &&...args) {
-    Result<T *> raw = make_raw<T>(args...);
-    if (raw) {
-        return move(shared_ptr(*raw));
-    } else {
-        return raw.status();
-    }
-}
-
-template <typename T, typename ...ArgumentTypes>
-Result<unique_ptr<T>> make_unique(ArgumentTypes &&...args) {
-    Result<T *> raw = make_raw<T>(args...);
-    if (raw) {
-        return move(unique_ptr(*raw));
-    } else {
-        return raw.status();
-    }
-}
-
-template <typename T, typename ...ArgumentTypes>
 Result<T *> make_raw(ArgumentTypes &&...args) {
     Result<KernelVirtualAddress> address = Memory::instance()->allocateVirtualArea(sizeof(T), alignof(T));
     if (!address) {
@@ -268,4 +257,31 @@ Result<T *> make_raw_array(size_t count) {
         new (address + sizeof(T) * index) T;
     }
     return address->asPointer<T>();
+}
+
+template <typename T, typename ...ArgumentTypes>
+Result<shared_ptr<T>> make_shared(ArgumentTypes &&...args) {
+    Result<T *> raw = make_raw<T>(args...);
+    if (!raw) {
+        return raw.status();
+    }
+
+    Status status;
+    shared_ptr<T> shared = shared_ptr(*raw, status);
+    if (!status) {
+        delete *raw;
+        return status;
+    }
+
+    return move(shared);
+}
+
+template <typename T, typename ...ArgumentTypes>
+Result<unique_ptr<T>> make_unique(ArgumentTypes &&...args) {
+    Result<T *> raw = make_raw<T>(args...);
+    if (raw) {
+        return move(unique_ptr(*raw));
+    } else {
+        return raw.status();
+    }
 }

@@ -32,10 +32,14 @@ void System::setupSecondaryProcessorEntry(const hos_v1::System &handOver) {
     memcpy(destination + mptOffset, &mptAddress, sizeof(uint32_t));
 
     /* identity-map the entry code so it continues to work when it enables paging */
-    CurrentSystem.kernelOnlyPagingContext.map(UserVirtualAddress(secondaryProcessorEntry.value()),
+    Status status = CurrentSystem.kernelOnlyPagingContext.map(UserVirtualAddress(secondaryProcessorEntry.value()),
                                               secondaryProcessorEntry,
                                               Permissions::READ_EXECUTE,
                                               CacheType::NORMAL_WRITE_BACK);
+    if (!status) {
+        cout << "Exception on secondary processor entry" << endl;
+        Panic();
+    }
 }
 
 

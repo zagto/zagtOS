@@ -1,7 +1,7 @@
 #include <processes/MemoryArea.hpp>
 #include <system/System.hpp>
 
-MemoryArea::MemoryArea(size_t length) :
+MemoryArea::MemoryArea(size_t length, Status &) :
     frames(),
     source{Source::ANONYMOUS},
     permissions{Permissions::READ_WRITE_EXECUTE},
