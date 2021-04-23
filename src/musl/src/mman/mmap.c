@@ -33,7 +33,7 @@ void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
     };
     uint32_t error = zagtos_syscall(SYS_MMAP, &args);
     if (error != 0) {
-        errno = args.error;
+        errno = error;
         return MAP_FAILED;
     }
     return args.result;

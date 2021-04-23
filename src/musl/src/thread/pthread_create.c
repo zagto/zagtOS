@@ -113,11 +113,6 @@ _Noreturn void __pthread_exit(void *result)
 	 * call; the loser is responsible for freeing thread resources. */
 	int state = a_cas(&self->detach_state, DT_JOINABLE, DT_EXITING);
 
-	if (state==DT_DETACHED && self->map_base) {
-		/* Detached threads must block even implementation-internal
-		 * signals, since they will not have a stack in their last
-		 * moments of existence. */
-
 	/* Wake any joiner. */
 	__wake(&self->detach_state, 1, 1);
 
