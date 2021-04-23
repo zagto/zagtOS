@@ -88,7 +88,7 @@ void PagingContext::map(KernelVirtualAddress from,
                           PhysicalAddress to,
                           Permissions permissions,
                           CacheType cacheType) {
-    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
+    assert(CurrentSystem.memory.heapLock.isLocked());
 
     Result<PageTableEntry *>entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(from,
                                                                                       MissingStrategy::CREATE);
@@ -100,21 +100,12 @@ void PagingContext::map(KernelVirtualAddress from,
 
 
 PhysicalAddress PagingContext::resolve(KernelVirtualAddress address) {
-    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
+    assert(CurrentSystem.memory.heapLock.isLocked());
 
     size_t offset = address.value() % PAGE_SIZE;
     return (*CurrentSystem.kernelOnlyPagingContext.walkEntries(
                 address - offset,
                 MissingStrategy::NONE))->addressValue() + offset;
-}
-
-
-bool PagingContext::isMapped(KernelVirtualAddress address) {
-    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
-
-    Result<PageTableEntry *> entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(address, MissingStrategy::RETURN_NULLPTR);
-    assert(entry);
-    return *entry != nullptr && (*entry)->present();
 }
 
 
@@ -269,7 +260,7 @@ void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool
 
 
 void PagingContext::unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames) {
-    assert(CurrentSystem.memory.kernelPagingLock.isLocked());
+    assert(CurrentSystem.memory.heapLock.isLocked());
     CurrentSystem.kernelOnlyPagingContext._unmapRange(address, numPages, freeFrames);
 }
 

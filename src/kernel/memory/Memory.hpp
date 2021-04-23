@@ -14,7 +14,6 @@ public: /* TODO: make private */
     FrameStack freshFrameStack[NUM_STACKS];
     mutex heapLock;
     mutex frameManagementLock;
-    mutex kernelPagingLock;
 
     void recyclePhysicalFrame(size_t stackIndex);
 

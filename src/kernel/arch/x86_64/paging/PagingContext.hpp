@@ -52,7 +52,6 @@ public:
                     Permissions permissions,
                     CacheType cacheType);
     static PhysicalAddress resolve(KernelVirtualAddress address);
-    static bool isMapped(KernelVirtualAddress address);
     static void invalidateLocally(KernelVirtualAddress address);
     static void unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames);
 
