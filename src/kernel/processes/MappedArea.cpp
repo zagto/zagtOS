@@ -24,7 +24,10 @@ MappedArea::MappedArea(Process *process,
     assert(memoryArea->allowesPermissions(permissions));
 }
 
-MappedArea::MappedArea(Process *process, shared_ptr<MemoryArea> _memoryArea, const hos_v1::MappedArea &handOver) :
+MappedArea::MappedArea(Process *process,
+                       shared_ptr<MemoryArea> _memoryArea,
+                       const hos_v1::MappedArea &handOver,
+                       Status &) :
         process{process},
         memoryArea{move(_memoryArea)},
         region(handOver.start, handOver.length),
@@ -88,14 +91,24 @@ void MappedArea::changePermissions(Permissions newPermissions) {
 
 MappedAreaVector::MappedAreaVector(Process *process,
                                    const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
-                                   const hos_v1::Process &handOver) :
+                                   const hos_v1::Process &handOver,
+                                   Status &status) :
         process{process} {
-    Status status = resize(handOver.numMappedAreas);
-    assert(status); // TODO
+    if (!status) {
+        return;
+    }
+
+    status = resize(handOver.numMappedAreas);
+    if (!status) {
+        return;
+    }
+
     for (size_t index = 0; index < handOver.numMappedAreas; index++) {
-        _data[index] = new MappedArea(process,
+        Result result = make_raw<MappedArea>(process,
                                       allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
                                       handOver.mappedAreas[index]);
+        assert(result); // TODO: this code will be replaced anyways
+        _data[index] = *result;
         assert(_data[index]->region.isPageAligned());
         if (index > 0) {
             assert(_data[index]->region.start >= _data[index - 1]->region.end());
@@ -222,6 +235,27 @@ void MappedAreaVector::insert2(MappedArea *ma, size_t index) {
     assert(ma != nullptr);
     Status status = static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
     assert(status); // TODO
+}
+
+Result<MappedArea *> MappedAreaVector::addNew(Region region, Permissions permissions) {
+    size_t index;
+    if (!isRegionFree(region, index)) {
+        cout << "Attempt to add region to MappedAreaVector that overlaps with existing" << endl;
+        return Status::BadUserSpace();
+    }
+
+    Result memoryArea = make_shared<MemoryArea>(region.length);
+    if (!memoryArea) {
+        return memoryArea.status();
+    }
+
+    Result ma = make_raw<MappedArea>(process, region, *memoryArea, 0, permissions);
+    if (!ma) {
+        return ma.status();
+    }
+
+    insert2(*ma, index);
+    return *ma;
 }
 
 Result<MappedArea *> MappedAreaVector::addNew(size_t length, Permissions permissions) {

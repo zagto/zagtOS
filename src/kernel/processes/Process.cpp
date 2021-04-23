@@ -12,7 +12,7 @@ Process::Process(const hos_v1::Process &handOver,
         const vector<shared_ptr<Port>> &allPorts,
         const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
         Status &status) :
-    mappedAreas(this, allMemoryAreas, handOver),
+    mappedAreas(this, allMemoryAreas, handOver, status),
     handleManager(handOver, allThreads, allPorts, allMemoryAreas, status),
     futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads, status)
 {

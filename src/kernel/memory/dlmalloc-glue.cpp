@@ -16,7 +16,7 @@ static size_t startPosition = 0;
 static_assert(KernelHeapRegion.length % PAGE_SIZE == 0);
 static_assert(TOTAL_NUM_HEAP_FRAMES % FRAMES_PER_GROUP == 0);
 
-Status DLMallocStatus = Status::OK();
+DLMallocStatusOptions DLMallocStatus = DLMallocStatusOptions::OK;
 
 
 extern "C" void BasicDLMallocPanic(const char *location) {
@@ -69,10 +69,12 @@ static void setFrame(size_t frame) {
 }
 
 extern "C" void *KernelMMap(size_t length) {
+    DLMallocStatus = DLMallocStatusOptions::OK;
+
     assert(length % PAGE_SIZE == 0);
     if (length > KernelHeapRegion.length) {
         cout << "Kernel MMap attempt larger than kernel heap" << endl;
-        DLMallocStatus = Status::OutOfKernelHeap();
+        DLMallocStatus = DLMallocStatusOptions::OutOfKernelHeap;
         return MFAIL;
     }
 
@@ -98,7 +100,8 @@ extern "C" void *KernelMMap(size_t length) {
                 if (!physicalAddress) {
                     /* allocatePhysicalFrame can fail with OutOfMemory */
                     PagingContext::unmapRange(startAddress, numFrames, true);
-                    DLMallocStatus = physicalAddress.status();
+                    assert(physicalAddress.status() == Status::OutOfMemory());
+                    DLMallocStatus = DLMallocStatusOptions::OutOfPhysicalMemory;
                     return MFAIL;
                 }
                 PagingContext::map(startAddress + frameIndex * PAGE_SIZE,
@@ -127,6 +130,6 @@ extern "C" void *KernelMMap(size_t length) {
         }
     }
     /* TODO: check region across startPosition */
-    DLMallocStatus = Status::OutOfKernelHeap();
+    DLMallocStatus = DLMallocStatusOptions::OK;
     return MFAIL;
 }

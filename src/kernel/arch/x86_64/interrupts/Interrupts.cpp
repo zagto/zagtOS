@@ -10,14 +10,17 @@
 InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
 
 
-Interrupts::Interrupts(bool bootProcessor) :
+Interrupts::Interrupts(bool bootProcessor, Status &status) :
         globalDescriptorTable(&taskStateSegment),
         globalDescriptorTableRecord(&globalDescriptorTable),
         interruptDescriptorTableRecord(&INTERRUPT_DESCRIPTOR_TABLE),
-        taskStateSegment(new uint64_t[6] + 6, new uint64_t[6] + 6),
+        taskStateSegment(status),
         legacyPIC(bootProcessor),
         localAPIC(readModelSpecificRegister(MSR::IA32_APIC_BASE)) {
 
+    if (!status) {
+        return;
+    }
     globalDescriptorTableRecord.load();
     interruptDescriptorTableRecord.load();
     loadTaskStateSegment();

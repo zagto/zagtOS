@@ -29,7 +29,7 @@ protected:
     LocalAPIC localAPIC;
 
 public:
-    Interrupts(bool bootProcessor);
+    Interrupts(bool bootProcessor, Status &status);
 
     __attribute__((noreturn)) void handler(RegisterState *registerState);
     __attribute__((noreturn)) void returnToUserMode();

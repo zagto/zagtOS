@@ -35,6 +35,9 @@ public:
     static Status OutOfKernelHeap(/*Process &initiator, size_t allocationSize*/) {
         return  Status(StatusType::OutOfKernelHeap);
     }
+    static Status OutOfMemory() {
+        return Status(Status::OutOfMemory());
+    }
     operator bool() const {
         return type == StatusType::OK;
     }

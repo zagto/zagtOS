@@ -7,6 +7,9 @@
 
 class System : public CommonSystem {
 private:
+    /* only used during initial handover state deserialization */
+    Status handOverStatus;
+
     void setupSecondaryProcessorEntry(const hos_v1::System &handOver);
 
 public:

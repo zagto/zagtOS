@@ -23,7 +23,10 @@ public:
                size_t offset,
                Permissions permissions,
                Status &status);
-    MappedArea(Process *process, shared_ptr<MemoryArea> _memoryArea, const hos_v1::MappedArea &handOver, Status &status);
+    MappedArea(Process *process,
+               shared_ptr<MemoryArea> _memoryArea,
+               const hos_v1::MappedArea &handOver,
+               Status &status);
     ~MappedArea();
 
     Status handlePageFault(UserVirtualAddress address);
@@ -50,7 +53,8 @@ public:
         process{process} {}
     MappedAreaVector(Process *process,
                      const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
-                     const hos_v1::Process &handOver);
+                     const hos_v1::Process &handOver,
+                     Status &status);
     Region findFreeRegion(size_t length, bool &valid, size_t &index) const;
     MappedArea *findMappedArea(UserVirtualAddress address) const;
     void insert2(MappedArea *ma, size_t index);

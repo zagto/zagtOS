@@ -4,7 +4,11 @@
 
 #ifdef __cplusplus
 #include <lib/Status.hpp>
-extern Status DLMallocStatus;
+
+enum class DLMallocStatusOptions {
+    OK, OutOfKernelHeap, OutOfPhysicalMemory
+};
+extern DLMallocStatusOptions DLMallocStatus;
 
 extern "C" {
 #endif
