@@ -254,7 +254,7 @@ Result<T *> make_raw_array(size_t count) {
 
     for (size_t index = 0; index < count; index++) {
         /* placement new to run constructor */
-        new (address + sizeof(T) * index) T;
+        new (*address + sizeof(T) * index) T;
     }
     return address->asPointer<T>();
 }

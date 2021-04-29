@@ -70,6 +70,7 @@ Scheduler::Scheduler(Processor *_processor, Status &status)
         status = result.status();
         return;
     }
+    idleThread = *result;
 
     processor = _processor;
     _activeThread = idleThread;

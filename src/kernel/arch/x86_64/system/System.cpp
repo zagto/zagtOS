@@ -46,7 +46,7 @@ System::System() :
         CommonSystem(*_HandOverSystem, handOverStatus),
         ACPIRoot{_HandOverSystem->firmwareRoot},
         secondaryProcessorEntry{_HandOverSystem->secondaryProcessorEntry} {
-    if (handOverStatus) {
+    if (!handOverStatus) {
         cout << "Exception during System initialization" << endl;
         Panic();
     }
