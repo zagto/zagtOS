@@ -4,7 +4,7 @@
 #include <common/utils.hpp>
 
 enum StatusType {
-    OK, OutOfMemory, OutOfKernelHeap, BadUserSpace
+    OK, OutOfMemory, OutOfKernelHeap, BadUserSpace, NonInitialized
 };
 
 class Process;
@@ -12,7 +12,7 @@ class Process;
 #ifdef __cplusplus
 class [[nodiscard("Status code ignored")]] Status  {
 private:
-    StatusType type;
+    StatusType type{StatusType::NonInitialized};
     bool handled{false};
 
     [[noreturn]] void unhandled();
@@ -22,7 +22,7 @@ public:
     Status(StatusType type) :
         type{type} {}
     ~Status() {
-        if (!handled) {
+        if (type != StatusType::NonInitialized && !handled) {
             unhandled();
         }
     }
@@ -38,8 +38,14 @@ public:
     static Status OutOfMemory() {
         return Status(Status::OutOfMemory());
     }
-    operator bool() const {
+    operator bool() {
+        assert(type != StatusType::NonInitialized);
+        handled = true;
         return type == StatusType::OK;
+    }
+    void setHandled() {
+        assert(type != StatusType::NonInitialized);
+        handled = true;
     }
 };
 
@@ -51,6 +57,7 @@ private:
 public:
     constexpr Result() {}
     Result(T value):
+        _status{Status::OK()},
         _value{move(value)} {}
     Result(Status status):
             _status{status} {
@@ -64,11 +71,13 @@ public:
         assert(_status);
         return _value;
     }
-    operator bool() const {
+    operator bool() {
         return _status;
     }
-    Status status() const {
-        return _status;
+    Status status() {
+        Status result = _status;
+        _status.setHandled();
+        return result;
     }
 };
 #endif
