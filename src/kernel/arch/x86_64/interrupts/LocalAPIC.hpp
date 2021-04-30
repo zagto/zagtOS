@@ -1,7 +1,7 @@
-#ifndef LOCALAPIC_HPP
-#define LOCALAPIC_HPP
+#pragma once
 
 #include <common/common.hpp>
+#include <lib/Status.hpp>
 #include <time/APICTimer.hpp>
 
 class LocalAPIC {
@@ -18,7 +18,7 @@ private:
 
     uint8_t *map;
 
-    void setupMap(PhysicalAddress base);
+    Status setupMap(PhysicalAddress base);
     void wirteInterruptControlRegister(DeliveryMode deliveryMode,
                                        Level level,
                                        TriggerMode triggerMode,
@@ -52,11 +52,9 @@ protected:
 public:
     APICTimer timer;
 
-    LocalAPIC(PhysicalAddress base);
+    LocalAPIC(PhysicalAddress base, Status &status);
     ~LocalAPIC();
 
     void sendInit(uint32_t apicID);
     void sendStartup(uint32_t apicID, PhysicalAddress entry);
 };
-
-#endif // LOCALAPIC_HPP

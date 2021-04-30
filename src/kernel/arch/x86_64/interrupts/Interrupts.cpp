@@ -16,7 +16,7 @@ Interrupts::Interrupts(bool bootProcessor, Status &status) :
         interruptDescriptorTableRecord(&INTERRUPT_DESCRIPTOR_TABLE),
         taskStateSegment(status),
         legacyPIC(bootProcessor),
-        localAPIC(readModelSpecificRegister(MSR::IA32_APIC_BASE)) {
+        localAPIC(readModelSpecificRegister(MSR::IA32_APIC_BASE), status) {
 
     if (!status) {
         return;

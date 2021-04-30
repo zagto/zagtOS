@@ -1,7 +1,5 @@
 #include <interrupts/LocalAPIC.hpp>
-#include <memory/FrameManagement.hpp>
-#include <system/System.hpp>
-#include <paging/PagingContext.hpp>
+#include <memory/KernelPageAllocator.hpp>
 
 void LocalAPIC::writeRegister(Register reg, uint32_t value) {
     *reinterpret_cast<volatile uint32_t *>(map + static_cast<size_t>(reg)) = value;
@@ -11,15 +9,31 @@ uint32_t LocalAPIC::readRegister(Register reg) {
     return *reinterpret_cast<volatile uint32_t *>(map + static_cast<size_t>(reg));
 }
 
-void LocalAPIC::setupMap(PhysicalAddress base) {
-    assert(base.value() / PAGE_SIZE == (base.value() + static_cast<size_t>(Register::END) - 1) / PAGE_SIZE);
-    map = base.identityMapped().asPointer<uint8_t>();
+Status LocalAPIC::setupMap(PhysicalAddress base) {
+    assert(base.value() / PAGE_SIZE
+           == (base.value() + static_cast<size_t>(Register::END) - 1) / PAGE_SIZE);
+    PhysicalAddress physicalFrame = align(base.value(), PAGE_SIZE, AlignDirection::DOWN);
+    scoped_lock sl(KernelPageAllocator.lock);
+    Result<void *> virtualPage = KernelPageAllocator.map(PAGE_SIZE, false, &physicalFrame);
+    if (!virtualPage) {
+        return virtualPage.status();
+    }
+
+    map = static_cast<uint8_t *>(*virtualPage) + base.value() % PAGE_SIZE;
+    return Status::OK();
 }
 
-LocalAPIC::LocalAPIC(PhysicalAddress base) :
+LocalAPIC::LocalAPIC(PhysicalAddress base, Status &status) :
         timer(this) {
 
-    setupMap(base);
+    if (!status) {
+        return;
+    }
+
+    status = setupMap(base);
+    if (!status) {
+        return;
+    }
 
     /* initialization sequence from:
      * http://www.osdever.net/tutorials/view/advanced-programming-interrupt-controller */
