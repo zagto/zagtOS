@@ -5,11 +5,24 @@
 #ifdef __cplusplus
 #include <lib/Status.hpp>
 
-enum class DLMallocStatusOptions {
-    OK, OutOfKernelHeap, OutOfPhysicalMemory
-};
-extern DLMallocStatusOptions DLMallocStatus;
+namespace dlMallocGlue {
 
+class Glue {
+private:
+
+public:
+    Glue();
+    Result<KernelVirtualAddress> allocate(size_t length, size_t align);
+    Result<KernelVirtualAddress> resize(KernelVirtualAddress address, size_t length);
+    void free(KernelVirtualAddress address);
+};
+
+extern Glue DLMallocGlue;
+}
+
+using dlMallocGlue::DLMallocGlue;
+
+/* C-style functions for dlmalloc to call Page Allocator and Panic */
 extern "C" {
 #endif
     __attribute__((noreturn)) void BasicDLMallocPanic(const char *location);

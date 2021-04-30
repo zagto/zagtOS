@@ -14,7 +14,7 @@ Processor::Processor(bool bootProcessor, Status &status) :
         return;
     }
 
-    Result<KernelVirtualAddress> address = CurrentSystem.memory.allocateVirtualArea(KERNEL_STACK_SIZE, 16);
+    Result<KernelVirtualAddress> address = DLMallocGlue.allocate(KERNEL_STACK_SIZE, 16);
     if (address) {
         kernelStack = address->asPointer<uint8_t>();
         status = Status::OK();

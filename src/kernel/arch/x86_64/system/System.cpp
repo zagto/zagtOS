@@ -4,11 +4,6 @@
 
 hos_v1::System *_HandOverSystem;
 
-/* global contructors - initialization order matters. Do not reorder or move tho ad different
- * compilation unit */
-System CurrentSystem;
-Logger cout;
-
 void System::setupSecondaryProcessorEntry(const hos_v1::System &handOver) {
     size_t length = static_cast<size_t>(&SecondaryProcessorEntryCodeEnd
                                         - &SecondaryProcessorEntryCode);

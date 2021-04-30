@@ -1,7 +1,4 @@
 #include <common/common.hpp>
-#ifndef ZAGTOS_LOADER
-#include <system/System.hpp>
-#endif
 
 void *memset(void *pointer, int value, size_t len)
 {
@@ -56,50 +53,3 @@ void alignedGrow(size_t &start, size_t &length, size_t alignment) {
     length = align(length, alignment, AlignDirection::UP);
     start = newStart;
 }
-
-#ifndef ZAGTOS_LOADER
-void *operator new(size_t, KernelVirtualAddress address) {
-    return address.asPointer<void>();
-}
-
-
-/*void *operator new(size_t size, Status &status) {
-    return CurrentSystem.memory.allocateVirtualArea(size).asPointer<void>();
-    status = {};
-}
-
-
-void *operator new(size_t size, std::align_val_t align, Status &status) {
-    // HACK
-    //size_t *align_ptr = reinterpret_cast<size_t *>(&align);
-    return CurrentSystem.memory.allocateVirtualArea(size, static_cast<size_t>(align)).asPointer<void>();
-    status = {};
-}
-
-
-void *operator new[](size_t size, Status &status) {
-    return operator new(size);
-    status = {};
-}*/
-
-
-void operator delete(void *object) {
-    CurrentSystem.memory.freeVirtualArea(KernelVirtualAddress(object));
-}
-
-void operator delete(void *object, size_t) {
-    operator delete(object);
-}
-
-void operator delete(void *object, size_t, std::align_val_t) {
-    operator delete(object);
-}
-
-void operator delete[](void *object) {
-    operator delete(object);
-}
-
-void operator delete[](void *object, size_t) {
-    operator delete(object);
-}
-#endif

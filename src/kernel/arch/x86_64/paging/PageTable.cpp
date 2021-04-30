@@ -26,7 +26,7 @@ void PageTable::unmapEverything(size_t level) {
             if (level > 0) {
                 entry.addressValue().identityMapped().asPointer<PageTable>()->unmapEverything(level - 1);
             }
-            CurrentSystem.memory.freePhysicalFrame(entry.addressValue());
+            FrameManagement.put(entry.addressValue());
         }
     }
 }

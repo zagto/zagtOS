@@ -3,7 +3,7 @@
 #include <common/common.hpp>
 #include <vector>
 #include <system/Processor.hpp>
-#include <memory/Memory.hpp>
+#include <memory/FrameManagement.hpp>
 #include <setup/HandOverState.hpp>
 #include <common/globalregisters.hpp>
 #include <time/Time.hpp>
@@ -14,7 +14,6 @@
 
 class CommonSystem {
 public:
-    Memory memory;
     Time time;
     /* Memory and the PaginContext must be initialized before dynamic memory can be used */
     PagingContext kernelOnlyPagingContext;
@@ -23,7 +22,6 @@ public:
     FutexManager futexManager;
 
     CommonSystem(const hos_v1::System &handOver, Status &status) :
-        memory(handOver),
         kernelOnlyPagingContext(nullptr, handOver.handOverPagingContext, status),
         processors(),
         futexManager(status) {}

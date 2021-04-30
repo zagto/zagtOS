@@ -530,7 +530,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #define DLMALLOC_EXPORT extern
 #endif
 
-#include <memory/dlmalloc-glue.hpp>
+#include <memory/DLMallocGlue.hpp>
 #include <common/inttypes.hpp>
 
 /* configuration for zagtos kernel */

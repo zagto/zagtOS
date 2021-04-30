@@ -1,5 +1,5 @@
 #include <interrupts/LocalAPIC.hpp>
-#include <memory/Memory.hpp>
+#include <memory/FrameManagement.hpp>
 #include <system/System.hpp>
 #include <paging/PagingContext.hpp>
 

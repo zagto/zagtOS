@@ -1,13 +1,9 @@
-#ifndef ZAGTOS_LOADER
-#include <system/System.hpp>
-#endif
 #include <memory/FrameStack.hpp>
 #include <log/Logger.hpp>
 
 
 bool FrameStack::isEmpty() {
 #ifndef ZAGTOS_LOADER
-    assert(CurrentSystem.memory.frameManagementLock.isLocked());
     return head == nullptr;
 #else
     return reinterpret_cast<size_t>(head) == PhysicalAddress::NULL;
@@ -16,10 +12,6 @@ bool FrameStack::isEmpty() {
 
 
 void FrameStack::push(PhysicalAddress address) {
-#ifndef ZAGTOS_LOADER
-    assert(CurrentSystem.memory.frameManagementLock.isLocked());
-#endif
-
     if (addIndex == Node::NUM_ENTRIES) {
         Node *oldHead = head;
 
@@ -39,10 +31,6 @@ void FrameStack::push(PhysicalAddress address) {
 
 
 PhysicalAddress FrameStack::pop() {
-#ifndef ZAGTOS_LOADER
-    assert(CurrentSystem.memory.frameManagementLock.isLocked());
-#endif
-
     if (isEmpty()) {
         cout << "out of memory" << endl;
         Panic();

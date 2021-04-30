@@ -13,19 +13,11 @@ class Process;
 class [[nodiscard("Status code ignored")]] Status  {
 private:
     StatusType type{StatusType::NonInitialized};
-    bool handled{false};
-
-    [[noreturn]] void unhandled();
 
 public:
     Status() {}
     Status(StatusType type) :
         type{type} {}
-    ~Status() {
-        if (type != StatusType::NonInitialized && !handled) {
-            unhandled();
-        }
-    }
     static Status OK() {
         return Status(StatusType::OK);
     }
@@ -35,17 +27,12 @@ public:
     static Status OutOfKernelHeap(/*Process &initiator, size_t allocationSize*/) {
         return  Status(StatusType::OutOfKernelHeap);
     }
-    static Status OutOfMemory() {
+    static Status OutOfMemory() { /* how much, zone id */
         return Status(Status::OutOfMemory());
     }
     operator bool() {
         assert(type != StatusType::NonInitialized);
-        handled = true;
         return type == StatusType::OK;
-    }
-    void setHandled() {
-        assert(type != StatusType::NonInitialized);
-        handled = true;
     }
 };
 
@@ -76,7 +63,6 @@ public:
     }
     Status status() {
         Status result = _status;
-        _status.setHandled();
         return result;
     }
 };

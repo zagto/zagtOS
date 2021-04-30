@@ -2,6 +2,7 @@
 
 #include <common/common.hpp>
 #include <lib/Status.hpp>
+#include <mutex>
 
 namespace kernelPageAllocator {
 
@@ -12,7 +13,7 @@ private:
     static constexpr size_t NUM_BITMAP_GROUPS = TOTAL_NUM_HEAP_FRAMES / FRAMES_PER_GROUP;
     static constexpr size_t ALL_BITS = static_cast<size_t>(-1);
 
-    size_t bitmap[NUM_BITMAP_GROUPS];
+    size_t bitmap[NUM_BITMAP_GROUPS]{0};
     size_t startPosition = 0;
 
     static_assert(KernelHeapRegion.length % PAGE_SIZE == 0);
@@ -24,6 +25,8 @@ private:
 public:
     void unmap(void *_address, size_t length, bool freeFrames);
     Result<void *> map(size_t length, bool findNewFrames, const PhysicalAddress *frames = nullptr);
+
+    mutex lock;
 };
 
 extern Allocator KernelPageAllocator;

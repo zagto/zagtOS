@@ -1,15 +1,14 @@
 #include <common/common.hpp>
-#include <memory/Memory.hpp>
-#include <memory/dlmalloc-glue.hpp>
+#include <memory/FrameManagement.hpp>
+#include <memory/DLMallocGlue.hpp>
 #include <memory/KernelPageAllocator.hpp>
 #include <paging/PagingContext.hpp>
 
 
 namespace kernelPageAllocator {
 
-Allocator KernelPageAllocator;
-
 void Allocator::unmap(void *_address, size_t length, bool freeFrames) {
+    assert(lock.isLocked());
     size_t address = KernelVirtualAddress(_address).value();
     Region region(address, length);
 
@@ -54,8 +53,7 @@ void Allocator::setFrame(size_t frame) {
 }
 
 Result <void *> Allocator::map(size_t length, bool findNewFrames, const PhysicalAddress *frames) {
-    DLMallocStatus = DLMallocStatusOptions::OK;
-
+    assert(lock.isLocked());
     assert(length > 0);
     assert(length % PAGE_SIZE == 0);
     if (length > KernelHeapRegion.length) {
@@ -86,7 +84,7 @@ Result <void *> Allocator::map(size_t length, bool findNewFrames, const Physical
             for (size_t frameIndex = 0; frameIndex < numFrames; frameIndex++) {
                 PhysicalAddress physicalAddress;
                 if (findNewFrames) {
-                    Result allocResult = Memory::instance()->allocatePhysicalFrame();
+                    Result allocResult = FrameManagement.get();
                     if (!allocResult) {
                         /* allocatePhysicalFrame can fail with OutOfMemory */
                         PagingContext::unmapRange(startAddress, numFrames, true);

@@ -3,6 +3,7 @@
 #include <common/common.hpp>
 
 class Thread;
+class Status;
 
 class __attribute__((__packed__)) TaskStateSegment
 {

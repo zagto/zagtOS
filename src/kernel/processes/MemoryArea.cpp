@@ -1,5 +1,6 @@
 #include <processes/MemoryArea.hpp>
 #include <system/System.hpp>
+#include <memory/FrameManagement.hpp>
 
 MemoryArea::MemoryArea(size_t length, Status &) :
     frames(),
@@ -37,7 +38,7 @@ MemoryArea::MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceA
     }
 
     for (size_t frameIndex = 0; frameIndex < numFrames; frameIndex++) {
-        Result<PhysicalAddress> addr = Memory::instance()->allocatePhysicalFrame(frameStack);
+        Result<PhysicalAddress> addr = FrameManagement.get(frameStack);
         if (!addr) {
             status = addr.status();
             return;
@@ -86,8 +87,8 @@ MemoryArea::~MemoryArea() {
     if (source == Source::SHARED) {
         for (PhysicalAddress address: frames) {
             /* the constructor may allocate only some frames on failure, so check for NULL */
-            if (address != PhysicalAddress::NULL) {
-                Memory::instance()->freePhysicalFrame(address);
+            if (address.value() != PhysicalAddress::NULL) {
+                FrameManagement.put(address);
             }
         }
     }
@@ -99,7 +100,7 @@ Result<PhysicalAddress> MemoryArea::makePresent(size_t offset) {
 
     switch (source) {
     case Source::ANONYMOUS:
-        return CurrentSystem.memory.allocatePhysicalFrame();
+        return FrameManagement.get();
     case Source::PHYSICAL:
         return frames[0] + offset;
     case Source::SHARED: {
@@ -107,7 +108,7 @@ Result<PhysicalAddress> MemoryArea::makePresent(size_t offset) {
         size_t frameIndex = offset / PAGE_SIZE;
         assert(frames[frameIndex] == PhysicalAddress::NULL);
 
-        Result<PhysicalAddress> newFrame = CurrentSystem.memory.allocatePhysicalFrame();
+        Result<PhysicalAddress> newFrame = FrameManagement.get();
         if (newFrame) {
             frames[frameIndex] = *newFrame;
         }
@@ -115,7 +116,7 @@ Result<PhysicalAddress> MemoryArea::makePresent(size_t offset) {
     }
     case Source::DMA:
         size_t frameIndex = offset / PAGE_SIZE;
-        assert(frames[frameIndex] != PhysicalAddress::NULL);
+        assert(frames[frameIndex].value() != PhysicalAddress::NULL);
         return frames[frameIndex];
     }
 

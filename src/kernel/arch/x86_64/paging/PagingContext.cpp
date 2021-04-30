@@ -2,6 +2,8 @@
 #include <paging/PagingContext.hpp>
 #include <system/System.hpp>
 #include <processes/Process.hpp>
+/* for lock asserts only */
+#include <memory/KernelPageAllocator.hpp>
 
 
 /* TODO: invalidating properly is a lot harder then this on SMP */
@@ -29,7 +31,7 @@ Result<PageTableEntry *> PagingContext::partialWalkEntries(VirtualAddress addres
                 }
                 return nullptr;
             case MissingStrategy::CREATE: {
-                Result<PhysicalAddress> frame = CurrentSystem.memory.allocatePhysicalFrame();
+                Result<PhysicalAddress> frame = FrameManagement.get();
                 if (!frame) {
                     return frame.status();
                 }
@@ -60,7 +62,7 @@ PagingContext::PagingContext(Process *process, Status &status) :
 
     assert(this != CurrentProcessor->activePagingContext);
 
-    Result<PhysicalAddress> result = CurrentSystem.memory.allocatePhysicalFrame();
+    Result<PhysicalAddress> result = FrameManagement.get();
     if (!result) {
         status = result.status();
         return;
@@ -88,7 +90,7 @@ void PagingContext::map(KernelVirtualAddress from,
                           PhysicalAddress to,
                           Permissions permissions,
                           CacheType cacheType) {
-    assert(CurrentSystem.memory.heapLock.isLocked());
+    assert(KernelPageAllocator.lock.isLocked());
 
     Result<PageTableEntry *>entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(from,
                                                                                       MissingStrategy::CREATE);
@@ -100,7 +102,7 @@ void PagingContext::map(KernelVirtualAddress from,
 
 
 PhysicalAddress PagingContext::resolve(KernelVirtualAddress address) {
-    assert(CurrentSystem.memory.heapLock.isLocked());
+    assert(KernelPageAllocator.lock.isLocked());
 
     size_t offset = address.value() % PAGE_SIZE;
     return (*CurrentSystem.kernelOnlyPagingContext.walkEntries(
@@ -153,7 +155,7 @@ Status PagingContext::accessRange(UserVirtualAddress address,
         }
         PageTableEntry *entry = *result;
         if (!entry->present()) {
-            Result<PhysicalAddress> frame = CurrentSystem.memory.allocatePhysicalFrame();
+            Result<PhysicalAddress> frame = FrameManagement.get();
             if (!frame) {
                 return frame.status();
             }
@@ -229,7 +231,7 @@ void PagingContext::_unmapRange(VirtualAddress address, size_t numPages, bool fr
 
         if (entry != nullptr && entry->present()) {
             if (freeFrames) {
-                CurrentSystem.memory.freePhysicalFrame(entry->addressValue());
+                FrameManagement.put(entry->addressValue());
             }
             *entry = PageTableEntry();
             basicInvalidate(address);
@@ -260,7 +262,7 @@ void PagingContext::unmapRange(UserVirtualAddress address, size_t numPages, bool
 
 
 void PagingContext::unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames) {
-    assert(CurrentSystem.memory.heapLock.isLocked());
+    assert(KernelPageAllocator.lock.isLocked());
     CurrentSystem.kernelOnlyPagingContext._unmapRange(address, numPages, freeFrames);
 }
 
@@ -381,7 +383,7 @@ void PagingContext::completelyUnmapLoaderRegion() {
         PageTableEntry &entry = masterPageTable->entries[index];
         if (entry.present()) {
             entry.addressValue().identityMapped().asPointer<PageTable>()->unmapEverything(MASTER_LEVEL - 1);
-            CurrentSystem.memory.freePhysicalFrame(entry.addressValue());
+            FrameManagement.put(entry.addressValue());
         }
     }
 }

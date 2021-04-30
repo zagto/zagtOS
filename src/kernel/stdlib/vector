@@ -1,7 +1,7 @@
 #pragma once
 
 #include <common/common.hpp>
-#include <memory/Memory.hpp>
+#include <memory/FrameManagement.hpp>
 #include <log/Logger.hpp>
 #include <lib/Status.hpp>
 #include <memory>
@@ -186,8 +186,11 @@ public:
             _data[moveIndex] = move(_data[moveIndex + 1]);
         }
         /* ignore status of adjustAllocatedSize - even if it failed we have removed the element */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
         Status ignored = adjustAllocatedSize(numElements);
     }
+#pragma GCC diagnostic pop
 
     Status resize(size_t newSize) {
         while (newSize < numElements) {

@@ -81,14 +81,4 @@ template <typename T> T max(T a, T b) {
     }
 }
 
-#ifndef ZAGTOS_LOADER
-class Status;
-namespace std {
-    enum class align_val_t: size_t {};
-}
-void *operator new(size_t, KernelVirtualAddress address);
-void *operator new[](size_t, Status &status);
-void *operator new[](size_t, std::align_val_t align,  Status &status);
-#endif
-
 #endif // __cplusplus
