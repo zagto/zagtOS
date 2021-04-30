@@ -133,10 +133,6 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
         TLSSection = section;
     }
 
-    if (!process->verifyMessageAccess(messageAddress, messageSize, numMessageHandles)) {
-        return true;
-    }
-
     Message runMessage(process.get(),
                        nullptr,
                        messageAddress,

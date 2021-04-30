@@ -1,6 +1,8 @@
 #include <common/common.hpp>
-#include <processes/Process.hpp>
+#include <processes/ProcessAddressSpace.hpp>
 #include <system/System.hpp>
+#include <processes/MappedArea.hpp>
+#include <processes/Process.hpp>
 
 struct Identification {
     uint8_t magic[4];
@@ -74,11 +76,11 @@ Status writeDump(vector<uint8_t> &dumpFile, void *data, size_t length) {
     return Status::OK();
 }
 
-Status Process::coreDump(Thread *crashedThread) {
+Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     cout << "Sending Core Dump to Serial Port..." << endl;
     vector<uint8_t> dumpFile;
 
-    scoped_lock sl(pagingLock);
+    scoped_lock sl(lock);
 
     size_t numProgramHeaders = mappedAreas.size() + 1; /* each mapped area + registers */
 
@@ -221,6 +223,7 @@ Status Process::coreDump(Thread *crashedThread) {
 
     assert(dumpFile.size() == dataOffset + 12 + 8 + sizeof(PRStatus));
 
+    vector<uint8_t> &logName = crashedThread->process->logName;
     cout.sendCoreDump(logName.size(), logName.data(), dumpFile.size(), dumpFile.data());
 
     cout << "End core dump" << endl;

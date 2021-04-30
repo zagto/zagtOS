@@ -15,7 +15,7 @@ private:
     Process *sourceProcess{nullptr};
     Process *destinationProcess{nullptr};
     UserVirtualAddress sourceAddress;
-    MappedArea *messageArea{nullptr};
+    Region destinationRegion{0, 0};
     UUID messageType;
     size_t numBytes{0};
     size_t numHandles{0};

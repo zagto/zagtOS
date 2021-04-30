@@ -2,8 +2,6 @@
 #include <paging/PageTable.hpp>
 #include <lib/Status.hpp>
 
-class Process;
-
 class PagingContext {
 public:
     static const size_t NUM_LEVELS{4};
@@ -20,8 +18,6 @@ private:
             tables[MASTER_LEVEL] = mpt;
         }
     };
-
-    Process *process;
 
     /* physical and virtual address of the same thing */
     PhysicalAddress masterPageTableAddress;
@@ -44,8 +40,8 @@ public:
     static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
     static const size_t NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
 
-    PagingContext(Process *process, Status &status);
-    PagingContext(Process *process, PhysicalAddress masterPageTableAddress, Status &);
+    PagingContext(Status &status);
+    PagingContext(PhysicalAddress masterPageTableAddress, Status &);
 
     static void map(KernelVirtualAddress from,
                     PhysicalAddress to,

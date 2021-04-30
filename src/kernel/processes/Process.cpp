@@ -43,14 +43,12 @@ Process::Process(Process &sourceProcess,
                  Message &runMessage,
                  vector<uint8_t> &logName,
                  Status &status):
-        mappedAreas(this),
+        addressSpace(status),
         logName{move(logName)},
         futexManager(status) {
     if (!status) {
         return;
     }
-
-    scoped_lock lg(pagingLock);
 
     Result pagingContextResult = make_raw<PagingContext>(this);
     if (!pagingContextResult) {
@@ -60,7 +58,7 @@ Process::Process(Process &sourceProcess,
     pagingContext = *pagingContextResult;
 
     for (const auto &section: sections) {
-        Result result = mappedAreas.addNew(section.region(), section.permissions());
+        Result result = addressSpace.addAnonymous(section.region(), section.permissions());
         if (!result) {
             status = result.status();
             return;

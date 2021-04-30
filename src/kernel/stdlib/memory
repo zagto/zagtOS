@@ -273,7 +273,7 @@ Result<shared_ptr<T>> make_shared(ArgumentTypes &&...args) {
         return raw.status();
     }
 
-    Status status;
+    Status status = Status::OK();
     shared_ptr<T> shared = shared_ptr(*raw, status);
     if (!status) {
         delete *raw;

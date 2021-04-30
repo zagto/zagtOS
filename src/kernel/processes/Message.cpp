@@ -29,9 +29,6 @@ Status Message::transfer() {
     assert(!transferred);
     /* destination process may be null at first, but must exist now (see setDestinationProcess)*/
     assert(destinationProcess);
-    /* this function accesses both source and destination address space, so they must be locked */
-    assert(!sourceProcess || sourceProcess->pagingLock.isLocked());
-    assert(destinationProcess->pagingLock.isLocked());
 
     Status status = prepareMemoryArea();
     if (!status) {
@@ -64,7 +61,7 @@ Status Message::transfer() {
     sourceProcess = nullptr;
     destinationProcess = nullptr;
     sourceAddress = {};
-    messageArea = nullptr;
+    destinationRegion = {0, 0};
     messageType = {0};
     numBytes = 0;
     numHandles = 0;
@@ -74,7 +71,7 @@ Status Message::transfer() {
 
 fail:
     /* In case of failure, do not leave a MappedArea in the destination Process behind. */
-    destinationProcess->mappedAreas.remove(messageArea);
+    destinationProcess->addressSpace.remove(destinationRegion);
     return status;
 }
 
@@ -89,16 +86,17 @@ Status Message::prepareMemoryArea() {
      * required size is the combined size of both. */
     size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
 
-    Result result = destinationProcess->mappedAreas.addNew(messageRegionSize, Permissions::READ);
+    Result result = destinationProcess->addressSpace.addAnonymous(messageRegionSize,
+                                                                  Permissions::READ);
     if (!result) {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
-        Panic();
+        return result.status();
     }
-    messageArea = *result;
+    destinationRegion = *result;
 
     /* Holds the address of the message info (UserMessageInfo class) in the destination address
      * space. */
-    infoAddress = messageArea->region.start;
+    infoAddress = destinationRegion.start;
     return Status::OK();
 }
 

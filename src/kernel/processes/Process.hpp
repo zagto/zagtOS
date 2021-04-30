@@ -4,15 +4,13 @@
 #include <queue>
 #include <memory>
 #include <utility>
-#include <paging/PagingContext.hpp>
 #include <processes/Thread.hpp>
-#include <processes/MappedArea.hpp>
-#include <paging/PageTableEntry.hpp>
 #include <processes/UUID.hpp>
 #include <processes/Message.hpp>
 #include <processes/HandleManager.hpp>
 #include <processes/FutexManager.hpp>
 #include <syscalls/SpawnProcess.hpp>
+#include <processes/ProcessAddressSpace.hpp>
 
 class Process {
 private:
@@ -24,12 +22,9 @@ private:
     Status coreDump(Thread *crashedThread);
 
 public:
-    MappedAreaVector mappedAreas;
+    ProcessAddressSpace addressSpace;
     HandleManager handleManager;
     vector<uint8_t> logName;
-    mutex pagingLock;
-    mutex threadsLock;
-    PagingContext *pagingContext;
     FutexManager futexManager;
 
     /* The handover constructor is the only constructor you should take the result of and put it
@@ -53,16 +48,6 @@ public:
     void activate();
     void freeFrame(UserVirtualAddress address);
     Status handlePageFault(UserVirtualAddress address);
-
-    Status copyFromOhterUserSpace(size_t destinationAddress,
-                                  Process &sourceProcess,
-                                  size_t sourceAddress,
-                                  size_t length,
-                                bool requireWriteAccessToDestination);
-    Status copyFromUser(uint8_t *destination, size_t address, size_t length, bool requireWritePermissions);
-    Status copyToUser(size_t address, const uint8_t *source, size_t length, bool requireWritePermissions);
-    bool verifyUserAccess(size_t address, size_t length, bool requireWritePermissions);
-    bool verifyMessageAccess(size_t address, size_t length, size_t numHandles);
 
     bool canAccessPhysicalMemory() const;
 

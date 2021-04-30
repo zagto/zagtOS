@@ -22,7 +22,7 @@ public:
     FutexManager futexManager;
 
     CommonSystem(const hos_v1::System &handOver, Status &status) :
-        kernelOnlyPagingContext(nullptr, handOver.handOverPagingContext, status),
+        kernelOnlyPagingContext(handOver.handOverPagingContext, status),
         processors(),
         futexManager(status) {}
 
