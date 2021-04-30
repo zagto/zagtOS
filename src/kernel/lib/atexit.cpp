@@ -1,22 +1,31 @@
 #include <common/common.hpp>
 #include <lib/atexit.hpp>
 
-/* very simplified implementation of __cxa_atexit that only supports one call */
-static void (*atExitFunction) (void *);
-static void *atExitArgument;
-static bool atExitRegistered{false};
+/* implementation of __cxa_atexit */
+
+struct AtExitEntry {
+    void (*function) (void *);
+    void *argument;
+};
+
+static const size_t maxAtExits = 16;
+static size_t numAtExits = 0;
+static AtExitEntry atExitData[maxAtExits];
 
 extern "C"
 int __cxa_atexit(void (*function) (void *), void *argument, void *) {
-    assert(!atExitRegistered);
-    atExitRegistered = true;
-    atExitFunction = function;
-    atExitArgument = argument;
+    assert(numAtExits < maxAtExits);
+    atExitData[numAtExits] = {
+        function,
+        argument,
+    };
+    numAtExits++;
     return 0;
 }
 
-void CallAtExitFunction() {
-    assert(atExitRegistered);
-    atExitFunction(atExitArgument);
+void CallAtExitFunctions() {
+    for (size_t index = 0; index < numAtExits; index++) {
+        atExitData[index].function(atExitData[index].argument);
+    }
 }
 
