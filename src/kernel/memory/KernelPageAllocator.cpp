@@ -102,12 +102,12 @@ Result <void *> Allocator::map(size_t length, bool findNewFrames, const Physical
             }
 
             do {
+                cout << "setting " << position << " as in use" << endl;
                 setFrame(position);
-                assert(position > 0);
                 numFrames--;
                 position--;
-            } while (numFrames > 1);
-            return reinterpret_cast<void *>(KernelHeapRegion.start + position * PAGE_SIZE);
+            } while (numFrames > 0);
+            return reinterpret_cast<void *>(startAddress.value());
         }
 
         position++;
