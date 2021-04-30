@@ -9,7 +9,7 @@
 
 void hos_v1::System::decodeProcesses() {
     /* TODO: deal with OOM */
-    Status status;
+    Status status = Status::OK();
     vector<shared_ptr<::Thread>> allThreads(numThreads, status);
     assert(status);
     vector<shared_ptr<::Port>> allPorts(numPorts, status);
