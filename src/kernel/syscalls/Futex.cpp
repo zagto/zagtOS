@@ -35,6 +35,7 @@ Result<size_t> Futex(const shared_ptr<Process> &,
     scoped_lock sl1(thread->process->pagingLock);
     scoped_lock sl2(manager.lock);
 
+    Sta
     if (address % 4 != 0 || !thread->process->verifyUserAccess(address, 4, true)) {
         cout << "Futex: invalid address" << endl;
         return Status::BadUserSpace();
@@ -72,6 +73,9 @@ Result<size_t> Futex(const shared_ptr<Process> &,
             return EAGAIN;
         }
         Status status = manager.wait(physicalAddress, thread);
+        if (!status) {
+            return status;
+        }
         return 0;
     }
     case FUTEX_WAKE: {
