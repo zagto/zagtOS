@@ -6,7 +6,7 @@
 namespace hos_v1 {
 
 enum class MappingSource : uint32_t {
-    ANONYMOUS = 1, PHYSICAL = 2, SHARED = 3, DMA = 4,
+    ANONYMOUS = 1, PHYSICAL = 2, DMA = 3,
 };
 
 enum class Permissions : uint32_t {
@@ -34,10 +34,17 @@ enum DMAZone {
     BITS32 = 0, BITS64, COUNT
 };
 static const size_t DMAZoneMax[DMAZone::COUNT] = {(1ul << 32) - 1, static_cast<size_t>(-1)};
+static const size_t FRAME_ID_NONE = static_cast<size_t>(-1);
+static const size_t FUTEX_ID_NONE = 0;
+
+struct Frame {
+    size_t address;
+    size_t copyOnWriteCount;
+};
 
 struct MemoryArea {
-    size_t numFrames;
-    PhysicalAddress *frames;
+    size_t *frameIDs;
+    uint64_t *futexIDs;
     MappingSource source;
     Permissions permissions;
     size_t length;
@@ -59,7 +66,7 @@ struct Thread {
 };
 
 struct Futex {
-    size_t address;
+    uint64_t id;
     size_t numWaitingThreads;
     size_t *waitingThreadIDs;
 };
@@ -82,7 +89,6 @@ struct Port {
 };
 
 struct Process {
-    PhysicalAddress pagingContext;
     size_t numMappedAreas;
     MappedArea *mappedAreas;
     size_t numLocalFutexes;
@@ -135,6 +141,8 @@ struct System {
     size_t numProcessors;
     size_t numFutexes;
     Futex *futexes;
+    /* not 0, multiple of PAGE_SIZE */
+    size_t nextFutexFrameID;
 
     void decodeProcesses();
 };

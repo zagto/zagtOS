@@ -27,11 +27,14 @@ public:
     size_t sectionAddress(size_t sectionOffset) const;
     hos_v1::Permissions sectionPermissions(size_t sectionOffset) const;
     size_t sectionSizeInMemory(size_t sectionOffset) const;
+    size_t loadedUserFrames() const;
     size_t entryAddress() const;
     UserVirtualAddress TLSBase() const;
     Region TLSRegion() const;
     UserVirtualAddress masterTLSBase() const;
     size_t numSections() const;
     UserVirtualAddress runMessageAddress() const;
-    void load(PagingContext pagingContext);
+    void load(PagingContext pagingContext,
+              hos_v1::Frame *frames,
+              size_t &frameIndex);
 };

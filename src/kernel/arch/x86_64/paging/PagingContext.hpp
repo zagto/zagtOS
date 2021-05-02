@@ -55,7 +55,7 @@ public:
                PhysicalAddress to,
                Permissions permissions,
                CacheType cacheType);
-    PhysicalAddress resolve(UserVirtualAddress address);
+    Result<PhysicalAddress> resolve(UserVirtualAddress address);
     Status accessRange(UserVirtualAddress address,
                        size_t numPages,
                        size_t startOffset,

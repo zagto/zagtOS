@@ -83,6 +83,27 @@ Region ProgramBinary::sectionRegion(size_t sectionOffset) const {
     return result;
 }
 
+size_t ProgramBinary::loadedUserFrames() const {
+    size_t sum = 0;
+    for (size_t i = 0; i < numSections(); i++) {
+        size_t sectionSize = sectionSizeInMemory(sectionOffset(i));
+        assert(sectionSize % PAGE_SIZE == 0);
+        sum += sectionSize / PAGE_SIZE;
+    }
+
+    /* run message has one frame */
+    sum++;
+
+    if (hasTLS()) {
+        size_t sectionSize = sectionSizeInMemory(TLSOffset());
+        assert(sectionSize % PAGE_SIZE == 0);
+        sum += sectionSize / PAGE_SIZE;
+    }
+
+    return sum;
+}
+
+
 void ProgramBinary::sanityCheckSection(size_t offset) const {
     /* the section is an object */
     assert(data[offset] == OBJECT);
@@ -164,21 +185,47 @@ Region ProgramBinary::TLSRegion() const {
 }
 
 UserVirtualAddress ProgramBinary::runMessageAddress() const {
-    return UserStackBorderRegion.start - PAGE_SIZE;
+    for (size_t insertIndex = 0; insertIndex < numSections(); insertIndex++) {
+        Region usedRegion = sectionRegion(sectionOffset(insertIndex));
+        Region testRegion = Region{usedRegion.end(), PAGE_SIZE};
+        bool conflicts = false;
+
+        for (size_t compareIndex = 0; compareIndex < numSections(); compareIndex++) {
+            if (sectionRegion(sectionOffset(insertIndex)).overlaps(testRegion)) {
+                conflicts = true;
+            }
+        }
+        if (!UserSpaceRegion.contains(testRegion)) {
+            conflicts = true;
+        }
+
+        if (!conflicts) {
+            return testRegion.start;
+        }
+    }
+    cout << "could not find region to place run message" << endl;
+    Panic();
 }
 
 hos_v1::Permissions ProgramBinary::sectionPermissions(size_t sectionOffset) const {
     size_t flags = sectionFlags(sectionOffset);
-    if (flags & FLAG_EXECUTABLE) {
+    switch (flags) {
+    case FLAG_READABLE | FLAG_WRITEABLE | FLAG_EXECUTABLE:
+        return Permissions::READ_WRITE_EXECUTE;
+    case FLAG_READABLE | FLAG_EXECUTABLE:
         return Permissions::READ_EXECUTE;
-    } else if (flags & FLAG_WRITEABLE) {
+    case FLAG_READABLE | FLAG_WRITEABLE:
         return Permissions::READ_WRITE;
-    } else {
+    case FLAG_READABLE:
         return Permissions::READ;
+    default:
+        return Permissions::INVALID;
     }
 }
 
-void ProgramBinary::load(PagingContext pagingContext) {
+void ProgramBinary::load(PagingContext pagingContext,
+                         hos_v1::Frame *frames,
+                         size_t &frameIndex) {
     for (size_t sectionIndex = 0; sectionIndex < numSections(); sectionIndex++) {
         size_t offset = sectionOffset(sectionIndex);
 
@@ -196,21 +243,58 @@ void ProgramBinary::load(PagingContext pagingContext) {
 
         for (size_t pageIndex = 0; pageIndex < region.length / PAGE_SIZE; pageIndex++) {
             PhysicalAddress physicalAddress = AllocatePhysicalFrame();
-            MapAddress(pagingContext,
-                       region.start + pageIndex * PAGE_SIZE,
-                       physicalAddress,
-                       flags & FLAG_WRITEABLE,
-                       flags & FLAG_EXECUTABLE,
-                       false,
-                       CacheType::CACHE_NORMAL_WRITE_BACK);
-
             /* if there is anything to be written to this page */
             if (sourceLen > pageIndex * PAGE_SIZE) {
                 memcpy(reinterpret_cast<void *>(physicalAddress.value()),
                        source + pageIndex * PAGE_SIZE,
                        PAGE_SIZE);
             }
+
+            if (pagingContext == PagingContext::GLOBAL) {
+                MapAddress(pagingContext,
+                           region.start + pageIndex * PAGE_SIZE,
+                           physicalAddress,
+                           flags & FLAG_WRITEABLE,
+                           flags & FLAG_EXECUTABLE,
+                           false,
+                           CacheType::CACHE_NORMAL_WRITE_BACK);
+            } else {
+                frames[frameIndex] = hos_v1::Frame{
+                    .address = physicalAddress.value(),
+                    .copyOnWriteCount = 1,
+                };
+                frameIndex++;
+            }
         }
+    }
+
+    /* if this is a user-space program, load run message */
+    if (pagingContext == PagingContext::PROCESS) {
+        /* put run message directly below stack */
+        PhysicalAddress physicalAddress = AllocatePhysicalFrame();
+        struct UserMessageInfo {
+            uint8_t type[16];
+            size_t address;
+            size_t length;
+            size_t numHandles;
+            /* externally for user = kernel */
+            bool allocatedExternally;
+        };
+        UserMessageInfo *msgInfo = reinterpret_cast<UserMessageInfo *>(physicalAddress.value());
+        *msgInfo = {
+            .type = {0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
+                     0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55}, /* MSG_BE_INIT */
+            .address = runMessageAddress().value(),
+            .length = 0,
+            .numHandles = 0,
+            .allocatedExternally = true
+        };
+
+        frames[frameIndex] = hos_v1::Frame{
+            .address = physicalAddress.value(),
+            .copyOnWriteCount = 1,
+        };
+        frameIndex++;
     }
 
     if (hasTLS()) {
@@ -230,7 +314,7 @@ void ProgramBinary::load(PagingContext pagingContext) {
                     conflicts = true;
                 }
             }
-            if (_TLSRegion.end() > UserStackBorderRegion.start - 2*PAGE_SIZE) {
+            if (_TLSRegion.overlaps(Region{runMessageAddress().value(), PAGE_SIZE})) {
                 conflicts = true;
             }
             if (!conflicts) {
@@ -252,62 +336,29 @@ void ProgramBinary::load(PagingContext pagingContext) {
 
         for (size_t pageIndex = 0; pageIndex < _TLSRegion.length / PAGE_SIZE; pageIndex++) {
             PhysicalAddress physicalAddress = AllocatePhysicalFrame();
-            MapAddress(pagingContext,
-                       _TLSRegion.start + pageIndex * PAGE_SIZE,
-                       physicalAddress,
-                       true,
-                       false,
-                       false,
-                       CacheType::CACHE_NORMAL_WRITE_BACK);
-
             /* if there is anything to be written to this page */
             if (sourceLen > pageIndex * PAGE_SIZE) {
                 memcpy(reinterpret_cast<void *>(physicalAddress.value()), source, PAGE_SIZE);
             }
+
+            if (pagingContext == PagingContext::GLOBAL) {
+                MapAddress(pagingContext,
+                           _TLSRegion.start + pageIndex * PAGE_SIZE,
+                           physicalAddress,
+                           true,
+                           false,
+                           false,
+                           CacheType::CACHE_NORMAL_WRITE_BACK);
+            } else {
+                frames[frameIndex] = hos_v1::Frame{
+                    .address = physicalAddress.value(),
+                    .copyOnWriteCount = 1,
+                };
+                frameIndex++;
+            }
         }
 
         _TLSBase = _TLSRegion.start + sectionAddress(offset) % PAGE_SIZE;
-    }
-
-    /* if this is a user-space program, map stack and run message */
-    if (pagingContext == PagingContext::PROCESS) {
-        for (size_t pageIndex = 0; pageIndex < UserStackRegion.length / PAGE_SIZE; pageIndex++) {
-            MapAddress(pagingContext,
-                       UserStackRegion.start + pageIndex * PAGE_SIZE,
-                       AllocatePhysicalFrame(),
-                       true,
-                       false,
-                       false,
-                       CacheType::CACHE_NORMAL_WRITE_BACK);
-        }
-
-        /* put run message directly below stack */
-        PhysicalAddress physicalAddress = AllocatePhysicalFrame();
-        MapAddress(pagingContext,
-                   runMessageAddress(),
-                   physicalAddress,
-                   false,
-                   false,
-                   false,
-                   CacheType::CACHE_NORMAL_WRITE_BACK);
-
-        struct UserMessageInfo {
-            uint8_t type[16];
-            size_t address;
-            size_t length;
-            size_t numHandles;
-            /* externally for user = kernel */
-            bool allocatedExternally;
-        };
-        UserMessageInfo *msgInfo = reinterpret_cast<UserMessageInfo *>(physicalAddress.value());
-        *msgInfo = {
-            .type = {0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
-                     0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55}, /* MSG_BE_INIT */
-            .address = runMessageAddress().value(),
-            .length = 0,
-            .numHandles = 0,
-            .allocatedExternally = true
-        };
     }
 }
 

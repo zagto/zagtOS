@@ -5,6 +5,8 @@
 
 #define SYSTEM_X86_64 1
 
+static constexpr size_t MAX_NUM_PROCESSORS = 256;
+
 class System : public CommonSystem {
 private:
     /* only used during initial handover state deserialization */

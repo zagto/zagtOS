@@ -82,9 +82,6 @@ PhysicalAddress InitPhysicalFrameManagement() {
         cout << "Unable to find frame for secondary processor entry code" << endl;
         Halt();
     }
-
-    /* Process Master Page Tables can be at any place in memory */
-    ProcessMasterPageTable = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
     return maxPhysicalAddress;
 }
 

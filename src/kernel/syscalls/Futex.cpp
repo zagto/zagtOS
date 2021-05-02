@@ -1,6 +1,5 @@
 #include <common/common.hpp>
 #include <memory>
-#include <lib/atomic.hpp>
 #include <processes/Thread.hpp>
 #include <interrupts/RegisterState.hpp>
 #include <syscalls/UserSpaceObject.hpp>
@@ -20,7 +19,7 @@ static constexpr uint32_t FUTEX_HANDLE_MASK = 0x4fffffff;
 static constexpr uint32_t FUTEX_WAITERS_BIT = 0x80000000;
 
 
-Result<size_t> Futex(const shared_ptr<Process> &,
+Result<size_t> Futex(const shared_ptr<Process> &process,
                      size_t address,
                      size_t operation,
                      size_t timeoutOrValue2,
@@ -32,17 +31,7 @@ Result<size_t> Futex(const shared_ptr<Process> &,
     operation = operation & ~FUTEX_PRIVATE;
     FutexManager &manager = isPrivate ? CurrentSystem.futexManager : thread->process->futexManager;
 
-    scoped_lock sl1(thread->process->pagingLock);
     scoped_lock sl2(manager.lock);
-
-    Sta
-    if (address % 4 != 0 || !thread->process->verifyUserAccess(address, 4, true)) {
-        cout << "Futex: invalid address" << endl;
-        return Status::BadUserSpace();
-    }
-
-    auto physicalAddress = thread->process->pagingContext->resolve(UserVirtualAddress(address));
-    volatile uint32_t *directValue = physicalAddress.identityMapped().asPointer<volatile uint32_t>();
 
     timespec timeout{0, 0};
 
@@ -69,6 +58,10 @@ Result<size_t> Futex(const shared_ptr<Process> &,
     switch (operation) {
     case FUTEX_WAIT: {
         /* read value back - otherwise a wake may have occured inbetween and we wait forever */
+        Result<uint32_t> directValue = process->addressSpace.atomicCopyFrom32(address);
+        if (!directValue) {
+            return directValue.status();
+        }
         if (*directValue != passedValue) {
             return EAGAIN;
         }

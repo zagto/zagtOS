@@ -2,50 +2,53 @@
 #include <system/System.hpp>
 #include <memory/FrameManagement.hpp>
 
-MemoryArea::MemoryArea(size_t length, Status &) :
-    frames(),
+MemoryArea::MemoryArea(bool shared, Permissions permissions, size_t length, Status &status) :
+    frames(length / PAGE_SIZE, nullptr, status),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_ID_NONE, status),
+    isShared{shared},
     source{Source::ANONYMOUS},
-    permissions{Permissions::READ_WRITE_EXECUTE},
-    length{length} {
-
-    assert(length % PAGE_SIZE == 0);
-}
-
-MemoryArea::MemoryArea(Permissions permissions, size_t length, Status &status) :
-    frames(length / PAGE_SIZE, PhysicalAddress::NULL, status),
-    source{Source::SHARED},
     permissions{permissions},
     length{length} {
 
-    assert(false);//TODO
     assert(length % PAGE_SIZE == 0);
+    if (!status) {
+        return;
+    }
 }
 
-MemoryArea::MemoryArea(size_t frameStack, size_t length, vector<size_t> &deviceAddresses, Status &status):
-    frames(length / PAGE_SIZE, PhysicalAddress::NULL, status),
+MemoryArea::MemoryArea(frameManagement::ZoneID zoneID,
+                       size_t length,
+                       vector<size_t> &deviceAddresses,
+                       Status &status) :
+    frames(length / PAGE_SIZE, nullptr, status),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_ID_NONE, status),
+    isShared{true},
     source{Source::DMA},
     permissions{Permissions::READ_WRITE},
     length{length} {
 
+    assert(length % PAGE_SIZE == 0);
     if (!status) {
         return;
     }
 
-    size_t numFrames = length / PAGE_SIZE;
-    status = deviceAddresses.resize(numFrames);
-    if (!status) {
-        return;
-    }
-
-    for (size_t frameIndex = 0; frameIndex < numFrames; frameIndex++) {
-        Result<PhysicalAddress> addr = FrameManagement.get(frameStack);
+    for (Frame *&frame : frames) {
+        Result<PhysicalAddress> addr = FrameManagement.get(zoneID);
         if (!addr) {
             status = addr.status();
             return;
         }
-        frames[frameIndex] = *addr;
+        Result result = make_raw<Frame>(status);
+        if (!result) {
+            FrameManagement.put(*addr);
+            status = result.status();
+            return;
+        }
+    }
+
+    for (size_t frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
         /* TODO: IO-MMU support */
-        deviceAddresses[frameIndex] = addr->value();
+        deviceAddresses[frameIndex] = frames[frameIndex]->address.value();
     }
 }
 
@@ -84,11 +87,14 @@ MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver, Status &status) :
 }
 
 MemoryArea::~MemoryArea() {
-    if (source == Source::SHARED) {
+    for (Frame *&frame : frames) {
+
+        if (source != Source::PHYSICAL) {
+            FrameManagement.put(frame->address);
+        }
         for (PhysicalAddress address: frames) {
             /* the constructor may allocate only some frames on failure, so check for NULL */
             if (address.value() != PhysicalAddress::NULL) {
-                FrameManagement.put(address);
             }
         }
     }
@@ -155,4 +161,11 @@ bool MemoryArea::allowesPermissions(Permissions toTest) const {
 
 bool MemoryArea::isAnonymous() const {
     return source == Source::ANONYMOUS;
+}
+
+
+Result<uint32_t> atomicCompareExchange32(size_t offset,
+                                         uint32_t expectedValue,
+                                         uint32_t newValue) {
+    scoped_lock sl(lock);
 }

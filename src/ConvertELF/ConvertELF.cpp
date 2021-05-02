@@ -21,16 +21,22 @@ static Elf64_Ehdr FileHeader;
 
 #ifdef ZAGTOS_ARCH_x86_64
 static const size_t PAGE_SIZE = 0x1000;
+
+static constexpr size_t USER_STACK_SIZE = 2 * 1024 * 1024;
+static constexpr size_t USER_STACK_BORDER = 0x1000 * 10;
+
+static constexpr size_t USER_STACK_START = 0x0000800000000000 - USER_STACK_SIZE;
 #else
-#error "Please add page size definition for arch"
+#error "Please add page definition for arch"
 #endif
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        throw std::runtime_error("usage: CovertELF <input> <output> (but got "
+    if (!(argc == 3 || (argc == 4 && strcmp(argv[3], "--no-add-stack") == 0))) {
+        throw std::runtime_error("usage: ConvertELF <input> <output> [--no-add-stack] (but got "
                                  + std::to_string(argc)
                                  + " arguments instead)");
     }
+    const bool addStack = argc == 3;
     /* TODO: don't use tmpnam */
     char *tmpFileName = tmpnam(nullptr);
     const char *stripProgram = getenv("STRIP");
@@ -65,9 +71,26 @@ int main(int argc, char **argv) {
     inFile.read(reinterpret_cast<char *>(programHeaders.data()), sizeof(Elf64_Phdr) * numSections);
 
     std::vector<zagtos::ProgramSection> sections;
-    sections.reserve(numSections);
+    sections.reserve(numSections + 2);
 
     std::optional<zagtos::ProgramSection> TLSSection;
+
+    if (addStack) {
+        zagtos::ProgramSection stackSection = {
+            .address = USER_STACK_START,
+            .sizeInMemory = USER_STACK_SIZE,
+            .flags = PF_R | PF_W,
+            .data = {},
+        };
+        zagtos::ProgramSection borderSection = {
+            .address = USER_STACK_START - USER_STACK_BORDER,
+            .sizeInMemory = USER_STACK_BORDER,
+            .flags = 0,
+            .data = {},
+        };
+        sections.push_back(stackSection);
+        sections.push_back(borderSection);
+    }
 
     for (const auto &header: programHeaders) {
         if (!(header.p_type == PT_LOAD || header.p_type == PT_TLS)) {

@@ -109,9 +109,16 @@ PhysicalAddress PagingContext::resolve(KernelVirtualAddress address) {
 }
 
 
-PhysicalAddress PagingContext::resolve(UserVirtualAddress address) {
+Result<PhysicalAddress> PagingContext::resolve(UserVirtualAddress address) {
     size_t offset = address.value() % PAGE_SIZE;
-    return (*walkEntries(address - offset, MissingStrategy::NONE))->addressValue() + offset;
+    Result<PageTableEntry *> result = walkEntries(address - offset, MissingStrategy::RETURN_NULLPTR);
+    if (!result) {
+        return result.status();
+    }
+    if (*result == nullptr) {
+        return Status::BadUserSpace();
+    }
+    return (*result)->addressValue() + offset;
 }
 
 

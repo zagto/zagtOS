@@ -16,10 +16,11 @@ public:
     size_t logBufferIndex;
 
 public:
+    const size_t id;
     Scheduler scheduler;
     Interrupts interrupts;
     PagingContext *activePagingContext;
 
-    Processor(bool bootProcessor, Status &status);
+    Processor(size_t id, Status &status);
     ~Processor();
 };

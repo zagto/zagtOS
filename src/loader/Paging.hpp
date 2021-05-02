@@ -7,7 +7,6 @@ typedef uint64_t PageTableEntry;
 typedef PageTableEntry PageTable[ENTRIES_PER_PAGE_TABLE];
 
 extern PageTable *HandOverMasterPageTable;
-extern PageTable *ProcessMasterPageTable;
 
 enum class PagingContext {
     HANDOVER, PROCESS, GLOBAL

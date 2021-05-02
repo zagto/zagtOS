@@ -62,16 +62,13 @@ void MapAddress(PagingContext pagingContext,
                 bool large,
                 CacheType cacheType) {
     size_t level = NUM_PAGE_TABLE_LEVELS - 1;
-    PageTable *pageTable;
+    PageTable *pageTable = HandOverMasterPageTable;
     if (virtualAddress.isKernel()) {
         assert(pagingContext == PagingContext::GLOBAL);
-        pageTable = HandOverMasterPageTable;
-    } else if (pagingContext == PagingContext::HANDOVER) {
-        pageTable = HandOverMasterPageTable;
     } else {
-        assert(pagingContext == PagingContext::PROCESS);
-        pageTable = ProcessMasterPageTable;
+        assert(pagingContext == PagingContext::HANDOVER);
     }
+    pageTable = HandOverMasterPageTable;
     PageTableEntry *entry;
     PageTable *newPageTable;
 

@@ -41,8 +41,8 @@ public:
         static State WaitMessage(Port *port) {
             return State(Thread::MESSAGE, reinterpret_cast<size_t>(port));
         }
-        static State Futex(FutexManager *manager, PhysicalAddress address) {
-            return State(Thread::FUTEX, reinterpret_cast<size_t>(manager), address.value());
+        static State Futex(FutexManager *manager, uint64_t futexID) {
+            return State(Thread::FUTEX, reinterpret_cast<size_t>(manager), futexID);
         }
         static State Transition() {
             return State(Thread::TRANSITION);
@@ -58,8 +58,6 @@ public:
             assert(_kind == ACTIVE || _kind == RUNNING);
             return reinterpret_cast<Processor *>(relatedObject);
         }
-        pair<FutexManager &, PhysicalAddress> currentFutex();
-        Port &currentPort();
         bool operator==(const State &other) const {
             return _kind == other._kind && relatedObject == other.relatedObject && relatedObject2 == other.relatedObject2;
         }

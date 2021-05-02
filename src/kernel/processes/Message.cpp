@@ -110,10 +110,10 @@ Status Message::transferMessageInfo() {
         true,
     };
 
-   return destinationProcess->copyToUser(infoAddress.value(),
-                                         reinterpret_cast<uint8_t *>(&msgInfo),
-                                         sizeof(UserMessageInfo),
-                                         false);
+   return destinationProcess->addressSpace.copyTo(infoAddress.value(),
+                                                  reinterpret_cast<uint8_t *>(&msgInfo),
+                                                  sizeof(UserMessageInfo),
+                                                  false);
 }
 
 /* creates a handle on destination side for each resource that was sent with the message and writes
@@ -131,10 +131,10 @@ Status Message::transferHandles() {
     if (!status) {
         return status;
     }
-    status = sourceProcess->copyFromUser(reinterpret_cast<uint8_t *>(handles.data()),
-                                         sourceAddress.value(),
-                                         handlesSize(),
-                                         false);
+    status = sourceProcess->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(handles.data()),
+                                                  sourceAddress.value(),
+                                                  handlesSize(),
+                                                  false);
     if (!status) {
         return status;
     }
@@ -145,10 +145,10 @@ Status Message::transferHandles() {
         return status;
     }
 
-    status = destinationProcess->copyToUser(destinationAddress().value(),
-                                            reinterpret_cast<uint8_t *>(handles.data()),
-                                            handlesSize(),
-                                            false);
+    status = destinationProcess->addressSpace.copyTo(destinationAddress().value(),
+                                                     reinterpret_cast<uint8_t *>(handles.data()),
+                                                     handlesSize(),
+                                                     false);
     if (!status) {
         /* undo creating destination handles */
         for (uint32_t handle: handles) {
@@ -176,11 +176,11 @@ Status Message::transferData() {
     assert(sourceProcess);
 
     /* the directly copyable data is after the handles */
-    return destinationProcess->copyFromOhterUserSpace(destinationAddress().value() + handlesSize(),
-                                                      *sourceProcess,
-                                                      sourceAddress.value() + handlesSize(),
-                                                      simpleDataSize(),
-                                                      false);
+    return destinationProcess->addressSpace.copyFromOhter(destinationAddress().value() + handlesSize(),
+                                                          sourceProcess->addressSpace,
+                                                          sourceAddress.value() + handlesSize(),
+                                                          simpleDataSize(),
+                                                          false);
 }
 
 size_t Message::handlesSize() const {

@@ -54,11 +54,12 @@ void LoaderMain() {
     ProgramBinary kernel = LoadKernelImage();
     ProgramBinary process = LoadProcessImage();
 
-    /* sections, run message, stack */
-    size_t numMappings = process.numSections() + 2;
+    /* sections, run message */
+    size_t numMappings = process.numSections() + 1;
     if (process.hasTLS()) {
         numMappings++;
     }
+    size_t numFrames = process.loadedUserFrames();
 
     size_t handOverSize = sizeof(hos_v1::System)
             + sizeof(hos_v1::Process)
@@ -66,7 +67,10 @@ void LoaderMain() {
             + sizeof(hos_v1::Handle)
             + 17 /* SystemEnvironment string */
             + numMappings * sizeof(hos_v1::MappedArea)
-            + numMappings * sizeof(hos_v1::MemoryArea);
+            + numMappings * sizeof(hos_v1::MemoryArea)
+            + numFrames * sizeof(hos_v1::Frame)
+            /* handover frame ids, futex frame ids */
+            + 2 * numFrames * sizeof(size_t);
     uint8_t *pointer = memoryMap::allocateHandOver(handOverSize / PAGE_SIZE + 1);
     auto handOverSystem = reinterpret_cast<hos_v1::System *>(pointer);
     pointer += sizeof (hos_v1::System);
@@ -80,6 +84,12 @@ void LoaderMain() {
     pointer += numMappings * sizeof(hos_v1::MappedArea);
     auto handOverMemoryAreas = reinterpret_cast<hos_v1::MemoryArea *>(pointer);
     pointer += numMappings * sizeof(hos_v1::MemoryArea);
+    auto handOverFrames = reinterpret_cast<hos_v1::Frame *>(pointer);
+    pointer += numFrames * sizeof(hos_v1::Frame);
+    auto handOverFramesIDs = reinterpret_cast<size_t *>(pointer);
+    pointer += numFrames * sizeof(size_t);
+    auto futexFramesIDs = reinterpret_cast<size_t *>(pointer);
+    pointer += numFrames * sizeof(size_t);
     auto handOverString = reinterpret_cast<char *>(pointer);
 
     cout << "Getting Memory Map..." << endl;
@@ -92,15 +102,20 @@ void LoaderMain() {
     MapFramebufferMemory(framebufferInfo);
     CreateIdentityMap(maxPhysicalAddress);
 
+    size_t frameIndex = 0;
     cout << "Setting up address space for kernel..." << endl;
-    kernel.load(PagingContext::GLOBAL);
+    kernel.load(PagingContext::GLOBAL, nullptr, frameIndex);
+    /* loadring to GLOBAL context should map directly and not fill in frames */
+    assert(frameIndex == 0);
+
     cout << "Setting up address space for initial process..." << endl;
-    process.load(PagingContext::PROCESS);
+    process.load(PagingContext::PROCESS, handOverFrames, frameIndex);
+    assert(frameIndex == numFrames);
 
     cout << "Preparing handover structures..." << endl;
 
     RegisterState regState(process.entryAddress(),
-                           UserStackRegion.end() - 1, /* ensure valid UserVirtualAddress */
+                           UserSpaceRegion.end() - 1, /* ensure valid UserVirtualAddress */
                            process.runMessageAddress(),
                            process.TLSBase(),
                            process.masterTLSBase(),
@@ -125,7 +140,8 @@ void LoaderMain() {
         .memoryAreas = handOverMemoryAreas,
         .numProcessors = 1,
         .numFutexes = 0,
-        .futexes = nullptr
+        .futexes = nullptr,
+        .nextFutexFrameID = PAGE_SIZE,
     };
     for (size_t stackIndex = 0; stackIndex < hos_v1::DMAZone::COUNT; stackIndex++) {
         handOverSystem->freshFrameStack[stackIndex] = {
@@ -138,13 +154,12 @@ void LoaderMain() {
         };
     }
     *handOverProcess = {
-        .pagingContext = reinterpret_cast<size_t>(ProcessMasterPageTable),
         .numMappedAreas = numMappings,
         .mappedAreas = convertPointer(handOverMappedAreas),
         .numLocalFutexes = 0,
         .localFutexes = nullptr,
         .numHandles = 1,
-        .handles =convertPointer(handOverHandle),
+        .handles = convertPointer(handOverHandle),
         .numLogNameChars = 17,
         .logName = convertPointer(handOverString)
     };
@@ -159,6 +174,7 @@ void LoaderMain() {
         .handle = 1,
         .objectID = 0
     };
+    frameIndex = 0;
     for (size_t index = 0; index < process.numSections(); index++) {
         size_t offset = process.sectionOffset(index);
         handOverMappedAreas[index] = hos_v1::MappedArea{
@@ -169,60 +185,49 @@ void LoaderMain() {
             .permissions = process.sectionPermissions(offset)
         };
         handOverMemoryAreas[index] = hos_v1::MemoryArea{
-            .numFrames = 0,
-            .frames = nullptr,
+            .frameIDs = handOverFramesIDs + frameIndex,
+            .futexIDs = futexFramesIDs + frameIndex,
             .source = hos_v1::MappingSource::ANONYMOUS,
             .permissions = Permissions::READ_WRITE_EXECUTE,
             .length = process.sectionSizeInMemory(offset),
         };
+        frameIndex += process.sectionSizeInMemory(offset) / PAGE_SIZE;
     }
-    /* user stack */
+    /* run message */
     handOverMappedAreas[process.numSections()] = hos_v1::MappedArea{
         .memoryAreaID = process.numSections(),
-        .offset = 0,
-        .start = UserStackRegion.start,
-        .length = UserStackRegion.length,
-        .permissions = hos_v1::Permissions::READ_WRITE
-    };
-    handOverMemoryAreas[process.numSections()] = hos_v1::MemoryArea{
-        .numFrames = 0,
-        .frames = nullptr,
-        .source = hos_v1::MappingSource::ANONYMOUS,
-        .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
-        .length = UserStackRegion.length
-    };
-    /* run message */
-    handOverMappedAreas[process.numSections() + 1] = hos_v1::MappedArea{
-        .memoryAreaID = process.numSections() + 1,
         .offset = 0,
         .start = process.runMessageAddress().value(),
         .length = PAGE_SIZE,
         .permissions = hos_v1::Permissions::READ
     };
-    handOverMemoryAreas[process.numSections() + 1] = hos_v1::MemoryArea{
-        .numFrames = 0,
-        .frames = nullptr,
+    handOverMemoryAreas[process.numSections()] = hos_v1::MemoryArea{
+        .frameIDs = handOverFramesIDs + frameIndex,
+        .futexIDs = futexFramesIDs + frameIndex,
         .source = hos_v1::MappingSource::ANONYMOUS,
         .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
         .length = PAGE_SIZE
     };
+    frameIndex++;
     /* TLS */
     if (process.hasTLS()) {
-        handOverMappedAreas[process.numSections() + 2] = hos_v1::MappedArea{
-            .memoryAreaID = process.numSections() + 2,
+        handOverMappedAreas[process.numSections() + 1] = hos_v1::MappedArea{
+            .memoryAreaID = process.numSections() + 1,
             .offset = 0,
             .start = process.TLSRegion().start,
             .length = process.TLSRegion().length,
             .permissions = hos_v1::Permissions::READ_WRITE
         };
-        handOverMemoryAreas[process.numSections() + 2] = hos_v1::MemoryArea{
-            .numFrames = 0,
-            .frames = nullptr,
+        handOverMemoryAreas[process.numSections() + 1] = hos_v1::MemoryArea{
+                .frameIDs = handOverFramesIDs + frameIndex,
+                .futexIDs = futexFramesIDs + frameIndex,
             .source = hos_v1::MappingSource::ANONYMOUS,
             .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
             .length = process.TLSRegion().length
         };
+        frameIndex += process.TLSRegion().length / PAGE_SIZE;
     }
+    assert(frameIndex == numFrames);
     isort(handOverMappedAreas, numMappings);
     memcpy(handOverString, "SystemEnvironment", 17);
 

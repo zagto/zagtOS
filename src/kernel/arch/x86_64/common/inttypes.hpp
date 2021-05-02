@@ -14,6 +14,8 @@ typedef unsigned long uint64_t;
 typedef __uint128_t uint128_t;
 typedef uint64_t size_t;
 
+typedef uint64_t FutexFrameID;
+
 static const size_t PAGE_SIZE = 0x1000;
 static const size_t PAGE_SHIFT = 12u;
 static const size_t PLATFORM_BITS = 64;

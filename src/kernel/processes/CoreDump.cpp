@@ -162,7 +162,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
             static uint8_t page[PAGE_SIZE];
 
             if (mappedAreas[index]->permissions == Permissions::INVALID
-                    || !copyFromUser(page, address, PAGE_SIZE, false)) {
+                    || !copyFrom(page, address, PAGE_SIZE, false)) {
                 memset(page, 0, PAGE_SIZE);
             }
             status = writeDump(dumpFile, page, PAGE_SIZE);

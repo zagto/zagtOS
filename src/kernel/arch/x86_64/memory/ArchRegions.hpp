@@ -1,8 +1,6 @@
 #pragma once
 #include <common/Region.hpp>
 
-static constexpr size_t USER_STACK_SIZE = 2 * 1024 * 1024;
-static constexpr size_t USER_STACK_BORDER = 0x1000 * 10;
 static constexpr size_t KERNEL_HEAP_SIZE = 1024 * 1024 * 1024;
 
 static constexpr Region KernelImageRegion(
@@ -20,14 +18,6 @@ static constexpr Region KernelHeapRegion(
 static constexpr Region UserSpaceRegion(
     0x0000000000000000,
     0x0000800000000000
-);
-static constexpr Region UserStackRegion(
-    UserSpaceRegion.length - USER_STACK_SIZE,
-    USER_STACK_SIZE
-);
-static constexpr Region UserStackBorderRegion(
-    UserSpaceRegion.length - USER_STACK_SIZE - USER_STACK_BORDER,
-    USER_STACK_BORDER
 );
 
 static constexpr Region IdentityMapping(

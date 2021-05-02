@@ -9,10 +9,7 @@
 void InitPaging(void) {
     cout << "Handover Master Page Table is at: "
          << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-    cout << "Process Master Page Table is at: "
-         << reinterpret_cast<size_t>(ProcessMasterPageTable) << endl;
     ClearPageTable(HandOverMasterPageTable);
-    ClearPageTable(ProcessMasterPageTable);
     CreateGlobalMasterPageTableEntries();
 }
 

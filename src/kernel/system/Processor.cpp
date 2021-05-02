@@ -4,10 +4,11 @@
 
 extern size_t KERNEL_STACK_SIZE;
 
-Processor::Processor(bool bootProcessor, Status &status) :
+Processor::Processor(size_t id, Status &status) :
         logBufferIndex{0},
+        id{id},
         scheduler(this, status),
-        interrupts(bootProcessor, status),
+        interrupts(id, status),
         activePagingContext{nullptr} {
 
     if (!status) {

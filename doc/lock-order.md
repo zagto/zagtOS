@@ -1,5 +1,6 @@
-Process::pagingLock
-FutexManager::lock
+
+FutexManager::lock > ProcessAddressSpace::lock
+
 Scheduler::lock
 
 after owner:
