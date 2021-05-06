@@ -30,7 +30,7 @@ Result<size_t> CreateSharedMemory(const shared_ptr<Process> &process,
             cout << "SYS_CREATE_SHARED_MEMORY: offset not aligned" << endl;
             Panic(); // TODO: exception
         }
-        memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, offset, length);
+        memoryArea = make_shared<MemoryArea>(offset, length);
         break;
     case 2: {
         /* DMA */

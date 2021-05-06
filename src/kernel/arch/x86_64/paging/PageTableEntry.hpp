@@ -8,8 +8,9 @@ enum class CacheType {
 };
 
 class PageTableEntry {
-public:
 private:
+    friend class PageTable;
+
     static const size_t ADDRESS_MASK = 0x000ffffffffff000;
     static const size_t PRESENT_BIT        = 1;
     static const size_t WRITEABLE_BIT      = 1 << 1;
@@ -21,7 +22,7 @@ private:
     size_t data;
 
 public:
-    PageTableEntry();
+    PageTableEntry(size_t data = 0);
     PageTableEntry(PhysicalAddress addressValue,
                    Permissions permissions,
                    bool user,

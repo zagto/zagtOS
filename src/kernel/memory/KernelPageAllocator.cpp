@@ -84,7 +84,7 @@ Result <void *> Allocator::map(size_t length, bool findNewFrames, const Physical
             for (size_t frameIndex = 0; frameIndex < numFrames; frameIndex++) {
                 PhysicalAddress physicalAddress;
                 if (findNewFrames) {
-                    Result allocResult = FrameManagement.get();
+                    Result allocResult = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
                     if (!allocResult) {
                         /* allocatePhysicalFrame can fail with OutOfMemory */
                         PagingContext::unmapRange(startAddress, numFrames, true);

@@ -224,22 +224,22 @@ Status FutexManager::wait(uint64_t id, Thread *&thread) {
     }
 
     thread->currentProcessor()->scheduler.remove(thread);
-    thread->setState(Thread::State::Futex(this, address));
+    thread->setState(Thread::State::Futex(this, id));
 
     element.active = true;
-    element.address = address.value();
+    element.id = id;
     element.hash = hash;
     numElements++;
     return Status::OK();
 }
 
-size_t FutexManager::wake(PhysicalAddress address, size_t numWake) {
+size_t FutexManager::wake(uint64_t id, size_t numWake) {
     assert(lock.isLocked());
 
-    size_t index = reduceHash(getHash(address.value()));
+    size_t index = reduceHash(getHash(id));
     while (data[index].active) {
         Futex &element = data[index];
-        if (element.address == address.value()) {
+        if (element.id == id) {
             /* found - wake thread(s) */
             if (numWake >= element.threads.size()) {
                 numWake = element.threads.size();
@@ -268,27 +268,4 @@ size_t FutexManager::wake(PhysicalAddress address, size_t numWake) {
         index = (index + 1) % numAllocated();
     }
     return 0;
-}
-
-void FutexManager::ensureNoFutexOnPage(PhysicalAddress page) {
-    scoped_lock sl(lock);
-
-    bool found;
-    do {
-        found = false;
-
-        size_t index = reduceHash(getHash(page.value()));
-        while (data[index].active) {
-            Futex &element = data[index];
-
-            if ((element.address >> PAGE_SHIFT) == (page.value() >> PAGE_SHIFT)) {
-                found = true;
-                element.destroy();
-                removeElement(index);
-                break;
-            }
-
-            index = (index + 1) % numAllocated();
-        }
-    } while (found);
 }

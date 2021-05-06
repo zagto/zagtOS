@@ -33,19 +33,69 @@ public:
     }
 };
 
-class scoped_lock {
+class SpinLock {
 private:
-    mutex *first;
-    mutex *second;
+    size_t value{0};
 
 public:
-    scoped_lock(mutex &_mutex):
-        first{&_mutex},
+    SpinLock() {}
+    SpinLock(const SpinLock &) = delete;
+    void operator=(SpinLock &) =delete;
+
+    void lock() {
+        while (true) {
+            size_t expected = 0;
+            if (__atomic_compare_exchange_n(&value,
+                                            &expected,
+                                            1,
+                                            false,
+                                            __ATOMIC_SEQ_CST,
+                                            __ATOMIC_SEQ_CST)) {
+                return;
+            }
+        };
+    }
+    bool trylock() {
+        size_t expected = 0;
+        return __atomic_compare_exchange_n(&value,
+                                          &expected,
+                                          1,
+                                          false,
+                                          __ATOMIC_SEQ_CST,
+                                          __ATOMIC_SEQ_CST);
+    }
+    void unlock() {
+        size_t expected = 1;
+        bool ok = __atomic_compare_exchange_n(&value,
+                                              &expected,
+                                              0,
+                                              false,
+                                              __ATOMIC_SEQ_CST,
+                                              __ATOMIC_SEQ_CST);
+        if (!ok) {
+            cout << "Attempt to unlock non-locked lock" << endl;
+            Panic();
+        }
+    }
+    bool isLocked() const {
+        return value;
+    }
+};
+
+template<typename LockType>
+class scoped_lock {
+private:
+    LockType *first;
+    LockType *second;
+
+public:
+    scoped_lock(LockType &lock):
+        first{&lock},
         second{nullptr} {
 
         first->lock();
     }
-    scoped_lock(mutex &a, mutex &b) {
+    scoped_lock(LockType &a, LockType &b) {
         first = &a;
         second = &b;
         if (first > second) {

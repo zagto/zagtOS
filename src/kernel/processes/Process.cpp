@@ -12,7 +12,7 @@ Process::Process(const hos_v1::Process &handOver,
         const vector<shared_ptr<Port>> &allPorts,
         const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
         Status &status) :
-    mappedAreas(this, allMemoryAreas, handOver, status),
+    addressSpace(status),
     handleManager(handOver, allThreads, allPorts, allMemoryAreas, status),
     futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads, status)
 {
@@ -25,13 +25,6 @@ Process::Process(const hos_v1::Process &handOver,
         return;
     }
     memcpy(logName.data(), handOver.logName, handOver.numLogNameChars);
-
-    Result result = make_raw<PagingContext>(this, handOver.pagingContext);
-    if (!result) {
-        status = result.status();
-        return;
-    }
-    pagingContext = *result;
 }
 
 
@@ -50,13 +43,6 @@ Process::Process(Process &sourceProcess,
         return;
     }
 
-    Result pagingContextResult = make_raw<PagingContext>(this);
-    if (!pagingContextResult) {
-        status = pagingContextResult.status();
-        return;
-    }
-    pagingContext = *pagingContextResult;
-
     for (const auto &section: sections) {
         Result result = addressSpace.addAnonymous(section.region(), section.permissions());
         if (!result) {
@@ -64,21 +50,14 @@ Process::Process(Process &sourceProcess,
             return;
         }
 
-        status = copyFromOhterUserSpace(section.address,
-                                              sourceProcess,
-                                              section.dataAddress,
-                                              section.dataSize,
-                                              false);
+        status = addressSpace.copyFromOhter(section.address,
+                                            sourceProcess.addressSpace,
+                                            section.dataAddress,
+                                            section.dataSize,
+                                            false);
         if (!status) {
             return;
         }
-    }
-
-    // TODO: stack border
-    Result result = mappedAreas.addNew(UserStackRegion, Permissions::READ_WRITE);
-    if (!result) {
-        status = result.status();
-        return;
     }
 
     UserVirtualAddress masterTLSBase{0};
@@ -88,20 +67,20 @@ Process::Process(Process &sourceProcess,
         masterTLSBase = TLSSection->address;
     }
 
-    result = mappedAreas.addNew(TLSSize + THREAD_STRUCT_AREA_SIZE, Permissions::READ_WRITE);
-    if (!result) {
-        status = result.status();
+    Result tlsRegion = addressSpace.addAnonymous(TLSSize + THREAD_STRUCT_AREA_SIZE,
+                                                 Permissions::READ_WRITE);
+    if (!tlsRegion) {
+        status = tlsRegion.status();
         return;
     }
-    MappedArea *tlsArea = *result;
 
-    UserVirtualAddress tlsBase(tlsArea->region.start + THREAD_STRUCT_AREA_SIZE);
+    UserVirtualAddress tlsBase(tlsRegion->start + THREAD_STRUCT_AREA_SIZE);
     if (TLSSection) {
-        status = copyFromOhterUserSpace(tlsArea->region.start,
-                                        sourceProcess,
-                                        TLSSection->dataAddress,
-                                        TLSSection->dataSize,
-                                        false);
+        status = addressSpace.copyFromOhter(tlsRegion->start,
+                                            sourceProcess.addressSpace,
+                                            TLSSection->dataAddress,
+                                            TLSSection->dataSize,
+                                            false);
         if (!status) {
             return;
         }
@@ -122,7 +101,7 @@ Process::Process(Process &sourceProcess,
                                             entryAddress,
                                             initialPrioriy,
                                             /* ensure valid UserVirtualAddress */
-                                            UserStackRegion.end() - 1,
+                                            UserSpaceRegion.end() - 1,
                                             runMessage.infoAddress,
                                             tlsBase,
                                             masterTLSBase,

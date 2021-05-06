@@ -266,6 +266,30 @@ Result<T *> make_raw_array(size_t count) {
     return address->asPointer<T>();
 }
 
+template <typename T>
+Result<T *> make_raw_array_counter(size_t count) {
+    Result<KernelVirtualAddress> address = DLMallocGlue.allocate(sizeof(T) * count, alignof(T));
+    if (!address) {
+        return address.status();
+    }
+
+    for (size_t index = 0; index < count; index++) {
+        Status status = Status::OK();
+        /* placement new to run constructor */
+        new (*address + sizeof(T) * index) T(index, status);
+
+        if (!status) {
+            for (size_t deleteIndex = 0; deleteIndex <= index; deleteIndex++) {
+                /* run destructor for all the objects we already run the constructor */
+                address->asPointer<T>()[index].~T();
+            }
+            DLMallocGlue.free(*address);
+            return status;
+        }
+    }
+    return address->asPointer<T>();
+}
+
 template <typename T, typename ...ArgumentTypes>
 Result<shared_ptr<T>> make_shared(ArgumentTypes &&...args) {
     Result<T *> raw = make_raw<T>(args...);

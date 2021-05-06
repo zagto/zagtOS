@@ -5,20 +5,34 @@
 #include <processes/Frame.hpp>
 #include <vector>
 
-class PagingContext;
+class ProcessAddressSpace;
 
 class MemoryArea {
 private:
+    using Source = hos_v1::MappingSource;
+
     vector<Frame *> frames;
     vector<FutexFrameID> futexIDs;
-    /* should be held when changing anything in the frames vector */
+    /* should be held when changing anything in the frames or frameMeta vector */
     mutex lock;
-
-public:
-    using Source = hos_v1::MappingSource;
-    const bool isShared;
     const Source source;
     const Permissions permissions;
+    /* for PHYSICAL source only */
+    const PhysicalAddress physicalStart{PhysicalAddress::NULL};
+
+    /* The frames vector may contain null pointers for lazy initialization. This method ensures
+     * a frame actually exists */
+    Status ensureFramePresent(size_t frameIndex, bool requireNoCopyOnWrite);
+
+protected:
+    friend class Frame;
+    Status _copyFrom(uint8_t *destination,
+                     size_t offset,
+                     size_t accessLength,
+                     scoped_lock<mutex> &scopedLock);
+
+public:
+    const bool isShared;
     const size_t length;
 
     /* Anonymous */
@@ -29,21 +43,30 @@ public:
                vector<size_t> &deviceAddresses,
                Status &status);
     /* Physical */
-    MemoryArea(Permissions permissions, PhysicalAddress physicalStart, size_t length, Status &status);
+    MemoryArea(PhysicalAddress physicalStart, size_t length, Status &status);
     /* HandOver */
-    MemoryArea(const hos_v1::MemoryArea &handOver, Status &status);
+    MemoryArea(const hos_v1::MemoryArea &handOver, Frame **allFrames, Status &status);
     ~MemoryArea();
 
-    Status pageIn(PagingContext &context, UserVirtualAddress address, size_t offset);
-    Status pageOut(PagingContext &context, UserVirtualAddress address, size_t offset);
+    Status pageIn(ProcessAddressSpace &addressSpace,
+                  UserVirtualAddress address,
+                  Permissions mappingPermissions,
+                  size_t offset);
+    PageOutContext pageOut(ProcessAddressSpace &addressSpace,
+                           UserVirtualAddress address,
+                           size_t offset);
     bool allowesPermissions(Permissions toTest) const;
-    bool isAnonymous() const;
+    Result<uint64_t> getFutexID(size_t offset);
 
-    // new functions
-    Result<uint32_t> atomicCompareExchange32(size_t offset,
-                                             uint32_t expectedValue,
-                                             uint32_t newValue);
-    /* PhysicalAddress returned for Futex manager use only. May have changed already since
-     * ProcessAddressSpace is unlocked! */
-    Result<PhysicalAddress> resolve(size_t offset);
+    /* data access */
+    Status copyFrom(uint8_t *destination, size_t offset, size_t accessLength);
+    Status copyTo(size_t offset, const uint8_t *source, size_t accessLength);
+    Status copyFromOther(size_t destinationOffset,
+                         MemoryArea &sourceArea,
+                         size_t sourceOffset,
+                         size_t accessLength);
+    Result<uint32_t> atomicCopyFrom32(size_t offset);
+    Result<bool> atomicCompareExchange32(size_t offset,
+                                         uint32_t expectedValue,
+                                         uint32_t newValue);
 };

@@ -3,9 +3,8 @@
 #include <paging/PageTable.hpp>
 
 
-PageTableEntry::PageTableEntry() {
-    data = 0;
-}
+PageTableEntry::PageTableEntry(size_t data):
+    data{data} {}
 
 PageTableEntry::PageTableEntry(PhysicalAddress addressValue,
                                Permissions permissions,

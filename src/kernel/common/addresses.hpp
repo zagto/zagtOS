@@ -58,15 +58,15 @@ public:
     PhysicalAddress() : Address(NULL) {}
     PhysicalAddress(size_t value) : Address(value) {}
 
-    KernelVirtualAddress identityMapped() {
+    KernelVirtualAddress identityMapped() const {
         return KernelVirtualAddress(value() + IdentityMapping.start);
     }
     static PhysicalAddress fromIdentitdyMappedPointer(void *ptr);
 
-    bool operator==(PhysicalAddress other) {
+    bool operator==(PhysicalAddress other) const {
         return value() == other.value();
     }
-    PhysicalAddress operator+(size_t offset) {
+    PhysicalAddress operator+(size_t offset) const {
         return PhysicalAddress(value() + offset);
     }
 };

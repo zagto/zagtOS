@@ -99,7 +99,7 @@ void Scheduler::add(Thread *thread) {
 
 void Scheduler::schedule(Thread *thread) {
     // TODO
-    CurrentSystem.processors[0]->scheduler.add(thread);
+    Processors[0].scheduler.add(thread);
 }
 
 void Scheduler::remove(Thread *thread) {

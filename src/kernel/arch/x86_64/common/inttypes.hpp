@@ -15,6 +15,7 @@ typedef __uint128_t uint128_t;
 typedef uint64_t size_t;
 
 typedef uint64_t FutexFrameID;
+typedef size_t TLBContextID;
 
 static const size_t PAGE_SIZE = 0x1000;
 static const size_t PAGE_SHIFT = 12u;

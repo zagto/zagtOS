@@ -26,7 +26,7 @@ public:
     void unmap(void *_address, size_t length, bool freeFrames);
     Result<void *> map(size_t length, bool findNewFrames, const PhysicalAddress *frames = nullptr);
 
-    mutex lock;
+    SpinLock lock;
 };
 
 extern Allocator KernelPageAllocator;

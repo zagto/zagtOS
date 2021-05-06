@@ -39,7 +39,5 @@ public:
     /* These addresses can be physical addresses in the system-wide futex manger or virtual in the
      * process-wide one, so just use size_t */
     Status wait(uint64_t id, Thread *&thread);
-    size_t wake(PhysicalAddress address, size_t numWake);
-    void cancelWaiting(PhysicalAddress address, Thread *&thread);
-    void ensureNoFutexOnPage(PhysicalAddress page);
+    size_t wake(uint64_t id, size_t numWake);
 };

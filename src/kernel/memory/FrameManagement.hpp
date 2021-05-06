@@ -8,12 +8,13 @@
 namespace frameManagement {
 
 typedef size_t ZoneID;
+static constexpr size_t DEFAULT_ZONE_ID = hos_v1::DMAZone::COUNT - 1;
 
 class Management {
 private:
-    static const size_t NUM_ZONES = hos_v1::DMAZone::COUNT;
+    static constexpr size_t NUM_ZONES = hos_v1::DMAZone::COUNT;
 
-    mutex lock;
+    SpinLock lock;
     FrameStack usedFrameStack[NUM_ZONES];
     FrameStack freshFrameStack[NUM_ZONES];
 
@@ -21,7 +22,7 @@ private:
 
 public:
     Management();
-    Result<PhysicalAddress> get(ZoneID zoneID = NUM_ZONES - 1);
+    Result<PhysicalAddress> get(ZoneID zoneID);
     void put(PhysicalAddress frame);
     optional<ZoneID> zoneForAddressCeiling(KernelVirtualAddress ceiling);
 };

@@ -3,8 +3,8 @@
 
 CPUMask::CPUMask() {}
 
-CPUMask::CPUMask(Processor *processor) {
-    data[processor->id / PLATFORM_BITS] = (1u << (processor->id % PLATFORM_BITS));
+CPUMask::CPUMask(const Processor &processor) {
+    data[processor.id / PLATFORM_BITS] = (1u << (processor.id % PLATFORM_BITS));
 }
 
 void CPUMask::operator|=(const CPUMask &other) {

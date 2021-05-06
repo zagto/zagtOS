@@ -27,7 +27,7 @@ private:
     void scheduleNext();
 
 public:
-    mutex lock;
+    SpinLock lock;
 
     Scheduler(Processor *processor, Status &status);
     ~Scheduler();

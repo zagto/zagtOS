@@ -1,10 +1,9 @@
 #include <processes/MappedAreaVector.hpp>
+#include <processes/MappedArea.hpp>
 
-MappedAreaVector::MappedAreaVector(Process *process,
-                                   const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
+MappedAreaVector::MappedAreaVector(const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
                                    const hos_v1::Process &handOver,
-                                   Status &status) :
-        process{process} {
+                                   Status &status) {
     if (!status) {
         return;
     }
@@ -15,10 +14,11 @@ MappedAreaVector::MappedAreaVector(Process *process,
     }
 
     for (size_t index = 0; index < handOver.numMappedAreas; index++) {
-        Result result = make_raw<MappedArea>(process,
-                                      allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
-                                      handOver.mappedAreas[index]);
-        assert(result); // TODO: this code will be replaced anyways
+        Result result = make_raw<MappedArea>(allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
+                                             handOver.mappedAreas[index]);
+        if (!result) {
+            cout << "failure during handover" << endl;
+        }
         _data[index] = *result;
         assert(_data[index]->region.isPageAligned());
         if (index > 0) {
@@ -27,73 +27,22 @@ MappedAreaVector::MappedAreaVector(Process *process,
     }
 }
 
-
-bool MappedAreaVector::findMappedAreaIndexOrFreeLength(UserVirtualAddress address,
-                                                       size_t &resultIndex,
-                                                       size_t &freeLength) const {
-    assert(process->pagingLock.isLocked());
-
-    if (size() == 0) {
-        resultIndex = UserSpaceRegion.end() - address.value();
-        return false;
-    }
-
-    size_t low = 0;
-    size_t high = size() - 1;
-    while (low < high) {
-        size_t index = low + (high - low) / 2;
-        if (address.isInRegion(_data[index]->region)) {
-            resultIndex = index;
-            freeLength = 0;
-            return true;
-        }
-        if (address.value() < _data[index]->region.start) {
-            if (index == low) {
-                resultIndex = index;
-                freeLength = _data[index]->region.start - address.value();
-                return false;
-            }
-            high = index - 1;
-        } else {
-            low = index + 1;
-        }
-    }
-    assert(low == high);
-    assert(_data[low] != nullptr);
-    if (address.isInRegion(_data[low]->region)) {
-        resultIndex = low;
-        freeLength = 0;
-        return true;
-    } else {
-        if (address.value() < _data[low]->region.start) {
-            resultIndex = low;
-            freeLength = _data[low]->region.start - address.value();
-        } else {
-            resultIndex = low + 1;
-            if (low == size() - 1) {
-                freeLength = UserSpaceRegion.end() - address.value();
-            } else {
-                freeLength = _data[low+1]->region.start - address.value();
-            }
-        }
-        return false;
-    }
-}
-
-MappedArea *MappedAreaVector::findMappedArea(UserVirtualAddress address) const {
-    size_t index, unused;
+optional<MappedArea *> MappedAreaVector::findMappedArea(UserVirtualAddress address,
+                                                        size_t &nextIndex) const {
+    size_t unused;
     bool mapped = findMappedAreaIndexOrFreeLength(address, index, unused);
 
     if (mapped) {
         return _data[index];
     } else {
-        return nullptr;
+        return {};
     }
 }
 
-Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newIndex) const {
-    assert(process->pagingLock.isLocked());
+optional<MappedArea *> MappedAreaVector::findMappedArea(UserVirtualAddress address) const {
+}
 
+Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newIndex) const {
     valid = false;
     bool found = false;
 
@@ -139,56 +88,6 @@ Region MappedAreaVector::findFreeRegion(size_t length, bool &valid, size_t &newI
 fail:
     newIndex = -1ul;
     return Region(0, 0);
-}
-
-void MappedAreaVector::insert2(MappedArea *ma, size_t index) {
-    assert(index == this->findIndexFor(ma));
-    assert(ma != nullptr);
-    Status status = static_cast<vector<MappedArea *> *>(this)->insert(ma, index);
-    assert(status); // TODO
-}
-
-Result<MappedArea *> MappedAreaVector::addNew(Region region, Permissions permissions) {
-    size_t index;
-    if (!isRegionFree(region, index)) {
-        cout << "Attempt to add region to MappedAreaVector that overlaps with existing" << endl;
-        return Status::BadUserSpace();
-    }
-
-    Result memoryArea = make_shared<MemoryArea>(region.length);
-    if (!memoryArea) {
-        return memoryArea.status();
-    }
-
-    Result ma = make_raw<MappedArea>(process, region, *memoryArea, 0, permissions);
-    if (!ma) {
-        return ma.status();
-    }
-
-    insert2(*ma, index);
-    return *ma;
-}
-
-Result<MappedArea *> MappedAreaVector::addNew(size_t length, Permissions permissions) {
-    bool valid;
-    size_t index;
-    Region region = findFreeRegion(length, valid, index);
-    if (!valid) {
-        return nullptr;
-    }
-
-    Result memoryArea = make_shared<MemoryArea>(region.length);
-    if (!memoryArea) {
-        return memoryArea.status();
-    }
-
-    Result ma = make_raw<MappedArea>(process, region, *memoryArea, 0, permissions);
-    if (!ma) {
-        return ma.status();
-    }
-
-    insert2(*ma, index);
-    return *ma;
 }
 
 bool MappedAreaVector::isRegionFree(Region region, size_t &insertIndex) const {
@@ -301,6 +200,7 @@ Result<size_t> MappedAreaVector::unmapRange(Region range, size_t numAddInstead) 
             &_data[endIndex],
             numMove * sizeof(MappedArea *));
     Status status = adjustAllocatedSize(numElements - (endIndex - index) + numAddInstead);
+    /* adjustAllocated
     assert(status);
 
     for (size_t i = index; i < index + numAddInstead; i++) {

@@ -13,18 +13,23 @@
 
 
 class CommonSystem {
+private:
+    FutexFrameID nextFutexFrameID;
+    uint64_t nextTLBTimestamp{1};
+
 public:
     Time time;
     /* Memory and the PaginContext must be initialized before dynamic memory can be used */
     PagingContext kernelOnlyPagingContext;
-    vector<Processor *> processors;
-    mutex processorsLock;
     FutexManager futexManager;
 
-    CommonSystem(const hos_v1::System &handOver, Status &status) :
-        kernelOnlyPagingContext(handOver.handOverPagingContext, status),
-        processors(),
-        futexManager(status) {}
+    const size_t numProcessors;
+    /* initialized by arch-specific constructor */
+    size_t tlbContextsPerProcessor{0};
 
-    Status addBootProcessor();
+    CommonSystem(const hos_v1::System &handOver, Status &status);
+
+    Status initProcessorsAndTLB();
+    FutexFrameID getNewFutexFrameID();
+    uint64_t getNextTLBTimetamp();
 };

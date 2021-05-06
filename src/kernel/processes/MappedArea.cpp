@@ -1,19 +1,19 @@
 #include <common/common.hpp>
 #include <processes/MappedArea.hpp>
 #include <processes/Process.hpp>
+#include <memory/TLBContext.hpp>
 
 
-MappedArea::MappedArea(Process *process,
-                       Region region,
+MappedArea::MappedArea(Region region,
                        shared_ptr<MemoryArea> _memoryArea,
                        size_t offset,
                        Permissions permissions,
                        Status &status) :
-        process{process},
         memoryArea{move(_memoryArea)},
         offset{offset},
         region{region},
-        permissions{permissions} {
+        permissions{permissions},
+        isPagedIn(region.length / PAGE_SIZE, false, status) {
     if (!status) {
         return;
     }
@@ -24,14 +24,18 @@ MappedArea::MappedArea(Process *process,
     assert(memoryArea->allowesPermissions(permissions));
 }
 
-MappedArea::MappedArea(Process *process,
-                       shared_ptr<MemoryArea> _memoryArea,
+MappedArea::MappedArea(shared_ptr<MemoryArea> _memoryArea,
                        const hos_v1::MappedArea &handOver,
-                       Status &) :
-        process{process},
+                       Status &status) :
         memoryArea{move(_memoryArea)},
+        offset{handOver.offset},
         region(handOver.start, handOver.length),
-        permissions{handOver.permissions} {
+        permissions{handOver.permissions},
+        isPagedIn(region.length / PAGE_SIZE, false, status) {
+
+    if (!status) {
+        return;
+    }
     cout << "handover MappedArea " << handOver.start << " len " << handOver.length << endl;
 }
 
@@ -41,8 +45,7 @@ MappedArea::~MappedArea() {
 }
 
 
-Status MappedArea::handlePageFault(UserVirtualAddress address) {
-    assert(process->pagingLock.isLocked());
+Status MappedArea::ensurePagedIn(TLBContext &tlbContext, UserVirtualAddress address) {
     assert(address.isInRegion(region));
 
     PagingContext *context = process->pagingContext;

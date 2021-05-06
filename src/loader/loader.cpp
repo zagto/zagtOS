@@ -188,6 +188,7 @@ void LoaderMain() {
             .frameIDs = handOverFramesIDs + frameIndex,
             .futexIDs = futexFramesIDs + frameIndex,
             .source = hos_v1::MappingSource::ANONYMOUS,
+            .isShared = false,
             .permissions = Permissions::READ_WRITE_EXECUTE,
             .length = process.sectionSizeInMemory(offset),
         };
@@ -205,6 +206,7 @@ void LoaderMain() {
         .frameIDs = handOverFramesIDs + frameIndex,
         .futexIDs = futexFramesIDs + frameIndex,
         .source = hos_v1::MappingSource::ANONYMOUS,
+        .isShared = false,
         .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
         .length = PAGE_SIZE
     };
@@ -219,9 +221,10 @@ void LoaderMain() {
             .permissions = hos_v1::Permissions::READ_WRITE
         };
         handOverMemoryAreas[process.numSections() + 1] = hos_v1::MemoryArea{
-                .frameIDs = handOverFramesIDs + frameIndex,
-                .futexIDs = futexFramesIDs + frameIndex,
+            .frameIDs = handOverFramesIDs + frameIndex,
+            .futexIDs = futexFramesIDs + frameIndex,
             .source = hos_v1::MappingSource::ANONYMOUS,
+            .isShared = false,
             .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
             .length = process.TLSRegion().length
         };

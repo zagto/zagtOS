@@ -46,6 +46,7 @@ struct MemoryArea {
     size_t *frameIDs;
     uint64_t *futexIDs;
     MappingSource source;
+    bool isShared;
     Permissions permissions;
     size_t length;
 };

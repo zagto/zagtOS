@@ -45,5 +45,7 @@ System::System() :
         cout << "Exception during System initialization" << endl;
         Panic();
     }
+    /* TODO: support for Intel PCIDs could be added here */
+    tlbContextsPerProcessor = 1;
     setupSecondaryProcessorEntry(*_HandOverSystem);
 }

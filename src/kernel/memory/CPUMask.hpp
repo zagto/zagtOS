@@ -12,6 +12,6 @@ private:
 
 public:
     CPUMask();
-    CPUMask(Processor *processor);
+    CPUMask(const Processor &processor);
     void operator|=(const CPUMask &other);
 };

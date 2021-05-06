@@ -76,7 +76,7 @@ private:
     Priority _ownPriority;
     Priority _currentPriority;
     State _state;
-    mutex stateLock;
+    SpinLock stateLock;
     uint32_t _handle{INVALID_HANDLE};
 
 protected:

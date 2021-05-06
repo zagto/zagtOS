@@ -14,69 +14,68 @@ void KernelEntry2(hos_v1::System *handOver);
 void KernelEntrySecondaryProcessor2(hos_v1::System *handOver);
 
 
-extern "C" __attribute__((noreturn)) void KernelEntry(hos_v1::System *handOver) {
-    CurrentProcessor = nullptr;
+static size_t secondaryProcessorsStartLock = 1;
+static size_t processorsStarted = 1;
 
-    /* glocal constructor for System and cout needs this */
-    _HandOverSystem = handOver;
+extern "C" __attribute__((noreturn))
+void KernelEntry(hos_v1::System *handOver, size_t processorID) {
+    if (processorID == 0) {
+        CurrentProcessor = nullptr;
 
-    /* Call global constructors */
-    _init();
+        /* glocal constructor for System and cout needs this */
+        _HandOverSystem = handOver;
 
-    cout << "Hello World. Log initialized." << endl;
+        /* Call global constructors */
+        _init();
 
-    Status status = CurrentSystem.addBootProcessor();
-    if (!status) {
-        cout << "Exception during boot processor initialization" << endl;
-        Panic();
+        cout << "Hello World. Log initialized." << endl;
+
+        Status status = CurrentSystem.initProcessorsAndTLB();
+        if (!status) {
+            cout << "Exception during boot processors initialization" << endl;
+            Panic();
+        }
+        cout << "Processors initialized." << endl;
+    } else {
+        while (__atomic_load_n(&secondaryProcessorsStartLock, __ATOMIC_SEQ_CST) != 0) {
+            /* wait for first processor to clear start lock */
+        }
     }
-    cout << "Processor added." << endl;
 
-    /* TODO: wait for eventual already running secondary processors */
+    CurrentProcessor = &Processors[processorID];
+    cout << "Processor" << processorID << "running." << endl;
 
     switchStack(CurrentProcessor->kernelStack, KernelEntry2, handOver);
 }
 
-__attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
-    {
+__attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver, size_t processorID) {
+    if (processorID == 0) {
         cout << "Setting up time..." << endl;
         CurrentSystem.time.initialize();
 
         cout << "Creating initial processes..." << endl;
         handOver->decodeProcesses();
 
+        cout << "Unlocking secondary processors..." << endl;
+        __atomic_store_n(&processorsStarted, 1, __ATOMIC_SEQ_CST);
+        __atomic_store_n(&secondaryProcessorsStartLock, 0, __ATOMIC_SEQ_CST);
+
+
+        size_t startedCount = 0;
+        while (startedCount != CurrentSystem.numProcessors) {
+            startedCount = __atomic_load_n(&processorsStarted, __ATOMIC_SEQ_CST);
+        }
+
+        cout << "All processors started: TODO: unlock loader memory" << endl;
+        /* TODO: clear handover state from the lower half of kernelOnlyPagingContext */
         /* the ELF data is the last thing we wanted to read from loader memory */
         //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();
-
-        cout << "Entering first process..." << endl;
-    }
-    /* TODO: clear handover state from the lower half of kernelOnlyPagingContext */
-    CurrentProcessor->interrupts.returnToUserMode();
-}
-
-extern "C" __attribute__((noreturn)) void KernelEntrySecondaryProcessor() {
-    assert(CurrentSystem.processorsLock.isLocked());
-
-    Result result = make_raw<Processor>(false);
-    if (!result) {
-        cout << "Exception during boot processor initialization" << endl;
-        Panic();
+    } else {
+        __atomic_add_fetch(&processorsStarted, 1,  __ATOMIC_SEQ_CST);
     }
 
-    CurrentProcessor = *result;
-    Status status = CurrentSystem.processors.push_back(*result);
-    if (!status) {
-        cout << "Exception during boot processor initialization" << endl;
-        Panic();
+    {
+        cout << "Processor " << processorID << " entering normal operation" << endl;
     }
-
-    switchStack(CurrentProcessor->kernelStack, KernelEntrySecondaryProcessor2, nullptr);
-}
-
-__attribute__((noreturn)) void KernelEntrySecondaryProcessor2(hos_v1::System *) {
-    /* we now use our own stack, free to add more processors */
-    CurrentSystem.processorsLock.unlock();
-
-    cout << "started processor " << (CurrentSystem.processors.size() - 1) << endl;
     CurrentProcessor->interrupts.returnToUserMode();
 }

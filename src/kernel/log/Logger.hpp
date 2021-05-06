@@ -19,6 +19,7 @@ public:
     void sendCoreDump(size_t nameLength, const uint8_t *name, size_t dataLength, const uint8_t *data);
     Logger operator<<(char character);
     Logger operator<<(const char *string);
+    Logger operator<<(uint16_t value);
     Logger operator<<(uint32_t value);
     Logger operator<<(uint64_t value);
     Logger operator<<(volatile void *pointer);

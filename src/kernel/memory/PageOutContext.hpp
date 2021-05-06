@@ -9,5 +9,7 @@ private:
     uint64_t timestamp;
 
 public:
-    PageOutContext(CPUMask mask);
+    PageOutContext();
+    PageOutContext(CPUMask mask, uint64_t timestamp);
+    PageOutContext &operator |=(const PageOutContext &other);
 };

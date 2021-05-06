@@ -9,5 +9,4 @@ Logger cout;
 frameManagement::Management frameManagement::FrameManagement;
 kernelPageAllocator::Allocator kernelPageAllocator::KernelPageAllocator;
 dlMallocGlue::Glue dlMallocGlue::DLMallocGlue;
-tlbContextMask::GlobalStuff tlbContextMask::Globals;
 System CurrentSystem;

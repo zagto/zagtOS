@@ -61,7 +61,6 @@ Status Message::transfer() {
     sourceProcess = nullptr;
     destinationProcess = nullptr;
     sourceAddress = {};
-    destinationRegion = {0, 0};
     messageType = {0};
     numBytes = 0;
     numHandles = 0;
@@ -71,7 +70,7 @@ Status Message::transfer() {
 
 fail:
     /* In case of failure, do not leave a MappedArea in the destination Process behind. */
-    destinationProcess->addressSpace.remove(destinationRegion);
+    destinationProcess->addressSpace.removeMapping(infoAddress.value());
     return status;
 }
 
@@ -92,11 +91,10 @@ Status Message::prepareMemoryArea() {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
         return result.status();
     }
-    destinationRegion = *result;
 
     /* Holds the address of the message info (UserMessageInfo class) in the destination address
      * space. */
-    infoAddress = destinationRegion.start;
+    infoAddress = result->start;
     return Status::OK();
 }
 
@@ -133,8 +131,7 @@ Status Message::transferHandles() {
     }
     status = sourceProcess->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(handles.data()),
                                                   sourceAddress.value(),
-                                                  handlesSize(),
-                                                  false);
+                                                  handlesSize());
     if (!status) {
         return status;
     }
