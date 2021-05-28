@@ -121,6 +121,7 @@ Result<size_t> MMapStruct::perform(const shared_ptr<Process> &process) {
     } else {
         /* can't use passed address/length */
         if (flags & MAP_FIXED) {
+            process->addressSpace.addAnonymous(passedRegion, permissions, true);
             if (addressLengthValid(startAddress, length)) {
                 /* MAP_FIXED set and passed region not free - we free it */
                 insertIndex = process->mappedAreas.unmapRange(passedRegion, 1);

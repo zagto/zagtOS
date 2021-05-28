@@ -18,11 +18,12 @@ public:
 
 protected:
     friend class TLBContext;
+    friend class PageOutContext;
     SpinLock tlbContextsLock;
     uint16_t nextLocalTlbContextID;
-    InvalidateQueue invalidateQueue;
 
 public:
+    InvalidateQueue invalidateQueue;
     const size_t id;
     Scheduler scheduler;
     Interrupts interrupts;

@@ -83,6 +83,34 @@ MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver, Frame **allFrames, St
     }
 }
 
+MemoryArea::MemoryArea(MemoryArea &other, size_t offset, size_t length, Status &status):
+    frames(length / PAGE_SIZE, nullptr, status),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_ID_NONE, status),
+    source{other.source},
+    permissions{other.permissions},
+    isShared{other.isShared},
+    length{length} {
+
+    assert(offset <= other.length);
+    assert(offset + length <= other.length);
+    assert(offset % PAGE_SIZE == 0);
+    assert(length % PAGE_SIZE == 0);
+
+    if (!status) {
+        return;
+    }
+
+    scoped_lock sl(other.lock);
+
+    for (size_t frameIndex = 0; length / PAGE_SIZE; frameIndex++) {
+        Frame *frame = other.frames[offset / PAGE_SIZE + frameIndex];
+        if (frame != nullptr) {
+            frame->copyOnWriteDuplicate();
+        }
+        frames[frameIndex] = frame;
+    }
+}
+
 MemoryArea::~MemoryArea() {
     for (Frame *&frame : frames) {
         if (frame != nullptr) {

@@ -12,4 +12,6 @@ public:
     PageOutContext();
     PageOutContext(CPUMask mask, uint64_t timestamp);
     PageOutContext &operator |=(const PageOutContext &other);
+
+    void realize();
 };

@@ -28,6 +28,6 @@ public:
     uint64_t add(TLBContextID tlbContextID,
                  Frame *frame,
                  UserVirtualAddress address);
-    void ensureProcessedUntil(uint64_t timestamp, optional<Item> extraItem);
+    void ensureProcessedUntil(uint64_t timestamp, optional<Item> extraItem = {});
     void localProcessing();
 };

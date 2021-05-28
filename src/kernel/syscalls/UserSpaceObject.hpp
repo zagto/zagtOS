@@ -18,10 +18,9 @@ public:
     UserSpaceObject(size_t address, Status &status) :
             address{address} {
         if (op != USOOperation::WRITE) {
-            status = CurrentProcess()->copyFromUser(reinterpret_cast<uint8_t *>(&object),
-                                                    address,
-                                                    sizeof(T),
-                                                    false);
+            status = CurrentProcess()->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&object),
+                                                             address,
+                                                             sizeof(T));
             valid = status;
         } else {
             valid = true;
@@ -39,8 +38,9 @@ public:
     Status writeOut() {
         static_assert(op != USOOperation::READ, "read-only USOs cannot be written out");
         assert(valid);
-        return CurrentProcess()->copyToUser(address, reinterpret_cast<uint8_t *>(&object),
-                                            sizeof(T),
-                                            true);
+        return CurrentProcess()->addressSpace.copyTo(address,
+                                                     reinterpret_cast<uint8_t *>(&object),
+                                                     sizeof(T),
+                                                     true);
     }
 };

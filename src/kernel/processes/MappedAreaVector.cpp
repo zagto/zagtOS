@@ -27,18 +27,6 @@ MappedAreaVector::MappedAreaVector(const vector<shared_ptr<MemoryArea> > &allMem
     }
 }
 
-optional<MappedArea *> MappedAreaVector::findMappedArea(UserVirtualAddress address,
-                                                        size_t &nextIndex) const {
-    size_t unused;
-    bool mapped = findMappedAreaIndexOrFreeLength(address, index, unused);
-
-    if (mapped) {
-        return _data[index];
-    } else {
-        return {};
-    }
-}
-
 optional<MappedArea *> MappedAreaVector::findMappedArea(UserVirtualAddress address) const {
 }
 
@@ -103,48 +91,7 @@ bool MappedAreaVector::isRegionFree(Region region, size_t &insertIndex) const {
     }
 }
 
-void MappedAreaVector::splitElement(size_t index, Region removeRegion, size_t numAddBetween) {
-    assert(index < numElements);
-    assert(removeRegion.isPageAligned());
-    // removeRange has to be fully inside the element's region
-    assert(removeRegion.start > _data[index]->region.start);
-    assert(removeRegion.end() > _data[index]->region.start);
-    assert(removeRegion.start < _data[index]->region.end());
-    assert(removeRegion.end() < _data[index]->region.end());
-
-    size_t numMove = numElements - index - 1;
-
-
-    Status status = adjustAllocatedSize(numElements += numAddBetween + 1);
-    assert(status); // TODO
-
-    memmove(&_data[index + numAddBetween + 2],
-            &_data[index + 1],
-            numMove * sizeof(MappedArea *));
-
-    MappedArea &oldElement = *_data[index];
-    oldElement.unmapRange(removeRegion);
-
-    size_t newElementIndex = index + numAddBetween + 1;
-    Region newElementRegion(removeRegion.end(), oldElement.region.end() - removeRegion.end());
-
-    cout << "TODO\n";
-    Panic();
-
-    //_data[newElementIndex] = *make_raw<MappedArea>(oldElement); // TODO
-    _data[newElementIndex]->region = newElementRegion;
-
-    // oldElement will still be responsible for the first part
-    oldElement.region.length -= oldElement.region.end() - removeRegion.start;
-    assert(oldElement.region.end() == removeRegion.start);
-
-    for (size_t i = index + 1; i < newElementIndex; i++) {
-        _data[i] = nullptr;
-    }
-}
-
-/*
- * Unmaps all MappedAreas that are inside range. MappedAreas crossing range boundaries will be
+/* Unmaps all MappedAreas that are inside range. MappedAreas crossing range boundaries will be
  * truncated.
  * The method will add numAddInstead of new slots for MappedAreas to the vector in place of the
  * removed range. No MappedArea object will be created for these, they will be initialized to
@@ -200,7 +147,6 @@ Result<size_t> MappedAreaVector::unmapRange(Region range, size_t numAddInstead) 
             &_data[endIndex],
             numMove * sizeof(MappedArea *));
     Status status = adjustAllocatedSize(numElements - (endIndex - index) + numAddInstead);
-    /* adjustAllocated
     assert(status);
 
     for (size_t i = index; i < index + numAddInstead; i++) {

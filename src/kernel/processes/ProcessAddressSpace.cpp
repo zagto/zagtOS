@@ -11,8 +11,25 @@ ProcessAddressSpace::ProcessAddressSpace(const hos_v1::Process &handOver,
                                          Status &status):
     pagingContext(status),
     inTLBContextOfProcessor(CurrentSystem.numProcessors, TLB_CONTEXT_ID_NONE, status),
-    mappedAreas(allMemoryAreas, handOver, status) {}
+    mappedAreas(handOver.numMappedAreas, nullptr, status) {
+    if (!status) {
+        return;
+    }
 
+    for (size_t index = 0; index < handOver.numMappedAreas; index++) {
+        Result result = make_raw<MappedArea>(allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
+                                             handOver.mappedAreas[index]);
+        if (!result) {
+            cout << "TODO: failure during handover" << endl;
+            Panic();
+        }
+        mappedAreas[index] = *result;
+        assert(mappedAreas[index]->region.isPageAligned());
+        if (index > 0) {
+            assert(mappedAreas[index]->region.start >= mappedAreas[index - 1]->region.end());
+        }
+    }
+}
 
 ProcessAddressSpace::~ProcessAddressSpace() {
     for (TLBContextID tlbID: inTLBContextOfProcessor) {
@@ -22,6 +39,13 @@ ProcessAddressSpace::~ProcessAddressSpace() {
              * avoids creation of invalidate requests for all the TLB contexts for this address
              * space */
             TLBContexts[tlbID].remove(&pagingContext);
+        }
+    }
+    for (MappedArea *&mappedArea: mappedAreas) {
+        /* on handover constructor failure mappedAreas may contiain nullptrs */
+        if (mappedArea != nullptr) {
+            delete mappedArea;
+            mappedArea = nullptr;
         }
     }
 }
@@ -63,16 +87,18 @@ pair<size_t, bool> ProcessAddressSpace::findIndexFor(size_t userAddress) {
 
 optional<pair<shared_ptr<MemoryArea> &, Region>>
 ProcessAddressSpace::findMemoryArea(size_t userAddress, bool requireWritePermissions) {
+    assert(lock.isLocked());
+
     if (!UserVirtualAddress::checkInRegion(userAddress)) {
         return {};
     }
 
-    optional mappedAreaOptional = mappedAreas.findMappedArea(UserVirtualAddress(userAddress));
-    if (!mappedAreaOptional) {
+    auto [index, mapped] = findIndexFor(userAddress);
+    if (!mapped) {
         return {};
     }
 
-    MappedArea *mappedArea = *mappedAreaOptional;
+    MappedArea *mappedArea = mappedAreas[index];
     if (requireWritePermissions) {
         if (mappedArea->permissions != Permissions::READ_WRITE
                 && mappedArea->permissions != Permissions::READ_WRITE_EXECUTE) {
@@ -85,13 +111,28 @@ ProcessAddressSpace::findMemoryArea(size_t userAddress, bool requireWritePermiss
     return {{mappedArea->memoryArea, maxRegionInside}};
 }
 
-Status ProcessAddressSpace::addAnonymous(Region region, Permissions permissions) {
+Status ProcessAddressSpace::addAnonymous(Region region, Permissions permissions, bool overwriteExisiting) {
     scoped_lock sl(lock);
 
-    size_t index;
-    if (!mappedAreas.isRegionFree(region, index)) {
-        cout << "Attempt to add region to ProcessAddressSpace that overlaps with existing" << endl;
+    if (!UserSpaceRegion.contains(region)) {
+        cout << "Attempt to add region to ProcessAddressSpace that overlaps is not in "
+             << "UserSpaceRegion" << endl;
         return Status::BadUserSpace();
+    }
+
+    auto [index, startAlreadyMapped] = findIndexFor(region.start);
+    if (startAlreadyMapped
+            || (index < mappedAreas.size() && mappedAreas[index]->region.overlaps(region))) {
+
+        if (overwriteExisiting) {
+            Status status = _removeRegion(region);
+            if (!status) {
+                return status;
+            }
+        } else {
+            cout << "Attempt to add region to ProcessAddressSpace that overlaps with existing" << endl;
+            return Status::BadUserSpace();
+        }
     }
 
     Result memoryArea = make_shared<MemoryArea>(region.length);
@@ -110,12 +151,7 @@ Status ProcessAddressSpace::addAnonymous(Region region, Permissions permissions)
 Result<Region> ProcessAddressSpace::addAnonymous(size_t length, Permissions permissions) {
     scoped_lock sl(lock);
 
-    bool valid;
-    size_t index;
-    Region region = mappedAreas.findFreeRegion(length, valid, index);
-    if (!valid) {
-        return Status::BadUserSpace();
-    }
+    auto [region, index] = findFreeRegion(length);
 
     Result memoryArea = make_shared<MemoryArea>(region.length);
     if (!memoryArea) {
@@ -134,23 +170,52 @@ Result<Region> ProcessAddressSpace::addAnonymous(size_t length, Permissions perm
     return (*ma)->region;
 }
 
-Status ProcessAddressSpace::removeRegion(Region region) {
-    scoped_lock sl(lock);
+Status ProcessAddressSpace::ensureSplitAt(size_t address) {
+    auto [index, inUse] = findIndexFor(address);
 
-    auto [startIndex, splitStart] = findIndexFor(region.start);
-    auto [startIndex, splitEnd] = findIndexFor(region.start);
+    if (inUse && mappedAreas[index]->region.start != address) {
+        /* area needs to be split */
 
-    if (isInUse) {
-;
-    }
+        /* resize the vector first, since it would be hard to recover from an exeption later */
+        Status status = mappedAreas.insert(nullptr, index + 1);
+        if (!status) {
+            return status;
+        }
 
-    optional result = findMemoryArea(region.start, false);
-    if (!result) {
-        size_t index = mappedAreas.for
+        auto [first, second] = mappedAreas[index]->split();
+        mappedAreas[index] = first;
+        mappedAreas[index + 1] = second;
     }
 }
 
-void removeMapping(size_t startAddress) {
+Status ProcessAddressSpace::ensureRegionIndependent(Region region) {
+    ensureSplitAt(region.start);
+    ensureSplitAt(region.end());
+}
+
+
+Status ProcessAddressSpace::removeRegion(Region region) {
+    scoped_lock sl(lock);
+
+
+    optional result = findMemoryArea(region.start, false);
+    if (!result) {
+        size_t index = mappedAreas
+    }
+}
+
+/* This function may only fail if given an invalid startAddress. */
+Status ProcessAddressSpace::removeMapping(size_t startAddress) {
+    scoped_lock sl(lock);
+
+    auto [index, mapped] = findIndexFor(startAddress);
+    if (!mapped) {
+        return Status::BadUserSpace();
+    }
+    mappedAreas.remove(index);
+}
+
+Status ProcessAddressSpace::handlePageFault(size_t address, Permissions requiredPermissions) {
 
 }
 

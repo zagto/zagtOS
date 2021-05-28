@@ -166,6 +166,24 @@ public:
         return Status::OK();
     }
 
+    Iterator erase(Iterator first, Iterator last) {
+        size_t numRemove = last.position - first.position;
+
+        numElements -= numRemove;
+        for (size_t moveIndex = first.position; moveIndex < numElements; moveIndex++) {
+            _data[moveIndex] = move(_data[moveIndex + numRemove]);
+        }
+        /* ignore status of adjustAllocatedSize - even if it failed we have removed the element */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+        Status ignored = adjustAllocatedSize(numElements);
+#pragma GCC diagnostic pop
+    }
+
+    Iterator erase(Iterator where) {
+        return erase(where, where);
+    }
+
     void remove(const ElementType &element) {
         size_t index;
         for (index = 0; index < numElements; index++) {
@@ -179,18 +197,8 @@ public:
             Panic();
         }
 
-        _data[index] = {};
-
-        numElements--;
-        for (size_t moveIndex = index; moveIndex < numElements; moveIndex++) {
-            _data[moveIndex] = move(_data[moveIndex + 1]);
-        }
-        /* ignore status of adjustAllocatedSize - even if it failed we have removed the element */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-        Status ignored = adjustAllocatedSize(numElements);
+        erase(begin() + index);
     }
-#pragma GCC diagnostic pop
 
     Status resize(size_t newSize) {
         while (newSize < numElements) {
@@ -228,6 +236,7 @@ public:
     Iterator begin() {
         return Iterator(*this, 0);
     }
+
     Iterator end() {
         return Iterator(*this, numElements);
     }

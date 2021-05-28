@@ -4,16 +4,18 @@
 #include <memory/TLBContext.hpp>
 
 
-MappedArea::MappedArea(Region region,
+MappedArea::MappedArea(ProcessAddressSpace &addressSpace,
+                       Region region,
                        shared_ptr<MemoryArea> _memoryArea,
                        size_t offset,
                        Permissions permissions,
                        Status &status) :
+        addressSpace{addressSpace},
+        isPagedIn(region.length / PAGE_SIZE, false, status),
         memoryArea{move(_memoryArea)},
         offset{offset},
         region{region},
-        permissions{permissions},
-        isPagedIn(region.length / PAGE_SIZE, false, status) {
+        permissions{permissions} {
     if (!status) {
         return;
     }
@@ -24,14 +26,16 @@ MappedArea::MappedArea(Region region,
     assert(memoryArea->allowesPermissions(permissions));
 }
 
-MappedArea::MappedArea(shared_ptr<MemoryArea> _memoryArea,
+MappedArea::MappedArea(ProcessAddressSpace &addressSpace,
+                       shared_ptr<MemoryArea> _memoryArea,
                        const hos_v1::MappedArea &handOver,
                        Status &status) :
+        addressSpace{addressSpace},
+        isPagedIn(handOver.length / PAGE_SIZE, false, status),
         memoryArea{move(_memoryArea)},
         offset{handOver.offset},
         region(handOver.start, handOver.length),
-        permissions{handOver.permissions},
-        isPagedIn(region.length / PAGE_SIZE, false, status) {
+        permissions{handOver.permissions} {
 
     if (!status) {
         return;
@@ -41,52 +45,43 @@ MappedArea::MappedArea(shared_ptr<MemoryArea> _memoryArea,
 
 
 MappedArea::~MappedArea() {
-    unmapRange(region);
+    PageOutContext pageOut = pageOutRegion(region);
+    pageOut.realize();
 }
 
+PageOutContext MappedArea::pageOutRegion(Region removeRegion) {
+    assert(region.contains(removeRegion));
+    assert(removeRegion.isPageAligned());
 
-Status MappedArea::ensurePagedIn(TLBContext &tlbContext, UserVirtualAddress address) {
+    PageOutContext context;
+
+    size_t offsetInThis = (removeRegion.start - region.start);
+    size_t offsetInMemArea = offsetInThis + offset;
+    for (size_t pageIndex = 0; pageIndex < removeRegion.length / PAGE_SIZE; pageIndex++) {
+        if (isPagedIn[pageIndex + offsetInThis / PAGE_SIZE]) {
+            context |= memoryArea->pageOut(addressSpace,
+                                           removeRegion.start + pageIndex * PAGE_SIZE,
+                                           offsetInMemArea + pageIndex * PAGE_SIZE);
+        }
+    }
+    return context;
+}
+
+Status MappedArea::ensurePagedIn(UserVirtualAddress address) {
     assert(address.isInRegion(region));
 
-    PagingContext *context = process->pagingContext;
-    if (context->isMapped(address)) {
-        context->invalidateLocally(address);
-    } else {
-        Result<PhysicalAddress> newFrame = memoryArea->makePresent(address.value() - region.start + offset);
-        if (!newFrame) {
-            return newFrame.status();
-        }
-        Status status = context->map(address, *newFrame, permissions, memoryArea->cacheType());
+    size_t pageIndex = (address.value() - region.start) / PAGE_SIZE;
+
+    if (!isPagedIn[pageIndex]) {
+        Status status = memoryArea->pageIn(addressSpace,
+                                           address,
+                                           permissions,
+                                           offset + pageIndex * PAGE_SIZE);
         if (!status) {
             return status;
         }
+        isPagedIn[pageIndex] = true;
     }
     return Status::OK();
 }
 
-void MappedArea::unmapRange(Region range) {
-    assert(range.isPageAligned());
-    process->pagingContext->unmapRange(UserVirtualAddress(range.start),
-                                       range.length / PAGE_SIZE,
-                                       memoryArea->isAnonymous());
-}
-
-void MappedArea::shrinkFront(size_t amount) {
-    assert(amount % PAGE_SIZE == 0);
-
-    unmapRange(Region(region.start, amount));
-    region.start += amount;
-    region.length -= amount;
-}
-
-void MappedArea::shrinkBack(size_t amount) {
-    assert(amount % PAGE_SIZE == 0);
-
-    unmapRange(Region(region.end() - amount, amount));
-    region.length -= amount;
-}
-
-void MappedArea::changePermissions(Permissions newPermissions) {
-    assert(memoryArea->allowesPermissions(newPermissions));
-    permissions = newPermissions;
-}

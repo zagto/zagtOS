@@ -70,7 +70,14 @@ Status Message::transfer() {
 
 fail:
     /* In case of failure, do not leave a MappedArea in the destination Process behind. */
-    destinationProcess->addressSpace.removeMapping(infoAddress.value());
+    Status unmapStatus = destinationProcess->addressSpace.removeMapping(infoAddress.value());
+    if (!unmapStatus) {
+        /* removeMapping only fails if given an invalid startAddress. This means the process would
+         * have already unmapped the mapping by itself */
+        assert(unmapStatus == Status::BadUserSpace());
+        cout << "Message::transfer: stupid Process unmapped message mapping by itself before even "
+             << "getting the address" << endl;
+    }
     return status;
 }
 

@@ -20,6 +20,10 @@ private:
     pair<size_t, bool> findIndexFor(size_t userAddress);
     optional<pair<shared_ptr<MemoryArea> &, Region>> findMemoryArea(size_t userAddress,
                                                                     bool requireWritePermissions);
+    Status _removeRegion(Region region);
+    pair<Region, size_t> findFreeRegion(size_t length) const;
+    Status ensureSplitAt(size_t address);
+    Status ensureRegionIndependent(Region region);
 
 public:
     ProcessAddressSpace(Status &status);
@@ -30,15 +34,15 @@ public:
     ProcessAddressSpace operator=(ProcessAddressSpace &) = delete;
     ~ProcessAddressSpace();
 
-    Status addAnonymous(Region region, Permissions permissions);
+    Status addAnonymous(Region region, Permissions permissions, bool overwriteExisiting);
     Result<Region> addAnonymous(size_t length, Permissions permissions);
     /* removeRegion is the slower, more complicated way to remove. Unlike removeMapping, it
      * supports things like unmapping a MappedArea partially, or multiple of them. It is there
      * to fully support mmap, munmap, etc. for in user space. However it currently makes no
      * attempt at optimizing these cases. */
     Status removeRegion(Region region);
-    void removeMapping(size_t startAddress);
-
+    Status removeMapping(size_t startAddress);
+    Status handlePageFault(size_t address, Permissions requiredPermissions);
     Status copyFrom(uint8_t *destination,
                     size_t address,
                     size_t length);
@@ -51,7 +55,6 @@ public:
                          size_t sourceSpace,
                          size_t length,
                          bool requireWriteAccessToDestination);
-
     Result<uint32_t> atomicCopyFrom32(size_t address);
     Result<bool> atomicCompareExchange32(size_t address,
                                              uint32_t expectedValue,

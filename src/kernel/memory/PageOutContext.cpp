@@ -12,3 +12,10 @@ PageOutContext &PageOutContext::operator|=(const PageOutContext &other) {
     timestamp = max(timestamp, other.timestamp);
     return *this;
 }
+
+void PageOutContext::realize() {
+    for (Processor &processor: mask) {
+        /* TODO: this could be done asynchronously if there are performance issues */
+        processor.invalidateQueue.ensureProcessedUntil(timestamp);
+    }
+}

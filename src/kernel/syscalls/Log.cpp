@@ -7,7 +7,6 @@ Result<size_t> Log(const shared_ptr<Process> &process,
                    size_t,
                    size_t,
                    size_t) {
-    scoped_lock lg(process->pagingLock);
     static const size_t MAX_LOG_SIZE = 10000;
     size_t address = _address;
     size_t length = _length;
@@ -28,7 +27,7 @@ Result<size_t> Log(const shared_ptr<Process> &process,
     if (!status) {
         return status;
     }
-    status = process->copyFromUser(&buffer[0], address, length, false);
+    status = process->addressSpace.copyFrom(&buffer[0], address, length);
     if (!status) {
         cout << "SYS_LOG: invalid buffer\n";
         return status;

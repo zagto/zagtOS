@@ -5,28 +5,33 @@
 #include <processes/MemoryArea.hpp>
 
 class MappedArea {
+private:
+    ProcessAddressSpace &addressSpace;
+    vector<bool> isPagedIn;
+
+    PageOutContext pageOutRegion(Region removeRegion);
+
 public:
     shared_ptr<MemoryArea> memoryArea;
     size_t offset;
     Region region;
     Permissions permissions;
-    vector<bool> isPagedIn;
 
-    MappedArea(Region region,
+    MappedArea(ProcessAddressSpace &addressSpace,
+               Region region,
                shared_ptr<MemoryArea> _memoryArea,
                size_t offset,
                Permissions permissions,
                Status &status);
-    MappedArea(shared_ptr<MemoryArea> _memoryArea,
+    MappedArea(ProcessAddressSpace &addressSpace,
+               shared_ptr<MemoryArea> _memoryArea,
                const hos_v1::MappedArea &handOver,
                Status &status);
     ~MappedArea();
+    hos_v1::MappedArea handOver();
 
     Status ensurePagedIn(UserVirtualAddress address);
-    void unmapRange(Region range);
-    void shrinkFront(size_t amount);
-    void shrinkBack(size_t amount);
-    void changePermissions(Permissions newPermissions);
+    pair<MappedArea *, MappedArea *>split();
 
     static inline bool compare(MappedArea *a, MappedArea *b) {
         return a->region.start < b->region.start;
