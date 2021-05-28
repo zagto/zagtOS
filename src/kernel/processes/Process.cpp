@@ -44,7 +44,7 @@ Process::Process(Process &sourceProcess,
     }
 
     for (const auto &section: sections) {
-        Result result = addressSpace.addAnonymous(section.region(), section.permissions());
+        Result result = addressSpace.addAnonymous(section.region(), section.permissions(), false);
         if (!result) {
             status = result.status();
             return;
@@ -126,18 +126,6 @@ Process::~Process() {
     Panic();
 
     cout << "Process terminated" << endl;
-}
-
-Status Process::handlePageFault(UserVirtualAddress address) {
-    UserVirtualAddress pageAddress{align(address.value(), PAGE_SIZE, AlignDirection::DOWN)};
-    scoped_lock lg(pagingLock);
-
-    MappedArea *ma = mappedAreas.findMappedArea(address);
-    if (ma) {
-        return ma->handlePageFault(pageAddress);
-    } else {
-        return Status::BadUserSpace();
-    }
 }
 
 bool Process::canAccessPhysicalMemory() const {

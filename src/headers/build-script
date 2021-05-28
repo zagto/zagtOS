@@ -3,7 +3,7 @@ set -e
 
 cd ../musl
 SRCDIR="$PWD"
-cd "$SHBUID_BUILD_DIR"
+cd "$SHBUILD_BUILD_DIR"
 
 export CC=gcc
 "$SRCDIR/configure" --prefix="$SYSROOT" --target="$ARCH-zagto-zagtos" --disable-shared

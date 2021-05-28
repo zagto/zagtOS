@@ -5,7 +5,7 @@ mkdir -p "$SYSROOT/include"
 
 cd ../musl
 SRCDIR="$PWD"
-cd "$SHBUID_BUILD_DIR"
+cd "$SHBUILD_BUILD_DIR"
 export CC=gcc
 make install-headers
 

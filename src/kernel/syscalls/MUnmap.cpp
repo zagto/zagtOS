@@ -8,14 +8,14 @@ Result<size_t> MUnmap(const shared_ptr<Process> &process,
                       size_t length,
                       size_t,
                       size_t) {
-    assert(process->pagingLock.isLocked());
-
     length = align(length, PAGE_SIZE, AlignDirection::UP);
 
     if (!addressLengthValid(startAddress, length)) {
         cout << "munmap with invalid address " << startAddress << " length " << length << endl;
         return EINVAL;
     }
+
+    Status status;
 
     if (wholeArea) {
         if (length != 0) {
@@ -25,22 +25,18 @@ Result<size_t> MUnmap(const shared_ptr<Process> &process,
             return Status::BadUserSpace();
         }
 
-        MappedArea *area = process->mappedAreas.findMappedArea(startAddress);
-        if (area == nullptr || area->region.start != startAddress) {
-            cout << "whole-area munmap address not the beginning of an area" << endl;
-            return Status::BadUserSpace();
+        status = process->addressSpace.removeMapping(startAddress);
+    } else {
+        if (length == 0) {
+            cout << "sized munmap of length 0" << endl;
+            return EINVAL;
         }
-        length = area->region.length;
-    }
-    if (length == 0) {
-        cout << "sized munmap of length 0" << endl;
-        return EINVAL;
-    }
 
-    Result result = process->mappedAreas.unmapRange(Region(startAddress, length));
-    if (result) {
+        status = process->addressSpace.removeRegion(Region(startAddress, length));
+    }
+    if (status) {
         return 0;
     } else {
-        return result.status();
+        return status;
     }
 }

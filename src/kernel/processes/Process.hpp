@@ -47,7 +47,6 @@ public:
     ~Process();
     void activate();
     void freeFrame(UserVirtualAddress address);
-    Status handlePageFault(UserVirtualAddress address);
 
     bool canAccessPhysicalMemory() const;
 

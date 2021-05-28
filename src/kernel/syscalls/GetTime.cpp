@@ -2,15 +2,12 @@
 #include <syscalls/UserSpaceObject.hpp>
 #include <system/System.hpp>
 
-Result<size_t> GetTime(const shared_ptr<Process> &process,
+Result<size_t> GetTime(const shared_ptr<Process> &,
                        size_t clockID,
                        size_t resultAddress,
                        size_t,
                        size_t,
                        size_t) {
-    scoped_lock sl(process->pagingLock);
-    assert(process->pagingLock.isLocked());
-
     UserSpaceObject<timespec, USOOperation::WRITE> result(resultAddress);
 
     uint64_t timerValue = readTimerValue();

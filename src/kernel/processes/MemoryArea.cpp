@@ -5,7 +5,7 @@
 /* Anonymous */
 MemoryArea::MemoryArea(bool shared, Permissions permissions, size_t length, Status &status) :
     frames(length / PAGE_SIZE, nullptr, status),
-    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_ID_NONE, status),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
     source{Source::ANONYMOUS},
     permissions{permissions},
     isShared{shared},
@@ -23,7 +23,7 @@ MemoryArea::MemoryArea(frameManagement::ZoneID zoneID,
                        vector<size_t> &deviceAddresses,
                        Status &status) :
     frames(length / PAGE_SIZE, nullptr, status),
-    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_ID_NONE, status),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
     source{Source::DMA},
     permissions{Permissions::READ_WRITE},
     isShared{true},
@@ -54,7 +54,7 @@ MemoryArea::MemoryArea(PhysicalAddress physicalStart,
                        size_t length,
                        Status &status) :
     frames(length / PAGE_SIZE, nullptr, status),
-    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_ID_NONE, status),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
     source{Source::DMA},
     permissions{Permissions::READ_WRITE},
     physicalStart{physicalStart},
@@ -67,7 +67,7 @@ MemoryArea::MemoryArea(PhysicalAddress physicalStart,
 
 MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver, Frame **allFrames, Status &status) :
     frames(handOver.length / PAGE_SIZE, nullptr, status),
-    futexIDs(handOver.length / PAGE_SIZE, hos_v1::FUTEX_ID_NONE, status),
+    futexIDs(handOver.length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
     source{handOver.source},
     permissions{handOver.permissions},
     isShared{handOver.isShared},
@@ -85,7 +85,7 @@ MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver, Frame **allFrames, St
 
 MemoryArea::MemoryArea(MemoryArea &other, size_t offset, size_t length, Status &status):
     frames(length / PAGE_SIZE, nullptr, status),
-    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_ID_NONE, status),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
     source{other.source},
     permissions{other.permissions},
     isShared{other.isShared},
@@ -208,19 +208,8 @@ bool MemoryArea::allowesPermissions(Permissions toTest) const {
     if (toTest == Permissions::INVALID) {
         return true;
     }
-    switch (permissions) {
-    case Permissions::READ_WRITE_EXECUTE:
-        return true;
-    case Permissions::READ_WRITE:
-        return toTest == Permissions::READ || toTest == Permissions::READ_WRITE;
-    case Permissions::READ_EXECUTE:
-        return toTest == Permissions::READ || toTest == Permissions::READ_EXECUTE;
-    case Permissions::READ:
-        return toTest == Permissions::READ;
-    default:
-        cout << "not implemented permission" << endl;
-        Panic();
-    }
+
+    return permissions >= toTest;
 }
 
 Result<uint64_t> MemoryArea::getFutexID(size_t offset) {
@@ -236,8 +225,10 @@ Result<uint64_t> MemoryArea::getFutexID(size_t offset) {
         return status;
     }
 
-    FutexFrameID futexFrameID = CurrentSystem.getNewFutexFrameID();
-    futexIDs[frameIndex] = futexFrameID;
+    FutexFrameID &futexFrameID = futexIDs[frameIndex];
+    if (futexFrameID == hos_v1::FUTEX_FRAME_ID_NONE) {
+        futexFrameID = CurrentSystem.getNewFutexFrameID();
+    }
     return (futexFrameID << PAGE_SHIFT) | offset % PAGE_SIZE;
 }
 

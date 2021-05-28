@@ -3,7 +3,7 @@
 #include <mutex>
 #include <vector>
 #include <paging/PagingContext.hpp>
-#include <processes/MappedAreaVector.hpp>
+#include <processes/MappedArea.hpp>
 #include <utility>
 
 class Thread;
@@ -15,7 +15,7 @@ private:
 
     PagingContext pagingContext;
     vector<TLBContextID> inTLBContextOfProcessor;
-    vector<MappedArea *> mappedAreas;
+    vector<unique_ptr<MappedArea>> mappedAreas;
 
     pair<size_t, bool> findIndexFor(size_t userAddress);
     optional<pair<shared_ptr<MemoryArea> &, Region>> findMemoryArea(size_t userAddress,
@@ -41,8 +41,11 @@ public:
      * to fully support mmap, munmap, etc. for in user space. However it currently makes no
      * attempt at optimizing these cases. */
     Status removeRegion(Region region);
+    /* can return ENOMEM or EACCESS for MProtect syscall */
+    Result<size_t> changeRegionProtection(Region region, Permissions permissions);
     Status removeMapping(size_t startAddress);
     Status handlePageFault(size_t address, Permissions requiredPermissions);
+    Result<uint64_t> getFutexID(size_t address);
     Status copyFrom(uint8_t *destination,
                     size_t address,
                     size_t length);

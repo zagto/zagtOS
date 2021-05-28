@@ -163,6 +163,24 @@ Logger Logger::operator<<(const RegisterState &regs) {
                  << "]";
 }
 
+Logger Logger::operator<<(hos_v1::Permissions permissions) {
+    switch (permissions) {
+    case Permissions::INVALID:
+        return *this << "Invalid";
+    case Permissions::READ:
+        return *this << "Read-only";
+    case Permissions::READ_EXECUTE:
+        return *this << "Read/Execute";
+    case Permissions::READ_WRITE:
+        return *this << "Read/Write";
+    case Permissions::READ_WRITE_EXECUTE:
+        return *this << "Read/Write/Execute";
+    default:
+        *this << " -- Unknown Permission Value" << endl;
+        Panic();
+    }
+}
+
 void Logger::sendCoreDump(size_t nameLength,
                           const uint8_t *name,
                           size_t dataLength,

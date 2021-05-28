@@ -26,6 +26,7 @@ public:
     Logger operator<<(const void *pointer);
     Logger operator<<(void *pointer);
     Logger operator<<(const RegisterState &registerState);
+    Logger operator<<(hos_v1::Permissions permissions);
 };
 
 extern Logger cout;

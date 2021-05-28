@@ -13,7 +13,7 @@ Result<size_t> Random(const shared_ptr<Process> &process,
         return status;
     }
 
-    status = process->copyToUser(address, randomValues.data(), length, true);
+    status = process->addressSpace.copyTo(address, randomValues.data(), length, true);
     if (!status) {
         return status;
     }

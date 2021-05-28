@@ -35,7 +35,7 @@ enum DMAZone {
 };
 static const size_t DMAZoneMax[DMAZone::COUNT] = {(1ul << 32) - 1, static_cast<size_t>(-1)};
 static const size_t FRAME_ID_NONE = static_cast<size_t>(-1);
-static const size_t FUTEX_ID_NONE = 0;
+static const size_t FUTEX_FRAME_ID_NONE = 0;
 
 struct Frame {
     size_t address;

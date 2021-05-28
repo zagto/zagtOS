@@ -55,6 +55,8 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
 
     // TODO: actually do the priority thing
 
+    size_t futexID = process->addressSpace.getFutexID(address);
+
     switch (operation) {
     case FUTEX_WAIT: {
         /* read value back - otherwise a wake may have occured inbetween and we wait forever */

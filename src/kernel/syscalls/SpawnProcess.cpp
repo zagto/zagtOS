@@ -42,10 +42,9 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
     if (!status) {
         return status;
     }
-    status = process->copyFromUser(reinterpret_cast<uint8_t *>(&sections[0]),
-                                   sectionsAddress,
-                                   numSections * sizeof(SpawnProcessSection),
-                                   false);
+    status = process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&sections[0]),
+                                            sectionsAddress,
+                                            numSections * sizeof(SpawnProcessSection));
     if (!status) {
         if (status == Status::BadUserSpace()) {
             cout << "SYS_SPAWN_PROCESS: invalid sections info buffer\n";
@@ -57,7 +56,9 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
     if (!status) {
         return status;
     }
-    status = process->copyFromUser(logNameBuffer.data(), logNameAddress, logNameSize, false);
+    status = process->addressSpace.copyFrom(logNameBuffer.data(),
+                                            logNameAddress,
+                                            logNameSize);
     if (!status) {
         if (status == Status::BadUserSpace()) {
             cout << "SYS_SPAWN_PROCESS: invalid log name buffer\n";
@@ -108,10 +109,9 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
     optional<SpawnProcessSection> TLSSection;
     if (TLSSectionAddress != 0) {
         SpawnProcessSection section;
-        status = process->copyFromUser(reinterpret_cast<uint8_t *>(&section),
-                                           TLSSectionAddress,
-                                           sizeof(SpawnProcessSection),
-                                           false);
+        status = process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&section),
+                                                TLSSectionAddress,
+                                                sizeof(SpawnProcessSection));
         if (!status) {
             if (status == Status::BadUserSpace()) {
                 cout << "SYS_SPAWN_PROCESS: invalid TLS sections info buffer\n";

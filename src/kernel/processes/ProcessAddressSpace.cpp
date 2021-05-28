@@ -1,6 +1,7 @@
 #include <processes/ProcessAddressSpace.hpp>
 #include <processes/MappedArea.hpp>
 #include <memory/TLBContext.hpp>
+#include <syscalls/ErrorCodes.hpp>
 
 ProcessAddressSpace::ProcessAddressSpace(Status &status):
     pagingContext(status),
@@ -39,13 +40,6 @@ ProcessAddressSpace::~ProcessAddressSpace() {
              * avoids creation of invalidate requests for all the TLB contexts for this address
              * space */
             TLBContexts[tlbID].remove(&pagingContext);
-        }
-    }
-    for (MappedArea *&mappedArea: mappedAreas) {
-        /* on handover constructor failure mappedAreas may contiain nullptrs */
-        if (mappedArea != nullptr) {
-            delete mappedArea;
-            mappedArea = nullptr;
         }
     }
 }
@@ -98,7 +92,7 @@ ProcessAddressSpace::findMemoryArea(size_t userAddress, bool requireWritePermiss
         return {};
     }
 
-    MappedArea *mappedArea = mappedAreas[index];
+    unique_ptr<MappedArea> &mappedArea = mappedAreas[index];
     if (requireWritePermissions) {
         if (mappedArea->permissions != Permissions::READ_WRITE
                 && mappedArea->permissions != Permissions::READ_WRITE_EXECUTE) {
@@ -182,26 +176,81 @@ Status ProcessAddressSpace::ensureSplitAt(size_t address) {
             return status;
         }
 
-        auto [first, second] = mappedAreas[index]->split();
-        mappedAreas[index] = first;
-        mappedAreas[index + 1] = second;
+        Result result = mappedAreas[index]->split();
+        if (!result) {
+            /* erase the already reserved vector space for the second element */
+            mappedAreas.erase(mappedAreas.begin() + index + 1, mappedAreas.begin() + index + 2);
+            return result.status();
+        }
+        mappedAreas[index] = move(result->first);
+        mappedAreas[index + 1] = move(result->second);
     }
+    return Status::OK();
 }
 
 Status ProcessAddressSpace::ensureRegionIndependent(Region region) {
-    ensureSplitAt(region.start);
-    ensureSplitAt(region.end());
+    Status status = ensureSplitAt(region.start);
+    if (!status) {
+        return status;
+    }
+    return ensureSplitAt(region.end());
 }
 
 
 Status ProcessAddressSpace::removeRegion(Region region) {
     scoped_lock sl(lock);
 
-
-    optional result = findMemoryArea(region.start, false);
-    if (!result) {
-        size_t index = mappedAreas
+    Status status = ensureRegionIndependent(region);
+    if (!status) {
+        return status;
     }
+
+    auto [startIndex, mapped] = findIndexFor(region.start);
+    auto startIterator = mappedAreas.begin() + startIndex;
+    auto endIterator = startIterator;
+    while (endIterator != mappedAreas.end() && (*endIterator)->region.start < region.end()) {
+        endIterator++;
+    }
+
+    mappedAreas.erase(startIterator, endIterator);
+    return Status::OK();
+}
+
+Result<size_t> ProcessAddressSpace::changeRegionProtection(Region region, Permissions permissions) {
+    scoped_lock sl(lock);
+
+    Status status = ensureRegionIndependent(region);
+    if (!status) {
+        return status;
+    }
+
+    auto [startIndex, mapped] = findIndexFor(region.start);
+    auto startIterator = mappedAreas.begin() + startIndex;
+    auto endIterator = startIterator;
+    size_t previousEnd = region.start;
+
+    while (endIterator != mappedAreas.end() && (*endIterator)->region.start < region.end()) {
+        if ((*endIterator)->region.start != previousEnd) {
+            cout << "changeRegionProtection called on a region with mapping holes" << endl;
+            return ENOMEM;
+        }
+        if (!(*endIterator)->memoryArea->allowesPermissions(permissions)) {
+            cout << "changeRegionProtection called on a region which does not allow the requested"
+                << "permissions" << endl;
+            return EACCESS;
+        }
+        previousEnd = (*endIterator)->region.end();
+        endIterator++;
+    }
+    if (previousEnd != region.end()) {
+        cout << "changeRegionProtection called on a region with mapping holes" << endl;
+        return ENOMEM;
+    }
+
+    for (auto it = startIterator; it != endIterator; it++) {
+        (*it)->permissions = permissions;
+    }
+    return 0;
 }
 
 /* This function may only fail if given an invalid startAddress. */
@@ -209,14 +258,42 @@ Status ProcessAddressSpace::removeMapping(size_t startAddress) {
     scoped_lock sl(lock);
 
     auto [index, mapped] = findIndexFor(startAddress);
-    if (!mapped) {
+    if (!mapped || mappedAreas[index]->region.start != startAddress) {
+        cout << "removeMapping: give address " << startAddress << " is not the start of a mapping"
+            << endl;
         return Status::BadUserSpace();
     }
-    mappedAreas.remove(index);
+    mappedAreas.erase(mappedAreas.begin() + index, mappedAreas.begin() + index + 1);
 }
 
 Status ProcessAddressSpace::handlePageFault(size_t address, Permissions requiredPermissions) {
+    scoped_lock sl(lock);
 
+    auto [index, mapped] = findIndexFor(address);
+    if (!mapped) {
+        cout << "Process tried to access address " << address << " which it has not mapped "
+            << endl;
+        return Status::BadUserSpace();
+    }
+
+    unique_ptr<MappedArea> &mappedArea = mappedAreas[index];
+
+    if (requiredPermissions > mappedArea->permissions) {
+        cout << "Process tried to access address " << address << " using permissions "
+            << requiredPermissions << " which is mapped with " << mappedArea->permissions << endl;
+    }
+
+    return mappedArea->ensurePagedIn(address);
+}
+
+Result<uint64_t> ProcessAddressSpace::getFutexID(size_t address) {
+    optional result = findMemoryArea(address, true);
+    if (!result) {
+        return Status::BadUserSpace();
+    }
+
+    auto [memoryArea, maxRegionInside] = *result;
+    return memoryArea->getFutexID(maxRegionInside.start);
 }
 
 Status ProcessAddressSpace::copyFrom(uint8_t *destination,

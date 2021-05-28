@@ -8,8 +8,6 @@ Result<size_t> MProtect(const shared_ptr<Process> &process,
                         size_t protection,
                         size_t,
                         size_t) {
-    assert(process->pagingLock.isLocked());
-
     length = align(length, PAGE_SIZE, AlignDirection::UP);
     if (length == 0) {
         cout << "MProtect of length 0" << endl;
@@ -32,9 +30,9 @@ Result<size_t> MProtect(const shared_ptr<Process> &process,
         permissions = Permissions::INVALID;
     } else {
         cout << "MProtect: unsupported protection " << static_cast<uint64_t>(protection) << "\n";
-        return EINVAL;
+        return EOPNOTSUPP;
     }
-    if (!process->mappedAreas.changeRangePermissions(Region(startAddress, length), permissions)) {
+    if (!process->addressSpace.changeRegionProtection(Region(startAddress, length), permissions)) {
         cout << "MProtect at address " << startAddress << " length " << length
              << " which contains non-mapped pages" << endl;
         return ENOMEM;

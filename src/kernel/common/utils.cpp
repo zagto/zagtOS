@@ -1,5 +1,24 @@
 #include <common/common.hpp>
 
+bool operator>(Permissions a, Permissions b) {
+    assert(a != Permissions::INVALID);
+    assert(b != Permissions::INVALID);
+
+    switch (a) {
+    case Permissions::READ_WRITE_EXECUTE:
+        return b == Permissions::READ || b == Permissions::READ_WRITE || b == Permissions::READ_EXECUTE;
+    case Permissions::READ_WRITE:
+        return b == Permissions::READ;
+    case Permissions::READ_EXECUTE:
+        return b == Permissions::READ;
+    case Permissions::READ:
+        return false;
+    default:
+        cout << "not implemented permission" << endl;
+        Panic();
+    }
+}
+
 void *memset(void *pointer, int value, size_t len)
 {
     for (size_t i = 0; i < len; i++) {

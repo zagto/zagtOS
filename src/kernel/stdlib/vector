@@ -23,9 +23,16 @@ protected:
             assert(position < container.numElements);
             position++;
         }
+        void operator++(int) {
+            assert(position < container.numElements);
+            position++;
+        }
         ElementType &operator*() {
             assert(position < container.numElements);
             return container[position];
+        }
+        Iterator operator+(size_t add) {
+            return Iterator(container, position + add);
         }
     };
 

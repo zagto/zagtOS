@@ -31,7 +31,7 @@ public:
     hos_v1::MappedArea handOver();
 
     Status ensurePagedIn(UserVirtualAddress address);
-    pair<MappedArea *, MappedArea *>split();
+    Result<pair<unique_ptr<MappedArea>, unique_ptr<MappedArea>>>split();
 
     static inline bool compare(MappedArea *a, MappedArea *b) {
         return a->region.start < b->region.start;
