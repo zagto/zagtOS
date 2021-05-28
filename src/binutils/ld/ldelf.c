@@ -1,5 +1,5 @@
 /* ELF emulation code for targets using elf.em.
-   Copyright (C) 1991-2020 Free Software Foundation, Inc.
+   Copyright (C) 1991-2021 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -1043,12 +1043,13 @@ ldelf_after_open (int use_libpath, int native, int is_linux, int is_freebsd,
   /* Do not allow executable files to be used as inputs to the link.  */
   for (abfd = link_info.input_bfds; abfd; abfd = abfd->link.next)
     {
-      if (!bfd_input_just_syms (abfd)
+      if (abfd->xvec->flavour == bfd_target_elf_flavour
+	  && !bfd_input_just_syms (abfd)
 	  && elf_tdata (abfd) != NULL
 	  && elf_tdata (abfd)->elf_header != NULL
 	  /* FIXME: Maybe check for other non-supportable types as well ?  */
 	  && elf_tdata (abfd)->elf_header->e_type == ET_EXEC)
-	einfo (_("%P: Using an executable file (%pB) as input to a link is deprecated - support is likely to be removed in the future\n"),
+	einfo (_("%F%P: cannot use executable file '%pB' as input to a link\n"),
 	       abfd);
     }
 
@@ -1589,6 +1590,8 @@ ldelf_before_allocation (char *audit, char *depaudit,
 		      (char *) &ehdr_start->u + sizeof ehdr_start->u.def.next,
 		      sizeof ehdr_start_save_u);
 	      ehdr_start->type = bfd_link_hash_defined;
+	      /* It will be converted to section-relative later.  */
+	      ehdr_start->rel_from_abs = 1;
 	      ehdr_start->u.def.section = bfd_abs_section_ptr;
 	      ehdr_start->u.def.value = 0;
 	    }
@@ -2185,13 +2188,21 @@ ldelf_before_place_orphans (void)
 	       been discarded.  */
 	    asection *linked_to_sec;
 	    for (linked_to_sec = elf_linked_to_section (isec);
-		 linked_to_sec != NULL;
+		 linked_to_sec != NULL && !linked_to_sec->linker_mark;
 		 linked_to_sec = elf_linked_to_section (linked_to_sec))
-	      if (discarded_section (linked_to_sec))
-		{
-		  isec->output_section = bfd_abs_section_ptr;
-		  break;
-		}
+	      {
+		if (discarded_section (linked_to_sec))
+		  {
+		    isec->output_section = bfd_abs_section_ptr;
+		    isec->flags |= SEC_EXCLUDE;
+		    break;
+		  }
+		linked_to_sec->linker_mark = 1;
+	      }
+	    for (linked_to_sec = elf_linked_to_section (isec);
+		 linked_to_sec != NULL && linked_to_sec->linker_mark;
+		 linked_to_sec = elf_linked_to_section (linked_to_sec))
+	      linked_to_sec->linker_mark = 0;
 	  }
       }
 }

@@ -1,7 +1,7 @@
 /* Variables that describe the inferior process running under GDB:
    Where it is, why it stopped, and how to step it.
 
-   Copyright (C) 1986-2020 Free Software Foundation, Inc.
+   Copyright (C) 1986-2021 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,6 +20,8 @@
 
 #if !defined (INFERIOR_H)
 #define INFERIOR_H 1
+
+#include <exception>
 
 struct target_waitstatus;
 struct frame_info;
@@ -58,6 +60,7 @@ struct thread_info;
 #include "gdbthread.h"
 
 #include "process-stratum-target.h"
+#include "displaced-stepping.h"
 
 struct infcall_suspend_state;
 struct infcall_control_state;
@@ -80,7 +83,13 @@ struct infcall_suspend_state_deleter
 	/* If we are restoring the inferior state due to an exception,
 	   some error message will be printed.  So, only warn the user
 	   when we cannot restore during normal execution.  */
-	if (!std::uncaught_exception ())
+	bool unwinding;
+#if __cpp_lib_uncaught_exceptions
+	unwinding = std::uncaught_exceptions () > 0;
+#else
+	unwinding = std::uncaught_exception ();
+#endif
+	if (!unwinding)
 	  warning (_("Failed to restore inferior state: %s"), e.what ());
       }
   }
@@ -188,7 +197,7 @@ extern ptid_t gdb_startup_inferior (pid_t pid, int num_traps);
 
 extern void setup_inferior (int from_tty);
 
-extern void post_create_inferior (struct target_ops *, int);
+extern void post_create_inferior (int from_tty);
 
 extern void attach_command (const char *, int);
 
@@ -369,7 +378,7 @@ public:
   { return m_target_stack.at (stratum); }
 
   bool has_execution ()
-  { return target_has_execution_1 (this); }
+  { return target_has_execution (this); }
 
   /* Pointer to next inferior in singly-linked list of inferiors.  */
   struct inferior *next = NULL;

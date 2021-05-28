@@ -1,6 +1,6 @@
 ## Process this file with automake to generate Makefile.in
 #
-#   Copyright (C) 2012-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2021 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ ZLIBINC = @zlibinc@
 WARN_CFLAGS = @WARN_CFLAGS@
 NO_WERROR = @NO_WERROR@
 AM_CFLAGS = $(WARN_CFLAGS) $(ZLIBINC)
-AM_CPPFLAGS = -DBINDIR='"$(bindir)"' -DLIBDIR='"$(libdir)"'
+AM_CPPFLAGS = -DBINDIR='"$(bindir)"' -DLIBDIR='"$(libdir)"' @LARGEFILE_CPPFLAGS@
 if PLUGINS
 bfdinclude_HEADERS += $(INCDIR)/plugin-api.h
 LIBDL = @lt_cv_dlopen_libs@
@@ -370,14 +370,12 @@ BFD32_BACKENDS = \
 	pe-arm.lo \
 	pe-i386.lo \
 	pe-mcore.lo \
-	pe-ppc.lo \
 	pe-sh.lo \
 	pef.lo \
 	pei-arm-wince.lo \
 	pei-arm.lo \
 	pei-i386.lo \
 	pei-mcore.lo \
-	pei-ppc.lo \
 	pei-sh.lo \
 	peigen.lo \
 	plugin.lo \
@@ -505,14 +503,12 @@ BFD32_BACKENDS_CFILES = \
 	pe-arm.c \
 	pe-i386.c \
 	pe-mcore.c \
-	pe-ppc.c \
 	pe-sh.c \
 	pef.c \
 	pei-arm-wince.c \
 	pei-arm.c \
 	pei-i386.c \
 	pei-mcore.c \
-	pei-ppc.c \
 	pei-sh.c \
 	plugin.c \
 	ppcboot.c \

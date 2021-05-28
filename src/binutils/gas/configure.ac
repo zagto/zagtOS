@@ -3,7 +3,7 @@ dnl
 dnl And be careful when changing it!  If you must add tests with square
 dnl brackets, be sure changequote invocations surround it.
 dnl
-dnl   Copyright (C) 2012-2020 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2021 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -240,6 +240,13 @@ for this_target in $target $canon_targets ; do
       | i386-*-go32* \
       | i386-go32-rtems*)
 	AC_DEFINE(STRICTCOFF, 1, [Using strict COFF?])
+	;;
+
+      i386-*-linux-* | x86_64-*-linux-*)
+	if test ${this_target} = $target \
+	   && test ${ac_default_generate_x86_used_note} = unset; then
+	  ac_default_generate_x86_used_note=1
+	fi
 	;;
 
       i386-*-solaris2 \

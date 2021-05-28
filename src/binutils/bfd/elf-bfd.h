@@ -1,5 +1,5 @@
 /* BFD back-end data structures for ELF files.
-   Copyright (C) 1992-2020 Free Software Foundation, Inc.
+   Copyright (C) 1992-2021 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -549,6 +549,16 @@ enum elf_target_os
   is_nacl	/* Native Client.  */
 };
 
+/* Used by bfd_sym_from_r_symndx to cache a small number of local
+   symbols.  */
+#define LOCAL_SYM_CACHE_SIZE 32
+struct sym_cache
+{
+  bfd *abfd;
+  unsigned long indx[LOCAL_SYM_CACHE_SIZE];
+  Elf_Internal_Sym sym[LOCAL_SYM_CACHE_SIZE];
+};
+
 /* ELF linker hash table.  */
 
 struct elf_link_hash_table
@@ -676,6 +686,9 @@ struct elf_link_hash_table
   /* A linked list of dynamic BFD's loaded in the link.  */
   struct elf_link_loaded_list *dyn_loaded;
 
+  /* Small local sym cache.  */
+  struct sym_cache sym_cache;
+
   /* Short-cuts to get to dynamic linker sections.  */
   asection *sgot;
   asection *sgotplt;
@@ -717,16 +730,6 @@ struct elf_link_hash_table
 /* Returns TRUE if the hash table is a struct elf_link_hash_table.  */
 #define is_elf_hash_table(htab)						\
   (((struct bfd_link_hash_table *) (htab))->type == bfd_link_elf_hash_table)
-
-/* Used by bfd_sym_from_r_symndx to cache a small number of local
-   symbols.  */
-#define LOCAL_SYM_CACHE_SIZE 32
-struct sym_cache
-{
-  bfd *abfd;
-  unsigned long indx[LOCAL_SYM_CACHE_SIZE];
-  Elf_Internal_Sym sym[LOCAL_SYM_CACHE_SIZE];
-};
 
 /* Constant information held for an ELF backend.  */
 
@@ -788,8 +791,9 @@ struct elf_size_info {
     (bfd *, const Elf_Internal_Rela *, bfd_byte *);
 };
 
-#define elf_symbol_from(ABFD,S) \
-  (((S)->the_bfd != NULL					\
+#define elf_symbol_from(S) \
+  ((((S)->flags & BSF_SYNTHETIC) == 0				\
+    && (S)->the_bfd != NULL					\
     && (S)->the_bfd->xvec->flavour == bfd_target_elf_flavour	\
     && (S)->the_bfd->tdata.elf_obj_data != 0)			\
    ? (elf_symbol_type *) (S)					\
@@ -1291,8 +1295,7 @@ struct elf_backend_data
 
   /* Merge the backend specific symbol attribute.  */
   void (*elf_backend_merge_symbol_attribute)
-    (struct elf_link_hash_entry *, const Elf_Internal_Sym *, bfd_boolean,
-     bfd_boolean);
+    (struct elf_link_hash_entry *, unsigned int, bfd_boolean, bfd_boolean);
 
   /* This function, if defined, will return a string containing the
      name of a target-specific dynamic tag.  */
@@ -1401,6 +1404,14 @@ struct elf_backend_data
      Returns TRUE if it did so and FALSE if the caller should.  */
   bfd_boolean (*elf_backend_write_section)
     (bfd *, struct bfd_link_info *, asection *, bfd_byte *);
+
+  /* This function, if defined, returns TRUE if it is section symbols
+     only that are considered local for the purpose of partitioning the
+     symbol table into local and global symbols.  This should be NULL
+     for most targets, in which case the correct thing will be done.
+     MIPS ELF, at least on the Irix 5, has special requirements.  */
+  bfd_boolean (*elf_backend_elfsym_local_is_section)
+    (bfd *);
 
   /* The level of IRIX compatibility we're striving for.
      MIPS ELF specific function.  */
@@ -1559,7 +1570,7 @@ struct elf_backend_data
 					       const char *, unsigned int);
 
   /* Called when after loading the normal relocs for a section.  */
-  bfd_boolean (*slurp_secondary_relocs) (bfd *, asection *, asymbol **);
+  bfd_boolean (*slurp_secondary_relocs) (bfd *, asection *, asymbol **, bfd_boolean);
 
   /* Called after writing the normal relocs for a section.  */
   bfd_boolean (*write_secondary_relocs) (bfd *, asection *);
@@ -1885,14 +1896,15 @@ struct output_elf_obj_tdata
   bfd_boolean flags_init;
 };
 
-/* Indicate if the bfd contains SHF_GNU_MBIND sections or symbols that
-   have the STT_GNU_IFUNC symbol type or STB_GNU_UNIQUE binding.  Used
-   to set the osabi field in the ELF header structure.  */
+/* Indicate if the bfd contains SHF_GNU_MBIND/SHF_GNU_RETAIN sections or
+   symbols that have the STT_GNU_IFUNC symbol type or STB_GNU_UNIQUE
+   binding.  Used to set the osabi field in the ELF header structure.  */
 enum elf_gnu_osabi
 {
   elf_gnu_osabi_mbind = 1 << 0,
   elf_gnu_osabi_ifunc = 1 << 1,
   elf_gnu_osabi_unique = 1 << 2,
+  elf_gnu_osabi_retain = 1 << 3,
 };
 
 typedef struct elf_section_list
@@ -1930,6 +1942,7 @@ struct elf_obj_tdata
   bfd_vma gp;				/* The gp value */
   unsigned int gp_size;			/* The gp size */
   unsigned int num_elf_sections;	/* elf_sect_ptr size */
+  unsigned char *being_created;
 
   /* A mapping from external symbols to entries in the linker hash
      table, used when linking.  This is indexed by the symbol index
@@ -2022,7 +2035,7 @@ struct elf_obj_tdata
   ENUM_BITFIELD (dynamic_lib_link_class) dyn_lib_class : 4;
 
   /* Whether the bfd uses OS specific bits that require ELFOSABI_GNU.  */
-  ENUM_BITFIELD (elf_gnu_osabi) has_gnu_osabi : 3;
+  ENUM_BITFIELD (elf_gnu_osabi) has_gnu_osabi : 4;
 
   /* Whether if the bfd contains the GNU_PROPERTY_NO_COPY_ON_PROTECTED
      property.  */
@@ -2906,7 +2919,7 @@ extern bfd_boolean is_debuginfo_file (bfd *);
 extern bfd_boolean _bfd_elf_init_secondary_reloc_section
   (bfd *, Elf_Internal_Shdr *, const char *, unsigned int);
 extern bfd_boolean _bfd_elf_slurp_secondary_reloc_section
-  (bfd *, asection *, asymbol **);
+  (bfd *, asection *, asymbol **, bfd_boolean);
 extern bfd_boolean _bfd_elf_copy_special_section_fields
   (const bfd *, bfd *, const Elf_Internal_Shdr *, Elf_Internal_Shdr *);
 extern bfd_boolean _bfd_elf_write_secondary_reloc_section

@@ -1,5 +1,5 @@
 /* TILE-Gx-specific support for ELF.
-   Copyright (C) 2011-2020 Free Software Foundation, Inc.
+   Copyright (C) 2011-2021 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -835,16 +835,14 @@ struct tilegx_elf_link_hash_table
   /* Whether LE transition has been disabled for some of the
      sections.  */
   bfd_boolean disable_le_transition;
-
-  /* Small local sym to section mapping cache.  */
-  struct sym_cache sym_cache;
 };
 
 
 /* Get the Tile ELF linker hash table from a link_info structure.  */
 #define tilegx_elf_hash_table(p) \
-  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash)) \
-  == TILEGX_ELF_DATA ? ((struct tilegx_elf_link_hash_table *) ((p)->hash)) : NULL)
+  ((is_elf_hash_table ((p)->hash)					\
+    && elf_hash_table_id (elf_hash_table (p)) == TILEGX_ELF_DATA)	\
+   ? (struct tilegx_elf_link_hash_table *) (p)->hash : NULL)
 
 #ifdef BFD64
 static bfd_vma
@@ -1979,7 +1977,7 @@ tilegx_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		  void *vpp;
 		  Elf_Internal_Sym *isym;
 
-		  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+		  isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 						abfd, r_symndx);
 		  if (isym == NULL)
 		    return FALSE;

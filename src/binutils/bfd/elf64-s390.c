@@ -1,5 +1,5 @@
 /* IBM S/390-specific support for 64-bit ELF
-   Copyright (C) 2000-2020 Free Software Foundation, Inc.
+   Copyright (C) 2000-2021 Free Software Foundation, Inc.
    Contributed Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -663,9 +663,6 @@ struct elf_s390_link_hash_table
     bfd_vma offset;
   } tls_ldm_got;
 
-  /* Small local sym cache.  */
-  struct sym_cache sym_cache;
-
   /* Options passed from the linker.  */
   struct s390_elf_params *params;
 };
@@ -673,8 +670,9 @@ struct elf_s390_link_hash_table
 /* Get the s390 ELF linker hash table from a link_info structure.  */
 
 #define elf_s390_hash_table(p)						\
-  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash))	\
-   == S390_ELF_DATA ? ((struct elf_s390_link_hash_table *) ((p)->hash)) : NULL)
+  ((is_elf_hash_table ((p)->hash)					\
+    && elf_hash_table_id (elf_hash_table (p)) == S390_ELF_DATA)		\
+   ? (struct elf_s390_link_hash_table *) (p)->hash : NULL)
 
 #define ELF64 1
 #include "elf-s390-common.c"
@@ -852,7 +850,7 @@ elf_s390_check_relocs (bfd *abfd,
       if (r_symndx < symtab_hdr->sh_info)
 	{
 	  /* A local symbol.  */
-	  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+	  isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 					abfd, r_symndx);
 	  if (isym == NULL)
 	    return FALSE;
@@ -1216,7 +1214,7 @@ elf_s390_check_relocs (bfd *abfd,
 		  asection *s;
 		  void *vpp;
 
-		  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+		  isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 						abfd, r_symndx);
 		  if (isym == NULL)
 		    return FALSE;
@@ -2258,7 +2256,7 @@ elf_s390_relocate_section (bfd *output_bfd,
 				  & 0xff00f000) == 0xe300c000
 			      && bfd_get_8 (input_bfd,
 					    contents + rel->r_offset + 3) == 0x04))
-		      && (isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+		      && (isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 							input_bfd, r_symndx))
 		      && isym->st_shndx != SHN_ABS
 		      && h != htab->elf.hdynamic
@@ -3549,8 +3547,9 @@ elf_s390_finish_dynamic_sections (bfd *output_bfd,
 	  bfd_put_64 (output_bfd, (bfd_vma) 0,
 		      htab->elf.hgot->root.u.def.section->contents + 16);
 	}
-      elf_section_data (htab->elf.sgot->output_section)
-	->this_hdr.sh_entsize = 8;
+      if (htab->elf.sgot != NULL && htab->elf.sgot->size > 0)
+	elf_section_data (htab->elf.sgot->output_section)
+	  ->this_hdr.sh_entsize = 8;
     }
 
   /* Finish dynamic symbol for local IFUNC symbols.  */
@@ -3572,7 +3571,7 @@ elf_s390_finish_dynamic_sections (bfd *output_bfd,
 	    if (local_plt[i].plt.offset != (bfd_vma) -1)
 	      {
 		asection *sec = local_plt[i].sec;
-		isym = bfd_sym_from_r_symndx (&htab->sym_cache, ibfd, i);
+		isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache, ibfd, i);
 		if (isym == NULL)
 		  return FALSE;
 

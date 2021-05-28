@@ -1,5 +1,5 @@
 /* PowerPC-specific support for 32-bit ELF
-   Copyright (C) 1994-2020 Free Software Foundation, Inc.
+   Copyright (C) 1994-2021 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -985,10 +985,12 @@ ppc_elf_unhandled_reloc (bfd *abfd,
 
   if (error_message != NULL)
     {
-      static char buf[60];
-      sprintf (buf, _("generic linker can't handle %s"),
-	       reloc_entry->howto->name);
-      *error_message = buf;
+      static char *message;
+      free (message);
+      if (asprintf (&message, _("generic linker can't handle %s"),
+		    reloc_entry->howto->name) < 0)
+	message = NULL;
+      *error_message = message;
     }
   return bfd_reloc_dangerous;
 }
@@ -1491,7 +1493,7 @@ static const struct bfd_elf_special_section ppc_elf_special_sections[] =
 };
 
 /* This is what we want for new plt/got.  */
-static struct bfd_elf_special_section ppc_alt_plt =
+static const struct bfd_elf_special_section ppc_alt_plt =
   { STRING_COMMA_LEN (".plt"),		   0, SHT_PROGBITS, SHF_ALLOC };
 
 static const struct bfd_elf_special_section *
@@ -2212,9 +2214,6 @@ struct ppc_elf_link_hash_table
   int plt_slot_size;
   /* The size of the first PLT entry.  */
   int plt_initial_entry_size;
-
-  /* Small local sym cache.  */
-  struct sym_cache sym_cache;
 };
 
 /* Rename some of the generic section flags to better document how they
@@ -2233,8 +2232,9 @@ struct ppc_elf_link_hash_table
 /* Get the PPC ELF linker hash table from a link_info structure.  */
 
 #define ppc_elf_hash_table(p) \
-  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash)) \
-  == PPC32_ELF_DATA ? ((struct ppc_elf_link_hash_table *) ((p)->hash)) : NULL)
+  ((is_elf_hash_table ((p)->hash)					\
+    && elf_hash_table_id (elf_hash_table (p)) == PPC32_ELF_DATA)	\
+   ? (struct ppc_elf_link_hash_table *) (p)->hash : NULL)
 
 /* Create an entry in a PPC ELF linker hash table.  */
 
@@ -2632,7 +2632,7 @@ ppc_elf_add_symbol_hook (bfd *abfd,
       htab = ppc_elf_hash_table (info);
       if (htab->sbss == NULL)
 	{
-	  flagword flags = SEC_IS_COMMON | SEC_LINKER_CREATED;
+	  flagword flags = SEC_IS_COMMON | SEC_SMALL_DATA | SEC_LINKER_CREATED;
 
 	  if (!htab->elf.dynobj)
 	    htab->elf.dynobj = abfd;
@@ -2952,7 +2952,7 @@ ppc_elf_check_relocs (bfd *abfd,
       ifunc = NULL;
       if (h == NULL && htab->elf.target_os != is_vxworks)
 	{
-	  Elf_Internal_Sym *isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+	  Elf_Internal_Sym *isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 							  abfd, r_symndx);
 	  if (isym == NULL)
 	    return FALSE;
@@ -3337,7 +3337,7 @@ ppc_elf_check_relocs (bfd *abfd,
 	      asection *s;
 	      Elf_Internal_Sym *isym;
 
-	      isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+	      isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 					    abfd, r_symndx);
 	      if (isym == NULL)
 		return FALSE;
@@ -3497,7 +3497,7 @@ ppc_elf_check_relocs (bfd *abfd,
 		  void *vpp;
 		  Elf_Internal_Sym *isym;
 
-		  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+		  isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 						abfd, r_symndx);
 		  if (isym == NULL)
 		    return FALSE;

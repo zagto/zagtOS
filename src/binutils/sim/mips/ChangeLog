@@ -1,3 +1,23 @@
+2021-01-08  Mike Frysinger  <vapier@gentoo.org>
+
+	* configure: Regenerate.
+
+2021-01-04  Mike Frysinger  <vapier@gentoo.org>
+
+	* configure: Regenerate.
+
+2020-12-31  Pavel I. Kryukov  <kryukov@frtk.ru>  (tiny change)
+
+	*  sim-main.c: Include <stdlib.h>.
+
+2020-12-14  Pavel I. Kryukov  <kryukov@frtk.ru>  (tiny change)
+
+	* cp1.c: Include <stdlib.h>.
+
+2020-07-29  Simon Marchi  <simon.marchi@efficios.com>
+
+	* configure: Re-generate.
+
 2017-09-06  John Baldwin  <jhb@FreeBSD.org>
 
 	* configure: Regenerate.

@@ -1,5 +1,5 @@
 /* BFD library support routines for architectures.
-   Copyright (C) 1990-2020 Free Software Foundation, Inc.
+   Copyright (C) 1990-2021 Free Software Foundation, Inc.
    Hacked by John Gilmore and Steve Chamberlain of Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -530,6 +530,7 @@ DESCRIPTION
 .#define bfd_mach_tilegx32	2
 .  bfd_arch_aarch64,   {* AArch64.  *}
 .#define bfd_mach_aarch64 0
+.#define bfd_mach_aarch64_8R	1
 .#define bfd_mach_aarch64_ilp32	32
 .  bfd_arch_nios2,     {* Nios II.  *}
 .#define bfd_mach_nios2		0
@@ -553,6 +554,7 @@ DESCRIPTION
 .#define bfd_mach_ck803		5
 .#define bfd_mach_ck807		6
 .#define bfd_mach_ck810		7
+.#define bfd_mach_ck860		8
 .  bfd_arch_last
 .  };
 */

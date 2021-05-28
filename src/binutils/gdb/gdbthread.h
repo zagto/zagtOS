@@ -1,5 +1,5 @@
 /* Multi-process/thread control defs for GDB, the GNU debugger.
-   Copyright (C) 1987-2020 Free Software Foundation, Inc.
+   Copyright (C) 1987-2021 Free Software Foundation, Inc.
    Contributed by Lynx Real-Time Systems, Inc.  Los Gatos, CA.
    
 
@@ -32,6 +32,7 @@ struct symtab;
 #include "gdbsupport/refcounted-object.h"
 #include "gdbsupport/common-gdbthread.h"
 #include "gdbsupport/forward-scope-exit.h"
+#include "displaced-stepping.h"
 
 struct inferior;
 struct process_stratum_target;
@@ -243,14 +244,14 @@ public:
 
      a) The thread ID (Id).  This consists of the pair of:
 
-        - the number of the thread's inferior and,
+	- the number of the thread's inferior and,
 
-        - the thread's thread number in its inferior, aka, the
-          per-inferior thread number.  This number is unique in the
-          inferior but not unique between inferiors.
+	- the thread's thread number in its inferior, aka, the
+	  per-inferior thread number.  This number is unique in the
+	  inferior but not unique between inferiors.
 
      b) The global ID (GId).  This is a a single integer unique
-        between all inferiors.
+	between all inferiors.
 
      E.g.:
 
@@ -388,12 +389,22 @@ public:
      fields point to self.  */
   struct thread_info *step_over_prev = NULL;
   struct thread_info *step_over_next = NULL;
+
+  /* Displaced-step state for this thread.  */
+  displaced_step_thread_state displaced_step_state;
 };
 
 /* A gdb::ref_ptr pointer to a thread_info.  */
 
 using thread_info_ref
   = gdb::ref_ptr<struct thread_info, refcounted_object_ref_policy>;
+
+/* A gdb::ref_ptr pointer to an inferior.  This would ideally be in
+   inferior.h, but it can't due to header dependencies (inferior.h
+   includes gdbthread.h).  */
+
+using inferior_ref
+  = gdb::ref_ptr<struct inferior, refcounted_object_ref_policy>;
 
 /* Create an empty thread list, or empty the existing one.  */
 extern void init_thread_list (void);
@@ -660,13 +671,16 @@ private:
   void restore ();
 
   bool m_dont_restore = false;
-  /* Use the "class" keyword here, because of a clash with a "thread_info"
-     function in the Darwin API.  */
-  class thread_info *m_thread;
-  inferior *m_inf;
+  thread_info_ref m_thread;
+  inferior_ref m_inf;
+
   frame_id m_selected_frame_id;
   int m_selected_frame_level;
   bool m_was_stopped;
+  /* Save/restore the language as well, because selecting a frame
+     changes the current language to the frame's language if "set
+     language auto".  */
+  enum language m_lang;
 };
 
 /* Returns a pointer into the thread_info corresponding to
@@ -697,12 +711,8 @@ class enable_thread_stack_temporaries
 public:
 
   explicit enable_thread_stack_temporaries (struct thread_info *thr)
-    : m_thr (thr)
+    : m_thr (thread_info_ref::new_reference (thr))
   {
-    gdb_assert (m_thr != NULL);
-
-    m_thr->incref ();
-
     m_thr->stack_temporaries_enabled = true;
     m_thr->stack_temporaries.clear ();
   }
@@ -711,15 +721,13 @@ public:
   {
     m_thr->stack_temporaries_enabled = false;
     m_thr->stack_temporaries.clear ();
-
-    m_thr->decref ();
   }
 
   DISABLE_COPY_AND_ASSIGN (enable_thread_stack_temporaries);
 
 private:
 
-  struct thread_info *m_thr;
+  thread_info_ref m_thr;
 };
 
 extern bool thread_stack_temporaries_enabled_p (struct thread_info *tp);
@@ -731,22 +739,47 @@ extern value *get_last_thread_stack_temporary (struct thread_info *tp);
 extern bool value_in_thread_stack_temporaries (struct value *,
 					       struct thread_info *thr);
 
-/* Add TP to the end of its inferior's pending step-over chain.  */
+/* Add TP to the end of the global pending step-over chain.  */
 
-extern void thread_step_over_chain_enqueue (struct thread_info *tp);
+extern void global_thread_step_over_chain_enqueue (thread_info *tp);
 
-/* Remove TP from its inferior's pending step-over chain.  */
+/* Append the thread step over chain CHAIN_HEAD to the global thread step over
+   chain. */
 
-extern void thread_step_over_chain_remove (struct thread_info *tp);
+extern void global_thread_step_over_chain_enqueue_chain
+  (thread_info *chain_head);
 
-/* Return the next thread in the step-over chain starting at TP.  NULL
-   if TP is the last entry in the chain.  */
+/* Remove TP from step-over chain LIST_P.  */
 
-extern struct thread_info *thread_step_over_chain_next (struct thread_info *tp);
+extern void thread_step_over_chain_remove (thread_info **list_p,
+					   thread_info *tp);
 
-/* Return true if TP is in the step-over chain.  */
+/* Remove TP from the global pending step-over chain.  */
+
+extern void global_thread_step_over_chain_remove (thread_info *tp);
+
+/* Return the thread following TP in the step-over chain whose head is
+   CHAIN_HEAD.  Return NULL if TP is the last entry in the chain.  */
+
+extern thread_info *thread_step_over_chain_next (thread_info *chain_head,
+						 thread_info *tp);
+
+/* Return the thread following TP in the global step-over chain, or NULL if TP
+   is the last entry in the chain.  */
+
+extern thread_info *global_thread_step_over_chain_next (thread_info *tp);
+
+/* Return true if TP is in any step-over chain.  */
 
 extern int thread_is_in_step_over_chain (struct thread_info *tp);
+
+/* Return the length of the the step over chain TP is in.
+
+   If TP is non-nullptr, the thread must be in a step over chain.
+   TP may be nullptr, in which case it denotes an empty list, so a length of
+   0.  */
+
+extern int thread_step_over_chain_length (thread_info *tp);
 
 /* Cancel any ongoing execution command.  */
 

@@ -1,6 +1,6 @@
 /* Xilinx MicroBlaze-specific support for 32-bit ELF
 
-   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+   Copyright (C) 2009-2021 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -19,8 +19,6 @@
    Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
-
-int dbg = 0;
 
 #include "sysdep.h"
 #include "bfd.h"
@@ -744,9 +742,6 @@ struct elf32_mb_link_hash_table
 {
   struct elf_link_hash_table elf;
 
-  /* Small local sym to section mapping cache.  */
-  struct sym_cache sym_sec;
-
   /* TLS Local Dynamic GOT Entry */
   union {
     bfd_signed_vma refcount;
@@ -759,9 +754,10 @@ struct elf32_mb_link_hash_table
 
 /* Get the ELF linker hash table from a link_info structure.  */
 
-#define elf32_mb_hash_table(p)				\
-  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash)) \
-  == MICROBLAZE_ELF_DATA ? ((struct elf32_mb_link_hash_table *) ((p)->hash)) : NULL)
+#define elf32_mb_hash_table(p) \
+  ((is_elf_hash_table ((p)->hash)					\
+    && elf_hash_table_id (elf_hash_table (p)) == MICROBLAZE_ELF_DATA)	\
+   ? (struct elf32_mb_link_hash_table *) (p)->hash : NULL)
 
 /* Create an entry in a microblaze ELF linker hash table.  */
 
@@ -2523,7 +2519,7 @@ microblaze_elf_check_relocs (bfd * abfd,
 		    Elf_Internal_Sym *isym;
 		    void *vpp;
 
-		    isym = bfd_sym_from_r_symndx (&htab->sym_sec,
+		    isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 						  abfd, r_symndx);
 		    if (isym == NULL)
 		      return FALSE;
@@ -3402,7 +3398,7 @@ microblaze_elf_add_symbol_hook (bfd *abfd,
 	 put into .sbss.  */
       *secp = bfd_make_section_old_way (abfd, ".sbss");
       if (*secp == NULL
-	  || !bfd_set_section_flags (*secp, SEC_IS_COMMON))
+	  || !bfd_set_section_flags (*secp, SEC_IS_COMMON | SEC_SMALL_DATA))
 	return FALSE;
 
       *valp = sym->st_size;

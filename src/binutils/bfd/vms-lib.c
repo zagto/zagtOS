@@ -1,6 +1,6 @@
 /* BFD back-end for VMS archive files.
 
-   Copyright (C) 2010-2020 Free Software Foundation, Inc.
+   Copyright (C) 2010-2021 Free Software Foundation, Inc.
    Written by Tristan Gingold <gingold@adacore.com>, AdaCore.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -277,7 +277,8 @@ vms_traverse_index (bfd *abfd, unsigned int vbn, struct carsym_mem *cs,
       unsigned int flags;
 
       /* Extract key length.  */
-      if (bfd_libdata (abfd)->ver == LBR_MAJORID)
+      if (bfd_libdata (abfd)->ver == LBR_MAJORID
+	  && offsetof (struct vms_idx, keyname) <= (size_t) (endp - p))
 	{
 	  struct vms_idx *ridx = (struct vms_idx *)p;
 
@@ -288,7 +289,8 @@ vms_traverse_index (bfd *abfd, unsigned int vbn, struct carsym_mem *cs,
 	  flags = 0;
 	  keyname = ridx->keyname;
 	}
-      else if (bfd_libdata (abfd)->ver == LBR_ELFMAJORID)
+      else if (bfd_libdata (abfd)->ver == LBR_ELFMAJORID
+	       && offsetof (struct vms_elfidx, keyname) <= (size_t) (endp - p))
 	{
 	  struct vms_elfidx *ridx = (struct vms_elfidx *)p;
 
@@ -2401,6 +2403,7 @@ const bfd_target alpha_vms_lib_txt_vec =
   ' ',				/* ar_pad_char.  */
   15,				/* ar_max_namelen.  */
   0,				/* match priority.  */
+  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
   bfd_getl16, bfd_getl_signed_16, bfd_putl16,

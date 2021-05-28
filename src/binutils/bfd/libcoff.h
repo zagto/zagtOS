@@ -3,7 +3,7 @@
    Run "make headers" in your build bfd/ to regenerate.  */
 
 /* BFD COFF object file private structure.
-   Copyright (C) 1990-2020 Free Software Foundation, Inc.
+   Copyright (C) 1990-2021 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -620,14 +620,6 @@ extern bfd_boolean _bfd_xcoff_define_common_symbol
 extern bfd_boolean _bfd_ppc_xcoff_relocate_section
   (bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
    struct internal_reloc *, struct internal_syment *, asection **);
-
-/* Functions in coff-ppc.c.  FIXME: These are called by pe.em in the
-   linker, and so should start with bfd and be declared in bfd.h.  */
-
-extern bfd_boolean ppc_allocate_toc_section
-  (struct bfd_link_info *);
-extern bfd_boolean ppc_process_before_allocation
-  (bfd *, struct bfd_link_info *);
 /* Extracted from coffcode.h.  */
 
 typedef struct coff_ptr_struct

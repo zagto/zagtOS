@@ -1,4 +1,4 @@
-# Copyright 2020 Free Software Foundation, Inc.
+# Copyright 2020-2021 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,10 @@
 # This tests the gdb workaround for PR binutils/15646.
 
 standard_testfile .c gold-gdb-index-2.c
+
+if { [have_fuse_ld_gold] == 0} {
+    return -1
+}
 
 if {[prepare_for_testing "failed to prepare" $testfile "$srcfile $srcfile2" \
 	 {debug c++ additional_flags=-fuse-ld=gold \

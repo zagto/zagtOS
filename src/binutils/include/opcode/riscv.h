@@ -1,5 +1,5 @@
 /* riscv.h.  RISC-V opcode list for GDB, the GNU debugger.
-   Copyright (C) 2011-2020 Free Software Foundation, Inc.
+   Copyright (C) 2011-2021 Free Software Foundation, Inc.
    Contributed by Andrew Waterman
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -204,7 +204,7 @@ static const char * const riscv_pred_succ[16] =
 #define OP_SH_RS2		20
 #define OP_MASK_RS1		0x1f
 #define OP_SH_RS1		15
-#define OP_MASK_RS3		0x1f
+#define OP_MASK_RS3		0x1fU
 #define OP_SH_RS3		27
 #define OP_MASK_RD		0x1f
 #define OP_SH_RD		7
@@ -223,14 +223,14 @@ static const char * const riscv_pred_succ[16] =
 #define OP_MASK_RL		0x1
 #define OP_SH_RL		25
 
-#define OP_MASK_CUSTOM_IMM	0x7f
+#define OP_MASK_CUSTOM_IMM	0x7fU
 #define OP_SH_CUSTOM_IMM	25
-#define OP_MASK_CSR		0xfff
+#define OP_MASK_CSR		0xfffU
 #define OP_SH_CSR		20
 
 #define OP_MASK_FUNCT3         0x7
 #define OP_SH_FUNCT3           12
-#define OP_MASK_FUNCT7         0x7f
+#define OP_MASK_FUNCT7         0x7fU
 #define OP_SH_FUNCT7           25
 #define OP_MASK_FUNCT2         0x3
 #define OP_SH_FUNCT2           25
@@ -306,9 +306,12 @@ enum riscv_insn_class
    INSN_CLASS_M,
    INSN_CLASS_F,
    INSN_CLASS_D,
-   INSN_CLASS_D_AND_C,
-   INSN_CLASS_F_AND_C,
    INSN_CLASS_Q,
+   INSN_CLASS_F_AND_C,
+   INSN_CLASS_D_AND_C,
+   INSN_CLASS_ZICSR,
+   INSN_CLASS_ZIFENCEI,
+   INSN_CLASS_ZIHINTPAUSE,
   };
 
 /* This structure holds information for a particular instruction.  */
@@ -351,8 +354,11 @@ enum riscv_isa_spec_class
 
   ISA_SPEC_CLASS_2P2,
   ISA_SPEC_CLASS_20190608,
-  ISA_SPEC_CLASS_20191213
+  ISA_SPEC_CLASS_20191213,
+  ISA_SPEC_CLASS_DRAFT
 };
+
+#define RISCV_UNKNOWN_VERSION -1
 
 /* This structure holds version information for specific ISA.  */
 
@@ -360,8 +366,8 @@ struct riscv_ext_version
 {
   const char *name;
   enum riscv_isa_spec_class isa_spec_class;
-  unsigned int major_version;
-  unsigned int minor_version;
+  int major_version;
+  int minor_version;
 };
 
 /* All RISC-V CSR belong to one of these classes.  */
@@ -476,6 +482,10 @@ enum
   M_CALL,
   M_J,
   M_LI,
+  M_ZEXTH,
+  M_ZEXTW,
+  M_SEXTB,
+  M_SEXTH,
   M_NUM_MACROS
 };
 
