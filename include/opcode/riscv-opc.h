@@ -1,5 +1,5 @@
 /* riscv-opc.h.  RISC-V instruction opcode and CSR macros.
-   Copyright (C) 2011-2020 Free Software Foundation, Inc.
+   Copyright (C) 2011-2021 Free Software Foundation, Inc.
    Contributed by Andrew Waterman
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -157,6 +157,8 @@
 #define MASK_SW  0x707f
 #define MATCH_SD 0x3023
 #define MASK_SD  0x707f
+#define MATCH_PAUSE 0x0100000f
+#define MASK_PAUSE  0xffffffff
 #define MATCH_FENCE 0xf
 #define MASK_FENCE  0x707f
 #define MATCH_FENCE_I 0x100f
@@ -912,6 +914,7 @@ DECLARE_INSN(sb, MATCH_SB, MASK_SB)
 DECLARE_INSN(sh, MATCH_SH, MASK_SH)
 DECLARE_INSN(sw, MATCH_SW, MASK_SW)
 DECLARE_INSN(sd, MATCH_SD, MASK_SD)
+DECLARE_INSN(pause, MATCH_PAUSE, MASK_PAUSE)
 DECLARE_INSN(fence, MATCH_FENCE, MASK_FENCE)
 DECLARE_INSN(fence_i, MATCH_FENCE_I, MASK_FENCE_I)
 DECLARE_INSN(mul, MATCH_MUL, MASK_MUL)

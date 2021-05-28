@@ -1,5 +1,5 @@
 /* Meta support for 32-bit ELF
-   Copyright (C) 2013-2020 Free Software Foundation, Inc.
+   Copyright (C) 2013-2021 Free Software Foundation, Inc.
    Contributed by Imagination Technologies Ltd.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -823,9 +823,6 @@ struct elf_metag_link_hash_table
   asection **input_list;
   Elf_Internal_Sym **all_local_syms;
 
-  /* Small local sym cache.  */
-  struct sym_cache sym_cache;
-
   /* Data for LDM relocations.  */
   union
   {
@@ -909,8 +906,9 @@ metag_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 
 /* Various hash macros and functions.  */
 #define metag_link_hash_table(p) \
-  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash)) \
-  == METAG_ELF_DATA ? ((struct elf_metag_link_hash_table *) ((p)->hash)) : NULL)
+  ((is_elf_hash_table ((p)->hash)					\
+    && elf_hash_table_id (elf_hash_table (p)) == METAG_ELF_DATA)	\
+   ? (struct elf_metag_link_hash_table *) (p)->hash : NULL)
 
 #define metag_elf_hash_entry(ent) \
   ((struct elf_metag_link_hash_entry *)(ent))
@@ -2098,7 +2096,7 @@ elf_metag_check_relocs (bfd *abfd,
       if (r_symndx < symtab_hdr->sh_info)
 	{
 	  /* A local symbol.  */
-	  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+	  isym = bfd_sym_from_r_symndx (&htab->etab.sym_cache,
 					abfd, r_symndx);
 	  if (isym == NULL)
 	    return FALSE;

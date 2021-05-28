@@ -1,5 +1,5 @@
 /* tc-riscv.c -- RISC-V assembler
-   Copyright (C) 2011-2020 Free Software Foundation, Inc.
+   Copyright (C) 2011-2021 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on MIPS target.
@@ -91,6 +91,14 @@ static enum riscv_priv_spec_class default_priv_spec = PRIV_SPEC_CLASS_NONE;
 static unsigned xlen = 0; /* width of an x-register */
 static unsigned abi_xlen = 0; /* width of a pointer in the ABI */
 static bfd_boolean rve_abi = FALSE;
+enum float_abi {
+  FLOAT_ABI_DEFAULT = -1,
+  FLOAT_ABI_SOFT,
+  FLOAT_ABI_SINGLE,
+  FLOAT_ABI_DOUBLE,
+  FLOAT_ABI_QUAD
+};
+static enum float_abi float_abi = FLOAT_ABI_DEFAULT;
 
 #define LOAD_ADDRESS_INSN (abi_xlen == 64 ? "ld" : "lw")
 #define ADD32_INSN (xlen == 64 ? "addiw" : "addi")
@@ -163,7 +171,7 @@ riscv_set_default_priv_spec (const char *s)
     }
 
   /* Still can not find the priv spec class.  */
-  as_bad (_("Unknown default privilege spec `%d.%d.%d' set by  "
+  as_bad (_("Unknown default privilege spec `%d.%d.%d' set by "
            "privilege attributes"),  major, minor, revision);
   return 0;
 }
@@ -210,10 +218,12 @@ static riscv_subset_list_t riscv_subsets;
 static bfd_boolean
 riscv_subset_supports (const char *feature)
 {
+  struct riscv_subset_t *subset;
+
   if (riscv_opts.rvc && (strcasecmp (feature, "c") == 0))
     return TRUE;
 
-  return riscv_lookup_subset (&riscv_subsets, feature) != NULL;
+  return riscv_lookup_subset (&riscv_subsets, feature, &subset);
 }
 
 static bfd_boolean
@@ -227,13 +237,21 @@ riscv_multi_subset_supports (enum riscv_insn_class insn_class)
     case INSN_CLASS_M: return riscv_subset_supports ("m");
     case INSN_CLASS_F: return riscv_subset_supports ("f");
     case INSN_CLASS_D: return riscv_subset_supports ("d");
-    case INSN_CLASS_D_AND_C:
-      return riscv_subset_supports ("d") && riscv_subset_supports ("c");
+    case INSN_CLASS_Q: return riscv_subset_supports ("q");
 
     case INSN_CLASS_F_AND_C:
-      return riscv_subset_supports ("f") && riscv_subset_supports ("c");
+      return (riscv_subset_supports ("f")
+	      && riscv_subset_supports ("c"));
+    case INSN_CLASS_D_AND_C:
+      return (riscv_subset_supports ("d")
+	      && riscv_subset_supports ("c"));
 
-    case INSN_CLASS_Q: return riscv_subset_supports ("q");
+    case INSN_CLASS_ZICSR:
+      return riscv_subset_supports ("zicsr");
+    case INSN_CLASS_ZIFENCEI:
+      return riscv_subset_supports ("zifencei");
+    case INSN_CLASS_ZIHINTPAUSE:
+      return riscv_subset_supports ("zihintpause");
 
     default:
       as_fatal ("Unreachable");
@@ -242,28 +260,19 @@ riscv_multi_subset_supports (enum riscv_insn_class insn_class)
 }
 
 /* Handle of the extension with version hash table.  */
-static struct hash_control *ext_version_hash = NULL;
+static htab_t ext_version_hash = NULL;
 
-static struct hash_control *
+static htab_t
 init_ext_version_hash (const struct riscv_ext_version *table)
 {
   int i = 0;
-  struct hash_control *hash = hash_new ();
+  htab_t hash = str_htab_create ();
 
   while (table[i].name)
     {
       const char *name = table[i].name;
-      const char *hash_error =
-       hash_insert (hash, name, (void *) &table[i]);
-
-      if (hash_error != NULL)
-       {
-         fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
-                  table[i].name, hash_error);
-         /* Probably a memory allocation problem?  Give up now.  */
-         as_fatal (_("Broken assembler.  No assembly attempted."));
-         return NULL;
-       }
+      if (str_hash_insert (hash, name, &table[i], 0) != NULL)
+	as_fatal (_("duplicate %s"), name);
 
       i++;
       while (table[i].name
@@ -276,28 +285,26 @@ init_ext_version_hash (const struct riscv_ext_version *table)
 
 static void
 riscv_get_default_ext_version (const char *name,
-                              unsigned int *major_version,
-                              unsigned int *minor_version)
+			       int *major_version,
+			       int *minor_version)
 {
   struct riscv_ext_version *ext;
-
-  *major_version = 0;
-  *minor_version = 0;
 
   if (name == NULL || default_isa_spec == ISA_SPEC_CLASS_NONE)
     return;
 
-  ext = (struct riscv_ext_version *) hash_find (ext_version_hash, name);
+  ext = (struct riscv_ext_version *) str_hash_find (ext_version_hash, name);
   while (ext
-        && ext->name
-        && strcmp (ext->name, name) == 0)
+	 && ext->name
+	 && strcmp (ext->name, name) == 0)
     {
-      if (ext->isa_spec_class == default_isa_spec)
-       {
-         *major_version = ext->major_version;
-         *minor_version = ext->minor_version;
-         return;
-       }
+      if (ext->isa_spec_class == ISA_SPEC_CLASS_DRAFT
+	  || ext->isa_spec_class == default_isa_spec)
+	{
+	  *major_version = ext->major_version;
+	  *minor_version = ext->minor_version;
+	  return;
+	}
       ext++;
     }
 }
@@ -309,7 +316,7 @@ riscv_set_arch (const char *s)
 {
   riscv_parse_subset_t rps;
   rps.subset_list = &riscv_subsets;
-  rps.error_handler = as_fatal;
+  rps.error_handler = as_bad;
   rps.xlen = &xlen;
   rps.get_default_version = riscv_get_default_ext_version;
 
@@ -320,11 +327,55 @@ riscv_set_arch (const char *s)
   riscv_parse_subset (&rps, s);
 }
 
+/* Indicate -mabi= option is explictly set.  */
+static bfd_boolean explicit_mabi = FALSE;
+
+static void
+riscv_set_abi (unsigned new_xlen, enum float_abi new_float_abi, bfd_boolean rve)
+{
+  abi_xlen = new_xlen;
+  float_abi = new_float_abi;
+  rve_abi = rve;
+}
+
+/* If the -mabi option isn't set, then we set the abi according to the arch
+   string.  Otherwise, check if there are conflicts between architecture
+   and abi setting.  */
+
+static void
+riscv_set_abi_by_arch (void)
+{
+  if (!explicit_mabi)
+    {
+      if (riscv_subset_supports ("q"))
+	riscv_set_abi (xlen, FLOAT_ABI_QUAD, FALSE);
+      else if (riscv_subset_supports ("d"))
+	riscv_set_abi (xlen, FLOAT_ABI_DOUBLE, FALSE);
+      else
+	riscv_set_abi (xlen, FLOAT_ABI_SOFT, FALSE);
+    }
+  else
+    {
+      gas_assert (abi_xlen != 0 && xlen != 0 && float_abi != FLOAT_ABI_DEFAULT);
+      if (abi_xlen > xlen)
+	as_bad ("can't have %d-bit ABI on %d-bit ISA", abi_xlen, xlen);
+      else if (abi_xlen < xlen)
+	as_bad ("%d-bit ABI not yet supported on %d-bit ISA", abi_xlen, xlen);
+    }
+
+  /* Update the EF_RISCV_FLOAT_ABI field of elf_flags.  */
+  elf_flags &= ~EF_RISCV_FLOAT_ABI;
+  elf_flags |= float_abi << 1;
+
+  if (rve_abi)
+    elf_flags |= EF_RISCV_RVE;
+}
+
 /* Handle of the OPCODE hash table.  */
-static struct hash_control *op_hash = NULL;
+static htab_t op_hash = NULL;
 
 /* Handle of the type of .insn hash table.  */
-static struct hash_control *insn_type_hash = NULL;
+static htab_t insn_type_hash = NULL;
 
 /* This array holds the chars that always start a comment.  If the
     pre-processor is disabled, these aren't very useful */
@@ -353,10 +404,10 @@ const char FLT_CHARS[] = "rRsSfFdDxXpP";
 /* Indicate we are already assemble any instructions or not.  */
 static bfd_boolean start_assemble = FALSE;
 
-/* Indicate ELF attributes are explictly set.  */
+/* Indicate ELF attributes are explicitly set.  */
 static bfd_boolean explicit_attr = FALSE;
 
-/* Indicate CSR or priv instructions are explictly used.  */
+/* Indicate CSR or priv instructions are explicitly used.  */
 static bfd_boolean explicit_priv_attr = FALSE;
 
 /* Macros for encoding relaxation state for RVC branches and far jumps.  */
@@ -397,7 +448,10 @@ static char *expr_end;
 const char *
 riscv_target_format (void)
 {
-  return xlen == 64 ? "elf64-littleriscv" : "elf32-littleriscv";
+  if (target_big_endian)
+    return xlen == 64 ? "elf64-bigriscv" : "elf32-bigriscv";
+  else
+    return xlen == 64 ? "elf64-littleriscv" : "elf32-littleriscv";
 }
 
 /* Return the length of instruction INSN.  */
@@ -426,7 +480,7 @@ static void
 install_insn (const struct riscv_cl_insn *insn)
 {
   char *f = insn->frag->fr_literal + insn->where;
-  md_number_to_chars (f, insn->insn_opcode, insn_length (insn));
+  number_to_chars_littleendian (f, insn->insn_opcode, insn_length (insn));
 }
 
 /* Move INSN to offset WHERE in FRAG.  Adjust the fixups accordingly
@@ -559,23 +613,17 @@ static const struct opcode_name_t opcode_name_list[] =
 };
 
 /* Hash table for lookup opcode name.  */
-static struct hash_control *opcode_names_hash = NULL;
+static htab_t opcode_names_hash = NULL;
 
 /* Initialization for hash table of opcode name.  */
 static void
 init_opcode_names_hash (void)
 {
-  const char *retval;
   const struct opcode_name_t *opcode;
 
   for (opcode = &opcode_name_list[0]; opcode->name != NULL; ++opcode)
-    {
-      retval = hash_insert (opcode_names_hash, opcode->name, (void *)opcode);
-
-      if (retval != NULL)
-	as_fatal (_("internal error: can't hash `%s': %s"),
-		  opcode->name, retval);
-    }
+    if (str_hash_insert (opcode_names_hash, opcode->name, opcode, 0) != NULL)
+      as_fatal (_("duplicate %s"), opcode->name);
 }
 
 /* Find `s` is a valid opcode name or not,
@@ -598,7 +646,7 @@ opcode_name_lookup (char **s)
   save_c = *e;
   *e = '\0';
 
-  o = (struct opcode_name_t *) hash_find (opcode_names_hash, *s);
+  o = (struct opcode_name_t *) str_hash_find (opcode_names_hash, *s);
 
   /* Advance to next token if one was recognized.  */
   if (o)
@@ -619,8 +667,8 @@ enum reg_class
   RCLASS_CSR
 };
 
-static struct hash_control *reg_names_hash = NULL;
-static struct hash_control *csr_extra_hash = NULL;
+static htab_t reg_names_hash = NULL;
+static htab_t csr_extra_hash = NULL;
 
 #define ENCODE_REG_HASH(cls, n) \
   ((void *)(uintptr_t)((n) * RCLASS_MAX + (cls) + 1))
@@ -631,10 +679,8 @@ static void
 hash_reg_name (enum reg_class class, const char *name, unsigned n)
 {
   void *hash = ENCODE_REG_HASH (class, n);
-  const char *retval = hash_insert (reg_names_hash, name, hash);
-
-  if (retval != NULL)
-    as_fatal (_("internal error: can't hash `%s': %s"), name, retval);
+  if (str_hash_insert (reg_names_hash, name, hash, 0) != NULL)
+    as_fatal (_("duplicate %s"), name);
 }
 
 static void
@@ -655,11 +701,10 @@ riscv_init_csr_hash (const char *name,
                     enum riscv_priv_spec_class abort_version)
 {
   struct riscv_csr_extra *entry, *pre_entry;
-  const char *hash_error = NULL;
   bfd_boolean need_enrty = TRUE;
 
   pre_entry = NULL;
-  entry = (struct riscv_csr_extra *) hash_find (csr_extra_hash, name);
+  entry = (struct riscv_csr_extra *) str_hash_find (csr_extra_hash, name);
   while (need_enrty && entry != NULL)
     {
       if (entry->csr_class == class
@@ -686,16 +731,7 @@ riscv_init_csr_hash (const char *name,
      Otherwise, attach the extra information to the entry which is already
      in the hash table.  */
   if (pre_entry == NULL)
-    {
-      hash_error = hash_insert (csr_extra_hash, name, (void *) entry);
-      if (hash_error != NULL)
-       {
-         fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
-                  name, hash_error);
-         /* Probably a memory allocation problem?  Give up now.  */
-         as_fatal (_("Broken assembler.  No assembly attempted."));
-       }
-    }
+    str_hash_insert (csr_extra_hash, name, entry, 0);
   else
     pre_entry->next = entry;
 }
@@ -772,7 +808,7 @@ static unsigned int
 reg_csr_lookup_internal (const char *s)
 {
   struct riscv_csr_extra *r =
-    (struct riscv_csr_extra *) hash_find (csr_extra_hash, s);
+    (struct riscv_csr_extra *) str_hash_find (csr_extra_hash, s);
 
   if (r == NULL)
     return -1U;
@@ -794,7 +830,7 @@ reg_lookup_internal (const char *s, enum reg_class class)
   if (class == RCLASS_CSR)
     return reg_csr_lookup_internal (s);
 
-  r = hash_find (reg_names_hash, s);
+  r = str_hash_find (reg_names_hash, s);
   if (r == NULL || DECODE_REG_CLASS (r) != class)
     return -1;
 
@@ -1018,26 +1054,18 @@ struct percent_op_match
 
 /* Common hash table initialization function for
    instruction and .insn directive.  */
-static struct hash_control *
+static htab_t
 init_opcode_hash (const struct riscv_opcode *opcodes,
 		  bfd_boolean insn_directive_p)
 {
   int i = 0;
   int length;
-  struct hash_control *hash = hash_new ();
+  htab_t hash = str_htab_create ();
   while (opcodes[i].name)
     {
       const char *name = opcodes[i].name;
-      const char *hash_error =
-	hash_insert (hash, name, (void *) &opcodes[i]);
-
-      if (hash_error != NULL)
-	{
-	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
-		   opcodes[i].name, hash_error);
-	  /* Probably a memory allocation problem?  Give up now.  */
-	  as_fatal (_("Broken assembler.  No assembly attempted."));
-	}
+      if (str_hash_insert (hash, name, &opcodes[i], 0) != NULL)
+	as_fatal (_("duplicate %s"), name);
 
       do
 	{
@@ -1074,7 +1102,7 @@ md_begin (void)
   op_hash = init_opcode_hash (riscv_opcodes, FALSE);
   insn_type_hash = init_opcode_hash (riscv_insn_types, TRUE);
 
-  reg_names_hash = hash_new ();
+  reg_names_hash = str_htab_create ();
   hash_reg_names (RCLASS_GPR, riscv_gpr_names_numeric, NGPR);
   hash_reg_names (RCLASS_GPR, riscv_gpr_names_abi, NGPR);
   hash_reg_names (RCLASS_FPR, riscv_fpr_names_numeric, NFPR);
@@ -1083,7 +1111,7 @@ md_begin (void)
   hash_reg_name (RCLASS_GPR, "fp", 8);
 
   /* Create and insert CSR hash tables.  */
-  csr_extra_hash = hash_new ();
+  csr_extra_hash = str_htab_create ();
 #define DECLARE_CSR(name, num, class, define_version, abort_version) \
   riscv_init_csr_hash (#name, num, class, define_version, abort_version);
 #define DECLARE_CSR_ALIAS(name, num, class, define_version, abort_version) \
@@ -1091,7 +1119,7 @@ md_begin (void)
 #include "opcode/riscv-opc.h"
 #undef DECLARE_CSR
 
-  opcode_names_hash = hash_new ();
+  opcode_names_hash = str_htab_create ();
   init_opcode_names_hash ();
 
   /* Set the default alignment for the text section.  */
@@ -1141,6 +1169,13 @@ append_insn (struct riscv_cl_insn *ip, expressionS *address_expr,
 	  int j = reloc_type == BFD_RELOC_RISCV_JMP;
 	  int best_case = riscv_insn_length (ip->insn_opcode);
 	  unsigned worst_case = relaxed_branch_length (NULL, NULL, 0);
+
+	  if (now_seg == absolute_section)
+	    {
+	      as_bad (_("relaxable branches not supported in absolute section"));
+	      return;
+	    }
+
 	  add_relaxed_insn (ip, worst_case, best_case,
 			    RELAX_BRANCH_ENCODE (j, best_case == 2, worst_case),
 			    address_expr->X_add_symbol,
@@ -1168,9 +1203,7 @@ append_insn (struct riscv_cl_insn *ip, expressionS *address_expr,
      optimized away or compressed by the linker during relaxation, to prevent
      the assembler from computing static offsets across such an instruction.
      This is necessary to get correct EH info.  */
-  if (reloc_type == BFD_RELOC_RISCV_CALL
-      || reloc_type == BFD_RELOC_RISCV_CALL_PLT
-      || reloc_type == BFD_RELOC_RISCV_HI20
+  if (reloc_type == BFD_RELOC_RISCV_HI20
       || reloc_type == BFD_RELOC_RISCV_PCREL_HI20
       || reloc_type == BFD_RELOC_RISCV_TPREL_HI20
       || reloc_type == BFD_RELOC_RISCV_TPREL_ADD)
@@ -1196,7 +1229,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
   va_start (args, fmt);
 
   r = BFD_RELOC_UNUSED;
-  mo = (struct riscv_opcode *) hash_find (op_hash, name);
+  mo = (struct riscv_opcode *) str_hash_find (op_hash, name);
   gas_assert (mo);
 
   /* Find a non-RVC variant of the instruction.  append_insn will compress
@@ -1305,8 +1338,8 @@ check_absolute_expr (struct riscv_cl_insn *ip, expressionS *ex,
 static symbolS *
 make_internal_label (void)
 {
-  return (symbolS *) local_symbol_make (FAKE_LABEL_NAME, now_seg,
-					(valueT) frag_now_fix (), frag_now);
+  return (symbolS *) local_symbol_make (FAKE_LABEL_NAME, now_seg, frag_now,
+					frag_now_fix ());
 }
 
 /* Load an entry from the GOT.  */
@@ -1346,8 +1379,13 @@ static void
 riscv_call (int destreg, int tempreg, expressionS *ep,
 	    bfd_reloc_code_real_type reloc)
 {
+  /* Ensure the jalr is emitted to the same frag as the auipc.  */
+  frag_grow (8);
   macro_build (ep, "auipc", "d,u", tempreg, reloc);
   macro_build (NULL, "jalr", "d,s", destreg, tempreg);
+  /* See comment at end of append_insn.  */
+  frag_wane (frag_now);
+  frag_new (0);
 }
 
 /* Load an integer constant into a register.  */
@@ -1401,7 +1439,25 @@ load_const (int reg, expressionS *ep)
     }
 }
 
+/* Zero extend and sign extend byte/half-word/word.  */
+
+static void
+riscv_ext (int destreg, int srcreg, unsigned shift, bfd_boolean sign)
+{
+  if (sign)
+    {
+      md_assemblef ("slli x%d, x%d, 0x%x", destreg, srcreg, shift);
+      md_assemblef ("srai x%d, x%d, 0x%x", destreg, destreg, shift);
+    }
+  else
+    {
+      md_assemblef ("slli x%d, x%d, 0x%x", destreg, srcreg, shift);
+      md_assemblef ("srli x%d, x%d, 0x%x", destreg, destreg, shift);
+    }
+}
+
 /* Expand RISC-V assembly macros into one or more instructions.  */
+
 static void
 macro (struct riscv_cl_insn *ip, expressionS *imm_expr,
        bfd_reloc_code_real_type *imm_reloc)
@@ -1520,6 +1576,22 @@ macro (struct riscv_cl_insn *ip, expressionS *imm_expr,
 
     case M_CALL:
       riscv_call (rd, rs1, imm_expr, *imm_reloc);
+      break;
+
+    case M_ZEXTH:
+      riscv_ext (rd, rs1, xlen - 16, FALSE);
+      break;
+
+    case M_ZEXTW:
+      riscv_ext (rd, rs1, xlen - 32, FALSE);
+      break;
+
+    case M_SEXTB:
+      riscv_ext (rd, rs1, xlen - 8, TRUE);
+      break;
+
+    case M_SEXTH:
+      riscv_ext (rd, rs1, xlen - 16, TRUE);
       break;
 
     default:
@@ -1796,7 +1868,7 @@ riscv_is_priv_insn (insn_t insn)
 
 static const char *
 riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
-	  bfd_reloc_code_real_type *imm_reloc, struct hash_control *hash)
+	  bfd_reloc_code_real_type *imm_reloc, htab_t hash)
 {
   char *s;
   const char *args;
@@ -1812,7 +1884,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
   bfd_boolean insn_with_csr = FALSE;
 
   /* Parse the name of the instruction.  Terminate the string if whitespace
-     is found so that hash_find only sees the name part of the string.  */
+     is found so that str_hash_find only sees the name part of the string.  */
   for (s = str; *s != '\0'; ++s)
     if (ISSPACE (*s))
       {
@@ -1821,7 +1893,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 	break;
       }
 
-  insn = (struct riscv_opcode *) hash_find (hash, str);
+  insn = (struct riscv_opcode *) str_hash_find (hash, str);
 
   argsStart = s;
   for ( ; insn && insn->name && strcmp (insn->name, str) == 0; insn++)
@@ -1940,18 +2012,18 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		case '<':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_IMM (imm_expr->X_add_number)
 		      || imm_expr->X_add_number <= 0
-		      || imm_expr->X_add_number >= 32)
+		      || imm_expr->X_add_number >= 32
+		      || !VALID_RVC_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
 		case '8':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_UIMM8 (imm_expr->X_add_number)
 		      || imm_expr->X_add_number < 0
-		      || imm_expr->X_add_number >= 256)
+		      || imm_expr->X_add_number >= 256
+		      || !VALID_RVC_UIMM8 ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_UIMM8 (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1959,7 +2031,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
 		      || imm_expr->X_add_number == 0
-		      || !VALID_RVC_SIMM3 (imm_expr->X_add_number))
+		      || !VALID_RVC_SIMM3 ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_SIMM3 (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1967,7 +2039,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
 		      || imm_expr->X_add_number == 0
-		      || !VALID_RVC_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1976,7 +2048,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_LW_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_LW_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_LW_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1985,7 +2057,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_LD_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_LD_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_LD_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1994,7 +2066,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_LWSP_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_LWSP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_LWSP_IMM (imm_expr->X_add_number);
@@ -2004,7 +2076,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_LDSP_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_LDSP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_LDSP_IMM (imm_expr->X_add_number);
@@ -2015,15 +2087,15 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		      /* C.addiw, c.li, and c.andi allow zero immediate.
 			 C.addi allows zero immediate as hint.  Otherwise this
 			 is same as 'j'.  */
-		      || !VALID_RVC_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
 		case 'K':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_ADDI4SPN_IMM (imm_expr->X_add_number)
-		      || imm_expr->X_add_number == 0)
+		      || imm_expr->X_add_number == 0
+		      || !VALID_RVC_ADDI4SPN_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_ADDI4SPN_IMM (imm_expr->X_add_number);
@@ -2031,8 +2103,8 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		case 'L':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_ADDI16SP_IMM (imm_expr->X_add_number)
-		      || imm_expr->X_add_number == 0)
+		      || imm_expr->X_add_number == 0
+		      || !VALID_RVC_ADDI16SP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_ADDI16SP_IMM (imm_expr->X_add_number);
@@ -2042,7 +2114,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_SWSP_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_SWSP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_SWSP_IMM (imm_expr->X_add_number);
@@ -2052,7 +2124,7 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_SDSP_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_SDSP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_SDSP_IMM (imm_expr->X_add_number);
@@ -2567,6 +2639,7 @@ md_assemble (char *str)
   if (!start_assemble)
     {
       start_assemble = TRUE;
+      riscv_set_abi_by_arch ();
 
       /* Set the default_priv_spec according to the priv attributes.  */
       if (!riscv_set_default_priv_spec (NULL))
@@ -2596,7 +2669,10 @@ md_atof (int type, char *litP, int *sizeP)
 void
 md_number_to_chars (char *buf, valueT val, int n)
 {
-  number_to_chars_littleendian (buf, val, n);
+  if (target_big_endian)
+    number_to_chars_bigendian (buf, val, n);
+  else
+    number_to_chars_littleendian (buf, val, n);
 }
 
 const char *md_shortopts = "O::g::G:";
@@ -2615,6 +2691,8 @@ enum options
   OPTION_NO_CSR_CHECK,
   OPTION_MISA_SPEC,
   OPTION_MPRIV_SPEC,
+  OPTION_BIG_ENDIAN,
+  OPTION_LITTLE_ENDIAN,
   OPTION_END_OF_ENUM
 };
 
@@ -2633,27 +2711,12 @@ struct option md_longopts[] =
   {"mno-csr-check", no_argument, NULL, OPTION_NO_CSR_CHECK},
   {"misa-spec", required_argument, NULL, OPTION_MISA_SPEC},
   {"mpriv-spec", required_argument, NULL, OPTION_MPRIV_SPEC},
+  {"mbig-endian", no_argument, NULL, OPTION_BIG_ENDIAN},
+  {"mlittle-endian", no_argument, NULL, OPTION_LITTLE_ENDIAN},
 
   {NULL, no_argument, NULL, 0}
 };
 size_t md_longopts_size = sizeof (md_longopts);
-
-enum float_abi {
-  FLOAT_ABI_DEFAULT = -1,
-  FLOAT_ABI_SOFT,
-  FLOAT_ABI_SINGLE,
-  FLOAT_ABI_DOUBLE,
-  FLOAT_ABI_QUAD
-};
-static enum float_abi float_abi = FLOAT_ABI_DEFAULT;
-
-static void
-riscv_set_abi (unsigned new_xlen, enum float_abi new_float_abi, bfd_boolean rve)
-{
-  abi_xlen = new_xlen;
-  float_abi = new_float_abi;
-  rve_abi = rve;
-}
 
 int
 md_parse_option (int c, const char *arg)
@@ -2695,6 +2758,7 @@ md_parse_option (int c, const char *arg)
 	riscv_set_abi (64, FLOAT_ABI_QUAD, FALSE);
       else
 	return 0;
+      explicit_mabi = TRUE;
       break;
 
     case OPTION_RELAX:
@@ -2726,6 +2790,14 @@ md_parse_option (int c, const char *arg)
 
     case OPTION_MPRIV_SPEC:
       return riscv_set_default_priv_spec (arg);
+
+    case OPTION_BIG_ENDIAN:
+      target_big_endian = 1;
+      break;
+
+    case OPTION_LITTLE_ENDIAN:
+      target_big_endian = 0;
+      break;
 
     default:
       return 0;
@@ -2778,36 +2850,6 @@ riscv_after_parse_args (void)
      according to DEFAULT_PRIV_SPEC.  */
   if (default_priv_spec == PRIV_SPEC_CLASS_NONE)
     riscv_set_default_priv_spec (DEFAULT_RISCV_PRIV_SPEC);
-
-  /* Infer ABI from ISA if not specified on command line.  */
-  if (abi_xlen == 0)
-    abi_xlen = xlen;
-  else if (abi_xlen > xlen)
-    as_bad ("can't have %d-bit ABI on %d-bit ISA", abi_xlen, xlen);
-  else if (abi_xlen < xlen)
-    as_bad ("%d-bit ABI not yet supported on %d-bit ISA", abi_xlen, xlen);
-
-  if (float_abi == FLOAT_ABI_DEFAULT)
-    {
-      riscv_subset_t *subset;
-
-      /* Assume soft-float unless D extension is present.  */
-      float_abi = FLOAT_ABI_SOFT;
-
-      for (subset = riscv_subsets.head; subset != NULL; subset = subset->next)
-	{
-	  if (strcasecmp (subset->name, "D") == 0)
-	    float_abi = FLOAT_ABI_DOUBLE;
-	  if (strcasecmp (subset->name, "Q") == 0)
-	    float_abi = FLOAT_ABI_QUAD;
-	}
-    }
-
-  if (rve_abi)
-    elf_flags |= EF_RISCV_RVE;
-
-  /* Insert float_abi into the EF_RISCV_FLOAT_ABI field of elf_flags.  */
-  elf_flags |= float_abi * (EF_RISCV_FLOAT_ABI & ~(EF_RISCV_FLOAT_ABI << 1));
 
   /* If the CIE to be produced has not been overridden on the command line,
      then produce version 3 by default.  This allows us to use the full
@@ -3066,6 +3108,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       fixP->fx_next = xmemdup (fixP, sizeof (*fixP), sizeof (*fixP));
       fixP->fx_next->fx_addsy = fixP->fx_next->fx_subsy = NULL;
       fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_RELAX;
+      fixP->fx_next->fx_size = 0;
     }
 }
 
@@ -3237,13 +3280,13 @@ riscv_make_nops (char *buf, bfd_vma bytes)
   /* Use at most one 2-byte NOP.  */
   if ((bytes - i) % 4 == 2)
     {
-      md_number_to_chars (buf + i, RVC_NOP, 2);
+      number_to_chars_littleendian (buf + i, RVC_NOP, 2);
       i += 2;
     }
 
   /* Fill the remainder with 4-byte NOPs.  */
   for ( ; i < bytes; i += 4)
-    md_number_to_chars (buf + i, RISCV_NOP, 4);
+    number_to_chars_littleendian (buf + i, RISCV_NOP, 4);
 }
 
 /* Called from md_do_align.  Used to create an alignment frag in a
@@ -3447,14 +3490,14 @@ md_convert_frag_branch (fragS *fragp)
       insn = bfd_getl32 (buf);
       insn ^= MATCH_BEQ ^ MATCH_BNE;
       insn |= ENCODE_SBTYPE_IMM (8);
-      md_number_to_chars ((char *) buf, insn, 4);
+      bfd_putl32 (insn, buf);
       buf += 4;
 
     jump:
       /* Jump to the target.  */
       fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
 			  4, &exp, FALSE, BFD_RELOC_RISCV_JMP);
-      md_number_to_chars ((char *) buf, MATCH_JAL, 4);
+      bfd_putl32 (MATCH_JAL, buf);
       buf += 4;
       break;
 
@@ -3538,6 +3581,7 @@ tc_riscv_regname_to_dw2regnum (char *regname)
 void
 riscv_elf_final_processing (void)
 {
+  riscv_set_abi_by_arch ();
   elf_elfheader (stdoutput)->e_flags |= elf_flags;
 }
 

@@ -1,5 +1,5 @@
 /* read.c - read a source file -
-   Copyright (C) 1986-2020 Free Software Foundation, Inc.
+   Copyright (C) 1986-2021 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -39,6 +39,8 @@
 #include "ecoff.h"
 #include "dw2gencfi.h"
 #include "wchar.h"
+
+#include <limits.h>
 
 #ifndef TC_START_LABEL
 #define TC_START_LABEL(STR, NUL_CHAR, NEXT_CHAR) (NEXT_CHAR == ':')
@@ -293,7 +295,53 @@ address_bytes (void)
 
 /* Set up pseudo-op tables.  */
 
-static struct hash_control *po_hash;
+struct po_entry
+{
+  const char *poc_name;
+
+  const pseudo_typeS *pop;
+};
+
+typedef struct po_entry po_entry_t;
+
+/* Hash function for a po_entry.  */
+
+static hashval_t
+hash_po_entry (const void *e)
+{
+  const po_entry_t *entry = (const po_entry_t *) e;
+  return htab_hash_string (entry->poc_name);
+}
+
+/* Equality function for a po_entry.  */
+
+static int
+eq_po_entry (const void *a, const void *b)
+{
+  const po_entry_t *ea = (const po_entry_t *) a;
+  const po_entry_t *eb = (const po_entry_t *) b;
+
+  return strcmp (ea->poc_name, eb->poc_name) == 0;
+}
+
+static po_entry_t *
+po_entry_alloc (const char *poc_name, const pseudo_typeS *pop)
+{
+  po_entry_t *entry = XNEW (po_entry_t);
+  entry->poc_name = poc_name;
+  entry->pop = pop;
+  return entry;
+}
+
+static const pseudo_typeS *
+po_entry_find (htab_t table, const char *poc_name)
+{
+  po_entry_t needle = { poc_name, NULL };
+  po_entry_t *entry = htab_find (table, &needle);
+  return entry != NULL ? entry->pop : NULL;
+}
+
+static struct htab *po_hash;
 
 static const pseudo_typeS potable[] = {
   {"abort", s_abort, 0},
@@ -513,14 +561,17 @@ static const char *pop_table_name;
 void
 pop_insert (const pseudo_typeS *table)
 {
-  const char *errtxt;
   const pseudo_typeS *pop;
   for (pop = table; pop->poc_name; pop++)
     {
-      errtxt = hash_insert (po_hash, pop->poc_name, (char *) pop);
-      if (errtxt && (!pop_override_ok || strcmp (errtxt, "exists")))
-	as_fatal (_("error constructing %s pseudo-op table: %s"), pop_table_name,
-		  errtxt);
+      po_entry_t *elt = po_entry_alloc (pop->poc_name, pop);
+      if (htab_insert (po_hash, elt, 0) != NULL)
+	{
+	  free (elt);
+	  if (!pop_override_ok)
+	    as_fatal (_("error constructing %s pseudo-op table"),
+		      pop_table_name);
+	}
     }
 }
 
@@ -539,7 +590,8 @@ pop_insert (const pseudo_typeS *table)
 static void
 pobegin (void)
 {
-  po_hash = hash_new ();
+  po_hash = htab_create_alloc (16, hash_po_entry, eq_po_entry, NULL,
+			       xcalloc, xfree);
 
   /* Do the target-specific pseudo ops.  */
   pop_table_name = "md";
@@ -817,8 +869,8 @@ read_a_source_file (const char *name)
   char nul_char;
   char next_char;
   char *s;		/* String of symbol, '\0' appended.  */
-  int temp;
-  pseudo_typeS *pop;
+  long temp;
+  const pseudo_typeS *pop;
 
 #ifdef WARN_COMMENTS
   found_comment = 0;
@@ -954,8 +1006,7 @@ read_a_source_file (const char *name)
 		      else
 			line_label = symbol_create (line_start,
 						    absolute_section,
-						    (valueT) 0,
-						    &zero_address_frag);
+						    &zero_address_frag, 0);
 
 		      next_char = restore_line_pointer (nul_char);
 		      if (next_char == ':')
@@ -1068,7 +1119,7 @@ read_a_source_file (const char *name)
 		    {
 		      /* The MRI assembler uses pseudo-ops without
 			 a period.  */
-		      pop = (pseudo_typeS *) hash_find (po_hash, s);
+		      pop = po_entry_find (po_hash, s);
 		      if (pop != NULL && pop->poc_handler == NULL)
 			pop = NULL;
 		    }
@@ -1083,7 +1134,7 @@ read_a_source_file (const char *name)
 			 already know that the pseudo-op begins with a '.'.  */
 
 		      if (pop == NULL)
-			pop = (pseudo_typeS *) hash_find (po_hash, s + 1);
+			pop = po_entry_find (po_hash, s + 1);
 		      if (pop && !pop->poc_handler)
 			pop = NULL;
 
@@ -1213,8 +1264,22 @@ read_a_source_file (const char *name)
 	      /* Read the whole number.  */
 	      while (ISDIGIT (*input_line_pointer))
 		{
-		  temp = (temp * 10) + *input_line_pointer - '0';
+		  const long digit = *input_line_pointer - '0';
+		  if (temp > (LONG_MAX - digit) / 10)
+		    {
+		      as_bad (_("local label too large near %s"), backup);
+		      temp = -1;
+		      break;
+		    }
+		  temp = temp * 10 + digit;
 		  ++input_line_pointer;
+		}
+
+	      /* Overflow: stop processing the label.  */
+	      if (temp == -1)
+		{
+		  ignore_rest_of_line ();
+		  continue;
 		}
 
 	      if (LOCAL_LABELS_DOLLAR
@@ -1225,7 +1290,7 @@ read_a_source_file (const char *name)
 
 		  if (dollar_label_defined (temp))
 		    {
-		      as_fatal (_("label \"%d$\" redefined"), temp);
+		      as_fatal (_("label \"%ld$\" redefined"), temp);
 		    }
 
 		  define_dollar_label (temp);
@@ -1483,7 +1548,7 @@ static void
 s_align (signed int arg, int bytes_p)
 {
   unsigned int align_limit = TC_ALIGN_LIMIT;
-  unsigned int align;
+  addressT align;
   char *stop = NULL;
   char stopc = 0;
   offsetT fill = 0;
@@ -1530,7 +1595,7 @@ s_align (signed int arg, int bytes_p)
   if (align > align_limit)
     {
       align = align_limit;
-      as_warn (_("alignment too large: %u assumed"), align);
+      as_warn (_("alignment too large: %u assumed"), align_limit);
     }
 
   if (*input_line_pointer != ',')
@@ -2482,7 +2547,7 @@ bss_alloc (symbolS *symbolP, addressT size, unsigned int align)
     symbol_get_frag (symbolP)->fr_symbol = NULL;
 
   symbol_set_frag (symbolP, frag_now);
-  pfrag = frag_var (rs_org, 1, 1, 0, symbolP, size, NULL);
+  pfrag = frag_var (rs_org, 1, 1, 0, symbolP, size * OCTETS_PER_BYTE, NULL);
   *pfrag = 0;
 
 #ifdef S_SET_SIZE
@@ -2724,10 +2789,10 @@ s_macro (int ignore ATTRIBUTE_UNUSED)
 	}
 
       if (((NO_PSEUDO_DOT || flag_m68k_mri)
-	   && hash_find (po_hash, name) != NULL)
+	   && po_entry_find (po_hash, name) != NULL)
 	  || (!flag_m68k_mri
 	      && *name == '.'
-	      && hash_find (po_hash, name + 1) != NULL))
+	      && po_entry_find (po_hash, name + 1) != NULL))
 	as_warn_where (file,
 		 line,
 		 _("attempt to redefine pseudo-op `%s' ignored"),
@@ -3441,6 +3506,11 @@ s_space (int mult)
 void
 s_nop (int ignore ATTRIBUTE_UNUSED)
 {
+  expressionS exp;
+  fragS *start;
+  addressT start_off;
+  offsetT frag_off;
+
 #ifdef md_flush_pending_output
   md_flush_pending_output ();
 #endif
@@ -3450,29 +3520,42 @@ s_nop (int ignore ATTRIBUTE_UNUSED)
 #endif
 
   SKIP_WHITESPACE ();
+  expression (&exp);
   demand_empty_rest_of_line ();
 
+  start = frag_now;
+  start_off = frag_now_fix ();
+  do
+    {
 #ifdef md_emit_single_noop
-  md_emit_single_noop;
+      md_emit_single_noop;
 #else
-  char * nop;
+      char *nop;
 
 #ifndef md_single_noop_insn
 #define md_single_noop_insn "nop"
 #endif
-  /* md_assemble might modify its argument, so
-     we must pass it a string that is writeable.  */
-  if (asprintf (&nop, "%s", md_single_noop_insn) < 0)
-    as_fatal ("%s", xstrerror (errno));
+      /* md_assemble might modify its argument, so
+	 we must pass it a string that is writable.  */
+      if (asprintf (&nop, "%s", md_single_noop_insn) < 0)
+	as_fatal ("%s", xstrerror (errno));
 
-  /* Some targets assume that they can update input_line_pointer inside
-     md_assemble, and, worse, that they can leave it assigned to the string
-     pointer that was provided as an argument.  So preserve ilp here.  */
-  char * saved_ilp = input_line_pointer;
-  md_assemble (nop);
-  input_line_pointer = saved_ilp;
-  free (nop);
+      /* Some targets assume that they can update input_line_pointer
+	 inside md_assemble, and, worse, that they can leave it
+	 assigned to the string pointer that was provided as an
+	 argument.  So preserve ilp here.  */
+      char *saved_ilp = input_line_pointer;
+      md_assemble (nop);
+      input_line_pointer = saved_ilp;
+      free (nop);
 #endif
+#ifdef md_flush_pending_output
+      md_flush_pending_output ();
+#endif
+    } while (exp.X_op == O_constant
+	     && exp.X_add_number > 0
+	     && frag_offset_ignore_align_p (start, frag_now, &frag_off)
+	     && frag_off + frag_now_fix () < start_off + exp.X_add_number);
 }
 
 void
@@ -4124,6 +4207,9 @@ s_reloc (int ignore ATTRIBUTE_UNUSED)
       goto err_out;
     case O_constant:
       exp.X_add_symbol = section_symbol (now_seg);
+      /* Mark the section symbol used in relocation so that it will be
+	 included in the symbol table.  */
+      symbol_mark_used_in_reloc (exp.X_add_symbol);
       exp.X_op = O_symbol;
       /* Fallthru */
     case O_symbol:
@@ -5403,6 +5489,11 @@ stringer (int bits_appendzero)
 	  while (is_a_char (c = next_char_of_string ()))
 	    stringer_append_char (c, bitsize);
 
+	  /* Treat "a" "b" as "ab".  Even if we are appending zeros.  */
+	  SKIP_ALL_WHITESPACE ();
+	  if (*input_line_pointer == '"')
+	    break;
+
 	  if (append_zero)
 	    stringer_append_char (0, bitsize);
 
@@ -6155,7 +6246,7 @@ s_ignore (int arg ATTRIBUTE_UNUSED)
 void
 read_print_statistics (FILE *file)
 {
-  hash_print_statistics (file, "pseudo-op table", po_hash);
+  htab_print_statistics (file, "pseudo-op table", po_hash);
 }
 
 /* Inserts the given line into the input stream.

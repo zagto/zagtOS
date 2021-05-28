@@ -1,5 +1,5 @@
 /* Renesas / SuperH SH specific support for 32-bit ELF
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2021 Free Software Foundation, Inc.
    Contributed by Ian Lance Taylor, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -2160,17 +2160,12 @@ struct elf_sh_link_hash_table
   struct elf_link_hash_table root;
 
   /* Short-cuts to get to dynamic linker sections.  */
-  asection *sdynbss;
-  asection *srelbss;
   asection *sfuncdesc;
   asection *srelfuncdesc;
   asection *srofixup;
 
   /* The (unloaded but important) VxWorks .rela.plt.unloaded section.  */
   asection *srelplt2;
-
-  /* Small local sym cache.  */
-  struct sym_cache sym_cache;
 
   /* A counter or offset to track a TLS got entry.  */
   union
@@ -2197,8 +2192,9 @@ struct elf_sh_link_hash_table
 /* Get the sh ELF linker hash table from a link_info structure.  */
 
 #define sh_elf_hash_table(p) \
-  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash)) \
-  == SH_ELF_DATA ? ((struct elf_sh_link_hash_table *) ((p)->hash)) : NULL)
+  ((is_elf_hash_table ((p)->hash)					\
+    && elf_hash_table_id (elf_hash_table (p)) == SH_ELF_DATA)		\
+   ? (struct elf_sh_link_hash_table *) (p)->hash : NULL)
 
 /* Create an entry in an sh ELF linker hash table.  */
 
@@ -2439,7 +2435,7 @@ sh_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 	 section into the .bss section of the final image.  */
       s = bfd_make_section_anyway_with_flags (abfd, ".dynbss",
 					      SEC_ALLOC | SEC_LINKER_CREATED);
-      htab->sdynbss = s;
+      htab->root.sdynbss = s;
       if (s == NULL)
 	return FALSE;
 
@@ -2460,7 +2456,7 @@ sh_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 						  (bed->default_use_rela_p
 						   ? ".rela.bss" : ".rel.bss"),
 						  flags | SEC_READONLY);
-	  htab->srelbss = s;
+	  htab->root.srelbss = s;
 	  if (s == NULL
 	      || !bfd_set_section_alignment (s, ptralign))
 	    return FALSE;
@@ -2580,7 +2576,7 @@ sh_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
      both the dynamic object and the regular object will refer to the
      same memory location for the variable.  */
 
-  s = htab->sdynbss;
+  s = htab->root.sdynbss;
   BFD_ASSERT (s != NULL);
 
   /* We must generate a R_SH_COPY reloc to tell the dynamic linker to
@@ -2591,7 +2587,7 @@ sh_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
     {
       asection *srel;
 
-      srel = htab->srelbss;
+      srel = htab->root.srelbss;
       BFD_ASSERT (srel != NULL);
       srel->size += sizeof (Elf32_External_Rela);
       h->needs_copy = 1;
@@ -3151,7 +3147,7 @@ sh_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  || s == htab->root.sgotplt
 	  || s == htab->sfuncdesc
 	  || s == htab->srofixup
-	  || s == htab->sdynbss)
+	  || s == htab->root.sdynbss)
 	{
 	  /* Strip this section if we don't need it; see the
 	     comment below.  */
@@ -5679,7 +5675,7 @@ sh_elf_check_relocs (bfd *abfd, struct bfd_link_info *info, asection *sec,
 		  void *vpp;
 		  Elf_Internal_Sym *isym;
 
-		  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+		  isym = bfd_sym_from_r_symndx (&htab->root.sym_cache,
 						abfd, r_symndx);
 		  if (isym == NULL)
 		    return FALSE;

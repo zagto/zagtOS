@@ -1,5 +1,5 @@
 /* ldlang.h - linker command language support
-   Copyright (C) 1991-2020 Free Software Foundation, Inc.
+   Copyright (C) 1991-2021 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -173,6 +173,9 @@ typedef struct lang_output_section_statement_struct
   unsigned int after_end : 1;
   /* If this section uses the alignment of its input sections.  */
   unsigned int align_lma_with_input : 1;
+  /* If script has duplicate output section statements of the same name
+     create duplicate output sections.  */
+  unsigned int dup_output : 1;
 } lang_output_section_statement_type;
 
 typedef struct
@@ -586,7 +589,7 @@ extern asection *section_for_dot
        statement = statement->next)
 
 #define lang_output_section_find(NAME) \
-  lang_output_section_statement_lookup (NAME, 0, FALSE)
+  lang_output_section_statement_lookup (NAME, 0, 0)
 
 extern void lang_process
   (void);
@@ -605,7 +608,7 @@ extern void lang_add_keepsyms_file
 extern lang_output_section_statement_type *lang_output_section_get
   (const asection *);
 extern lang_output_section_statement_type *lang_output_section_statement_lookup
-  (const char *, int, bfd_boolean);
+  (const char *, int, int);
 extern lang_output_section_statement_type *next_matching_output_section_statement
   (lang_output_section_statement_type *, int);
 extern void ldlang_add_undef
@@ -689,8 +692,10 @@ extern bfd_boolean load_symbols
 
 struct elf_sym_strtab;
 struct elf_strtab_hash;
-extern void ldlang_ctf_apply_strsym
-  (struct elf_sym_strtab *, bfd_size_type, struct elf_strtab_hash *);
+extern void ldlang_ctf_acquire_strings
+  (struct elf_strtab_hash *);
+extern void ldlang_ctf_new_dynsym
+  (int symidx, struct elf_internal_sym *);
 extern void ldlang_write_ctf_late
   (void);
 extern bfd_boolean

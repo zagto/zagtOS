@@ -1,6 +1,6 @@
 /* GDB CLI commands.
 
-   Copyright (C) 2000-2020 Free Software Foundation, Inc.
+   Copyright (C) 2000-2021 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -150,6 +150,10 @@ struct cmd_list_element *maintenanceprintlist;
 /* Chain containing all defined "maintenance check" subcommands.  */
 
 struct cmd_list_element *maintenancechecklist;
+
+/* Chain containing all defined "maintenance flush" subcommands.  */
+
+struct cmd_list_element *maintenanceflushlist;
 
 struct cmd_list_element *setprintlist;
 
@@ -488,7 +492,7 @@ pwd_command (const char *args, int from_tty)
 
   if (cwd == NULL)
     error (_("Error finding name of working directory: %s"),
-           safe_strerror (errno));
+	   safe_strerror (errno));
 
   if (strcmp (cwd.get (), current_directory) != 0)
     printf_unfiltered (_("Working directory %ps\n (canonically %ps).\n"),
@@ -532,7 +536,7 @@ cd_command (const char *dir, int from_tty)
   if (IS_DIR_SEPARATOR (dir[len - 1]))
     {
       /* Remove the trailing slash unless this is a root directory
-         (including a drive letter on non-Unix systems).  */
+	 (including a drive letter on non-Unix systems).  */
       if (!(len == 1)		/* "/" */
 #ifdef HAVE_DOS_BASED_FILE_SYSTEM
 	  && !(len == 3 && dir[1] == ':') /* "d:/" */
@@ -571,7 +575,7 @@ cd_command (const char *dir, int from_tty)
 	  if (found_real_path)
 	    {
 	      /* Search backwards for the directory just before the "/.."
-	         and obliterate it and the "/..".  */
+		 and obliterate it and the "/..".  */
 	      char *q = p;
 
 	      while (q != current_directory && !IS_DIR_SEPARATOR (q[-1]))
@@ -716,7 +720,7 @@ source_script_with_search (const char *file, int from_tty, int search_path)
   if (!opened)
     {
       /* The script wasn't found, or was otherwise inaccessible.
-         If the source command was invoked interactively, throw an
+	 If the source command was invoked interactively, throw an
 	 error.  Otherwise (e.g. if it was invoked by a script),
 	 just emit a warning, rather than cause an error.  */
       if (from_tty)
@@ -971,40 +975,40 @@ edit_command (const char *arg, int from_tty)
       sal = sals[0];
 
       if (*arg1)
-        error (_("Junk at end of line specification."));
+	error (_("Junk at end of line specification."));
 
       /* If line was specified by address, first print exactly which
-         line, and which file.  In this case, sal.symtab == 0 means
-         address is outside of all known source files, not that user
-         failed to give a filename.  */
+	 line, and which file.  In this case, sal.symtab == 0 means
+	 address is outside of all known source files, not that user
+	 failed to give a filename.  */
       if (*arg == '*')
-        {
+	{
 	  struct gdbarch *gdbarch;
 
-          if (sal.symtab == 0)
+	  if (sal.symtab == 0)
 	    error (_("No source file for address %s."),
 		   paddress (get_current_arch (), sal.pc));
 
 	  gdbarch = SYMTAB_OBJFILE (sal.symtab)->arch ();
-          sym = find_pc_function (sal.pc);
-          if (sym)
+	  sym = find_pc_function (sal.pc);
+	  if (sym)
 	    printf_filtered ("%s is in %s (%s:%d).\n",
 			     paddress (gdbarch, sal.pc),
 			     sym->print_name (),
 			     symtab_to_filename_for_display (sal.symtab),
 			     sal.line);
-          else
+	  else
 	    printf_filtered ("%s is at %s:%d.\n",
 			     paddress (gdbarch, sal.pc),
 			     symtab_to_filename_for_display (sal.symtab),
 			     sal.line);
-        }
+	}
 
       /* If what was given does not imply a symtab, it must be an
-         undebuggable symbol which means no source code.  */
+	 undebuggable symbol which means no source code.  */
 
       if (sal.symtab == 0)
-        error (_("No line number known for %s."), arg);
+	error (_("No line number known for %s."), arg);
     }
 
   if ((editor = getenv ("EDITOR")) == NULL)
@@ -1110,7 +1114,7 @@ pipe_command (const char *arg, int from_tty)
 
   if (exit_status < 0)
     error (_("shell command \"%s\" failed: %s"), shell_command,
-           safe_strerror (errno));
+	   safe_strerror (errno));
   exit_status_set_internal_vars (exit_status);
 }
 
@@ -1395,32 +1399,38 @@ print_disassembly (struct gdbarch *gdbarch, const char *name,
   else
 #endif
     {
-      printf_filtered ("Dump of assembler code ");
+      printf_filtered (_("Dump of assembler code "));
       if (name != NULL)
-	printf_filtered ("for function %s:\n", name);
+	printf_filtered (_("for function %ps:\n"),
+			 styled_string (function_name_style.style (), name));
       if (block == nullptr || BLOCK_CONTIGUOUS_P (block))
-        {
+	{
 	  if (name == NULL)
-	    printf_filtered ("from %s to %s:\n",
-			     paddress (gdbarch, low), paddress (gdbarch, high));
+	    printf_filtered (_("from %ps to %ps:\n"),
+			     styled_string (address_style.style (),
+					    paddress (gdbarch, low)),
+			     styled_string (address_style.style (),
+					    paddress (gdbarch, high)));
 
 	  /* Dump the specified range.  */
 	  gdb_disassembly (gdbarch, current_uiout, flags, -1, low, high);
 	}
       else
-        {
+	{
 	  for (int i = 0; i < BLOCK_NRANGES (block); i++)
 	    {
 	      CORE_ADDR range_low = BLOCK_RANGE_START (block, i);
 	      CORE_ADDR range_high = BLOCK_RANGE_END (block, i);
-	      printf_filtered (_("Address range %s to %s:\n"),
-			       paddress (gdbarch, range_low),
-			       paddress (gdbarch, range_high));
+	      printf_filtered (_("Address range %ps to %ps:\n"),
+			       styled_string (address_style.style (),
+					      paddress (gdbarch, range_low)),
+			       styled_string (address_style.style (),
+					      paddress (gdbarch, range_high)));
 	      gdb_disassembly (gdbarch, current_uiout, flags, -1,
 			       range_low, range_high);
 	    }
 	}
-      printf_filtered ("End of assembler dump.\n");
+      printf_filtered (_("End of assembler dump.\n"));
     }
 }
 
@@ -1482,6 +1492,7 @@ disassemble_command (const char *arg, int from_tty)
 {
   struct gdbarch *gdbarch = get_current_arch ();
   CORE_ADDR low, high;
+  const general_symbol_info *symbol = nullptr;
   const char *name;
   CORE_ADDR pc;
   gdb_disassembly_flags flags;
@@ -1537,8 +1548,14 @@ disassemble_command (const char *arg, int from_tty)
   if (p[0] == '\0')
     {
       /* One argument.  */
-      if (find_pc_partial_function (pc, &name, &low, &high, &block) == 0)
+      if (!find_pc_partial_function_sym (pc, &symbol, &low, &high, &block))
 	error (_("No function contains specified address."));
+
+      if (asm_demangle)
+	name = symbol->print_name ();
+      else
+	name = symbol->linkage_name ();
+
 #if defined(TUI)
       /* NOTE: cagney/2003-02-13 The `tui_active' was previously
 	 `tui_version'.  */
@@ -2528,7 +2545,12 @@ can be shown using \"show listsize\"."));
 
   c = add_com ("disassemble", class_vars, disassemble_command, _("\
 Disassemble a specified section of memory.\n\
+Usage: disassemble[/m|/r|/s] START [, END]\n\
 Default is the function surrounding the pc of the selected frame.\n\
+\n\
+With a /s modifier, source lines are included (if available).\n\
+In this mode, the output is displayed in PC address order, and\n\
+file names and contents for all relevant source files are displayed.\n\
 \n\
 With a /m modifier, source lines are included (if available).\n\
 This view is \"source centric\": the output is in source line order,\n\
@@ -2536,11 +2558,6 @@ regardless of any optimization that is present.  Only the main source file\n\
 is displayed, not those of, e.g., any inlined functions.\n\
 This modifier hasn't proved useful in practice and is deprecated\n\
 in favor of /s.\n\
-\n\
-With a /s modifier, source lines are included (if available).\n\
-This differs from /m in two important respects:\n\
-- the output is still in pc address order, and\n\
-- file names and contents for all relevant source files are displayed.\n\
 \n\
 With a /r modifier, raw instructions in hex are included.\n\
 \n\
@@ -2601,9 +2618,9 @@ Use \"help aliases\" to list all user defined aliases and their default args.\n\
 \n\
 Examples:\n\
 Make \"spe\" an alias of \"set print elements\":\n\
-  alias spe set print elements\n\
+  alias spe = set print elements\n\
 Make \"elms\" an alias of \"elements\" in the \"set print\" command:\n\
-  alias -a set print elms set print elements\n\
+  alias -a set print elms = set print elements\n\
 Make \"btf\" an alias of \"backtrace -full -past-entry -past-main\" :\n\
   alias btf = backtrace -full -past-entry -past-main\n\
 Make \"wLapPeu\" an alias of 2 nested \"with\":\n\

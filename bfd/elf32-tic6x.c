@@ -1,5 +1,5 @@
 /* 32-bit ELF support for TI C6X
-   Copyright (C) 2010-2020 Free Software Foundation, Inc.
+   Copyright (C) 2010-2021 Free Software Foundation, Inc.
    Contributed by Joseph Myers <joseph@codesourcery.com>
 		  Bernd Schmidt  <bernds@codesourcery.com>
 
@@ -45,9 +45,6 @@ struct elf32_tic6x_link_hash_table
 
   /* C6X specific command line arguments.  */
   struct elf32_tic6x_params params;
-
-  /* Small local sym cache.  */
-  struct sym_cache sym_cache;
 
   /* The output BFD, for convenience.  */
   bfd *obfd;
@@ -131,8 +128,11 @@ struct elf32_tic6x_obj_tdata
    faster assembler code.  This is what we use for the small common
    section.  This approach is copied from ecoff.c.  */
 static asection tic6x_elf_scom_section;
-static asymbol  tic6x_elf_scom_symbol;
-static asymbol  *tic6x_elf_scom_symbol_ptr;
+static const asymbol tic6x_elf_scom_symbol =
+  GLOBAL_SYM_INIT (".scommon", &tic6x_elf_scom_section);
+static asection tic6x_elf_scom_section =
+  BFD_FAKE_SECTION (tic6x_elf_scom_section, &tic6x_elf_scom_symbol,
+		    ".scommon", 0, SEC_IS_COMMON | SEC_SMALL_DATA);
 
 static reloc_howto_type elf32_tic6x_howto_table[] =
 {
@@ -2729,7 +2729,7 @@ elf32_tic6x_check_relocs (bfd *abfd, struct bfd_link_info *info,
       if (r_symndx < symtab_hdr->sh_info)
 	{
 	  /* A local symbol.  */
-	  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
+	  isym = bfd_sym_from_r_symndx (&htab->elf.sym_cache,
 					abfd, r_symndx);
 	  if (isym == NULL)
 	    return FALSE;
@@ -2955,7 +2955,7 @@ elf32_tic6x_add_symbol_hook (bfd *abfd,
     {
     case SHN_TIC6X_SCOMMON:
       *secp = bfd_make_section_old_way (abfd, ".scommon");
-      (*secp)->flags |= SEC_IS_COMMON;
+      (*secp)->flags |= SEC_IS_COMMON | SEC_SMALL_DATA;
       *valp = sym->st_size;
       bfd_set_section_alignment (*secp, bfd_log2 (sym->st_value));
       break;
@@ -2973,19 +2973,6 @@ elf32_tic6x_symbol_processing (bfd *abfd ATTRIBUTE_UNUSED, asymbol *asym)
   switch (elfsym->internal_elf_sym.st_shndx)
     {
     case SHN_TIC6X_SCOMMON:
-      if (tic6x_elf_scom_section.name == NULL)
-	{
-	  /* Initialize the small common section.  */
-	  tic6x_elf_scom_section.name = ".scommon";
-	  tic6x_elf_scom_section.flags = SEC_IS_COMMON | SEC_SMALL_DATA;
-	  tic6x_elf_scom_section.output_section = &tic6x_elf_scom_section;
-	  tic6x_elf_scom_section.symbol = &tic6x_elf_scom_symbol;
-	  tic6x_elf_scom_section.symbol_ptr_ptr = &tic6x_elf_scom_symbol_ptr;
-	  tic6x_elf_scom_symbol.name = ".scommon";
-	  tic6x_elf_scom_symbol.flags = BSF_SECTION_SYM;
-	  tic6x_elf_scom_symbol.section = &tic6x_elf_scom_section;
-	  tic6x_elf_scom_symbol_ptr = &tic6x_elf_scom_symbol;
-	}
       asym->section = &tic6x_elf_scom_section;
       asym->value = elfsym->internal_elf_sym.st_size;
       break;

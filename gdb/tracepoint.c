@@ -1,6 +1,6 @@
 /* Tracing functionality for remote targets in custom GDB protocol
 
-   Copyright (C) 1997-2020 Free Software Foundation, Inc.
+   Copyright (C) 1997-2021 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -687,7 +687,7 @@ validate_actionline (const char *line, struct breakpoint *b)
 	      expression_up exp = parse_exp_1 (&p, loc->address,
 					       block_for_pc (loc->address), 1);
 
-	      if (exp->elts[0].opcode == OP_VAR_VALUE)
+	      if (exp->first_opcode () == OP_VAR_VALUE)
 		{
 		  if (SYMBOL_CLASS (exp->elts[2].symbol) == LOC_CONST)
 		    {
@@ -1220,18 +1220,18 @@ collection_list::stringify ()
 	}
 
       {
-        bfd_signed_vma length
+	bfd_signed_vma length
 	  = m_memranges[i].end - m_memranges[i].start;
 
-        /* The "%X" conversion specifier expects an unsigned argument,
-           so passing -1 (memrange_absolute) to it directly gives you
-           "FFFFFFFF" (or more, depending on sizeof (unsigned)).
-           Special-case it.  */
-        if (m_memranges[i].type == memrange_absolute)
-          sprintf (end, "M-1,%s,%lX", phex_nz (m_memranges[i].start, 0),
+	/* The "%X" conversion specifier expects an unsigned argument,
+	   so passing -1 (memrange_absolute) to it directly gives you
+	   "FFFFFFFF" (or more, depending on sizeof (unsigned)).
+	   Special-case it.  */
+	if (m_memranges[i].type == memrange_absolute)
+	  sprintf (end, "M-1,%s,%lX", phex_nz (m_memranges[i].start, 0),
 		   (long) length);
-        else
-          sprintf (end, "M%X,%s,%lX", m_memranges[i].type,
+	else
+	  sprintf (end, "M%X,%s,%lX", m_memranges[i].type,
 		   phex_nz (m_memranges[i].start, 0), (long) length);
       }
 
@@ -1383,7 +1383,7 @@ encode_actions_1 (struct command_line *action,
 						   block_for_pc (tloc->address),
 						   1);
 
-		  switch (exp->elts[0].opcode)
+		  switch (exp->first_opcode ())
 		    {
 		    case OP_REGISTER:
 		      {
@@ -2205,10 +2205,10 @@ tfind_1 (enum trace_find_type type, int num,
       enum print_what print_what;
 
       /* NOTE: in imitation of the step command, try to determine
-         whether we have made a transition from one function to
-         another.  If so, we'll print the "stack frame" (ie. the new
-         function and it's arguments) -- otherwise we'll just show the
-         new source line.  */
+	 whether we have made a transition from one function to
+	 another.  If so, we'll print the "stack frame" (ie. the new
+	 function and it's arguments) -- otherwise we'll just show the
+	 new source line.  */
 
       if (frame_id_eq (old_frame_id,
 		       get_frame_id (get_current_frame ())))
@@ -2256,7 +2256,7 @@ tfind_command_1 (const char *args, int from_tty)
     { /* TFIND with no args means find NEXT trace frame.  */
       if (traceframe_number == -1)
 	frameno = 0;	/* "next" is first one.  */
-        else
+	else
 	frameno = traceframe_number + 1;
     }
   else if (0 == strcmp (args, "-"))
@@ -2668,7 +2668,7 @@ trace_dump_actions (struct command_line *action,
       action_exp = skip_spaces (action_exp);
 
       /* The collection actions to be done while stepping are
-         bracketed by the commands "while-stepping" and "end".  */
+	 bracketed by the commands "while-stepping" and "end".  */
 
       if (*action_exp == '#')	/* comment line */
 	continue;

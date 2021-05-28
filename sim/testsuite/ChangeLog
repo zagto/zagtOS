@@ -1,3 +1,30 @@
+2021-01-05  Mike Frysinger  <vapier@gentoo.org>
+
+	* sim/fr30/: Delete.
+
+2021-01-05  Mike Frysinger  <vapier@gentoo.org>
+
+	* common/Make-common.in: Delete.
+
+2021-01-04  Mike Frysinger  <vapier@gentoo.org>
+
+	* configure: Regenerate.
+
+2020-10-06  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* configure: Regnerate.
+	* configure.ac (AC_CONFIG_AUX_DIR): Update.
+
+2020-08-04  David Faust  <david.faust@oracle.com>
+	    Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* configure: Regenerate.
+	* sim/bpf: New directory.
+
+2020-07-29  Simon Marchi  <simon.marchi@efficios.com>
+
+	* configure: Re-generate.
+
 2019-12-19  Tom Tromey  <tromey@adacore.com>
 
 	PR build/24572:

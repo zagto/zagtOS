@@ -1,5 +1,5 @@
 /* Support for printing Modula 2 types for GDB, the GNU debugger.
-   Copyright (C) 1986-2020 Free Software Foundation, Inc.
+   Copyright (C) 1986-2021 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -158,8 +158,8 @@ m2_print_type (struct type *type, const char *varstring,
    which to print.  */
 
 void
-m2_print_typedef (struct type *type, struct symbol *new_symbol,
-		  struct ui_file *stream)
+m2_language::print_typedef (struct type *type, struct symbol *new_symbol,
+			    struct ui_file *stream) const
 {
   type = check_typedef (type);
   fprintf_filtered (stream, "TYPE ");
@@ -188,7 +188,7 @@ void
 m2_range (struct type *type, struct ui_file *stream, int show,
 	  int level, const struct type_print_options *flags)
 {
-  if (TYPE_HIGH_BOUND (type) == TYPE_LOW_BOUND (type))
+  if (type->bounds ()->high.const_val () == type->bounds ()->low.const_val ())
     {
       /* FIXME: TYPE_TARGET_TYPE used to be TYPE_DOMAIN_TYPE but that was
 	 wrong.  Not sure if TYPE_TARGET_TYPE is correct though.  */
@@ -200,9 +200,9 @@ m2_range (struct type *type, struct ui_file *stream, int show,
       struct type *target = TYPE_TARGET_TYPE (type);
 
       fprintf_filtered (stream, "[");
-      print_type_scalar (target, TYPE_LOW_BOUND (type), stream);
+      print_type_scalar (target, type->bounds ()->low.const_val (), stream);
       fprintf_filtered (stream, "..");
-      print_type_scalar (target, TYPE_HIGH_BOUND (type), stream);
+      print_type_scalar (target, type->bounds ()->high.const_val (), stream);
       fprintf_filtered (stream, "]");
     }
 }
@@ -226,7 +226,7 @@ static void m2_array (struct type *type, struct ui_file *stream,
 {
   fprintf_filtered (stream, "ARRAY [");
   if (TYPE_LENGTH (TYPE_TARGET_TYPE (type)) > 0
-      && !TYPE_ARRAY_UPPER_BOUND_IS_UNDEFINED (type))
+      && type->bounds ()->high.kind () != PROP_UNDEFINED)
     {
       if (type->index_type () != 0)
 	{
@@ -315,9 +315,9 @@ m2_print_bounds (struct type *type,
     return;
 
   if (print_high)
-    print_type_scalar (target, TYPE_HIGH_BOUND (type), stream);
+    print_type_scalar (target, type->bounds ()->high.const_val (), stream);
   else
-    print_type_scalar (target, TYPE_LOW_BOUND (type), stream);
+    print_type_scalar (target, type->bounds ()->low.const_val (), stream);
 }
 
 static void
@@ -358,9 +358,9 @@ m2_is_long_set (struct type *type)
 	    return 0;
 	  range = type->field (i).type ()->index_type ();
 	  if ((i > TYPE_N_BASECLASSES (type))
-	      && previous_high + 1 != TYPE_LOW_BOUND (range))
+	      && previous_high + 1 != range->bounds ()->low.const_val ())
 	    return 0;
-	  previous_high = TYPE_HIGH_BOUND (range);
+	  previous_high = range->bounds ()->high.const_val ();
 	}
       return len>0;
     }
@@ -368,11 +368,11 @@ m2_is_long_set (struct type *type)
 }
 
 /* m2_get_discrete_bounds - a wrapper for get_discrete_bounds which
-                            understands that CHARs might be signed.
-                            This should be integrated into gdbtypes.c
-                            inside get_discrete_bounds.  */
+			    understands that CHARs might be signed.
+			    This should be integrated into gdbtypes.c
+			    inside get_discrete_bounds.  */
 
-static int
+static bool
 m2_get_discrete_bounds (struct type *type, LONGEST *lowp, LONGEST *highp)
 {
   type = check_typedef (type);
@@ -381,7 +381,7 @@ m2_get_discrete_bounds (struct type *type, LONGEST *lowp, LONGEST *highp)
     case TYPE_CODE_CHAR:
       if (TYPE_LENGTH (type) < sizeof (LONGEST))
 	{
-	  if (!TYPE_UNSIGNED (type))
+	  if (!type->is_unsigned ())
 	    {
 	      *lowp = -(1 << (TYPE_LENGTH (type) * TARGET_CHAR_BIT - 1));
 	      *highp = -*lowp - 1;
@@ -395,8 +395,8 @@ m2_get_discrete_bounds (struct type *type, LONGEST *lowp, LONGEST *highp)
 }
 
 /* m2_is_long_set_of_type - returns TRUE if the long set was declared as
-                            SET OF <oftype> of_type is assigned to the
-                            subtype.  */
+			    SET OF <oftype> of_type is assigned to the
+			    subtype.  */
 
 int
 m2_is_long_set_of_type (struct type *type, struct type **of_type)
@@ -416,10 +416,10 @@ m2_is_long_set_of_type (struct type *type, struct type **of_type)
       range = type->field (i).type ()->index_type ();
       target = TYPE_TARGET_TYPE (range);
 
-      l1 = TYPE_LOW_BOUND (type->field (i).type ()->index_type ());
-      h1 = TYPE_HIGH_BOUND (type->field (len - 1).type ()->index_type ());
+      l1 = type->field (i).type ()->bounds ()->low.const_val ();
+      h1 = type->field (len - 1).type ()->bounds ()->high.const_val ();
       *of_type = target;
-      if (m2_get_discrete_bounds (target, &l2, &h2) >= 0)
+      if (m2_get_discrete_bounds (target, &l2, &h2))
 	return (l1 == l2 && h1 == h2);
       error (_("long_set failed to find discrete bounds for its subtype"));
       return 0;
@@ -477,7 +477,7 @@ m2_long_set (struct type *type, struct ui_file *stream, int show, int level,
 }
 
 /* m2_is_unbounded_array - returns TRUE if, type, should be regarded
-                           as a Modula-2 unbounded ARRAY type.  */
+			   as a Modula-2 unbounded ARRAY type.  */
 
 int
 m2_is_unbounded_array (struct type *type)
@@ -504,9 +504,9 @@ m2_is_unbounded_array (struct type *type)
 }
 
 /* m2_unbounded_array - if the struct type matches a Modula-2 unbounded
-                        parameter type then display the type as an
-                        ARRAY OF type.  Returns TRUE if an unbounded
-                        array type was detected.  */
+			parameter type then display the type as an
+			ARRAY OF type.  Returns TRUE if an unbounded
+			array type was detected.  */
 
 static int
 m2_unbounded_array (struct type *type, struct ui_file *stream, int show,
@@ -582,7 +582,7 @@ m2_record_fields (struct type *type, struct ui_file *stream, int show,
 	  fprintf_filtered (stream, ";\n");
 	}
       
-      fprintfi_filtered (level, stream, "END ");
+      fprintf_filtered (stream, "%*sEND ", level, "");
     }
 }
 

@@ -1,5 +1,5 @@
 /* Motorola 68k series support for 32-bit ELF
-   Copyright (C) 1993-2020 Free Software Foundation, Inc.
+   Copyright (C) 1993-2021 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -889,9 +889,6 @@ struct elf_m68k_link_hash_table
 {
   struct elf_link_hash_table root;
 
-  /* Small local sym cache.  */
-  struct sym_cache sym_cache;
-
   /* The PLT format used by this link, or NULL if the format has not
      yet been chosen.  */
   const struct elf_m68k_plt_info *plt_info;
@@ -913,8 +910,9 @@ struct elf_m68k_link_hash_table
 /* Get the m68k ELF linker hash table from a link_info structure.  */
 
 #define elf_m68k_hash_table(p) \
-  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash)) \
-  == M68K_ELF_DATA ? ((struct elf_m68k_link_hash_table *) ((p)->hash)) : NULL)
+  ((is_elf_hash_table ((p)->hash)					\
+    && elf_hash_table_id (elf_hash_table (p)) == M68K_ELF_DATA)		\
+   ? (struct elf_m68k_link_hash_table *) (p)->hash : NULL)
 
 /* Shortcut to multi-GOT data.  */
 #define elf_m68k_multi_got(INFO) (&elf_m68k_hash_table (INFO)->multi_got_)
@@ -2836,7 +2834,7 @@ elf_m68k_check_relocs (bfd *abfd,
 		      void *vpp;
 		      Elf_Internal_Sym *isym;
 
-		      isym = bfd_sym_from_r_symndx (&elf_m68k_hash_table (info)->sym_cache,
+		      isym = bfd_sym_from_r_symndx (&elf_m68k_hash_table (info)->root.sym_cache,
 						    abfd, r_symndx);
 		      if (isym == NULL)
 			return FALSE;

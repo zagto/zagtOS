@@ -1,5 +1,5 @@
 /* Linker command language support.
-   Copyright (C) 1991-2020 Free Software Foundation, Inc.
+   Copyright (C) 1991-2021 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -98,7 +98,7 @@ static void lang_record_phdrs (void);
 static void lang_do_version_exports_section (void);
 static void lang_finalize_version_expr_head
   (struct bfd_elf_version_expr_head *);
-static void lang_do_memory_regions (void);
+static void lang_do_memory_regions (bfd_boolean);
 
 /* Exported variables.  */
 const char *output_target;
@@ -123,7 +123,6 @@ struct bfd_sym_chain entry_symbol = { NULL, NULL };
 const char *entry_section = ".text";
 struct lang_input_statement_flags input_flags;
 bfd_boolean entry_from_cmdline;
-bfd_boolean undef_from_cmdline;
 bfd_boolean lang_has_input_file = FALSE;
 bfd_boolean had_output_filename = FALSE;
 bfd_boolean lang_float_flag = FALSE;
@@ -132,7 +131,7 @@ struct lang_phdr *lang_phdr_list;
 struct lang_nocrossrefs *nocrossref_list;
 struct asneeded_minfo **asneeded_list_tail;
 #ifdef ENABLE_LIBCTF
-static ctf_file_t *ctf_output;
+static ctf_dict_t *ctf_output;
 #endif
 
 /* Functions that traverse the linker script and might evaluate
@@ -1306,7 +1305,7 @@ lang_init (void)
   first_file = lang_add_input_file (NULL, lang_input_file_is_marker_enum,
 				    NULL);
   abs_output_section =
-    lang_output_section_statement_lookup (BFD_ABS_SECTION_NAME, 0, TRUE);
+    lang_output_section_statement_lookup (BFD_ABS_SECTION_NAME, 0, 1);
 
   abs_output_section->bfd_section = bfd_abs_section_ptr;
 
@@ -1465,19 +1464,21 @@ lang_output_section_get (const asection *output_section)
 
 /* Find or create an output_section_statement with the given NAME.
    If CONSTRAINT is non-zero match one with that constraint, otherwise
-   match any non-negative constraint.  If CREATE, always make a
-   new output_section_statement for SPECIAL CONSTRAINT.  */
+   match any non-negative constraint.  If CREATE is 0 return NULL when
+   no match exists.  If CREATE is 1, create an output_section_statement
+   when no match exists or if CONSTRAINT is SPECIAL.  If CREATE is 2,
+   always make a new output_section_statement.  */
 
 lang_output_section_statement_type *
 lang_output_section_statement_lookup (const char *name,
 				      int constraint,
-				      bfd_boolean create)
+				      int create)
 {
   struct out_section_hash_entry *entry;
 
   entry = ((struct out_section_hash_entry *)
 	   bfd_hash_lookup (&output_section_statement_table, name,
-			    create, FALSE));
+			    create != 0, FALSE));
   if (entry == NULL)
     {
       if (create)
@@ -1492,23 +1493,19 @@ lang_output_section_statement_lookup (const char *name,
       struct out_section_hash_entry *last_ent;
 
       name = entry->s.output_section_statement.name;
-      if (create && constraint == SPECIAL)
-	/* Not traversing to the end reverses the order of the second
-	   and subsequent SPECIAL sections in the hash table chain,
-	   but that shouldn't matter.  */
-	last_ent = entry;
-      else
-	do
-	  {
-	    if (constraint == entry->s.output_section_statement.constraint
-		|| (constraint == 0
-		    && entry->s.output_section_statement.constraint >= 0))
-	      return &entry->s.output_section_statement;
-	    last_ent = entry;
-	    entry = (struct out_section_hash_entry *) entry->root.next;
-	  }
-	while (entry != NULL
-	       && name == entry->s.output_section_statement.name);
+      do
+	{
+	  if (create != 2
+	      && !(create && constraint == SPECIAL)
+	      && (constraint == entry->s.output_section_statement.constraint
+		  || (constraint == 0
+		      && entry->s.output_section_statement.constraint >= 0)))
+	    return &entry->s.output_section_statement;
+	  last_ent = entry;
+	  entry = (struct out_section_hash_entry *) entry->root.next;
+	}
+      while (entry != NULL
+	     && name == entry->s.output_section_statement.name);
 
       if (!create)
 	return NULL;
@@ -1529,6 +1526,8 @@ lang_output_section_statement_lookup (const char *name,
 
   entry->s.output_section_statement.name = name;
   entry->s.output_section_statement.constraint = constraint;
+  entry->s.output_section_statement.dup_output = (create == 2
+						  || constraint == SPECIAL);
   return &entry->s.output_section_statement;
 }
 
@@ -2390,7 +2389,7 @@ init_os (lang_output_section_statement_type *s, flagword flags)
   if (strcmp (s->name, DISCARD_SECTION_NAME) == 0)
     einfo (_("%F%P: illegal use of `%s' section\n"), DISCARD_SECTION_NAME);
 
-  if (s->constraint != SPECIAL)
+  if (!s->dup_output)
     s->bfd_section = bfd_get_section_by_name (link_info.output_bfd, s->name);
   if (s->bfd_section == NULL)
     s->bfd_section = bfd_make_section_anyway_with_flags (link_info.output_bfd,
@@ -3672,6 +3671,34 @@ open_input_bfds (lang_statement_union_type *s, enum open_bfd_mode mode)
 }
 
 #ifdef ENABLE_LIBCTF
+/* Emit CTF errors and warnings.  fp can be NULL to report errors/warnings
+   that happened specifically at CTF open time.  */
+static void
+lang_ctf_errs_warnings (ctf_dict_t *fp)
+{
+  ctf_next_t *i = NULL;
+  char *text;
+  int is_warning;
+  int err;
+
+  while ((text = ctf_errwarning_next (fp, &i, &is_warning, &err)) != NULL)
+    {
+      einfo (_("%s: %s\n"), is_warning ? _("CTF warning"): _("CTF error"),
+	     text);
+      free (text);
+    }
+  if (err != ECTF_NEXT_END)
+    {
+      einfo (_("CTF error: cannot get CTF errors: `%s'\n"),
+	     ctf_errmsg (err));
+    }
+
+  /* `err' returns errors from the error/warning iterator in particular.
+     These never assert.  But if we have an fp, that could have recorded
+     an assertion failure: assert if it has done so.  */
+  ASSERT (!fp || ctf_errno (fp) != ECTF_INTERNAL);
+}
+
 /* Open the CTF sections in the input files with libctf: if any were opened,
    create a fake input file that we'll write the merged CTF data to later
    on.  */
@@ -3686,7 +3713,7 @@ ldlang_open_ctf (void)
     {
       asection *sect;
 
-      /* Incoming files from the compiler have a single ctf_file_t in them
+      /* Incoming files from the compiler have a single ctf_dict_t in them
 	 (which is presented to us by the libctf API in a ctf_archive_t
 	 wrapper): files derived from a previous relocatable link have a CTF
 	 archive containing possibly many CTF files.  */
@@ -3694,19 +3721,25 @@ ldlang_open_ctf (void)
       if ((file->the_ctf = ctf_bfdopen (file->the_bfd, &err)) == NULL)
 	{
 	  if (err != ECTF_NOCTFDATA)
-	    einfo (_("%P: warning: CTF section in `%pI' not loaded: "
-		     "its types will be discarded: `%s'\n"), file,
+	    {
+	      lang_ctf_errs_warnings (NULL);
+	      einfo (_("%P: warning: CTF section in %pB not loaded; "
+		       "its types will be discarded: %s\n"), file->the_bfd,
 		     ctf_errmsg (err));
+	    }
 	  continue;
 	}
 
       /* Prevent the contents of this section from being written, while
-	 requiring the section itself to be duplicated in the output.  */
+	 requiring the section itself to be duplicated in the output, but only
+	 once.  */
       /* This section must exist if ctf_bfdopen() succeeded.  */
       sect = bfd_get_section_by_name (file->the_bfd, ".ctf");
       sect->size = 0;
       sect->flags |= SEC_NEVER_LOAD | SEC_HAS_CONTENTS | SEC_LINKER_CREATED;
 
+      if (any_ctf)
+	sect->flags |= SEC_EXCLUDE;
       any_ctf = 1;
     }
 
@@ -3733,6 +3766,7 @@ static void
 lang_merge_ctf (void)
 {
   asection *output_sect;
+  int flags = 0;
 
   if (!ctf_output)
     return;
@@ -3742,7 +3776,7 @@ lang_merge_ctf (void)
   /* If the section was discarded, don't waste time merging.  */
   if (output_sect == NULL)
     {
-      ctf_file_close (ctf_output);
+      ctf_dict_close (ctf_output);
       ctf_output = NULL;
 
       LANG_FOR_EACH_INPUT_STATEMENT (file)
@@ -3758,20 +3792,29 @@ lang_merge_ctf (void)
       if (!file->the_ctf)
 	continue;
 
-      /* Takes ownership of file->u.the_ctfa.  */
+      /* Takes ownership of file->the_ctf.  */
       if (ctf_link_add_ctf (ctf_output, file->the_ctf, file->filename) < 0)
 	{
-	  einfo (_("%F%P: cannot link with CTF in %pB: %s\n"), file->the_bfd,
-		 ctf_errmsg (ctf_errno (ctf_output)));
+	  einfo (_("%P: warning: CTF section in %pB cannot be linked: `%s'\n"),
+		 file->the_bfd, ctf_errmsg (ctf_errno (ctf_output)));
 	  ctf_close (file->the_ctf);
 	  file->the_ctf = NULL;
 	  continue;
 	}
     }
 
-  if (ctf_link (ctf_output, CTF_LINK_SHARE_UNCONFLICTED) < 0)
+  if (!config.ctf_share_duplicated)
+    flags = CTF_LINK_SHARE_UNCONFLICTED;
+  else
+    flags = CTF_LINK_SHARE_DUPLICATED;
+  if (!config.ctf_variables)
+    flags |= CTF_LINK_OMIT_VARIABLES_SECTION;
+
+  if (ctf_link (ctf_output, flags) < 0)
     {
-      einfo (_("%F%P: CTF linking failed; output will have no CTF section: %s\n"),
+      lang_ctf_errs_warnings (ctf_output);
+      einfo (_("%P: warning: CTF linking failed; "
+	       "output will have no CTF section: %s\n"),
 	     ctf_errmsg (ctf_errno (ctf_output)));
       if (output_sect)
 	{
@@ -3779,16 +3822,24 @@ lang_merge_ctf (void)
 	  output_sect->flags |= SEC_EXCLUDE;
 	}
     }
+  /* Output any lingering errors that didn't come from ctf_link.  */
+  lang_ctf_errs_warnings (ctf_output);
 }
 
-/* Let the emulation examine the symbol table and strtab to help it optimize the
-   CTF, if supported.  */
+/* Let the emulation acquire strings from the dynamic strtab to help it optimize
+   the CTF, if supported.  */
 
 void
-ldlang_ctf_apply_strsym (struct elf_sym_strtab *syms, bfd_size_type symcount,
-			 struct elf_strtab_hash *symstrtab)
+ldlang_ctf_acquire_strings (struct elf_strtab_hash *dynstrtab)
 {
-  ldemul_examine_strtab_for_ctf (ctf_output, syms, symcount, symstrtab);
+  ldemul_acquire_strings_for_ctf (ctf_output, dynstrtab);
+}
+
+/* Inform the emulation about the addition of a new dynamic symbol, in BFD
+   internal format.  */
+void ldlang_ctf_new_dynsym (int symidx, struct elf_internal_sym *sym)
+{
+  ldemul_new_dynsym_for_ctf (ctf_output, symidx, sym);
 }
 
 /* Write out the CTF section.  Called early, if the emulation isn't going to
@@ -3815,6 +3866,11 @@ lang_write_ctf (int late)
 	return;
     }
 
+  /* Inform the emulation that all the symbols that will be received have
+     been.  */
+
+  ldemul_new_dynsym_for_ctf (ctf_output, 0, NULL);
+
   /* Emit CTF.  */
 
   output_sect = bfd_get_section_by_name (link_info.output_bfd, ".ctf");
@@ -3825,17 +3881,19 @@ lang_write_ctf (int late)
       output_sect->size = output_size;
       output_sect->flags |= SEC_IN_MEMORY | SEC_KEEP;
 
+      lang_ctf_errs_warnings (ctf_output);
       if (!output_sect->contents)
 	{
-	  einfo (_("%F%P: CTF section emission failed; output will have no "
-		   "CTF section: %s\n"), ctf_errmsg (ctf_errno (ctf_output)));
+	  einfo (_("%P: warning: CTF section emission failed; "
+		   "output will have no CTF section: %s\n"),
+		 ctf_errmsg (ctf_errno (ctf_output)));
 	  output_sect->size = 0;
 	  output_sect->flags |= SEC_EXCLUDE;
 	}
     }
 
   /* This also closes every CTF input file used in the link.  */
-  ctf_file_close (ctf_output);
+  ctf_dict_close (ctf_output);
   ctf_output = NULL;
 
   LANG_FOR_EACH_INPUT_STATEMENT (file)
@@ -3865,8 +3923,8 @@ ldlang_open_ctf (void)
 
       if ((sect = bfd_get_section_by_name (file->the_bfd, ".ctf")) != NULL)
 	{
-	    einfo (_("%P: warning: CTF section in `%pI' not linkable: "
-		     "%P was built without support for CTF\n"), file);
+	    einfo (_("%P: warning: CTF section in %pB not linkable: "
+		     "%P was built without support for CTF\n"), file->the_bfd);
 	    sect->size = 0;
 	    sect->flags |= SEC_EXCLUDE;
 	}
@@ -3875,11 +3933,11 @@ ldlang_open_ctf (void)
 
 static void lang_merge_ctf (void) {}
 void
-ldlang_ctf_apply_strsym (struct elf_sym_strtab *syms ATTRIBUTE_UNUSED,
-			 bfd_size_type symcount ATTRIBUTE_UNUSED,
-			 struct elf_strtab_hash *symstrtab ATTRIBUTE_UNUSED)
-{
-}
+ldlang_ctf_acquire_strings (struct elf_strtab_hash *dynstrtab
+			    ATTRIBUTE_UNUSED) {}
+void
+ldlang_ctf_new_dynsym (int symidx ATTRIBUTE_UNUSED,
+		       struct elf_internal_sym *sym ATTRIBUTE_UNUSED) {}
 static void lang_write_ctf (int late ATTRIBUTE_UNUSED) {}
 void ldlang_write_ctf_late (void) {}
 #endif
@@ -3895,11 +3953,10 @@ typedef struct bfd_sym_chain ldlang_undef_chain_list_type;
 #define ldlang_undef_chain_list_head entry_symbol.next
 
 void
-ldlang_add_undef (const char *const name, bfd_boolean cmdline)
+ldlang_add_undef (const char *const name, bfd_boolean cmdline ATTRIBUTE_UNUSED)
 {
   ldlang_undef_chain_list_type *new_undef;
 
-  undef_from_cmdline = undef_from_cmdline || cmdline;
   new_undef = stat_alloc (sizeof (*new_undef));
   new_undef->next = ldlang_undef_chain_list_head;
   ldlang_undef_chain_list_head = new_undef;
@@ -4118,22 +4175,18 @@ map_input_to_output_sections
 	  break;
 	case lang_output_section_statement_enum:
 	  tos = &s->output_section_statement;
-	  if (tos->constraint != 0)
+	  if (tos->constraint == ONLY_IF_RW
+	      || tos->constraint == ONLY_IF_RO)
 	    {
-	      if (tos->constraint != ONLY_IF_RW
-		  && tos->constraint != ONLY_IF_RO)
-		break;
 	      tos->all_input_readonly = TRUE;
 	      check_input_sections (tos->children.head, tos);
 	      if (tos->all_input_readonly != (tos->constraint == ONLY_IF_RO))
-		{
-		  tos->constraint = -1;
-		  break;
-		}
+		tos->constraint = -1;
 	    }
-	  map_input_to_output_sections (tos->children.head,
-					target,
-					tos);
+	  if (tos->constraint >= 0)
+	    map_input_to_output_sections (tos->children.head,
+					  target,
+					  tos);
 	  break;
 	case lang_output_statement_enum:
 	  break;
@@ -4213,7 +4266,7 @@ map_input_to_output_sections
 		 place them in amongst other sections then the address
 		 will affect following script sections, which is
 		 likely to surprise naive users.  */
-	      tos = lang_output_section_statement_lookup (name, 0, TRUE);
+	      tos = lang_output_section_statement_lookup (name, 0, 1);
 	      tos->addr_tree = s->address_statement.address;
 	      if (tos->bfd_section == NULL)
 		init_os (tos, 0);
@@ -6839,10 +6892,24 @@ lang_end (void)
      --gc-sections, unless --gc-keep-exported was also given.  */
   if (bfd_link_relocatable (&link_info)
       && link_info.gc_sections
-      && !link_info.gc_keep_exported
-      && !(entry_from_cmdline || undef_from_cmdline))
-    einfo (_("%F%P: gc-sections requires either an entry or "
-	     "an undefined symbol\n"));
+      && !link_info.gc_keep_exported)
+    {
+      struct bfd_sym_chain *sym;
+
+      for (sym = link_info.gc_sym_list; sym != NULL; sym = sym->next)
+	{
+	  h = bfd_link_hash_lookup (link_info.hash, sym->name,
+				    FALSE, FALSE, FALSE);
+	  if (h != NULL
+	      && (h->type == bfd_link_hash_defined
+		  || h->type == bfd_link_hash_defweak)
+	      && !bfd_is_const_section (h->u.def.section))
+	    break;
+	}
+      if (!sym)
+	einfo (_("%F%P: --gc-sections requires a defined symbol root "
+		 "specified by -e or -u\n"));
+    }
 
   if (entry_symbol.name == NULL)
     {
@@ -6950,8 +7017,9 @@ lang_check (void)
 	 input format may not have equivalent representations in
 	 the output format (and besides BFD does not translate
 	 relocs for other link purposes than a final link).  */
-      if ((bfd_link_relocatable (&link_info)
-	   || link_info.emitrelocations)
+      if (!file->flags.just_syms
+	  && (bfd_link_relocatable (&link_info)
+	      || link_info.emitrelocations)
 	  && (compatible == NULL
 	      || (bfd_get_flavour (input_bfd)
 		  != bfd_get_flavour (link_info.output_bfd)))
@@ -6975,8 +7043,9 @@ lang_check (void)
 
       /* If the input bfd has no contents, it shouldn't set the
 	 private data of the output bfd.  */
-      else if ((input_bfd->flags & DYNAMIC) != 0
-	       || bfd_count_sections (input_bfd) != 0)
+      else if (!file->flags.just_syms
+	       && ((input_bfd->flags & DYNAMIC) != 0
+		   || bfd_count_sections (input_bfd) != 0))
 	{
 	  bfd_error_handler_type pfn = NULL;
 
@@ -7133,8 +7202,7 @@ ldlang_place_orphan (asection *s)
   if (config.orphan_handling == orphan_handling_discard)
     {
       lang_output_section_statement_type *os;
-      os = lang_output_section_statement_lookup (DISCARD_SECTION_NAME, 0,
-						 TRUE);
+      os = lang_output_section_statement_lookup (DISCARD_SECTION_NAME, 0, 1);
       if (os->addr_tree == NULL
 	  && (bfd_link_relocatable (&link_info)
 	      || (s->flags & (SEC_LOAD | SEC_ALLOC)) == 0))
@@ -7157,7 +7225,7 @@ ldlang_place_orphan (asection *s)
       os = ldemul_place_orphan (s, name, constraint);
       if (os == NULL)
 	{
-	  os = lang_output_section_statement_lookup (name, constraint, TRUE);
+	  os = lang_output_section_statement_lookup (name, constraint, 1);
 	  if (os->addr_tree == NULL
 	      && (bfd_link_relocatable (&link_info)
 		  || (s->flags & (SEC_LOAD | SEC_ALLOC)) == 0))
@@ -7204,8 +7272,7 @@ lang_place_orphans (void)
 		    {
 		      if (default_common_section == NULL)
 			default_common_section
-			  = lang_output_section_statement_lookup (".bss", 0,
-								  TRUE);
+			  = lang_output_section_statement_lookup (".bss", 0, 1);
 		      lang_add_section (&default_common_section->children, s,
 					NULL, default_common_section);
 		    }
@@ -7347,7 +7414,7 @@ lang_enter_output_section_statement (const char *output_section_statement_name,
   lang_output_section_statement_type *os;
 
   os = lang_output_section_statement_lookup (output_section_statement_name,
-					     constraint, TRUE);
+					     constraint, 2);
   current_section = os;
 
   if (os->addr_tree == NULL)
@@ -7421,7 +7488,7 @@ lang_reset_memory_regions (void)
 
 static void
 gc_section_callback (lang_wild_statement_type *ptr,
-		     struct wildcard_list *sec ATTRIBUTE_UNUSED,
+		     struct wildcard_list *sec,
 		     asection *section,
 		     struct flag_info *sflag_info ATTRIBUTE_UNUSED,
 		     lang_input_statement_type *file ATTRIBUTE_UNUSED,
@@ -7431,6 +7498,8 @@ gc_section_callback (lang_wild_statement_type *ptr,
      should be as well.  */
   if (ptr->keep_sections)
     section->flags |= SEC_KEEP;
+  if (sec)
+    section->pattern = sec->spec.name;
 }
 
 /* Iterate over sections marking them against GC.  */
@@ -7847,13 +7916,22 @@ lang_process (void)
   if (!bfd_section_already_linked_table_init ())
     einfo (_("%F%P: can not create hash table: %E\n"));
 
+  /* A first pass through the memory regions ensures that if any region
+     references a symbol for its origin or length then this symbol will be
+     added to the symbol table.  Having these symbols in the symbol table
+     means that when we call open_input_bfds PROVIDE statements will
+     trigger to provide any needed symbols.  The regions origins and
+     lengths are not assigned as a result of this call.  */
+  lang_do_memory_regions (FALSE);
+
   /* Create a bfd for each input file.  */
   current_target = default_target;
   lang_statement_iteration++;
   open_input_bfds (statement_list.head, OPEN_BFD_NORMAL);
-  /* open_input_bfds also handles assignments, so we can give values
-     to symbolic origin/length now.  */
-  lang_do_memory_regions ();
+
+  /* Now that open_input_bfds has processed assignments and provide
+     statements we can give values to symbolic origin/length now.  */
+  lang_do_memory_regions (TRUE);
 
 #if BFD_SUPPORTS_PLUGINS
   if (link_info.lto_plugin_active)
@@ -9311,10 +9389,16 @@ lang_do_version_exports_section (void)
 			   lang_new_vers_node (greg, lreg), NULL);
 }
 
-/* Evaluate LENGTH and ORIGIN parts of MEMORY spec */
+/* Evaluate LENGTH and ORIGIN parts of MEMORY spec.  This is initially
+   called with UPDATE_REGIONS_P set to FALSE, in this case no errors are
+   thrown, however, references to symbols in the origin and length fields
+   will be pushed into the symbol table, this allows PROVIDE statements to
+   then provide these symbols.  This function is called a second time with
+   UPDATE_REGIONS_P set to TRUE, this time the we update the actual region
+   data structures, and throw errors if missing symbols are encountered.  */
 
 static void
-lang_do_memory_regions (void)
+lang_do_memory_regions (bfd_boolean update_regions_p)
 {
   lang_memory_region_type *r = lang_memory_region_list;
 
@@ -9323,24 +9407,30 @@ lang_do_memory_regions (void)
       if (r->origin_exp)
 	{
 	  exp_fold_tree_no_dot (r->origin_exp);
-	  if (expld.result.valid_p)
-	    {
-	      r->origin = expld.result.value;
-	      r->current = r->origin;
-	    }
-	  else
-	    einfo (_("%F%P: invalid origin for memory region %s\n"),
-		   r->name_list.name);
+          if (update_regions_p)
+            {
+              if (expld.result.valid_p)
+                {
+                  r->origin = expld.result.value;
+                  r->current = r->origin;
+                }
+              else
+                einfo (_("%P: invalid origin for memory region %s\n"),
+                       r->name_list.name);
+            }
 	}
       if (r->length_exp)
 	{
 	  exp_fold_tree_no_dot (r->length_exp);
-	  if (expld.result.valid_p)
-	    r->length = expld.result.value;
-	  else
-	    einfo (_("%F%P: invalid length for memory region %s\n"),
-		   r->name_list.name);
-	}
+          if (update_regions_p)
+            {
+              if (expld.result.valid_p)
+                r->length = expld.result.value;
+              else
+                einfo (_("%P: invalid length for memory region %s\n"),
+                       r->name_list.name);
+            }
+        }
     }
 }
 

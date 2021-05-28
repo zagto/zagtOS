@@ -1,6 +1,6 @@
 # Expect script for ld-tic6x tests
 #
-#   Copyright (C) 2012-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2021 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -130,6 +130,11 @@ set shlibtests {
       {objdump -sj.got static-app-1rb.sd}
       {objdump -R static-app-1rb.od}}
      "static-app-1rb"}
+
+    {"C6X shared library with --export-dynamic"
+     "-shared --export-dynamic -Tdsbt.ld --dsbt-size=3 --hash-style=sysv" ""
+     "-mdsbt -mpic -mpid=near" {shlib-1.s shlib-2.s}
+     {} "pr27271.so"}
 }
 
 run_ld_link_tests $shlibtests
