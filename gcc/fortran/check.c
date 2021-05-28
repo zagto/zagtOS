@@ -1,5 +1,5 @@
 /* Check functions
-   Copyright (C) 2002-2020 Free Software Foundation, Inc.
+   Copyright (C) 2002-2021 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Katherine Holcomb
 
 This file is part of GCC.
@@ -67,7 +67,7 @@ gfc_invalid_boz (const char *msg, locus *loc)
       return false;
     }
 
-  const char hint[] = " [see %<-fno-allow-invalid-boz%>]";
+  const char *hint = _(" [see %<-fno-allow-invalid-boz%>]");
   size_t len = strlen (msg) + strlen (hint) + 1;
   char *msg2 = (char *) alloca (len);
   strcpy (msg2, msg);
@@ -289,7 +289,7 @@ bin2real (gfc_expr *x, int kind)
 }
 
 
-/* Fortran 2018 treats a BOZ as simply a string of bits.  gfc_boz2real () 
+/* Fortran 2018 treats a BOZ as simply a string of bits.  gfc_boz2real ()
    converts the string into a REAL of the appropriate kind.  The treatment
    of the sign bit is processor dependent.  */
 
@@ -340,9 +340,9 @@ gfc_boz2real (gfc_expr *x, int kind)
       /* Clear first two bits.  */
       else
 	{
-	  if (buf[0] == '4' || buf[0] == '6')
+	  if (buf[0] == '2' || buf[0] == '4' || buf[0] == '6')
 	    buf[0] = '0';
-	  else if (buf[0] == '5' || buf[0] == '7')
+	  else if (buf[0] == '3' || buf[0] == '5' || buf[0] == '7')
 	    buf[0] = '1';
 	}
     }
@@ -377,12 +377,12 @@ gfc_boz2real (gfc_expr *x, int kind)
 }
 
 
-/* Fortran 2018 treats a BOZ as simply a string of bits.  gfc_boz2int () 
+/* Fortran 2018 treats a BOZ as simply a string of bits.  gfc_boz2int ()
    converts the string into an INTEGER of the appropriate kind.  The
    treatment of the sign bit is processor dependent.  If the  converted
    value exceeds the range of the type, then wrap-around semantics are
    applied.  */
- 
+
 bool
 gfc_boz2int (gfc_expr *x, int kind)
 {
@@ -429,9 +429,9 @@ gfc_boz2int (gfc_expr *x, int kind)
       /* Clear first two bits.  */
       else
 	{
-	  if (buf[0] == '4' || buf[0] == '6')
+	  if (buf[0] == '2' || buf[0] == '4' || buf[0] == '6')
 	    buf[0] = '0';
-	  else if (buf[0] == '5' || buf[0] == '7')
+	  else if (buf[0] == '3' || buf[0] == '5' || buf[0] == '7')
 	    buf[0] = '1';
 	}
     }
@@ -975,7 +975,8 @@ allocatable_check (gfc_expr *e, int n)
   symbol_attribute attr;
 
   attr = gfc_variable_attr (e, NULL);
-  if (!attr.allocatable || attr.associate_var)
+  if (!attr.allocatable
+     || (attr.associate_var && !attr.select_rank_temporary))
     {
       gfc_error ("%qs argument of %qs intrinsic at %L must be ALLOCATABLE",
 		 gfc_current_intrinsic_arg[n]->name, gfc_current_intrinsic,
@@ -1142,7 +1143,9 @@ dim_rank_check (gfc_expr *dim, gfc_expr *array, int allow_assumed)
 
   if (array->expr_type == EXPR_VARIABLE)
     {
-      ar = gfc_find_array_ref (array);
+      ar = gfc_find_array_ref (array, true);
+      if (!ar)
+	return false;
       if (ar->as->type == AS_ASSUMED_SIZE
 	  && !allow_assumed
 	  && ar->type != AR_ELEMENT
@@ -1313,8 +1316,8 @@ gfc_check_achar (gfc_expr *a, gfc_expr *kind)
 {
   if (a->ts.type == BT_BOZ)
     {
-      if (gfc_invalid_boz ("BOZ literal constant at %L cannot appear in "
-			   "ACHAR intrinsic subprogram", &a->where))
+      if (gfc_invalid_boz (G_("BOZ literal constant at %L cannot appear in "
+			   "ACHAR intrinsic subprogram"), &a->where))
 	return false;
 
       if (!gfc_boz2int (a, gfc_default_integer_kind))
@@ -1973,8 +1976,8 @@ gfc_check_char (gfc_expr *i, gfc_expr *kind)
 {
   if (i->ts.type == BT_BOZ)
     {
-      if (gfc_invalid_boz ("BOZ literal constant at %L cannot appear in "
-			   "CHAR intrinsic subprogram", &i->where))
+      if (gfc_invalid_boz (G_("BOZ literal constant at %L cannot appear in "
+			   "CHAR intrinsic subprogram"), &i->where))
 	return false;
 
       if (!gfc_boz2int (i, gfc_default_integer_kind))
@@ -2424,8 +2427,8 @@ gfc_check_complex (gfc_expr *x, gfc_expr *y)
 
   if (x->ts.type == BT_BOZ)
     {
-      if (gfc_invalid_boz ("BOZ constant at %L cannot appear in the COMPLEX "
-			   "intrinsic subprogram", &x->where))
+      if (gfc_invalid_boz (G_("BOZ constant at %L cannot appear in the COMPLEX"
+			   " intrinsic subprogram"), &x->where))
 	{
 	  reset_boz (x);
 	  return false;
@@ -2438,8 +2441,8 @@ gfc_check_complex (gfc_expr *x, gfc_expr *y)
 
   if (y->ts.type == BT_BOZ)
     {
-      if (gfc_invalid_boz ("BOZ constant at %L cannot appear in the COMPLEX "
-			   "intrinsic subprogram", &y->where))
+      if (gfc_invalid_boz (G_("BOZ constant at %L cannot appear in the COMPLEX"
+			   " intrinsic subprogram"), &y->where))
 	{
 	  reset_boz (y);
 	  return false;
@@ -2903,8 +2906,8 @@ gfc_check_float (gfc_expr *a)
 {
   if (a->ts.type == BT_BOZ)
     {
-      if (gfc_invalid_boz ("BOZ literal constant at %L cannot appear in the "
-			   "FLOAT intrinsic subprogram", &a->where))
+      if (gfc_invalid_boz (G_("BOZ literal constant at %L cannot appear in the"
+			   " FLOAT intrinsic subprogram"), &a->where))
 	{
 	  reset_boz (a);
 	  return false;
@@ -3230,7 +3233,7 @@ gfc_check_intconv (gfc_expr *x)
       || strcmp (gfc_current_intrinsic, "long") == 0)
     {
       gfc_error ("%qs intrinsic subprogram at %L has been deprecated.  "
-		 "Use INT intrinsic subprogram.", gfc_current_intrinsic, 
+		 "Use INT intrinsic subprogram.", gfc_current_intrinsic,
 		 &x->where);
       return false;
     }
@@ -3691,6 +3694,11 @@ check_rest (bt type, int kind, gfc_actual_arglist *arglist)
 	{
 	  if (x->ts.type == type)
 	    {
+	      if (x->ts.type == BT_CHARACTER)
+		{
+		  gfc_error ("Different character kinds at %L", &x->where);
+		  return false;
+		}
 	      if (!gfc_notify_std (GFC_STD_GNU, "Different type "
 				   "kinds at %L", &x->where))
 		return false;
@@ -3706,8 +3714,8 @@ check_rest (bt type, int kind, gfc_actual_arglist *arglist)
 
       for (tmp = arglist, m=1; tmp != arg; tmp = tmp->next, m++)
 	if (!gfc_check_conformance (tmp->expr, x,
-				    "arguments 'a%d' and 'a%d' for "
-				    "intrinsic '%s'", m, n,
+				    _("arguments 'a%d' and 'a%d' for "
+				    "intrinsic '%s'"), m, n,
 				    gfc_current_intrinsic))
 	    return false;
     }
@@ -3914,7 +3922,7 @@ gfc_check_minloc_maxloc (gfc_actual_arglist *ap)
 
   if (m != NULL
       && !gfc_check_conformance (a, m,
-				 "arguments '%s' and '%s' for intrinsic %s",
+				 _("arguments '%s' and '%s' for intrinsic %s"),
 				 gfc_current_intrinsic_arg[0]->name,
 				 gfc_current_intrinsic_arg[2]->name,
 				 gfc_current_intrinsic))
@@ -3958,7 +3966,7 @@ gfc_check_findloc (gfc_actual_arglist *ap)
   /* Check the kind of the characters argument match.  */
   if (a1 && v1 && a->ts.kind != v->ts.kind)
     goto incompat;
-	 
+
   d = ap->next->next->expr;
   m = ap->next->next->next->expr;
   k = ap->next->next->next->next->expr;
@@ -3995,7 +4003,7 @@ gfc_check_findloc (gfc_actual_arglist *ap)
 
   if (m != NULL
       && !gfc_check_conformance (a, m,
-				 "arguments '%s' and '%s' for intrinsic %s",
+				 _("arguments '%s' and '%s' for intrinsic %s"),
 				 gfc_current_intrinsic_arg[0]->name,
 				 gfc_current_intrinsic_arg[3]->name,
 				 gfc_current_intrinsic))
@@ -4060,7 +4068,7 @@ check_reduction (gfc_actual_arglist *ap)
 
   if (m != NULL
       && !gfc_check_conformance (a, m,
-				 "arguments '%s' and '%s' for intrinsic %s",
+				 _("arguments '%s' and '%s' for intrinsic %s"),
 				 gfc_current_intrinsic_arg[0]->name,
 				 gfc_current_intrinsic_arg[2]->name,
 				 gfc_current_intrinsic))
@@ -4398,7 +4406,7 @@ gfc_check_pack (gfc_expr *array, gfc_expr *mask, gfc_expr *vector)
     return false;
 
   if (!gfc_check_conformance (array, mask,
-			      "arguments '%s' and '%s' for intrinsic '%s'",
+			      _("arguments '%s' and '%s' for intrinsic '%s'"),
 			      gfc_current_intrinsic_arg[0]->name,
 			      gfc_current_intrinsic_arg[1]->name,
 			      gfc_current_intrinsic))
@@ -4742,7 +4750,8 @@ gfc_check_reshape (gfc_expr *source, gfc_expr *shape,
 	   && shape->ref->u.ar.as->lower[0]->ts.type == BT_INTEGER
 	   && shape->ref->u.ar.as->upper[0]->expr_type == EXPR_CONSTANT
 	   && shape->ref->u.ar.as->upper[0]->ts.type == BT_INTEGER
-	   && shape->symtree->n.sym->attr.flavor == FL_PARAMETER)
+	   && shape->symtree->n.sym->attr.flavor == FL_PARAMETER
+	   && shape->symtree->n.sym->value)
     {
       int i, extent;
       gfc_expr *e, *v;
@@ -6643,7 +6652,7 @@ gfc_check_random_seed (gfc_expr *size, gfc_expr *put, gfc_expr *get)
 	gfc_error ("Size of %qs argument of %qs intrinsic at %L "
 		   "too small (%i/%i)",
 		   gfc_current_intrinsic_arg[1]->name, gfc_current_intrinsic,
-		   where, (int) mpz_get_ui (put_size), seed_size);
+		   &put->where, (int) mpz_get_ui (put_size), seed_size);
     }
 
   if (get != NULL)
@@ -6675,7 +6684,7 @@ gfc_check_random_seed (gfc_expr *size, gfc_expr *put, gfc_expr *get)
 	gfc_error ("Size of %qs argument of %qs intrinsic at %L "
 		   "too small (%i/%i)",
 		   gfc_current_intrinsic_arg[2]->name, gfc_current_intrinsic,
-		   where, (int) mpz_get_ui (get_size), seed_size);
+		   &get->where, (int) mpz_get_ui (get_size), seed_size);
     }
 
   /* RANDOM_SEED may not have more than one non-optional argument.  */

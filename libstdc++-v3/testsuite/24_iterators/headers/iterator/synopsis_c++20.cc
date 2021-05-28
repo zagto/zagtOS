@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Free Software Foundation, Inc.
+// Copyright (C) 2019-2021 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -73,6 +73,7 @@ namespace std
     struct incrementable_traits<counted_iterator<I>>;
 
   template<input_iterator I>
+    requires same_as<__detail::__iter_traits<I>, iterator_traits<I>>
     struct iterator_traits<counted_iterator<I>>;
 
   struct unreachable_sentinel_t;

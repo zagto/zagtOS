@@ -1,6 +1,6 @@
 // Class filesystem::path -*- C++ -*-
 
-// Copyright (C) 2014-2020 Free Software Foundation, Inc.
+// Copyright (C) 2014-2021 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -494,6 +494,13 @@ namespace __detail
     static string_type
     _S_convert_loc(const char* __first, const char* __last,
 		   const std::locale& __loc);
+
+    static string_type
+    _S_convert_loc(char* __first, char* __last, const std::locale& __loc)
+    {
+      return _S_convert_loc(const_cast<const char*>(__first),
+			    const_cast<const char*>(__last), __loc);
+    }
 
     template<typename _Iter>
       static string_type
@@ -1268,7 +1275,7 @@ namespace __detail
     return _M_at_end == __rhs._M_at_end;
   }
 
-  // @} group filesystem-ts
+  /// @} group filesystem-ts
 _GLIBCXX_END_NAMESPACE_CXX11
 } // namespace v1
 } // namespace filesystem
