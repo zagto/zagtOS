@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++17" }
-// { dg-do compile }
+// { dg-do compile { target c++17 } }
 
-// Copyright (C) 2016-2020 Free Software Foundation, Inc.
+// Copyright (C) 2016-2021 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -162,6 +162,14 @@ void arbitrary_ctor()
   static_assert(!is_constructible_v<variant<int>, unsigned>);
   static_assert(!is_constructible_v<variant<bool>, int>);
   static_assert(!is_constructible_v<variant<bool>, void*>);
+
+  // P1957R2 Converting from T* to bool should be considered narrowing
+  struct ConvertibleToBool
+  {
+    operator bool() const { return true; }
+  };
+  static_assert(is_constructible_v<variant<bool>, ConvertibleToBool>);
+  static_assert(is_constructible_v<variant<bool, int>, ConvertibleToBool>);
 }
 
 struct none { none() = delete; };

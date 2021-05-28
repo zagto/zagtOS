@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for IBM RS/6000 POWER running AIX.
-   Copyright (C) 2000-2020 Free Software Foundation, Inc.
+   Copyright (C) 2000-2021 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -223,9 +223,8 @@
 /* This now supports a natural alignment mode.  */
 /* AIX word-aligns FP doubles but doubleword-aligns 64-bit ints.  */
 #define ADJUST_FIELD_ALIGN(FIELD, TYPE, COMPUTED) \
-  ((TARGET_ALIGN_NATURAL == 0						\
-    && TYPE_MODE (strip_array_types (TYPE)) == DFmode)			\
-   ? MIN ((COMPUTED), 32)						\
+  (TARGET_ALIGN_NATURAL == 0						\
+   ? rs6000_special_adjust_field_align (TYPE, COMPUTED)			\
    : (COMPUTED))
 
 /* AIX increases natural record alignment to doubleword if the first

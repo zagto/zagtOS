@@ -1,5 +1,5 @@
 /* Functions to support general ended bitmaps.
-   Copyright (C) 1997-2020 Free Software Foundation, Inc.
+   Copyright (C) 1997-2021 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -237,7 +237,7 @@ public:
 
   /* Dump usage coupled to LOC location, where TOTAL is sum of all rows.  */
   inline void
-  dump (mem_location *loc, mem_usage &total) const
+  dump (mem_location *loc, const mem_usage &total) const
   {
     char *location_string = loc->to_string ();
 
@@ -939,8 +939,10 @@ bmp_iter_and_compl (bitmap_iterator *bi, unsigned *bit_no)
 class auto_bitmap
 {
  public:
-  auto_bitmap () { bitmap_initialize (&m_bits, &bitmap_default_obstack); }
-  explicit auto_bitmap (bitmap_obstack *o) { bitmap_initialize (&m_bits, o); }
+  auto_bitmap (ALONE_CXX_MEM_STAT_INFO)
+    { bitmap_initialize (&m_bits, &bitmap_default_obstack PASS_MEM_STAT); }
+  explicit auto_bitmap (bitmap_obstack *o CXX_MEM_STAT_INFO)
+    { bitmap_initialize (&m_bits, o PASS_MEM_STAT); }
   ~auto_bitmap () { bitmap_clear (&m_bits); }
   // Allow calling bitmap functions on our bitmap.
   operator bitmap () { return &m_bits; }
