@@ -42,25 +42,32 @@ void releaseSecondaryProcessorsToKernel() {
     __atomic_store_n(&releaseToKernel, true, __ATOMIC_SEQ_CST);
 }
 
-/* logic from: https://wiki.osdev.org/MADT */
+/* logic from: https://wiki.osdev.org/MADT. TODO: make this readable and maybe fix the wiki */
 static const uint8_t *findMADT() {
-    const uint8_t *rootTable = reinterpret_cast<const uint8_t *>(GetFirmwareRoot().value());
+    const char *rootTable = reinterpret_cast<const char *>(GetFirmwareRoot().value());
+    cout << "RootTable Type " << rootTable[0] << "," << rootTable[1] << "," << rootTable[2] << "," << rootTable[3]<< "," << endl;
 
-    const uint32_t entryLength = (reinterpret_cast<const uint32_t *>(rootTable)[4]);
-    const uint8_t *nextPointer = rootTable + 36;
+    const uint32_t rootLength = (reinterpret_cast<const uint32_t *>(rootTable)[1]);
+    cout << "rootLength " << (size_t)rootLength << endl;
+    const char *nextPointer = rootTable + 24;
 
-    while (nextPointer < rootTable + entryLength) {
-        const uint8_t *currentEntry;
+    while (reinterpret_cast<size_t>(nextPointer) < reinterpret_cast<size_t>(rootTable) + rootLength) {
+        const char *currentEntry;
         if (rootTable[0] == 'X') {
-            currentEntry = reinterpret_cast<const uint8_t *>(*reinterpret_cast<const uint64_t *>(nextPointer));
+            currentEntry = reinterpret_cast<const char *>(*reinterpret_cast<const uint64_t *>(nextPointer));
             nextPointer += 8;
         } else {
-            currentEntry = reinterpret_cast<const uint8_t *>(*reinterpret_cast<const uint32_t *>(nextPointer));
+            currentEntry = reinterpret_cast<const char *>(*reinterpret_cast<const uint32_t *>(nextPointer));
             nextPointer += 4;
         }
+        cout << "currentEntry " << reinterpret_cast<size_t>(currentEntry) << endl;
+        cout << "type  " << currentEntry[0] << currentEntry[1] << currentEntry[2] << currentEntry[3] << endl;
 
         if (currentEntry[0] == 'A' && currentEntry[1] == 'P' && currentEntry[2] == 'I' && currentEntry[3] == 'C') {
-            return currentEntry;
+            return (const uint8_t *)currentEntry;
+        }
+        while (1) {
+
         }
     }
 
@@ -69,6 +76,7 @@ static const uint8_t *findMADT() {
 }
 
 static size_t findProcessors() {
+
     const uint8_t *madt = findMADT();
 
     cout << "Detecting secondary Processors..." << endl;
@@ -106,6 +114,7 @@ static size_t findProcessors() {
                     cout << "Found secondary processor - Processor ID: "
                          << static_cast<size_t>(lapic->processorID) << ", APIC ID: "
                          << static_cast<size_t>(lapic->id) << endl;
+
                     wakeSecondaryProcessor(localAPIC, lapic->id, numProcessors);
                 } else {
                     foundBootProcessor = true;
