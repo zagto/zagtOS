@@ -240,7 +240,7 @@ Status ProcessAddressSpace::ensureSplitAt(size_t address) {
             return status;
         }
 
-        Result result = mappedAreas[index]->split();
+        Result result = mappedAreas[index]->split(address - mappedAreas[index]->region.start);
         if (!result) {
             /* erase the already reserved vector space for the second element */
             mappedAreas.erase(mappedAreas.begin() + index + 1);
@@ -261,8 +261,8 @@ Status ProcessAddressSpace::ensureRegionIndependent(Region region) {
 }
 
 
-Status ProcessAddressSpace::removeRegion(Region region) {
-    scoped_lock sl(lock);
+Status ProcessAddressSpace::_removeRegion(Region region) {
+    assert(lock.isLocked());
 
     Status status = ensureRegionIndependent(region);
     if (!status) {
@@ -278,6 +278,11 @@ Status ProcessAddressSpace::removeRegion(Region region) {
 
     mappedAreas.erase(startIterator, endIterator);
     return Status::OK();
+}
+
+Status ProcessAddressSpace::removeRegion(Region region) {
+    scoped_lock sl(lock);
+    return _removeRegion(region);
 }
 
 Result<size_t> ProcessAddressSpace::changeRegionProtection(Region region, Permissions permissions) {

@@ -140,7 +140,7 @@ Status Process::crash(const char *message, Thread *crashedThread) {
     scoped_lock sl(Processor::kernelInterruptsLock);
     cout << "Terminating process for reason: " << message << endl;
     if (crashedThread != nullptr) {
-        Status status = coreDump(crashedThread);
+        Status status = addressSpace.coreDump(crashedThread);
         if (!status) {
             cout << "unable to core dump because of Exception" << endl;
         }

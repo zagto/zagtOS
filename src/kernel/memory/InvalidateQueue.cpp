@@ -6,7 +6,6 @@ InvalidateQueue::InvalidateQueue(Processor &processor):
     processor{processor} {}
 
 extern "C" void basicInvalidate(KernelVirtualAddress address);
-extern "C" void basicInvalidateTLBContext(size_t localTLBContextID, UserVirtualAddress address);
 
 void InvalidateQueue::_localProcessing(optional<Item> extraItem) {
     Item item;
@@ -24,8 +23,8 @@ void InvalidateQueue::_localProcessing(optional<Item> extraItem) {
         if (item.tlbContextID == TLB_CONTEXT_ID_NONE) {
             basicInvalidate(KernelVirtualAddress(item.address.value()));
         } else {
-            basicInvalidateTLBContext(item.tlbContextID % CurrentSystem.tlbContextsPerProcessor,
-                                      UserVirtualAddress(item.address.value()));
+            TLBContexts[item.tlbContextID].localInvalidate(
+                        UserVirtualAddress(item.address.value()));
         }
 
         item = items.top();

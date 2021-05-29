@@ -8,7 +8,7 @@ alignas (__uint128_t) size_t temporaryStack[TEMPORY_STACK_SIZE][512];
 size_t KernelEntryAddress = 0;
 hos_v1::System *BootInfo = nullptr;
 
-void ExitToKernel(size_t processorID) {
+void ExitToKernel(size_t processorID, size_t hardwareID) {
     assert(processorID < 512);
     if (processorID == 0) {
         cout << "Temporary stack at: " << reinterpret_cast<size_t>(&temporaryStack) << endl;
@@ -20,5 +20,7 @@ void ExitToKernel(size_t processorID) {
     ExitFinalize(KernelEntryAddress,
                  HandOverMasterPageTable,
                  BootInfo,
-                 temporaryStack[processorID] + TEMPORY_STACK_SIZE);
+                 temporaryStack[processorID] + TEMPORY_STACK_SIZE,
+                 processorID,
+                 hardwareID);
 }

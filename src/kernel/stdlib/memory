@@ -18,7 +18,9 @@ private:
     T *internalPointer;
 
 public:
-    unique_ptr(T *rawPointer = nullptr):
+    unique_ptr():
+        internalPointer{nullptr} {}
+    unique_ptr(T *rawPointer):
         internalPointer{rawPointer} {}
     unique_ptr(unique_ptr &other) = delete;
     unique_ptr(unique_ptr &&other) {

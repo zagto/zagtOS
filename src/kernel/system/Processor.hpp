@@ -11,11 +11,11 @@ class PagingContext;
 class Processor {
 public:
     class KernelInterruptsLock {
-    private:
+    public:
+        KernelInterruptsLock() {}
         KernelInterruptsLock(const KernelInterruptsLock &) = delete;
         void operator=(const KernelInterruptsLock &) = delete;
 
-    public:
         void lock();
         void unlock();
         bool isLocked() const;
@@ -23,6 +23,8 @@ public:
 
     /* kernelStack has to be the first field, context switch code relies on this */
     uint8_t *kernelStack;
+
+    size_t hardwareID;
 
     static const size_t LOG_BUFFER_SIZE = 500;
     char logBuffer[LOG_BUFFER_SIZE];

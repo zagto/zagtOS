@@ -51,4 +51,5 @@ public:
     void activate();
 
     void completelyUnmapLoaderRegion();
+    void completelyUnmapUserRegion();
 };

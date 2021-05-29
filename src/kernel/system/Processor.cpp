@@ -6,6 +6,8 @@
 
 extern size_t KERNEL_STACK_SIZE;
 
+Processor::KernelInterruptsLock Processor::kernelInterruptsLock;
+
 void Processor::KernelInterruptsLock::lock() {
     basicDisableInterrupts();
     assert(CurrentProcessor->interruptsLockLocked == false);

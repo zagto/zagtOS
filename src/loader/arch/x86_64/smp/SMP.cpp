@@ -7,14 +7,18 @@
 #include <exit.hpp>
 
 static size_t startingID = 0;
+static size_t startingHardwareID = 0;
 static bool currentlyStarting = false;
 static bool releaseToKernel = false;
+
+size_t BootProcessorHardwareID;
 
 extern "C" size_t *CurrentEntryStack;
 size_t *CurrentEntryStack = nullptr;
 
 static void wakeSecondaryProcessor(LocalAPIC &localAPIC, size_t hardwareID, size_t processorID) {
     startingID = processorID;
+    startingID = hardwareID;
     CurrentEntryStack = temporaryStack[processorID] + TEMPORY_STACK_SIZE;
     __atomic_store_n(&currentlyStarting, true, __ATOMIC_SEQ_CST);
 
@@ -27,10 +31,15 @@ static void wakeSecondaryProcessor(LocalAPIC &localAPIC, size_t hardwareID, size
 
 extern "C" void LoaderEntrySecondaryProcessor() {
     size_t id = startingID;
+    size_t hardwareID = startingHardwareID;
     __atomic_store_n(&currentlyStarting, false, __ATOMIC_SEQ_CST);
 
     while (!__atomic_load_n(&releaseToKernel, __ATOMIC_SEQ_CST)) {}
-    ExitToKernel(id);
+    ExitToKernel(id, hardwareID);
+}
+
+void releaseSecondaryProcessorsToKernel() {
+    __atomic_store_n(&releaseToKernel, true, __ATOMIC_SEQ_CST);
 }
 
 /* logic from: https://wiki.osdev.org/MADT */
@@ -100,6 +109,7 @@ static size_t findProcessors() {
                     wakeSecondaryProcessor(localAPIC, lapic->id, numProcessors);
                 } else {
                     foundBootProcessor = true;
+                    BootProcessorHardwareID = lapic->id;
                 }
                 numProcessors++;
             }

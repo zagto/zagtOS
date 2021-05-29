@@ -272,3 +272,10 @@ KERNEL_STACK_SIZE:
     dq KERNEL_STACK_SIZE_DEF
 
 
+basicDisableInterrupts:
+    cli
+    ret
+
+basicEnableInterrupts:
+    sti
+    ret

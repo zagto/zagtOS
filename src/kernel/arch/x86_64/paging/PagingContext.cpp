@@ -64,6 +64,9 @@ PagingContext::PagingContext(PhysicalAddress masterPageTableAddress, Status &) :
         masterPageTable{masterPageTableAddress.identityMapped().asPointer<PageTable>()} {
 }
 
+PagingContext::~PagingContext() {
+    completelyUnmapUserRegion();
+}
 
 void PagingContext::map(KernelVirtualAddress from,
                           PhysicalAddress to,
@@ -123,7 +126,7 @@ void PagingContext::activate() {
     basicSwitchMasterPageTable(masterPageTableAddress);
 }
 
-void PagingContext::completelyUnmapLoaderRegion() {
+void PagingContext::completelyUnmapUserRegion() {
     /* this may be different on future supported platforms */
     static_assert(LoaderRegion.start == UserSpaceRegion.start
                   && LoaderRegion.length == UserSpaceRegion.length);
@@ -135,4 +138,8 @@ void PagingContext::completelyUnmapLoaderRegion() {
            // TODO: this may be wrong: FrameManagement.put(entry.addressValue());
         }
     }
+}
+
+void PagingContext::completelyUnmapLoaderRegion() {
+    completelyUnmapUserRegion();
 }

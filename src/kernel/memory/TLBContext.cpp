@@ -91,7 +91,14 @@ bool TLBContext::potentiallyHolds(PagingContext *pagingContext) {
     return activePagingContext == pagingContext;
 }
 
+extern "C" void basicInvalidateTLBContext(size_t localTLBContextID, UserVirtualAddress address);
+
+void TLBContext::localInvalidate(UserVirtualAddress address) {
+    basicInvalidateTLBContext(localID, address);
+}
+
 PageOutContext TLBContext::requestInvalidate(Frame *frame, UserVirtualAddress address) {
+    assert(Processor::kernelInterruptsLock.isLocked());
     assert(CurrentProcessor->interruptsLockLocked);
 
     if (processorID == CurrentProcessor->id) {

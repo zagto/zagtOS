@@ -253,7 +253,7 @@ void LoaderMain() {
     BootInfo = handOverSystem;
 
     releaseSecondaryProcessorsToKernel();
-    ExitToKernel(0);
+    ExitToKernel(0, BootProcessorHardwareID);
 }
 
 void* __dso_handle = nullptr;

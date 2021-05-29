@@ -20,7 +20,9 @@ section .text
 ; - rdi: virtual address of the kernel entry
 ; - rsi: master page table to activate
 ; - rdx: kernel boot info (this pointer will be passed directly to kernel)
-; - rcx:  temporary stack
+; - rcx: temporary stack
+; - r8: processorID
+; - r9: hardwareID
 
 %define SERIAL_PORT 0x3f8
 
@@ -75,4 +77,6 @@ ExitFinalize:
     push 0
     push rdi
     mov rdi, r10
+    mov rsi, r8
+    mov rdx, r9
     ret

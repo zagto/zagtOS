@@ -19,7 +19,6 @@ private:
                            size_t length,
                            PagingContext::AccessOperation accOp,
                            bool requireWritePermissions);
-    Status coreDump(Thread *crashedThread);
 
 public:
     ProcessAddressSpace addressSpace;

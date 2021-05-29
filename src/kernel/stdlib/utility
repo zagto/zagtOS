@@ -12,5 +12,5 @@ struct pair {
 
 template<typename A, typename B>
 pair<A, B> make_pair(A a, B b) {
-    return pair{a, b};
+    return pair{move(a), move(b)};
 }

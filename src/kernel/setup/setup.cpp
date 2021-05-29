@@ -8,7 +8,7 @@
 extern "C" void _init();
 extern "C" __attribute__((noreturn)) void switchStack(uint8_t *newStack,
                                                       void nextCode(hos_v1::System *),
-                                                      hos_v1::System *nextCodeArg);
+                                                      hos_v1::System *arg);
 
 void KernelEntry2(hos_v1::System *handOver);
 void KernelEntrySecondaryProcessor2(hos_v1::System *handOver);
@@ -18,7 +18,7 @@ static size_t secondaryProcessorsStartLock = 1;
 static size_t processorsStarted = 1;
 
 extern "C" __attribute__((noreturn))
-void KernelEntry(hos_v1::System *handOver, size_t processorID) {
+void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID) {
     if (processorID == 0) {
         CurrentProcessor = nullptr;
 
@@ -43,12 +43,14 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID) {
     }
 
     CurrentProcessor = &Processors[processorID];
+    CurrentProcessor->hardwareID = hardwareID;
     cout << "Processor" << processorID << "running." << endl;
 
     switchStack(CurrentProcessor->kernelStack, KernelEntry2, handOver);
 }
 
-__attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver, size_t processorID) {
+__attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
+    size_t processorID = CurrentProcessor->id;
     if (processorID == 0) {
         cout << "Setting up time..." << endl;
         CurrentSystem.time.initialize();
