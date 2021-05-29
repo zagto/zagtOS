@@ -8,7 +8,7 @@ qemu-system-x86_64 \
     -enable-kvm \
     -drive id=disk,file=out/disk.img,if=none \
     -device ahci,id=ahci \
-    -device ide-drive,drive=disk,bus=ahci.0 \
+    -device ide-hd,drive=disk,bus=ahci.0 \
     -smp 2 \
     -serial telnet:localhost:30000,server \
     -machine q35 \
