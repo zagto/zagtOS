@@ -51,8 +51,9 @@ public:
     bool canAccessPhysicalMemory() const;
 
     size_t runMessageAddress();
-    void crash(const char *message, Thread *crashedThread);
-    void exit();
+    Status crash(const char *message, Thread *crashedThread);
+    Status exitLocked();
+    Status exit();
 };
 
 shared_ptr<Process> CurrentProcess();

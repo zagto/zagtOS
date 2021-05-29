@@ -9,6 +9,7 @@
 #include <ProgramBinary.hpp>
 #include <common/utils.hpp>
 #include <Firmware.hpp>
+#include <smp/SMP.hpp>
 
 
 /* converts pointers to physical memory for use in kernel where the identity mapping is offset at
@@ -102,6 +103,9 @@ void LoaderMain() {
     MapFramebufferMemory(framebufferInfo);
     CreateIdentityMap(maxPhysicalAddress);
 
+    cout << "Starting secondary Processors..." << endl;
+    startSecondaryProcessors();
+
     size_t frameIndex = 0;
     cout << "Setting up address space for kernel..." << endl;
     kernel.load(PagingContext::GLOBAL, nullptr, frameIndex);
@@ -129,7 +133,6 @@ void LoaderMain() {
         .handOverPagingContext = reinterpret_cast<size_t>(HandOverMasterPageTable),
         .firmwareType = GetFirmwareType(),
         .firmwareRoot = GetFirmwareRoot(),
-        .secondaryProcessorEntry = SecondaryProcessorEntry,
         .numProcesses = 1,
         .processes = convertPointer(handOverProcess),
         .numThreads = 1,
@@ -138,6 +141,8 @@ void LoaderMain() {
         .ports = nullptr,
         .numMemoryAreas = numMappings,
         .memoryAreas = handOverMemoryAreas,
+        .numFrames = numFrames,
+        .frames = handOverFrames,
         .numProcessors = 1,
         .numFutexes = 0,
         .futexes = nullptr,
@@ -244,7 +249,11 @@ void LoaderMain() {
 
     cout << "Exiting to Kernel..." << endl;
 
-    ExitToKernel(kernel.entryAddress(), HandOverMasterPageTable, handOverSystem);
+    KernelEntryAddress = kernel.entryAddress();
+    BootInfo = handOverSystem;
+
+    releaseSecondaryProcessorsToKernel();
+    ExitToKernel(0);
 }
 
 void* __dso_handle = nullptr;

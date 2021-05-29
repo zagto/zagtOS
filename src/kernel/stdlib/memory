@@ -39,10 +39,14 @@ public:
         }
     }
 
-    operator bool() {
+    operator bool() const {
         return internalPointer;
     }
     T *operator->() {
+        assert(*this);
+        return internalPointer;
+    }
+    const T *operator->() const {
         assert(*this);
         return internalPointer;
     }

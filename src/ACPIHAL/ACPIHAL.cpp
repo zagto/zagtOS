@@ -5,7 +5,6 @@
 #include <PCI.hpp>
 extern "C" {
     #include <acpi.h>
-    #include <findProcessors.h>
 }
 
 
@@ -29,8 +28,6 @@ int main() {
 
 
     initPCIForACPI();
-
-    findProcessors();
 
     ACPI_STATUS result = AcpiLoadTables();
     if (result) {

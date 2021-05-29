@@ -101,7 +101,7 @@ Status Message::prepareMemoryArea() {
 
     /* Holds the address of the message info (UserMessageInfo class) in the destination address
      * space. */
-    infoAddress = result->start;
+    infoAddress = *result;
     return Status::OK();
 }
 

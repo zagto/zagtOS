@@ -20,14 +20,24 @@ struct Futex {
         hash{-1u},
         id{0} {}
 
-    void destroy() {
+    /* can return OK or ThreadKilled */
+    Status destroy() {
+        Status status = Status::OK();
+
         while (!threads.empty()) {
             Thread *thread = threads.top();
             threads.pop();
-            thread->process->crash("Waiting on futex in memory region that no longer exists",
-                                   thread);
+
+            Status crashStatus = thread->process->crash("Waiting on futex in memory region that"
+                                                        " no longer exists",
+                                                        thread);
+            if (!crashStatus) {
+                assert(crashStatus == Status::ThreadKilled());
+                status = crashStatus;
+            }
         }
         *this = {};
+        return status;
     }
 };
 
@@ -180,7 +190,12 @@ FutexManager::~FutexManager() {
 
     for (Futex &element: data) {
         if (element.active) {
-            element.destroy();
+            Status status = element.destroy();
+            if (!status) {
+                assert(status == Status::ThreadKilled());
+                /* Ignoring this is fine. The Process already knows it's beeing destroyed if the
+                 * FutexManager is beeing destroyed. */
+            }
         }
     }
 }

@@ -16,6 +16,7 @@ private:
 public:
     Frame(frameManagement::ZoneID zoneID, Status &status);
     Frame(PhysicalAddress address, bool isForPhysicalAccess, Status &);
+    Frame(hos_v1::Frame &handOver, Status &);
     Frame(Frame &other) = delete;
     Frame operator=(Frame &other) = delete;
     ~Frame();

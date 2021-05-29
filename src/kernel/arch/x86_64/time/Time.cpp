@@ -7,11 +7,6 @@ void Time::initialize() {
 }
 
 void Time::detectTimerFrequency() {
-    /* on x86_64, waking secondary processors requires timing, so it should always happen after
-     * this */
-    assert(CurrentSystem.processors.size() == 1);
-
-
     /* let the legacy timer wrap after 0xffff ticks */
     legacyTimer.setReloadValue(0xffff);
     legacyTimer.setOperatingMode();

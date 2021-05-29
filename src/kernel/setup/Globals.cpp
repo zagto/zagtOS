@@ -3,6 +3,9 @@
 #include <memory/DLMallocGlue.hpp>
 #include <memory/CPUMask.hpp>
 
+Processor *Processors;
+TLBContext *TLBContexts;
+
 /* global contructors - initialization order matters. Do not reorder or move to a different
  * compilation unit */
 Logger cout;

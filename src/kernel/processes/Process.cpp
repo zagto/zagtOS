@@ -44,8 +44,12 @@ Process::Process(Process &sourceProcess,
     }
 
     for (const auto &section: sections) {
-        status = addressSpace.addAnonymous(section.region(), section.permissions(), false);
-        if (!status) {
+        Result result = addressSpace.addAnonymous(section.region(),
+                                                  section.permissions(),
+                                                  true,
+                                                  false);
+        if (!result) {
+            status = result.status();
             return;
         }
 
@@ -66,16 +70,16 @@ Process::Process(Process &sourceProcess,
         masterTLSBase = TLSSection->address;
     }
 
-    Result tlsRegion = addressSpace.addAnonymous(TLSSize + THREAD_STRUCT_AREA_SIZE,
+    Result tlsAddress = addressSpace.addAnonymous(TLSSize + THREAD_STRUCT_AREA_SIZE,
                                                  Permissions::READ_WRITE);
-    if (!tlsRegion) {
-        status = tlsRegion.status();
+    if (!tlsAddress) {
+        status = tlsAddress.status();
         return;
     }
 
-    UserVirtualAddress tlsBase(tlsRegion->start + THREAD_STRUCT_AREA_SIZE);
+    UserVirtualAddress tlsBase(tlsAddress + THREAD_STRUCT_AREA_SIZE);
     if (TLSSection) {
-        status = addressSpace.copyFromOhter(tlsRegion->start,
+        status = addressSpace.copyFromOhter(tlsAddress,
                                             sourceProcess.addressSpace,
                                             TLSSection->dataAddress,
                                             TLSSection->dataSize,
@@ -132,9 +136,8 @@ bool Process::canAccessPhysicalMemory() const {
     return true;
 }
 
-void Process::crash(const char *message, Thread *crashedThread) {
-    /* TODO: throw an exception? This method can be called from anywhere so we need to make sure all
-    locks are clear */
+Status Process::crash(const char *message, Thread *crashedThread) {
+    scoped_lock sl(Processor::kernelInterruptsLock);
     cout << "Terminating process for reason: " << message << endl;
     if (crashedThread != nullptr) {
         Status status = coreDump(crashedThread);
@@ -142,18 +145,31 @@ void Process::crash(const char *message, Thread *crashedThread) {
             cout << "unable to core dump because of Exception" << endl;
         }
     }
-    exit();
+
+    return exitLocked();
 }
 
-void Process::exit() {
+Status Process::exitLocked() {
     // TODO: this is not very efficient
-    while (true) {
-        shared_ptr<Thread> thread = handleManager.extractThread();
-        if (!thread) {
-            return;
+
+    shared_ptr<Thread> thread;
+    do {
+        thread = handleManager.extractThread();
+        if (thread && thread.get() != CurrentProcessor->scheduler.activeThread()) {
+            thread->terminate();
         }
-        thread->terminate();
+    } while (thread);
+
+    if (CurrentProcessor->scheduler.activeThread()->process.get() == this) {
+        return Status::ThreadKilled();
+    } else {
+        return Status::OK();
     }
+}
+
+Status Process::exit() {
+    scoped_lock sl(Processor::kernelInterruptsLock);
+    return exitLocked();
 }
 
 shared_ptr<Process> CurrentProcess() {

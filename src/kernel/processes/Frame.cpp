@@ -24,6 +24,12 @@ Frame::Frame(PhysicalAddress address, bool isForPhysicalAccess, Status &) :
     address{address},
     isForPhysicalAccess{isForPhysicalAccess} {}
 
+Frame::Frame(hos_v1::Frame &handOver, Status &):
+    address{handOver.address},
+    copyOnWriteCount{handOver.copyOnWriteCount},
+    referenceCount{handOver.copyOnWriteCount},
+    isForPhysicalAccess{handOver.isForPhysicalAccess} {}
+
 Frame::~Frame() {
     if (address.value() != PhysicalAddress::NULL && !isForPhysicalAccess) {
         FrameManagement.put(address);
@@ -89,6 +95,9 @@ PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace, UserVirtualAddr
     assert(addressSpace.lock.isLocked());
 
     addressSpace.pagingContext.unmap(address);
+
+    scoped_lock sl1(Processor::kernelInterruptsLock);
+    scoped_lock sl2(addressSpace.tlbIDsLock);
 
     PageOutContext pageOutContext;
     for (TLBContextID tlbID: addressSpace.inTLBContextOfProcessor) {

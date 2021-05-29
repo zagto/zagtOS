@@ -18,6 +18,8 @@ void hos_v1::System::decodeProcesses() {
     assert(status);
     vector<shared_ptr<::Process>> allProcesses(numProcesses, status);
     assert(status);
+    vector<::Frame *> allFrames(numFrames, nullptr, status);
+    assert(status);
 
     for (size_t index = 0; index < numThreads; index++) {
         allThreads[index] = *make_shared<::Thread>(threads[index]);
@@ -25,8 +27,11 @@ void hos_v1::System::decodeProcesses() {
     for (size_t index = 0; index < numPorts; index++) {
         allPorts[index] = *make_shared<::Port>(ports[index], allThreads);
     }
+    for (size_t index = 0; index < numFrames; index++) {
+        allFrames[index] = *make_raw<::Frame>(frames[index]);
+    }
     for (size_t index = 0; index < numMemoryAreas; index++) {
-        allMemoryAreas[index] = *make_shared<::MemoryArea>(memoryAreas[index]);
+        allMemoryAreas[index] = *make_shared<::MemoryArea>(memoryAreas[index], allFrames);
     }
     for (size_t index = 0; index < numProcesses; index++) {
         allProcesses[index] = *make_shared<::Process>(processes[index],

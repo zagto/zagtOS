@@ -67,26 +67,30 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
         if (*directValue != passedValue) {
             return EAGAIN;
         }
-        Status status = manager.wait(physicalAddress, thread);
+        Status status = manager.wait(futexID, thread);
         if (!status) {
             return status;
         }
         return 0;
     }
     case FUTEX_WAKE: {
-        size_t numWoken = manager.wake(physicalAddress, passedValue);
+        size_t numWoken = manager.wake(futexID, passedValue);
         return numWoken;
     }
     case FUTEX_LOCK_PI:
         while (true) {
-            uint32_t value = *directValue;
+            uint32_t value = process->addressSpace.atomicCopyFrom32(address);
             if (value == 0) {
-                if (compare_exchange_u32(*directValue, value, thread->handle())) {
+                if (process->addressSpace.atomicCompareExchange32(address,
+                                                                  value,
+                                                                  thread->handle())) {
                     return 0;
                 }
             } else {
-                if (compare_exchange_u32(*directValue, value, value | FUTEX_WAITERS_BIT)) {
-                    Status status = manager.wait(physicalAddress, thread);
+                if (process->addressSpace.atomicCompareExchange32(address,
+                                                                  value,
+                                                                  value | FUTEX_WAITERS_BIT)) {
+                    Status status = manager.wait(futexID, thread);
                     if (status) {
                         return 0;
                     } else {
@@ -98,13 +102,15 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
                 }
             }
         }
-    case FUTEX_UNLOCK_PI:
-        if ((*directValue & FUTEX_HANDLE_MASK) != thread->handle()) {
+    case FUTEX_UNLOCK_PI: {
+        uint32_t value = process->addressSpace.atomicCopyFrom32(address);
+        if ((value & FUTEX_HANDLE_MASK) != thread->handle()) {
             cout << "Attempt to unlock Priority-inheritance futex from wrong thread" << endl;
             return EPERM;
         }
-        manager.wake(physicalAddress, 1);
+        manager.wake(futexID, 1);
         return 0;
+    }
     default:
         cout << "Futex: unsupported operation " << operation << endl;
         return Status::BadUserSpace();

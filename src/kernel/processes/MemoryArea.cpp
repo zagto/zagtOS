@@ -65,7 +65,9 @@ MemoryArea::MemoryArea(PhysicalAddress physicalStart,
     assert(length % PAGE_SIZE == 0);
 }
 
-MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver, Frame **allFrames, Status &status) :
+MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver,
+                       vector<Frame *> &allFrames,
+                       Status &status) :
     frames(handOver.length / PAGE_SIZE, nullptr, status),
     futexIDs(handOver.length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
     source{handOver.source},

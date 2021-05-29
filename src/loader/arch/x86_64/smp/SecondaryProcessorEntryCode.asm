@@ -2,7 +2,8 @@ global SecondaryProcessorEntryCode
 global SecondaryProcessorEntryCodeEnd
 global SecondaryProcessorEntryMasterPageTable
 
-extern KernelEntrySecondaryProcessor
+extern LoaderEntrySecondaryProcessor
+extern CurrentEntryStack
 
 ; Yes, this code is in the data section.
 ; It should not be executed directly, but rather copied into a yery low memory location, so the
@@ -127,9 +128,11 @@ longMode:
     mov gs, ax
     mov ss, ax
 
+    mov rbx, CurrentEntryStack
     mov rsp, rbx
-    add rsp, 0x1000
-    mov rax, KernelEntrySecondaryProcessor
+    mov rax, LoaderEntrySecondaryProcessor
+    ; alignment
+    push 0
     call rax
 
 SecondaryProcessorEntryCodeEnd:

@@ -22,7 +22,7 @@ TARGET = $(SHBUILD_BUILD_DIR)/ZAGTKERN.ZBN
 COMMON_FLAGS = -Os -g -fsanitize=undefined -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/stdlib
 COMMON_FLAGS += $(KERNEL_CFLAGS_$(ARCH))
 
-CFLAGS = $(COMMON_FLAGS) -std=c99 -Wno-expansion-to-defined -include memory/dlmalloc-glue.hpp
+CFLAGS = $(COMMON_FLAGS) -std=c99 -Wno-expansion-to-defined
 CXXFLAGS = $(COMMON_FLAGS) -std=c++2a -fno-rtti -fno-exceptions
 
 LDFLAGS = -O2 -ffreestanding -nostdlib -static -L$(PWD)/arch/$(ARCH)/lib/crt -z max-page-size=0x1000 -Wl,--build-id=none -T arch/$(ARCH)/linker.ld -nostdlib -lgcc

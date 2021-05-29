@@ -1,8 +1,37 @@
 #include <memory/InvalidateQueue.hpp>
 #include <system/System.hpp>
+#include <memory/TLBContext.hpp>
 
 InvalidateQueue::InvalidateQueue(Processor &processor):
     processor{processor} {}
+
+extern "C" void basicInvalidate(KernelVirtualAddress address);
+extern "C" void basicInvalidateTLBContext(size_t localTLBContextID, UserVirtualAddress address);
+
+void InvalidateQueue::_localProcessing(optional<Item> extraItem) {
+    Item item;
+    if (extraItem) {
+        item = *extraItem;
+    } else {
+        if (items.empty()) {
+            return;
+        }
+        item = items.top();
+        items.pop();
+    }
+
+    do {
+        if (item.tlbContextID == TLB_CONTEXT_ID_NONE) {
+            basicInvalidate(KernelVirtualAddress(item.address.value()));
+        } else {
+            basicInvalidateTLBContext(item.tlbContextID % CurrentSystem.tlbContextsPerProcessor,
+                                      UserVirtualAddress(item.address.value()));
+        }
+
+        item = items.top();
+        items.pop();
+    } while (!items.empty());
+}
 
 uint64_t InvalidateQueue::add(TLBContextID tlbContextID,
                               Frame *frame,
@@ -37,7 +66,9 @@ void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp, optional<Item> ex
 }
 
 void InvalidateQueue::localProcessing() {
+    assert(Processor::kernelInterruptsLock.isLocked());
     assert(CurrentProcessor->id == processor.id);
 
     scoped_lock sl(lock);
+    _localProcessing({});
 }

@@ -60,24 +60,16 @@ void Thread::currentProcessor(Processor *processor) {
 }
 
 void Thread::terminate() noexcept {
+    assert(CurrentProcessor->kernelInterruptsLock.isLocked());
+
     cout << "Thread::terminate" << endl;
     while (true) {
         State localState = state();
         switch (localState.kind()) {
         case ACTIVE:
-            if (localState.currentProcessor() == CurrentProcessor) {
-                Scheduler &scheduler = localState.currentProcessor()->scheduler;
-                if (scheduler.lock.trylock()) {
-                    if (state() == localState) {
-                        scheduler.removeLocked(this);
-                        scheduler.lock.unlock();
-                        return;
-                    }
-                }
-            } else {
-                cout << "TODO: send IPI to terminate active thread" << endl;
-                Panic();
-            }
+            assert(localState.currentProcessor() != CurrentProcessor);
+            cout << "TODO: send IPI to terminate active thread" << endl;
+            Panic();
             break;
         case RUNNING: {
             Scheduler &scheduler = localState.currentProcessor()->scheduler;

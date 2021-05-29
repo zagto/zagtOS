@@ -262,6 +262,7 @@ void ProgramBinary::load(PagingContext pagingContext,
                 frames[frameIndex] = hos_v1::Frame{
                     .address = physicalAddress.value(),
                     .copyOnWriteCount = 1,
+                    .isForPhysicalAccess = false,
                 };
                 frameIndex++;
             }
@@ -293,6 +294,7 @@ void ProgramBinary::load(PagingContext pagingContext,
         frames[frameIndex] = hos_v1::Frame{
             .address = physicalAddress.value(),
             .copyOnWriteCount = 1,
+            .isForPhysicalAccess = false,
         };
         frameIndex++;
     }
@@ -353,6 +355,7 @@ void ProgramBinary::load(PagingContext pagingContext,
                 frames[frameIndex] = hos_v1::Frame{
                     .address = physicalAddress.value(),
                     .copyOnWriteCount = 1,
+                    .isForPhysicalAccess = false,
                 };
                 frameIndex++;
             }

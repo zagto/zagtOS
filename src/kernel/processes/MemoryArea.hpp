@@ -45,9 +45,9 @@ public:
     /* Physical */
     MemoryArea(PhysicalAddress physicalStart, size_t length, Status &status);
     /* HandOver */
-    MemoryArea(const hos_v1::MemoryArea &handOver, Frame **allFrames, Status &status);
+    MemoryArea(const hos_v1::MemoryArea &handOver, vector<Frame *> &allFrames, Status &status);
     /* Shallow Copy */
-    MemoryArea (MemoryArea &other, size_t offset, size_t length, Status &status);
+    MemoryArea(MemoryArea &other, size_t offset, size_t length, Status &status);
     MemoryArea(MemoryArea &) = delete;
     MemoryArea operator=(MemoryArea &) = delete;
     ~MemoryArea();

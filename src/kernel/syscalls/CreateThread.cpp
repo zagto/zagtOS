@@ -7,8 +7,6 @@ Result<size_t> CreateThread(const shared_ptr<Process> &process,
                             size_t priority,
                             size_t tls,
                             size_t) {
-    scoped_lock lg1(process->pagingLock);
-
     Thread::Priority actualPriority;
     if (priority == Thread::KEEP_PRIORITY) {
         actualPriority = CurrentThread()->ownPriority();

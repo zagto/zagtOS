@@ -84,7 +84,15 @@ Result<size_t> MMapStruct::perform(const shared_ptr<Process> &process) {
     Region passedRegion(startAddress, length);
     shared_ptr<MemoryArea> memoryArea;
 
-    if (!(flags & MAP_ANONYMOUS)) {
+    if ((flags & MAP_ANONYMOUS)) {
+        Result temp = make_shared<MemoryArea>(flags & MAP_SHARED,
+                                              Permissions::READ_WRITE_EXECUTE,
+                                              passedRegion.length);
+        if (!temp) {
+            return temp.status();
+        }
+        memoryArea = *temp;
+    } else {
         Result<shared_ptr<MemoryArea>> temp = process->handleManager.lookupMemoryArea(handle);
         if (!temp) {
             assert(temp.status() == Status::BadUserSpace());
@@ -107,61 +115,21 @@ Result<size_t> MMapStruct::perform(const shared_ptr<Process> &process) {
                 return Status::OK();
             }
         }
+
     }
 
-    size_t insertIndex;
-    Region actualRegion;
-    bool slotReserved = false;
+    Result result = process->addressSpace.add(passedRegion,
+                                              offset,
+                                              memoryArea,
+                                              permissions,
+                                              flags & MAP_FIXED);
 
-    scoped_lock sl(process->pagingLock);
-
-    if (addressLengthValid(startAddress, length)
-            && process->mappedAreas.isRegionFree(passedRegion, insertIndex)) {
-        actualRegion = passedRegion;
-    } else {
-        /* can't use passed address/length */
-        if (flags & MAP_FIXED) {
-            process->addressSpace.addAnonymous(passedRegion, permissions, true);
-            if (addressLengthValid(startAddress, length)) {
-                /* MAP_FIXED set and passed region not free - we free it */
-                insertIndex = process->mappedAreas.unmapRange(passedRegion, 1);
-                actualRegion = passedRegion;
-                slotReserved = true;
-            } else {
-                cout << "MMAP: address " << startAddress << " length " << passedRegion.length
-                     << " invalid and FIXED flag set" << endl;
-                return ENOMEM;
-            }
-        } else {
-            bool valid;
-            actualRegion = process->mappedAreas.findFreeRegion(passedRegion.length, valid, insertIndex);
-            if (!valid) {
-                cout << "MMAP: unable to auto-choose region\n";
-                return ENOMEM;
-            }
-        }
+    /* TODO: possibly return ENOMEM on full address space */
+    if (!result) {
+        return result.status();
     }
 
-    if (flags & MAP_ANONYMOUS) {
-        Result result = make_shared<MemoryArea>(actualRegion.length);
-        if (!result) {
-            return result.status();
-        }
-        memoryArea = *result;
-    }
-
-    Result<MappedArea *> ma = make_raw<MappedArea>(process.get(), actualRegion, move(memoryArea), offset, permissions);
-    if (!ma) {
-        return ma.status();
-    }
-
-    if (slotReserved) {
-        assert(process->mappedAreas[insertIndex] == nullptr);
-        process->mappedAreas[insertIndex] = *ma;
-    } else {
-        process->mappedAreas.insert2(*ma, insertIndex);
-    }
-    result = (*ma)->region.start;
+    this->result = result->value();
     return 0;
 }
 

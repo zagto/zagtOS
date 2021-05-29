@@ -13,7 +13,7 @@ private:
 public:
     mutex() {}
     mutex(const mutex &) = delete;
-    void operator=(mutex &) =delete;
+    void operator=(const mutex &) =delete;
 
     void lock() {
         basicLock(value);
@@ -40,7 +40,7 @@ private:
 public:
     SpinLock() {}
     SpinLock(const SpinLock &) = delete;
-    void operator=(SpinLock &) =delete;
+    void operator=(const SpinLock &) =delete;
 
     void lock() {
         while (true) {

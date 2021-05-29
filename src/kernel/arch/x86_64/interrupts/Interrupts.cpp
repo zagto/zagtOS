@@ -41,10 +41,28 @@ __attribute__((noreturn)) void Interrupts::kernelHandler(RegisterState *register
     }
 }
 
+void dealWithException(Status status) {
+    Thread *activeThread = CurrentProcessor->scheduler.activeThread();
+    if (status == Status::BadUserSpace()) {
+        Status status2 = activeThread->process->crash("BadUserSpace Exception", activeThread);
+        assert(status2 == Status::ThreadKilled());
+        dealWithException(status2);
+    } else if (status == Status::OutOfKernelHeap()) {
+        cout << "TODO: deal with OutOfKernelHeap" << endl;
+        Panic();
+    } else if (status == Status::OutOfMemory()) {
+        cout << "TODO: deal with OutOfMemory" << endl;
+        Panic();
+    } else if (status == Status::ThreadKilled()) {
+        cout << "TODO: deal with ThreadKilled" << endl;
+        Panic();
+    } else {
+        cout << "Unknown Exception" << endl;
+        Panic();
+    }
+}
 
 __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerState) {
-    bool handled = false;
-
     {
         Thread *activeThread = CurrentProcessor->scheduler.activeThread();
         assert(&activeThread->registerState == registerState);
@@ -54,13 +72,13 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
         case PIC2_SPURIOUS_IRQ:
             cout << "Spurious IRQ in user mode!" << endl;
             legacyPIC.handleSpuriousIRQ(registerState->intNr);
-            handled = true;
             break;
         case 0xe:
         {
             static const size_t PAGING_ERROR_FLAGS{0b11111};
             static const size_t PAGING_ERROR_WRITE{0b10};
             static const size_t PAGING_ERROR_USER{0b100};
+            static const size_t PAGING_ERROR_INSTRUCTION_FETCH{0b10000};
 
             size_t cr2 = readCR2();
 
@@ -69,32 +87,44 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
                 cout << "userHandler called for non user page fault" << endl;
                 Panic();
             }
-            if (errorFlags == PAGING_ERROR_USER
-                    || errorFlags == (PAGING_ERROR_USER | PAGING_ERROR_WRITE)) {
-                if (activeThread->process->handlePageFault(UserVirtualAddress(cr2))) {
-                    handled = true;
+            Permissions requiredPermissions;
+            switch (errorFlags) {
+            case PAGING_ERROR_USER:
+                requiredPermissions = Permissions::READ;
+                break;
+            case PAGING_ERROR_USER | PAGING_ERROR_WRITE:
+                requiredPermissions = Permissions::READ_WRITE;
+                break;
+            case PAGING_ERROR_USER | PAGING_ERROR_INSTRUCTION_FETCH:
+                requiredPermissions = Permissions::READ_EXECUTE;
+                break;
+            default:
+                cout << "Unexpected Page Fault Flags: " << errorFlags << endl;
+                Panic();
+            }
+            Status status;
+            do {
+                status = activeThread->process->addressSpace.handlePageFault(cr2,
+                                                                             requiredPermissions);
+                if (!status) {
+                    dealWithException(status);
                 }
-            }
-            assert(&activeThread->registerState == registerState);
-            if (!handled) {
-                cout << "Unhandled Page Fault for in User Mode address: " << cr2 << endl;
-                activeThread->process->crash("Unhandled Page Fault", activeThread);
-            }
+            } while(!status);
             break;
         }
         case 0xd:
-            activeThread->process->crash("General Protection Fault", activeThread);
-            break;
+            cout << "General Protection Fault in user space" << endl;
+            dealWithException(Status::BadUserSpace());
+
+            cout << "should not reach here" << endl;
+            Panic();
+        default:
+            cout << "Unexpected Interrupt " << registerState->intNr << endl;
+            Panic();
         }
     }
 
-    if (handled) {
-        returnToUserMode();
-    }
-
-
-    cout << "Interrupt occured in User Mode (TODO: implement killing thread): " << *registerState << endl;
-    Panic();
+    returnToUserMode();
 }
 
 
@@ -102,7 +132,7 @@ __attribute__((noreturn)) void Interrupts::returnToUserMode() {
     Thread *thread = CurrentProcessor->scheduler.activeThread();
     // Idle thread does not have a process
     if (thread->process) {
-        thread->process->pagingContext->activate();
+        thread->process->addressSpace.activate();
     }
     globalDescriptorTable.resetTaskStateSegment();
     taskStateSegment.update(thread);
@@ -127,13 +157,6 @@ extern "C" __attribute__((noreturn)) void handleInterrupt(RegisterState* registe
     CurrentProcessor->interrupts.handler(registerState);
 }
 
-void Interrupts::wakeSecondaryProcessor(size_t hardwareID) {
-    CurrentSystem.processorsLock.lock();
-    localAPIC.sendInit(static_cast<uint32_t>(hardwareID));
-    localAPIC.timer.delayMilliseconds(10);
-    localAPIC.sendStartup(static_cast<uint32_t>(hardwareID), PhysicalAddress(CurrentSystem.secondaryProcessorEntry));
-}
-
 void Interrupts::setupSyscalls() {
     cout << "registering syscall entry " << reinterpret_cast<uint64_t>(&syscallEntry) << endl;
     writeModelSpecificRegister(MSR::LSTAR, reinterpret_cast<uint64_t>(&syscallEntry));
@@ -141,3 +164,4 @@ void Interrupts::setupSyscalls() {
     writeModelSpecificRegister(MSR::SFMASK, RegisterState::FLAG_INTERRUPTS | RegisterState::FLAG_USER_IOPL);
 
 }
+

@@ -6,10 +6,6 @@
 #include <memory/KernelPageAllocator.hpp>
 
 
-/* TODO: invalidating properly is a lot harder then this on SMP */
-extern "C" void basicInvalidate(VirtualAddress address);
-
-
 Result<PageTableEntry *> PagingContext::walkEntries(VirtualAddress address,
                                                     MissingStrategy missingStrategy) {
     assert(!address.isInRegion(IdentityMapping));
@@ -46,9 +42,6 @@ Result<PageTableEntry *> PagingContext::walkEntries(VirtualAddress address,
 
 
 PagingContext::PagingContext(Status &status) {
-
-    assert(this != CurrentProcessor->activePagingContext);
-
     Result<PhysicalAddress> result = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
     if (!result) {
         status = result.status();
@@ -83,7 +76,6 @@ void PagingContext::map(KernelVirtualAddress from,
     assert(!(*entry)->present());
 
     **entry = PageTableEntry(to, permissions, false, cacheType);
-    basicInvalidate(from);
 }
 
 void PagingContext::_unmap(VirtualAddress address, bool freeFrame) {
@@ -111,7 +103,6 @@ void PagingContext::unmapRange(KernelVirtualAddress address, size_t numPages, bo
     }
 }
 
-
 Status PagingContext::map(UserVirtualAddress from,
                           PhysicalAddress to,
                           Permissions permissions,
@@ -123,34 +114,13 @@ Status PagingContext::map(UserVirtualAddress from,
     assert(!(*entry)->present());
 
     **entry = PageTableEntry(to, permissions, true, cacheType);
-    if (isActive()) {
-        basicInvalidate(from);
-    }
     return Status::OK();
-}
-
-
-void PagingContext::invalidateLocally(KernelVirtualAddress address) {
-    basicInvalidate(address);
-}
-
-bool PagingContext::isActive() {
-    /* Before the Procssor Object is created, there is only the "kernel-only" paging context that
-     * was actually created by the bootloader */
-    if (__builtin_expect(CurrentProcessor == nullptr, false)) {
-        return this == &CurrentSystem.kernelOnlyPagingContext;
-    } else {
-        return CurrentProcessor->activePagingContext == this;
-    }
 }
 
 extern "C" void basicSwitchMasterPageTable(PhysicalAddress address);
 
 void PagingContext::activate() {
-    if (!isActive()) {
-        CurrentProcessor->activePagingContext = this;
-        basicSwitchMasterPageTable(masterPageTableAddress);
-    }
+    basicSwitchMasterPageTable(masterPageTableAddress);
 }
 
 void PagingContext::completelyUnmapLoaderRegion() {

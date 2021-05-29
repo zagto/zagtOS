@@ -12,18 +12,11 @@ private:
     /* only used during initial handover state deserialization */
     Status handOverStatus{Status::OK()};
 
-    void setupSecondaryProcessorEntry(const hos_v1::System &handOver);
-
 public:
     PhysicalAddress ACPIRoot;
-    PhysicalAddress secondaryProcessorEntry;
 
     System();
 };
-
-extern uint8_t SecondaryProcessorEntryCode;
-extern uint8_t SecondaryProcessorEntryCodeEnd;
-extern uint8_t SecondaryProcessorEntryMasterPageTable;
 
 extern System CurrentSystem;
 extern hos_v1::System *_HandOverSystem;

@@ -6,14 +6,29 @@
 
 extern size_t KERNEL_STACK_SIZE;
 
+void Processor::KernelInterruptsLock::lock() {
+    basicDisableInterrupts();
+    assert(CurrentProcessor->interruptsLockLocked == false);
+    CurrentProcessor->interruptsLockLocked = true;
+}
+
+void Processor::KernelInterruptsLock::unlock() {
+    assert(CurrentProcessor->interruptsLockLocked == true);
+    CurrentProcessor->interruptsLockLocked = false;
+    basicEnableInterrupts();
+}
+
+bool Processor::KernelInterruptsLock::isLocked() const {
+    return CurrentProcessor->interruptsLockLocked;
+}
+
 Processor::Processor(size_t id, Status &status) :
         logBufferIndex{0},
-        nextLocalTlbContextID{0},
+        activeTLBContextID{CurrentSystem.tlbContextsPerProcessor * id},
         invalidateQueue{*this},
         id{id},
         scheduler(this, status),
-        interrupts(id, status),
-        activeTLBContextID{CurrentSystem.tlbContextsPerProcessor * id} {
+        interrupts(id, status) {
 
     if (!status) {
         return;
@@ -39,4 +54,23 @@ Processor::~Processor() {
 void Processor::sendInvalidateQueueProcessingIPI() {
     cout << "TODO: IPI sending" << endl;
     Panic();
+}
+
+TLBContextID Processor::activatePagingContext(PagingContext *pagingContext, TLBContextID tryFirst) {
+    assert(interruptsLockLocked);
+    scoped_lock sl(tlbContextsLock);
+
+    TLBContextID tlbID;
+
+    if (tryFirst != TLB_CONTEXT_ID_NONE
+            && TLBContexts[tryFirst].activePagingContext == pagingContext) {
+        tlbID = tryFirst;
+    } else {
+        tlbID = TLBContext::localIDToGlobal(TLBContexts[activeTLBContextID].nextLocalID, id);
+    }
+
+    assert(&TLBContexts[tlbID].processor() == CurrentProcessor);
+
+    TLBContexts[tlbID].activate();
+    return tlbID;
 }

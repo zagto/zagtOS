@@ -1,8 +1,9 @@
 
 mutex FutexManager::lock > mutex ProcessAddressSpace::lock
 mutex ProcessAddressSpace::lock > mutex MemoryArea::lock
-MemoryArea::lock > Processor::tlbContextsLock
-MemoryArea::lock > InvalidateList::lock Spinlock
+mutex ProcessAddressSpace::lock > SpinLock ProcessAddressSpace::tlbIDsLock
+MemoryArea::lock > Spinlock Processor::tlbContextsLock
+MemoryArea::lock > Spinlock InvalidateList::lock
 SpinLock InvalidateList::lock > SpinLock Logger::lock
 SpinLock InvalidateList::lock > SpinLock FrameManagement.lock
 SpinLock FrameManagement.lock> SpinLock KernelPageAllocator.lock

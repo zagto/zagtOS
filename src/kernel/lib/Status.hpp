@@ -4,7 +4,7 @@
 #include <common/utils.hpp>
 
 enum StatusType {
-    OK, OutOfMemory, OutOfKernelHeap, BadUserSpace, NonInitialized
+    OK, OutOfMemory, OutOfKernelHeap, BadUserSpace, ThreadKilled, NonInitialized
 };
 
 class Process;
@@ -28,7 +28,10 @@ public:
         return  Status(StatusType::OutOfKernelHeap);
     }
     static Status OutOfMemory() { /* how much, zone id */
-        return Status(Status::OutOfMemory());
+        return Status(StatusType::OutOfMemory);
+    }
+    static Status ThreadKilled() {
+        return Status(StatusType::ThreadKilled);
     }
     operator bool() {
         assert(type != StatusType::NonInitialized);

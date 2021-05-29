@@ -16,7 +16,6 @@
 #include <syscalls/GetFirmwareRoot.hpp>
 #include <syscalls/IOPortRead.hpp>
 #include <syscalls/IOPortWrite.hpp>
-#include <syscalls/AddProcessor.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <system/System.hpp>
 
@@ -77,7 +76,7 @@ static SyscallFunction *syscallFunctions[] = {
     &GetFirmwareRoot,
     &IOPortRead,
     &IOPortWrite,
-    &AddProcessor,
+    nullptr,
     nullptr,
     nullptr,
     nullptr,

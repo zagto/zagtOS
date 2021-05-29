@@ -22,9 +22,9 @@ Status CommonSystem::initProcessorsAndTLB() {
     if (!tlbContexts) {
         return tlbContexts.status();
     }
-    tlbContexts = *tlbContexts;
+    TLBContexts = *tlbContexts;
 
-    cout << "TLBContext objects created at " << Processors << endl;
+    cout << "TLBContext objects created at " << TLBContexts << endl;
     return Status::OK();
 }
 

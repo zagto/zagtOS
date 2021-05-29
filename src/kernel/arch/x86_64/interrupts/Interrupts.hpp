@@ -33,7 +33,9 @@ public:
 
     __attribute__((noreturn)) void handler(RegisterState *registerState);
     __attribute__((noreturn)) void returnToUserMode();
-    void wakeSecondaryProcessor(size_t hardwareID);
 };
+
+extern "C" void basicEnableInterrupts();
+extern "C" void basicDisableInterrupts();
 
 extern InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;

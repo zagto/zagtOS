@@ -25,3 +25,5 @@ void MapAddress(PagingContext pagingContext,
                 bool executable,
                 bool large,
                 CacheType cacheType);
+
+extern "C" PageTable *GetCurrentMasterPageTable();

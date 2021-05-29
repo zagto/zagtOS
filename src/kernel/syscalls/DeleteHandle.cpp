@@ -12,7 +12,12 @@ Result<size_t> DeleteHandle(const shared_ptr<Process> &process,
         return status;
     }
     if (removedThread) {
-        removedThread->terminate();
+        scoped_lock sl(Processor::kernelInterruptsLock);
+        if (removedThread.get() == CurrentProcessor->scheduler.activeThread()) {
+            return Status::ThreadKilled();
+        } else {
+            removedThread->terminate();
+        }
     }
     return 0;
 }

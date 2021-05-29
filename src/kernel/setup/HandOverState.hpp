@@ -40,6 +40,7 @@ static const size_t FUTEX_FRAME_ID_NONE = 0;
 struct Frame {
     size_t address;
     size_t copyOnWriteCount;
+    bool isForPhysicalAccess;
 };
 
 struct MemoryArea {
@@ -124,7 +125,6 @@ struct System {
     PhysicalAddress handOverPagingContext;
     FirmwareType firmwareType;
     PhysicalAddress firmwareRoot;
-    PhysicalAddress secondaryProcessorEntry;
     /* TODO: a way to pass time offset to APIC timer */
 
     size_t numProcesses;
@@ -138,6 +138,8 @@ struct System {
     Port *ports;
     size_t numMemoryAreas;
     MemoryArea *memoryAreas;
+    size_t numFrames;
+    Frame *frames;
 
     size_t numProcessors;
     size_t numFutexes;

@@ -14,6 +14,7 @@ private:
     mutex lock;
 
     PagingContext pagingContext;
+    SpinLock tlbIDsLock;
     vector<TLBContextID> inTLBContextOfProcessor;
     vector<unique_ptr<MappedArea>> mappedAreas;
 
@@ -21,7 +22,7 @@ private:
     optional<pair<shared_ptr<MemoryArea>, Region>> findMemoryArea(size_t userAddress,
                                                                     bool requireWritePermissions);
     Status _removeRegion(Region region);
-    pair<Region, size_t> findFreeRegion(size_t length) const;
+    Result<pair<Region, size_t>> findFreeRegion(size_t length) const;
     Status ensureSplitAt(size_t address);
     Status ensureRegionIndependent(Region region);
 
@@ -34,11 +35,17 @@ public:
     ProcessAddressSpace operator=(ProcessAddressSpace &) = delete;
     ~ProcessAddressSpace();
 
-    Status addAnonymous(Region region,
-                        Permissions permissions,
-                        bool overwriteExisiting,
-                        bool shared);
-    Result<Region> addAnonymous(size_t length, Permissions permissions);
+    void activate();
+    Result<UserVirtualAddress> add(Region region,
+                                   size_t offset,
+                                   shared_ptr<MemoryArea> memoryArea,
+                                   Permissions permissions,
+                                   bool overwriteExisiting);
+    Result<UserVirtualAddress> addAnonymous(Region region,
+                                            Permissions permissions,
+                                            bool overwriteExisiting,
+                                            bool shared);
+    Result<UserVirtualAddress> addAnonymous(size_t length, Permissions permissions);
     /* removeRegion is the slower, more complicated way to remove. Unlike removeMapping, it
      * supports things like unmapping a MappedArea partially, or multiple of them. It is there
      * to fully support mmap, munmap, etc. for in user space. However it currently makes no

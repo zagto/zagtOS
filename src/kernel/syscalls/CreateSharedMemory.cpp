@@ -17,7 +17,7 @@ Result<size_t> CreateSharedMemory(const shared_ptr<Process> &process,
             cout << "SYS_CREATE_SHARED_MEMORY: offset given for standard shared memory" << endl;
             Panic(); // TODO: exception
         }
-        memoryArea = make_shared<MemoryArea>(Permissions::READ_WRITE, length);
+        memoryArea = make_shared<MemoryArea>(true, Permissions::READ_WRITE, length);
         break;
     case 1:
         /* Physical */
@@ -30,30 +30,30 @@ Result<size_t> CreateSharedMemory(const shared_ptr<Process> &process,
             cout << "SYS_CREATE_SHARED_MEMORY: offset not aligned" << endl;
             Panic(); // TODO: exception
         }
-        memoryArea = make_shared<MemoryArea>(offset, length);
+        memoryArea = make_shared<MemoryArea>(PhysicalAddress(offset), length);
         break;
     case 2: {
         /* DMA */
-        scoped_lock sl(process->pagingLock);
         size_t numPages = length / PAGE_SIZE;
 
-        int frameStack = hos_v1::DMAZone::COUNT - 1;
-        while (offset > hos_v1::DMAZoneMax[frameStack]) {
-            frameStack--;
-            if (frameStack < 0) {
+        int zoneID = hos_v1::DMAZone::COUNT - 1;
+        while (offset > hos_v1::DMAZoneMax[zoneID]) {
+            zoneID--;
+            if (zoneID < 0) {
                 cout << "SYS_CREATE_SHARED_MEMORY: requested device address ceiling impossible"
                      << "on this architecture." << endl;
-                Panic(); // TODO: exception
+                return Status::BadUserSpace();
             }
         }
 
         vector<size_t> deviceAddresses;
-        memoryArea = make_shared<MemoryArea>(frameStack, length, deviceAddresses);
+        memoryArea = make_shared<MemoryArea>(zoneID, length, deviceAddresses);
         if (memoryArea) {
-            Status status = process->copyToUser(deviceAddressesPointer,
-                                                reinterpret_cast<uint8_t *>(deviceAddresses.data()),
-                                                numPages * sizeof(size_t),
-                                                true);
+            Status status
+                = process->addressSpace.copyTo(deviceAddressesPointer,
+                                               reinterpret_cast<uint8_t *>(deviceAddresses.data()),
+                                               numPages * sizeof(size_t),
+                                               true);
             if (!status) {
                 return status;
             }

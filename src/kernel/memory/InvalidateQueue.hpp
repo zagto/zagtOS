@@ -11,7 +11,7 @@ private:
     struct Item {
         TLBContextID tlbContextID;
         Frame *frame;
-        UserVirtualAddress address;
+        VirtualAddress address;
         uint64_t timestamp;
     };
 

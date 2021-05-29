@@ -4,6 +4,8 @@ global InterruptServiceRoutines
 global returnFromInterrupt
 global syscallEntry
 global KERNEL_STACK_SIZE
+global basicDisableInterrupts
+global basicEnableInterrupts
 
 extern handleInterrupt
 extern Syscall
