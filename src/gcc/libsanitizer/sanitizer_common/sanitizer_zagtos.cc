@@ -237,6 +237,9 @@ void ListOfModules::fallbackInit() {
     clear();
 }
 
+void InitializePlatformEarly() {}
+
+void InitializePlatformCommonFlags(CommonFlags *cf) {}
 
 } // namespace __sanitizer
 
