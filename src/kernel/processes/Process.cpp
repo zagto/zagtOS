@@ -44,9 +44,8 @@ Process::Process(Process &sourceProcess,
     }
 
     for (const auto &section: sections) {
-        Result result = addressSpace.addAnonymous(section.region(), section.permissions(), false);
-        if (!result) {
-            status = result.status();
+        status = addressSpace.addAnonymous(section.region(), section.permissions(), false);
+        if (!status) {
             return;
         }
 

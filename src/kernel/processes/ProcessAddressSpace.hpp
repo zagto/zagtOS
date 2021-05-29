@@ -18,7 +18,7 @@ private:
     vector<unique_ptr<MappedArea>> mappedAreas;
 
     pair<size_t, bool> findIndexFor(size_t userAddress);
-    optional<pair<shared_ptr<MemoryArea> &, Region>> findMemoryArea(size_t userAddress,
+    optional<pair<shared_ptr<MemoryArea>, Region>> findMemoryArea(size_t userAddress,
                                                                     bool requireWritePermissions);
     Status _removeRegion(Region region);
     pair<Region, size_t> findFreeRegion(size_t length) const;
@@ -34,7 +34,10 @@ public:
     ProcessAddressSpace operator=(ProcessAddressSpace &) = delete;
     ~ProcessAddressSpace();
 
-    Status addAnonymous(Region region, Permissions permissions, bool overwriteExisiting);
+    Status addAnonymous(Region region,
+                        Permissions permissions,
+                        bool overwriteExisiting,
+                        bool shared);
     Result<Region> addAnonymous(size_t length, Permissions permissions);
     /* removeRegion is the slower, more complicated way to remove. Unlike removeMapping, it
      * supports things like unmapping a MappedArea partially, or multiple of them. It is there

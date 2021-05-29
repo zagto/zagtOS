@@ -11,8 +11,10 @@ protected:
     class Iterator {
     private:
         vector<ElementType> &container;
-        size_t position;
+
     public:
+        size_t position;
+
         Iterator(vector<ElementType> &container, size_t position):
             container{container},
             position{position} {}
@@ -96,7 +98,7 @@ public:
            vector(numElements, status) {
         if (status) {
             for (size_t index = 0; index < numElements; index++) {
-                _data[index] = fill;
+                _data[index] = move(fill);
             }
         }
     }
@@ -169,7 +171,7 @@ public:
             _data[moveIndex] = move(_data[moveIndex - 1]);
         }
 
-        _data[index] = element;
+        _data[index] = move(element);
         return Status::OK();
     }
 
@@ -185,10 +187,12 @@ public:
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
         Status ignored = adjustAllocatedSize(numElements);
 #pragma GCC diagnostic pop
+
+        return Iterator(*this, first.position);
     }
 
     Iterator erase(Iterator where) {
-        return erase(where, where);
+        return erase(where, where + 1);
     }
 
     void remove(const ElementType &element) {

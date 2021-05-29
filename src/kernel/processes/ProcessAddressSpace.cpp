@@ -18,13 +18,14 @@ ProcessAddressSpace::ProcessAddressSpace(const hos_v1::Process &handOver,
     }
 
     for (size_t index = 0; index < handOver.numMappedAreas; index++) {
-        Result result = make_raw<MappedArea>(allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
-                                             handOver.mappedAreas[index]);
+        Result result = make_unique<MappedArea>(*this,
+                                                allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
+                                                handOver.mappedAreas[index]);
         if (!result) {
             cout << "TODO: failure during handover" << endl;
             Panic();
         }
-        mappedAreas[index] = *result;
+        mappedAreas[index] = move(*result);
         assert(mappedAreas[index]->region.isPageAligned());
         if (index > 0) {
             assert(mappedAreas[index]->region.start >= mappedAreas[index - 1]->region.end());
@@ -79,7 +80,7 @@ pair<size_t, bool> ProcessAddressSpace::findIndexFor(size_t userAddress) {
     }
 }
 
-optional<pair<shared_ptr<MemoryArea> &, Region>>
+optional<pair<shared_ptr<MemoryArea>, Region>>
 ProcessAddressSpace::findMemoryArea(size_t userAddress, bool requireWritePermissions) {
     assert(lock.isLocked());
 
@@ -105,7 +106,10 @@ ProcessAddressSpace::findMemoryArea(size_t userAddress, bool requireWritePermiss
     return {{mappedArea->memoryArea, maxRegionInside}};
 }
 
-Status ProcessAddressSpace::addAnonymous(Region region, Permissions permissions, bool overwriteExisiting) {
+Status ProcessAddressSpace::addAnonymous(Region region,
+                                         Permissions permissions,
+                                         bool overwriteExisiting,
+                                         bool shared) {
     scoped_lock sl(lock);
 
     if (!UserSpaceRegion.contains(region)) {
@@ -129,17 +133,19 @@ Status ProcessAddressSpace::addAnonymous(Region region, Permissions permissions,
         }
     }
 
-    Result memoryArea = make_shared<MemoryArea>(region.length);
+    Result memoryArea = make_shared<MemoryArea>(shared,
+                                                Permissions::READ_WRITE_EXECUTE,
+                                                region.length);
     if (!memoryArea) {
         return memoryArea.status();
     }
 
-    Result ma = make_raw<MappedArea>(region, *memoryArea, 0, permissions);
+    Result ma = make_unique<MappedArea>(*this, region, *memoryArea, 0, permissions);
     if (!ma) {
         return ma.status();
     }
 
-    return mappedAreas.insert(*ma, index);
+    return mappedAreas.insert(move(*ma), index);
 }
 
 Result<Region> ProcessAddressSpace::addAnonymous(size_t length, Permissions permissions) {
@@ -152,12 +158,12 @@ Result<Region> ProcessAddressSpace::addAnonymous(size_t length, Permissions perm
         return memoryArea.status();
     }
 
-    Result ma = make_raw<MappedArea>(region, *memoryArea, 0, permissions);
+    Result ma = make_unique<MappedArea>(*this, region, *memoryArea, 0, permissions);
     if (!ma) {
         return ma.status();
     }
 
-    Status status = mappedAreas.insert(*ma, index);
+    Status status = mappedAreas.insert(move(*ma), index);
     if (!status) {
         return status;
     }
@@ -179,7 +185,7 @@ Status ProcessAddressSpace::ensureSplitAt(size_t address) {
         Result result = mappedAreas[index]->split();
         if (!result) {
             /* erase the already reserved vector space for the second element */
-            mappedAreas.erase(mappedAreas.begin() + index + 1, mappedAreas.begin() + index + 2);
+            mappedAreas.erase(mappedAreas.begin() + index + 1);
             return result.status();
         }
         mappedAreas[index] = move(result->first);
@@ -263,7 +269,8 @@ Status ProcessAddressSpace::removeMapping(size_t startAddress) {
             << endl;
         return Status::BadUserSpace();
     }
-    mappedAreas.erase(mappedAreas.begin() + index, mappedAreas.begin() + index + 1);
+    mappedAreas.erase(mappedAreas.begin() + index);
+    return Status::OK();
 }
 
 Status ProcessAddressSpace::handlePageFault(size_t address, Permissions requiredPermissions) {
