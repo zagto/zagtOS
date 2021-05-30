@@ -3,7 +3,6 @@
 #include <log/Logger.hpp>
 
 PageTable *HandOverMasterPageTable{nullptr};
-PageTable *ProcessMasterPageTable{nullptr};
 
 #define PAGE_PRESENT        0x0000000000000001
 #define PAGE_WRITEABLE      0x0000000000000002
@@ -36,8 +35,6 @@ void CreateGlobalMasterPageTableEntries() {
         ClearPageTable(newPageTable);
         (*HandOverMasterPageTable)[index] =
                 reinterpret_cast<uint64_t>(newPageTable) | PAGE_PRESENT | PAGE_WRITEABLE;
-        (*ProcessMasterPageTable)[index] =
-                reinterpret_cast<uint64_t>(newPageTable) | PAGE_PRESENT | PAGE_WRITEABLE;
     }
 }
 
@@ -68,7 +65,6 @@ void MapAddress(PagingContext pagingContext,
     } else {
         assert(pagingContext == PagingContext::HANDOVER);
     }
-    pageTable = HandOverMasterPageTable;
     PageTableEntry *entry;
     PageTable *newPageTable;
 

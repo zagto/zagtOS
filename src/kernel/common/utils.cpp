@@ -45,6 +45,20 @@ void *memmove(void *dest, const void *src, size_t len) {
     return dest;
 }
 
+int memcmp(const void *_a, const void *_b, size_t length) {
+    const uint8_t *a = reinterpret_cast<const uint8_t *>(_a);
+    const uint8_t *b = reinterpret_cast<const uint8_t *>(_b);
+    for (size_t index = 0; index < length; index++) {
+        if (a[index] < b[index]) {
+            return -1;
+        }
+        if (a[index] > b[index]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 
 size_t align(size_t address, size_t alignment, AlignDirection direction) {
     if (direction == AlignDirection::UP) {

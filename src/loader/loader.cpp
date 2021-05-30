@@ -10,6 +10,7 @@
 #include <common/utils.hpp>
 #include <Firmware.hpp>
 #include <smp/SMP.hpp>
+#include <Time.hpp>
 
 
 /* converts pointers to physical memory for use in kernel where the identity mapping is offset at
@@ -50,6 +51,8 @@ void isort(hos_v1::MappedArea *mappedAreas, size_t len) {
 void LoaderMain() {
     cout << "Initializing..." << endl;
     hos_v1::FramebufferInfo &framebufferInfo = InitFramebuffer();
+
+    detectTimerFrequency();
 
     cout << "Detecting Images..." << endl;
     ProgramBinary kernel = LoadKernelImage();
@@ -103,8 +106,16 @@ void LoaderMain() {
     MapFramebufferMemory(framebufferInfo);
     CreateIdentityMap(maxPhysicalAddress);
 
+    cout << "A ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
+
     cout << "Starting secondary Processors..." << endl;
     startSecondaryProcessors();
+
+    cout << "B ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
 
     size_t frameIndex = 0;
     cout << "Setting up address space for kernel..." << endl;
@@ -114,7 +125,12 @@ void LoaderMain() {
 
     cout << "Setting up address space for initial process..." << endl;
     process.load(PagingContext::PROCESS, handOverFrames, frameIndex);
+    cout << "frameIndex " << frameIndex << " numFrames " << numFrames << endl;
     assert(frameIndex == numFrames);
+
+    cout << "C ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
 
     cout << "Preparing handover structures..." << endl;
 
@@ -247,12 +263,13 @@ void LoaderMain() {
         convertFrameStack(stack.head);
     }
 
-    cout << "Exiting to Kernel..." << endl;
 
     KernelEntryAddress = kernel.entryAddress();
     BootInfo = handOverSystem;
 
+    cout << "Releasing secondary Processors to Kernel..." << endl;
     releaseSecondaryProcessorsToKernel();
+    cout << "Exiting to Kernel..." << endl;
     ExitToKernel(0, BootProcessorHardwareID);
 }
 

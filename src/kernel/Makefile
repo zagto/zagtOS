@@ -38,7 +38,7 @@ CRTBEGIN_OBJ:=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtbegin.o)
 CRTEND_OBJ:=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtend.o)
 
 $(TARGET): $(SHBUILD_BUILD_DIR)/kernel.elf
-	$(CONVERTELF) $< $@
+	$(CONVERTELF) $< $@ --no-add-stack
 
 $(SHBUILD_BUILD_DIR)/kernel.elf: $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $(CRTBEGIN_OBJ) $(CRTI_OBJ) $(C_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(CRTEND_OBJ) $(CRTN_OBJ)

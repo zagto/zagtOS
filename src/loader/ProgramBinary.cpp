@@ -79,7 +79,7 @@ size_t ProgramBinary::sectionDataOffset(size_t sectionOffset) const {
 }
 Region ProgramBinary::sectionRegion(size_t sectionOffset) const {
     Region result{sectionAddress(sectionOffset), sectionSizeInMemory(sectionOffset)};
-    alignedGrow(result.start, result.length, PAGE_SIZE);
+    assert(result.isPageAligned() || sectionOffset == TLSOffset());
     return result;
 }
 
@@ -90,15 +90,18 @@ size_t ProgramBinary::loadedUserFrames() const {
         assert(sectionSize % PAGE_SIZE == 0);
         sum += sectionSize / PAGE_SIZE;
     }
+    cout << "sum normal " << sum << endl;
 
     /* run message has one frame */
     sum++;
+    cout << "sum normal+msg " << sum << endl;
 
     if (hasTLS()) {
         size_t sectionSize = sectionSizeInMemory(TLSOffset());
         assert(sectionSize % PAGE_SIZE == 0);
         sum += sectionSize / PAGE_SIZE;
     }
+    cout << "sum normal+msg+tls " << sum << endl;
 
     return sum;
 }
@@ -268,6 +271,7 @@ void ProgramBinary::load(PagingContext pagingContext,
             }
         }
     }
+    cout << "frameIndex normal " << frameIndex << endl;
 
     /* if this is a user-space program, load run message */
     if (pagingContext == PagingContext::PROCESS) {
@@ -297,61 +301,58 @@ void ProgramBinary::load(PagingContext pagingContext,
             .isForPhysicalAccess = false,
         };
         frameIndex++;
-    }
 
-    if (hasTLS()) {
-        size_t offset = TLSOffset();
-        bool foundTLSRegion{false};
+        cout << "frameIndex normal+msg " << frameIndex << endl;
 
-        _TLSRegion = sectionRegion(offset);
-        for (size_t startAfterIndex = 0; startAfterIndex < numSections(); startAfterIndex++) {
-            _TLSRegion.start = sectionRegion(sectionOffset(startAfterIndex)).end();
-            bool conflicts{false};
+        if (hasTLS()) {
+            cout << "loading TLS..." << endl;
+            size_t offset = TLSOffset();
+            bool foundTLSRegion{false};
 
-            for (size_t checkConflictIndex = 0;
-                 checkConflictIndex < numSections();
-                 checkConflictIndex++) {
-                Region otherRegion = sectionRegion(sectionOffset(checkConflictIndex));
-                if (_TLSRegion.overlaps(otherRegion)) {
+            _TLSRegion = sectionRegion(offset);
+            for (size_t startAfterIndex = 0; startAfterIndex < numSections(); startAfterIndex++) {
+                _TLSRegion.start = sectionRegion(sectionOffset(startAfterIndex)).end();
+                bool conflicts{false};
+
+                for (size_t checkConflictIndex = 0;
+                     checkConflictIndex < numSections();
+                     checkConflictIndex++) {
+                    Region otherRegion = sectionRegion(sectionOffset(checkConflictIndex));
+                    if (_TLSRegion.overlaps(otherRegion)) {
+                        conflicts = true;
+                    }
+                }
+                if (_TLSRegion.overlaps(Region{runMessageAddress().value(), PAGE_SIZE})) {
                     conflicts = true;
                 }
-            }
-            if (_TLSRegion.overlaps(Region{runMessageAddress().value(), PAGE_SIZE})) {
-                conflicts = true;
-            }
-            if (!conflicts) {
-                foundTLSRegion = true;
-                break;
-            }
-        }
-
-        if (!foundTLSRegion) {
-            cout << "Unable to find suitable region for TLS" << endl;
-            Halt();
-        }
-
-        uint8_t *source = data + sectionDataOffset(offset);
-        size_t sourceLen = sectionDataSize(offset);
-
-        assert(_TLSRegion.isPageAligned());
-        assert(sourceLen % PAGE_SIZE == 0);
-
-        for (size_t pageIndex = 0; pageIndex < _TLSRegion.length / PAGE_SIZE; pageIndex++) {
-            PhysicalAddress physicalAddress = AllocatePhysicalFrame();
-            /* if there is anything to be written to this page */
-            if (sourceLen > pageIndex * PAGE_SIZE) {
-                memcpy(reinterpret_cast<void *>(physicalAddress.value()), source, PAGE_SIZE);
+                if (!UserSpaceRegion.contains(_TLSRegion)) {
+                    conflicts = true;
+                }
+                if (!conflicts) {
+                    foundTLSRegion = true;
+                    break;
+                }
             }
 
-            if (pagingContext == PagingContext::GLOBAL) {
-                MapAddress(pagingContext,
-                           _TLSRegion.start + pageIndex * PAGE_SIZE,
-                           physicalAddress,
-                           true,
-                           false,
-                           false,
-                           CacheType::CACHE_NORMAL_WRITE_BACK);
-            } else {
+            if (!foundTLSRegion) {
+                cout << "Unable to find suitable region for TLS" << endl;
+                Halt();
+            }
+            cout << "loading TLS to " << _TLSRegion.start << " length " << _TLSRegion.length << endl;
+
+            uint8_t *source = data + sectionDataOffset(offset);
+            size_t sourceLen = sectionDataSize(offset);
+
+            assert(_TLSRegion.isPageAligned());
+            assert(sourceLen % PAGE_SIZE == 0);
+
+            for (size_t pageIndex = 0; pageIndex < _TLSRegion.length / PAGE_SIZE; pageIndex++) {
+                PhysicalAddress physicalAddress = AllocatePhysicalFrame();
+                /* if there is anything to be written to this page */
+                if (sourceLen > pageIndex * PAGE_SIZE) {
+                    memcpy(reinterpret_cast<void *>(physicalAddress.value()), source, PAGE_SIZE);
+                }
+
                 frames[frameIndex] = hos_v1::Frame{
                     .address = physicalAddress.value(),
                     .copyOnWriteCount = 1,
@@ -359,9 +360,10 @@ void ProgramBinary::load(PagingContext pagingContext,
                 };
                 frameIndex++;
             }
-        }
+            cout << "frameIndex normal+msg+tls " << frameIndex << endl;
 
-        _TLSBase = _TLSRegion.start + sectionAddress(offset) % PAGE_SIZE;
+            _TLSBase = _TLSRegion.start + sectionAddress(offset) % PAGE_SIZE;
+        }
     }
 }
 

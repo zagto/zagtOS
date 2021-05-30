@@ -49,6 +49,7 @@ ExitFinalize:
 
     ; backup rdx
     mov r10, rdx
+    mov r11, rsi
 
     ; enable SSE (based on: https://wiki.osdev.org/SSE)
     mov rax, cr0
@@ -71,7 +72,7 @@ ExitFinalize:
     wrmsr
 
     ; switch to new master page table
-    mov cr3, rsi
+    mov cr3, r11
 
     ; correctly mis-align stack
     push 0

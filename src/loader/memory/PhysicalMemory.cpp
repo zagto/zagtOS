@@ -86,9 +86,9 @@ PhysicalAddress InitPhysicalFrameManagement() {
 }
 
 
-PhysicalAddress AllocatePhysicalFrame(void) {
+PhysicalAddress AllocatePhysicalFrame(int zone) {
     PhysicalAddress address;
-    for (int stackIndex = hos_v1::DMAZone::COUNT - 1; stackIndex >= 0; stackIndex--) {
+    for (int stackIndex = zone; stackIndex >= 0; stackIndex--) {
         if (!DirtyFrameStack[stackIndex].isEmpty()) {
             address = DirtyFrameStack[stackIndex].pop();
             break;

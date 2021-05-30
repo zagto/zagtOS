@@ -46,7 +46,6 @@ static const uint32_t SYS_LOG = 1,
                       SYS_GET_ACPI_ROOT = 42,
                       SYS_IO_PORT_READ = 43,
                       SYS_IO_PORT_WRITE = 44,
-                      SYS_ADD_PROCESSOR = 45,
 
                       SYS_SPAWN_PROCESS = 50;
 

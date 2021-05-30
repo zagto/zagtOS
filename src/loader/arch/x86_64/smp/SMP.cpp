@@ -1,7 +1,6 @@
 #include <smp/SMP.hpp>
 #include <smp/LocalAPIC.hpp>
-#include <common/ModelSpecificRegister.hpp>
-#include <EFI.hpp> // Stall
+#include <Time.hpp>
 #include <Firmware.hpp>
 #include <memory/PhysicalMemory.hpp> // SecondaryProcessorEntry
 #include <exit.hpp>
@@ -19,19 +18,35 @@ size_t *CurrentEntryStack = nullptr;
 static void wakeSecondaryProcessor(LocalAPIC &localAPIC, size_t hardwareID, size_t processorID) {
     startingID = processorID;
     startingID = hardwareID;
-    CurrentEntryStack = temporaryStack[processorID] + TEMPORY_STACK_SIZE;
+    CurrentEntryStack = &temporaryStack[processorID][TEMPORY_STACK_SIZE / 2];
+    cout << "1 ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
+
     __atomic_store_n(&currentlyStarting, true, __ATOMIC_SEQ_CST);
 
     localAPIC.sendInit(static_cast<uint32_t>(hardwareID));
-    efi::SystemTable->BootServices->Stall(10 * 1000); // 10 ms
+    delayMilliseconds(10);
     localAPIC.sendStartup(static_cast<uint32_t>(hardwareID), SecondaryProcessorEntry);
 
     while (__atomic_load_n(&currentlyStarting, __ATOMIC_SEQ_CST)) {}
+
+
+    cout << "3 ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
+
 }
 
 extern "C" void LoaderEntrySecondaryProcessor() {
     size_t id = startingID;
     size_t hardwareID = startingHardwareID;
+
+    cout << "2 ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
+    cout << "Processor " << id << " online" << endl;
+
     __atomic_store_n(&currentlyStarting, false, __ATOMIC_SEQ_CST);
 
     while (!__atomic_load_n(&releaseToKernel, __ATOMIC_SEQ_CST)) {}
@@ -42,89 +57,133 @@ void releaseSecondaryProcessorsToKernel() {
     __atomic_store_n(&releaseToKernel, true, __ATOMIC_SEQ_CST);
 }
 
-/* logic from: https://wiki.osdev.org/MADT. TODO: make this readable and maybe fix the wiki */
-static const uint8_t *findMADT() {
-    const char *rootTable = reinterpret_cast<const char *>(GetFirmwareRoot().value());
-    cout << "RootTable Type " << rootTable[0] << "," << rootTable[1] << "," << rootTable[2] << "," << rootTable[3]<< "," << endl;
+struct RSDPTable {
+    char signature[8];
+    uint8_t checksum;
+    char oemID[6];
+    uint8_t revision;
+    uint32_t rsdtAddress;
+    /* ACPI 2.0+ only: */
+    uint32_t length;
+    uint64_t xsdtAddress;
+};
 
-    const uint32_t rootLength = (reinterpret_cast<const uint32_t *>(rootTable)[1]);
-    cout << "rootLength " << (size_t)rootLength << endl;
-    const char *nextPointer = rootTable + 24;
+struct TableHeader {
+    char signature[4];
+    uint32_t length;
+    uint8_t revision;
+    uint8_t checksum;
+    char oemID[6];
+    char oemTableID[8];
+    uint32_t oemRevision;
+    char aslCompilderID[4];
+    uint32_t alsCompilerRevision;
+};
 
-    while (reinterpret_cast<size_t>(nextPointer) < reinterpret_cast<size_t>(rootTable) + rootLength) {
-        const char *currentEntry;
-        if (rootTable[0] == 'X') {
-            currentEntry = reinterpret_cast<const char *>(*reinterpret_cast<const uint64_t *>(nextPointer));
-            nextPointer += 8;
-        } else {
-            currentEntry = reinterpret_cast<const char *>(*reinterpret_cast<const uint32_t *>(nextPointer));
-            nextPointer += 4;
-        }
-        cout << "currentEntry " << reinterpret_cast<size_t>(currentEntry) << endl;
-        cout << "type  " << currentEntry[0] << currentEntry[1] << currentEntry[2] << currentEntry[3] << endl;
+struct MADTTable : TableHeader {
+    uint32_t localAPICAddress;
+    uint32_t flags;
+};
 
-        if (currentEntry[0] == 'A' && currentEntry[1] == 'P' && currentEntry[2] == 'I' && currentEntry[3] == 'C') {
-            return (const uint8_t *)currentEntry;
-        }
-        while (1) {
+struct MADTSubtableHeader {
+    uint8_t type;
+    uint8_t length;
+};
 
-        }
+struct LocalAPICSubtable : MADTSubtableHeader {
+    uint8_t processorID;
+    uint8_t id;
+    uint32_t flags;
+};
+
+
+static const MADTTable *findMADT(const TableHeader *rsdt) {
+    size_t pointerSize;
+    if (memcmp(rsdt->signature, "RSDT", 4) == 0) {
+        pointerSize = 4;
+    } else if (memcmp(rsdt->signature, "XSDT", 4) == 0) {
+        pointerSize = 8;
+    } else {
+        cout << "Could not detect RSDT-like table type" << endl;
+        Panic();
     }
 
-    cout << "could not find MADT table" << endl;
+    const uint8_t *pointerPointer = reinterpret_cast<const uint8_t *>(rsdt + 1);
+    const TableHeader *pointer;
+
+    while (pointerPointer < reinterpret_cast<const uint8_t *>(rsdt) + rsdt->length) {
+        /* assumes litte-endian */
+        memcpy(&pointer, pointerPointer, pointerSize);
+
+        if (memcmp(pointer->signature, "APIC", 4) == 0) {
+            return static_cast<const MADTTable *>(pointer);
+        }
+
+        pointerPointer += pointerSize;
+    }
+
+    cout << "Could not find MADT table." << endl;
     Panic();
 }
 
+static const MADTTable *findMADT() {
+
+    const RSDPTable *rsdp = reinterpret_cast<const RSDPTable *>(GetFirmwareRoot().value());
+    if (rsdp->revision == 0) {
+        cout << "Found ACPI Version 1.0." << endl;
+        return findMADT(reinterpret_cast<const TableHeader *>(rsdp->rsdtAddress));
+    } else {
+        cout << "Found ACPI Version 2.0+." << endl;
+        return findMADT(reinterpret_cast<const TableHeader *>(rsdp->xsdtAddress));
+    }
+}
+
 static size_t findProcessors() {
+    cout << "Detecting Processors using ACPI..." << endl;
 
-    const uint8_t *madt = findMADT();
-
-    cout << "Detecting secondary Processors..." << endl;
-
-    uint32_t madtLength = reinterpret_cast<const uint32_t *>(madt)[1];
-    char *pointer = (char *)madt + 0x2c;
-
+    const MADTTable *madt = findMADT();
+    const uint8_t *pointer = reinterpret_cast<const uint8_t *>(madt + 1);
     bool foundBootProcessor = false;
-
-    struct SubtableHeader {
-        uint8_t type;
-        uint8_t length;
-    };
-    struct LocalAPICSubtable {
-        SubtableHeader header;
-        uint8_t processorID;
-        uint8_t id;
-        uint32_t flags;
-    };
-    static const uint32_t ACPI_MADT_ENABLED = 1;
-
     size_t numProcessors = 0;
 
-    LocalAPIC localAPIC(readModelSpecificRegister(MSR::IA32_APIC_BASE));
+    static const uint32_t ACPI_MADT_ENABLED = 1;
+    static const uint8_t ACPI_MADT_TYPE_LOCAL_APIC = 0;
 
-    while (pointer < (char *)madt + madtLength) {
-        const SubtableHeader *subTable = reinterpret_cast<SubtableHeader *>(pointer);
-        switch (subTable->type) {
-        case 0: /* local APIC */ {
-            const LocalAPICSubtable *lapic = reinterpret_cast<const LocalAPICSubtable *>(subTable);
-            if (lapic->flags & ACPI_MADT_ENABLED) {
+    LocalAPIC localAPIC(madt->localAPICAddress);
+    cout << "Local APIC is at " << static_cast<size_t>(madt->localAPICAddress) << endl;
+
+    while (pointer < (uint8_t *)madt + madt->length) {
+        MADTSubtableHeader subTableHeader;
+        memcpy(&subTableHeader, pointer, sizeof(MADTSubtableHeader));
+
+        switch (subTableHeader.type) {
+        case ACPI_MADT_TYPE_LOCAL_APIC: {
+            LocalAPICSubtable lapic;
+            memcpy(&lapic, pointer, sizeof(LocalAPICSubtable));
+
+            if (lapic.flags & ACPI_MADT_ENABLED) {
                 /* The first of these entries is the processor this code is running on, don't try
                  * start it */
                 if (foundBootProcessor) {
-                    cout << "Found secondary processor - Processor ID: "
-                         << static_cast<size_t>(lapic->processorID) << ", APIC ID: "
-                         << static_cast<size_t>(lapic->id) << endl;
+                    cout << "Found secondary processor - ACPI Processor ID: "
+                         << static_cast<size_t>(lapic.processorID) << ", our Processor ID: "
+                         << static_cast<size_t>(numProcessors) << ", APIC ID: "
+                         << static_cast<size_t>(lapic.id) << endl;
 
-                    wakeSecondaryProcessor(localAPIC, lapic->id, numProcessors);
+                    wakeSecondaryProcessor(localAPIC, lapic.id, numProcessors);
                 } else {
+                    cout << "Found boot processor - ACPI Processor ID: "
+                         << static_cast<size_t>(lapic.processorID) << ", APIC ID: "
+                         << static_cast<size_t>(lapic.id) << endl;
                     foundBootProcessor = true;
-                    BootProcessorHardwareID = lapic->id;
+                    BootProcessorHardwareID = lapic.id;
                 }
                 numProcessors++;
             }
+            break;
         }
         }
-        pointer += subTable->length;
+        pointer += subTableHeader.length;
     }
     return numProcessors;
 }
@@ -132,6 +191,10 @@ static size_t findProcessors() {
 void setupSecondaryProcessorEntry(PageTable *masterPageTable) {
     size_t length = secondaryProcessorEntryCodeLength();
     size_t mptOffset = static_cast<size_t>(&SecondaryProcessorEntryMasterPageTable
+                                           - &SecondaryProcessorEntryCode);
+    size_t targetAddrOffset = static_cast<size_t>(&SecondaryProcessorEntryTarget
+                                           - &SecondaryProcessorEntryCode);
+    size_t stackPtrOffset = static_cast<size_t>(&SecondaryProcessorEntryStackPointerPointer
                                            - &SecondaryProcessorEntryCode);
     size_t mptAddress = reinterpret_cast<size_t>(masterPageTable);
     size_t entryCodeAddress = SecondaryProcessorEntry.value();
@@ -148,6 +211,11 @@ void setupSecondaryProcessorEntry(PageTable *masterPageTable) {
     /* put the address the entry code is loaded to at offset 2 (immediate operand of mov) */
     memcpy(destination + 2, &entryCodeAddress, sizeof(uint32_t));
     memcpy(destination + mptOffset, &mptAddress, sizeof(uint32_t));
+    void *functionPointer = reinterpret_cast<void *>(&LoaderEntrySecondaryProcessor);
+    memcpy(destination + targetAddrOffset, &functionPointer, sizeof(uint64_t));
+    size_t **stackPointerPointer = &CurrentEntryStack;
+    memcpy(destination + stackPtrOffset, &stackPointerPointer, sizeof(uint64_t));
+
 
     MapAddress(PagingContext::HANDOVER,
                SecondaryProcessorEntry.value(),
@@ -164,8 +232,23 @@ size_t secondaryProcessorEntryCodeLength() {
 }
 
 size_t startSecondaryProcessors() {
-    setupSecondaryProcessorEntry(GetCurrentMasterPageTable());
+    cout << "a ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
+
+    setupSecondaryProcessorEntry(HandOverMasterPageTable);
+    cout << "b ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
+
     size_t numProcessors = findProcessors();
+    cout << "c ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
+
     FreePhysicalFrame(SecondaryProcessorEntry);
+    cout << "d ------ Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+
     return numProcessors;
 }

@@ -1,6 +1,9 @@
 global SecondaryProcessorEntryCode
 global SecondaryProcessorEntryCodeEnd
 global SecondaryProcessorEntryMasterPageTable
+global SecondaryProcessorEntryStackPointerPointer
+global SecondaryProcessorEntryTarget
+
 
 extern LoaderEntrySecondaryProcessor
 extern CurrentEntryStack
@@ -39,7 +42,6 @@ entry:
     ; ebx will contain the address where SecondaryProcessorEntryCode will be put at
     ; actual value will be inserted by C code
     mov ebx, 0x12345678
-
 
     ; patch flushCSJump longModeJump to jump to actual address this is loaded at
     mov cx, bx
@@ -96,6 +98,7 @@ flushCS:
     or ecx, CR0_PAGING | CR0_PROTECTED_MODE | CR0_COPROCESSOR_MONITORING
     mov cr0, ecx
 
+
     mov bp, bx
     add bp, gdtr - entry
     mov ax, bx
@@ -109,6 +112,12 @@ longModeJump:
 
 SecondaryProcessorEntryMasterPageTable:
     dd 0x12345678
+
+SecondaryProcessorEntryStackPointerPointer:
+    dq 0x123456789abcdef
+
+SecondaryProcessorEntryTarget:
+    dq 0x123456789abcdef
 
 gdt:
     dq 0
@@ -128,11 +137,12 @@ longMode:
     mov gs, ax
     mov ss, ax
 
-    mov rbx, CurrentEntryStack
-    mov rsp, rbx
-    mov rax, LoaderEntrySecondaryProcessor
+    lea rsp, [rel SecondaryProcessorEntryStackPointerPointer]
+    mov rsp, [rsp]
+    mov rsp, [rsp]
+    mov rax, [rel SecondaryProcessorEntryTarget]
     ; alignment
-    push 0
+    push 0x42
     call rax
 
 SecondaryProcessorEntryCodeEnd:

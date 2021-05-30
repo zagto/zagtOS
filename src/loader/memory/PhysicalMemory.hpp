@@ -8,7 +8,7 @@ extern FrameStack CleanFrameStack[hos_v1::DMAZone::COUNT];
 extern PhysicalAddress SecondaryProcessorEntry;
 
 PhysicalAddress InitPhysicalFrameManagement();
-PhysicalAddress AllocatePhysicalFrame();
+PhysicalAddress AllocatePhysicalFrame(int zone = hos_v1::DMAZone::COUNT - 1);
 void FreePhysicalFrame(PhysicalAddress frame);
 void ClearFrame(void *frame);
 
