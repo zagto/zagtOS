@@ -21,6 +21,7 @@ private:
 
     bool getFrame(size_t frame) const;
     void setFrame(size_t frame);
+    void unsetFrame(size_t frame);
 
 public:
     void unmap(void *_address, size_t length, bool freeFrames);

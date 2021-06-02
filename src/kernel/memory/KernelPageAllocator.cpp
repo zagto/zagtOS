@@ -18,7 +18,7 @@ void Allocator::unmap(void *_address, size_t length, bool freeFrames) {
     size_t firstFrame = (address - KernelHeapRegion.start) / PAGE_SIZE;
     size_t numFrames = length / PAGE_SIZE;
 
-    size_t firstGroup = firstFrame / PLATFORM_BITS;
+    /*size_t firstGroup = firstFrame / PLATFORM_BITS;
     size_t lastGroup = (firstFrame + numFrames - 1) / PLATFORM_BITS;
     size_t firstBit = firstFrame % PLATFORM_BITS;
     size_t lastBit = (firstFrame + numFrames - 1) % PLATFORM_BITS;
@@ -37,8 +37,13 @@ void Allocator::unmap(void *_address, size_t length, bool freeFrames) {
     }
     mask &= (1ul << lastBit) - 1;
     assert((bitmap[lastGroup] & mask) == mask);
-    bitmap[lastGroup] &= ~mask;
+    bitmap[lastGroup] &= ~mask;*/
 
+    for (size_t i = 0; i < numFrames; i++) {
+        unsetFrame(firstFrame+i);
+    }
+
+    /* TODO: TLB Shootdown!!!!!!! */
     PagingContext::unmapRange(_address, numFrames, freeFrames);
 }
 
@@ -49,6 +54,11 @@ bool Allocator::getFrame(size_t frame) const {
 
 void Allocator::setFrame(size_t frame) {
     assert(getFrame(frame) == 0);
+    bitmap[frame / FRAMES_PER_GROUP] ^= (1ul << (frame % FRAMES_PER_GROUP));
+}
+
+void Allocator::unsetFrame(size_t frame) {
+    assert(getFrame(frame) == 1);
     bitmap[frame / FRAMES_PER_GROUP] ^= (1ul << (frame % FRAMES_PER_GROUP));
 }
 

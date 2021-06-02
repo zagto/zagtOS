@@ -81,6 +81,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     vector<uint8_t> dumpFile;
 
     size_t numProgramHeaders = mappedAreas.size() + 1; /* each mapped area + registers */
+    cout << "===== A=======" << endl;
 
     FileHeader fileHeader = {
         .ident = {
@@ -119,6 +120,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     for (size_t index = 0; index < numProgramHeaders - 1; index++) {
         size_t startAddress = mappedAreas[index]->region.start;
         size_t length = mappedAreas[index]->region.length;
+        cout << "===== B=======" << endl;
 
         ProgramHeader programHeader = {
             .type = 1,     /* LOAD */
@@ -151,6 +153,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     if (!status) {
         return status;
     }
+    cout << "===== C=======" << endl;
 
     for (size_t index = 0; index < numProgramHeaders - 1; index++) {
         size_t startAddress = mappedAreas[index]->region.start;
@@ -169,6 +172,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
             }
         }
     }
+    cout << "===== D=======" << endl;
 
     NoteHeader noteHeader;
     RegisterState &regs = crashedThread->registerState;
@@ -205,6 +209,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     prRegs[24] = 0x18|3;
     prRegs[25] = 0x18|3;
     prRegs[26] = 0x18|3;
+    cout << "===== E=======" << endl;
 
     status = writeDump(dumpFile, &noteHeader, 12);
     if (!status) {
@@ -218,8 +223,10 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     if (!status) {
         return status;
     }
+    cout << "===== F=======" << endl;
 
     assert(dumpFile.size() == dataOffset + 12 + 8 + sizeof(PRStatus));
+    cout << "===== G=======" << endl;
 
     vector<uint8_t> &logName = crashedThread->process->logName;
     cout.sendCoreDump(logName.size(), logName.data(), dumpFile.size(), dumpFile.data());
