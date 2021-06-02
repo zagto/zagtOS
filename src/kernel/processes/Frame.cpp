@@ -2,6 +2,7 @@
 #include <processes/ProcessAddressSpace.hpp>
 #include <processes/MemoryArea.hpp>
 #include <memory/TLBContext.hpp>
+#include <system/Processor.hpp>
 
 /* TODO: figure out what memory ordering is actually needed instead of __ATOMIC_SEQ_CST
  * everywhere */

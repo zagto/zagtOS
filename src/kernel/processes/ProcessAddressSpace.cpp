@@ -2,6 +2,7 @@
 #include <processes/MappedArea.hpp>
 #include <memory/TLBContext.hpp>
 #include <syscalls/ErrorCodes.hpp>
+#include <system/Processor.hpp>
 
 ProcessAddressSpace::ProcessAddressSpace(Status &status):
     pagingContext(status),
@@ -50,6 +51,10 @@ pair<size_t, bool> ProcessAddressSpace::findIndexFor(size_t userAddress) {
     static_assert (UserSpaceRegion.start == 0);
     if (!UserVirtualAddress::checkInRegion(userAddress)) {
         return {mappedAreas.size(), false};
+    }
+
+    if (mappedAreas.size() == 0) {
+        return {0, false};
     }
 
     UserVirtualAddress address{userAddress};
@@ -353,7 +358,7 @@ Status ProcessAddressSpace::handlePageFault(size_t address, Permissions required
             << requiredPermissions << " which is mapped with " << mappedArea->permissions << endl;
     }
 
-    return mappedArea->ensurePagedIn(address);
+    return mappedArea->ensurePagedIn(align(address, PAGE_SIZE, AlignDirection::DOWN));
 }
 
 Result<uint64_t> ProcessAddressSpace::getFutexID(size_t address) {
@@ -376,6 +381,7 @@ Status ProcessAddressSpace::copyFrom(uint8_t *destination,
     while (length > 0) {
         optional result = findMemoryArea(address, false);
         if (!result) {
+            cout << "copyFrom: could not find memory area for " << address << endl;
             return Status::BadUserSpace();
         }
 

@@ -1,6 +1,9 @@
 #include <common/common.hpp>
 #include <system/System.hpp>
 #include <processes/Port.hpp>
+#include <processes/Thread.hpp>
+#include <processes/Scheduler.hpp>
+#include <system/Processor.hpp>
 
 Port::Port(const shared_ptr<Process> process, Status &) :
     process{process} {}

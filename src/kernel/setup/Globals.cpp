@@ -2,6 +2,7 @@
 #include <memory/KernelPageAllocator.hpp>
 #include <memory/DLMallocGlue.hpp>
 #include <memory/CPUMask.hpp>
+#include <memory/TLBContext.hpp>
 
 Processor *Processors;
 TLBContext *TLBContexts;

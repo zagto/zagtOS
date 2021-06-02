@@ -1,4 +1,5 @@
 #include <syscalls/DeleteHandle.hpp>
+#include <system/Processor.hpp>
 
 Result<size_t> DeleteHandle(const shared_ptr<Process> &process,
                             size_t handle,

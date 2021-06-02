@@ -5,6 +5,8 @@
 #include <memory>
 #include <queue>
 
+class CommonProcessor;
+
 class Scheduler
 {
 private:
@@ -18,6 +20,9 @@ private:
         bool empty();
     };
 
+    /* TODO: more useful distribution of threads */
+    static size_t nextProcessorID;
+
     Thread *idleThread;
     Thread *_activeThread;
     List threads[Thread::NUM_PRIORITIES];
@@ -29,7 +34,7 @@ private:
 public:
     SpinLock lock;
 
-    Scheduler(Processor *processor, Status &status);
+    Scheduler(CommonProcessor *processor, Status &status);
     ~Scheduler();
     /* new threads should be added to any scheduler in the system for even load distribution */
     static void schedule(Thread *thread);

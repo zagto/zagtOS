@@ -7,8 +7,16 @@
 extern "C" void basicSwitchToTLBContext(size_t localID);
 
 TLBContext::TLBContext(TLBContextID id, Status &):
-    processorID{static_cast<uint16_t>(id / CurrentSystem.tlbContextsPerProcessor)},
-    localID{static_cast<uint16_t>(id % CurrentSystem.tlbContextsPerProcessor)} {}
+        processorID{static_cast<uint16_t>(id / CurrentSystem.tlbContextsPerProcessor)},
+        localID{static_cast<uint16_t>(id % CurrentSystem.tlbContextsPerProcessor)} {
+
+    size_t tcpp = CurrentSystem.tlbContextsPerProcessor;
+
+    nextLocalID = (localID + 1) % tcpp;
+    previousLocalID = (localID + tcpp - 1) % tcpp;
+
+    activePagingContext = &CurrentSystem.kernelOnlyPagingContext;
+}
 
 Processor &TLBContext::processor() const {
     return Processors[processorID];
@@ -48,7 +56,7 @@ void TLBContext::activate() {
 }
 
 void TLBContext::activatePagingContext(PagingContext *pagingContext) {
-    scoped_lock sl(processor().tlbContextsLock);
+    assert(processor().tlbContextsLock.isLocked());
 
     if (CurrentProcessor->activeTLBContextID != id()) {
         activate();

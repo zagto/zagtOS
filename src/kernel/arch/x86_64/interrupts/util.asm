@@ -14,7 +14,11 @@ loadInterruptDescriptorTable:
     ret
 
 loadTaskStateSegment:
-    mov ax, 0x28|3
+    mov ax, di
+    mov dx, 16 ; size of 1 TSS entry
+    mul dx
+    add ax, 0x28 ; first TSS entry
+    or ax, 3
     ltr ax
     ret
 

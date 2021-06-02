@@ -1,8 +1,9 @@
 #include <memory/InvalidateQueue.hpp>
 #include <system/System.hpp>
 #include <memory/TLBContext.hpp>
+#include <system/Processor.hpp>
 
-InvalidateQueue::InvalidateQueue(Processor &processor):
+InvalidateQueue::InvalidateQueue(CommonProcessor &processor):
     processor{processor} {}
 
 extern "C" void basicInvalidate(KernelVirtualAddress address);

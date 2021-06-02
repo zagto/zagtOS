@@ -5,38 +5,17 @@
 #include <interrupts/util.hpp>
 #include <processes/Process.hpp>
 #include <common/ModelSpecificRegister.hpp>
+#include <system/Processor.hpp>
 
 
 InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
 
 
-Interrupts::Interrupts(bool bootProcessor, Status &status) :
-        globalDescriptorTable(&taskStateSegment),
-        globalDescriptorTableRecord(&globalDescriptorTable),
-        interruptDescriptorTableRecord(&INTERRUPT_DESCRIPTOR_TABLE),
-        taskStateSegment(status),
-        legacyPIC(bootProcessor),
-        localAPIC(readModelSpecificRegister(MSR::IA32_APIC_BASE), status) {
-
-    if (!status) {
-        return;
-    }
-    globalDescriptorTableRecord.load();
-    interruptDescriptorTableRecord.load();
-    loadTaskStateSegment();
-    setupSyscalls();
-}
-
-
-__attribute__((noreturn)) void Interrupts::kernelHandler(RegisterState *registerState) {
+__attribute__((noreturn)) void kernelHandler(RegisterState *registerState) {
     switch (registerState->intNr) {
-    case PIC1_SPURIOUS_IRQ:
-    case PIC2_SPURIOUS_IRQ:
-        cout << "Spurious IRQ in kernel mode!" << endl;
-        legacyPIC.handleSpuriousIRQ(registerState->intNr);
-        returnFromInterrupt(registerState, {});
     default:
-        cout << "Unhandled Interrupt occured In Kernel Mode:" << *registerState << endl;
+        cout << "Unhandled x86 Exception occured In Kernel Mode:" << *registerState
+             << " on Processor " << CurrentProcessor->id << endl;
         Panic();
     }
 }
@@ -62,7 +41,7 @@ void dealWithException(Status status) {
     }
 }
 
-__attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerState) {
+__attribute__((noreturn)) void userHandler(RegisterState *registerState) {
     {
         Thread *activeThread = CurrentProcessor->scheduler.activeThread();
         assert(&activeThread->registerState == registerState);
@@ -70,12 +49,11 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
         switch (registerState->intNr) {
         case PIC1_SPURIOUS_IRQ:
         case PIC2_SPURIOUS_IRQ:
-            cout << "Spurious IRQ in user mode!" << endl;
-            legacyPIC.handleSpuriousIRQ(registerState->intNr);
             break;
         case 0xe:
         {
             static const size_t PAGING_ERROR_FLAGS{0b11111};
+            static const size_t PAGING_ERROR_INACTIVE{0b1};
             static const size_t PAGING_ERROR_WRITE{0b10};
             static const size_t PAGING_ERROR_USER{0b100};
             static const size_t PAGING_ERROR_INSTRUCTION_FETCH{0b10000};
@@ -87,8 +65,9 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
                 cout << "userHandler called for non user page fault" << endl;
                 Panic();
             }
+
             Permissions requiredPermissions;
-            switch (errorFlags) {
+            switch (errorFlags & ~PAGING_ERROR_INACTIVE) {
             case PAGING_ERROR_USER:
                 requiredPermissions = Permissions::READ;
                 break;
@@ -99,7 +78,7 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
                 requiredPermissions = Permissions::READ_EXECUTE;
                 break;
             default:
-                cout << "Unexpected Page Fault Flags: " << errorFlags << endl;
+                cout << "Unexpected Page Fault Flags: " << errorFlags << " fetching address " << cr2 << endl;
                 Panic();
             }
             Status status;
@@ -119,29 +98,16 @@ __attribute__((noreturn)) void Interrupts::userHandler(RegisterState *registerSt
             cout << "should not reach here" << endl;
             Panic();
         default:
-            cout << "Unexpected Interrupt " << registerState->intNr << endl;
+            cout << "x86 Exception " << registerState->intNr << endl;
             Panic();
         }
     }
 
-    returnToUserMode();
+    CurrentProcessor->returnToUserMode();
 }
 
 
-__attribute__((noreturn)) void Interrupts::returnToUserMode() {
-    Thread *thread = CurrentProcessor->scheduler.activeThread();
-    // Idle thread does not have a process
-    if (thread->process) {
-        thread->process->addressSpace.activate();
-    }
-    globalDescriptorTable.resetTaskStateSegment();
-    taskStateSegment.update(thread);
-    returnFromInterrupt(&thread->registerState, thread->threadLocalStorage());
-}
-
-
-__attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState) {
-    assert(this == &CurrentProcessor->interrupts);
+__attribute__((noreturn)) void handler(RegisterState *registerState) {
     assert(registerState->cs == (0x20|3) || registerState->cs == 0x8);
 
     if (registerState->cs == static_cast<uint64_t>(0x20|3)) {
@@ -152,16 +118,26 @@ __attribute__((noreturn)) void Interrupts::handler(RegisterState *registerState)
 }
 
 
+__attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState) {
+    if (registerState->intNr < 0x20) {
+        /* x86 Exception */
+        if (registerState->cs == static_cast<uint64_t>(0x20|3)) {
+            userHandler(registerState);
+        } else {
+            kernelHandler(registerState);
+        }
+    } else if (registerState->intNr == PIC1_SPURIOUS_IRQ
+               || registerState->intNr == PIC2_SPURIOUS_IRQ) {
+        cout << "Spurious IRQ!" << endl;
+        CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
+        CurrentProcessor->returnToUserMode();
+    } else {
+        cout << "Unknown Interrupt " << registerState->intNr << endl;
+        Panic();
+    }
+}
+
 /* called from interrupt service routine */
 extern "C" __attribute__((noreturn)) void handleInterrupt(RegisterState* registerState) {
-    CurrentProcessor->interrupts.handler(registerState);
+    _handleInterrupt(registerState);
 }
-
-void Interrupts::setupSyscalls() {
-    cout << "registering syscall entry " << reinterpret_cast<uint64_t>(&syscallEntry) << endl;
-    writeModelSpecificRegister(MSR::LSTAR, reinterpret_cast<uint64_t>(&syscallEntry));
-    writeModelSpecificRegister(MSR::STAR, (static_cast<uint64_t>(0x08) << 32) | (static_cast<uint64_t>(0x10) << 48));
-    writeModelSpecificRegister(MSR::SFMASK, RegisterState::FLAG_INTERRUPTS | RegisterState::FLAG_USER_IOPL);
-
-}
-

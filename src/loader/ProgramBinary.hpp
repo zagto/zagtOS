@@ -7,7 +7,7 @@ class ProgramBinary {
 private:
     uint8_t *data;
     Region _TLSRegion;
-    UserVirtualAddress _TLSBase;
+    UserVirtualAddress _TLSStart;
 
     size_t readSize(size_t offset) const;
     size_t sectionsArrayOffset() const;
@@ -29,7 +29,7 @@ public:
     size_t sectionSizeInMemory(size_t sectionOffset) const;
     size_t loadedUserFrames() const;
     size_t entryAddress() const;
-    UserVirtualAddress TLSBase() const;
+    UserVirtualAddress TLSStart() const;
     Region TLSRegion() const;
     UserVirtualAddress masterTLSBase() const;
     size_t numSections() const;

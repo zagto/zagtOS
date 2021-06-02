@@ -3,6 +3,7 @@
 #include <system/System.hpp>
 #include <vector>
 #include <processes/Process.hpp>
+#include <system/Processor.hpp>
 
 
 extern "C" void _init();
@@ -44,13 +45,17 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
 
     CurrentProcessor = &Processors[processorID];
     CurrentProcessor->hardwareID = hardwareID;
-    cout << "Processor" << processorID << "running." << endl;
+    cout << "Processor " << processorID << " running." << endl;
+    assert(CurrentProcessor->id == processorID);
 
     switchStack(CurrentProcessor->kernelStack, KernelEntry2, handOver);
 }
 
 __attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
     size_t processorID = CurrentProcessor->id;
+
+    CurrentSystem.setupCurrentProcessor();
+
     if (processorID == 0) {
         cout << "Setting up time..." << endl;
         CurrentSystem.time.initialize();
@@ -61,7 +66,6 @@ __attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
         cout << "Unlocking secondary processors..." << endl;
         __atomic_store_n(&processorsStarted, 1, __ATOMIC_SEQ_CST);
         __atomic_store_n(&secondaryProcessorsStartLock, 0, __ATOMIC_SEQ_CST);
-
 
         size_t startedCount = 0;
         while (startedCount != CurrentSystem.numProcessors) {
@@ -79,5 +83,5 @@ __attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
     {
         cout << "Processor " << processorID << " entering normal operation" << endl;
     }
-    CurrentProcessor->interrupts.returnToUserMode();
+    CurrentProcessor->returnToUserMode();
 }

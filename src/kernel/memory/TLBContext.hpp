@@ -9,7 +9,7 @@ class Frame;
 
 class TLBContext {
 private:
-    friend class Processor;
+    friend class CommonProcessor;
     friend class InvalidateQueue;
     /* Use 16-bit IDs internally for compact memory use. We create a vector of all possible TLB
      * contexts, and multi-core x86_64 Processors can have quite a lot */

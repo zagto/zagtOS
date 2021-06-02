@@ -1,5 +1,6 @@
 #include <memory/CPUMask.hpp>
 #include <system/System.hpp>
+#include <system/Processor.hpp>
 
 CPUMask::Iterator::Iterator(CPUMask &container, size_t position):
     container{container},

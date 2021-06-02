@@ -7,8 +7,9 @@
 class Process;
 class TLBContext;
 class PagingContext;
+class Processor;
 
-class Processor {
+class CommonProcessor {
 public:
     class KernelInterruptsLock {
     public:
@@ -49,13 +50,12 @@ public:
     InvalidateQueue invalidateQueue;
     const size_t id;
     Scheduler scheduler;
-    Interrupts interrupts;
 
     void sendInvalidateQueueProcessingIPI();
     TLBContextID activatePagingContext(PagingContext *pagingContext, TLBContextID tryFirst);
 
-    Processor(size_t id, Status &status);
-    ~Processor();
+    CommonProcessor(size_t id, Status &status);
+    ~CommonProcessor();
 };
 
 extern Processor *Processors;

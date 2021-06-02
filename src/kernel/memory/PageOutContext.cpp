@@ -1,4 +1,5 @@
 #include <memory/PageOutContext.hpp>
+#include <system/Processor.hpp>
 
 PageOutContext::PageOutContext():
     timestamp{0} {}

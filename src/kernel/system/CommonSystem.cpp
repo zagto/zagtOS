@@ -1,21 +1,16 @@
 #include <common/common.hpp>
 #include <system/System.hpp>
+#include <system/Processor.hpp>
 #include <memory/TLBContext.hpp>
 
-CommonSystem::CommonSystem(const hos_v1::System &handOver, Status &status):
+CommonSystem::CommonSystem(const hos_v1::System &handOver):
     nextFutexFrameID{handOver.nextFutexFrameID},
-    kernelOnlyPagingContext(handOver.handOverPagingContext, status),
-    futexManager(status),
+    kernelOnlyPagingContext(handOver.handOverPagingContext, handOverStatus),
+    futexManager(handOverStatus),
     numProcessors{handOver.numProcessors} {}
 
 Status CommonSystem::initProcessorsAndTLB() {
-    cout << "Initializing first processor..." << endl;
-    Result<Processor *> processors = make_raw_array_counter<Processor>(numProcessors);
-    if (!processors) {
-        return processors.status();
-    }
-    Processors = *processors;
-    cout << "Processor objects created at " << Processors << endl;
+    cout << "Initializing TLBContext and Processor structures..." << endl;
 
     Result<TLBContext *> tlbContexts
             = make_raw_array_counter<TLBContext>(numProcessors * tlbContextsPerProcessor);
@@ -25,6 +20,14 @@ Status CommonSystem::initProcessorsAndTLB() {
     TLBContexts = *tlbContexts;
 
     cout << "TLBContext objects created at " << TLBContexts << endl;
+
+    Result<Processor *> processors = make_raw_array_counter<Processor>(numProcessors);
+    if (!processors) {
+        return processors.status();
+    }
+    Processors = *processors;
+    cout << "Processor objects created at " << Processors << endl;
+
     return Status::OK();
 }
 

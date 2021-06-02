@@ -239,7 +239,7 @@ Status MemoryArea::_copyFrom(uint8_t *destination,
                              size_t accessLength,
                              scoped_lock<mutex> &scopedLock) {
     assert(offset < length);
-    assert(offset + accessLength < length);
+    assert(offset + accessLength <= length);
 
     size_t frameIndex = offset / PAGE_SIZE;
     size_t destPosition = 0;
@@ -279,7 +279,7 @@ Status MemoryArea::copyFrom(uint8_t *destination, size_t offset, size_t accessLe
 Status MemoryArea::copyTo(size_t offset, const uint8_t *source, size_t accessLength) {
     assert(allowesPermissions(Permissions::READ_WRITE));
     assert(offset < length);
-    assert(offset + accessLength < length);
+    assert(offset + accessLength <= length);
 
     scoped_lock sl(lock);
 
@@ -320,8 +320,8 @@ Status MemoryArea::copyFromOther(size_t destinationOffset,
     assert(allowesPermissions(Permissions::READ_WRITE));
     assert(sourceOffset < sourceArea.length);
     assert(destinationOffset < length);
-    assert(sourceOffset + accessLength < sourceArea.length);
-    assert(destinationOffset + accessLength < length);
+    assert(sourceOffset + accessLength <= sourceArea.length);
+    assert(destinationOffset + accessLength <= length);
 
     scoped_lock sl(lock);
 

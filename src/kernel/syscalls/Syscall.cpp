@@ -18,6 +18,8 @@
 #include <syscalls/IOPortWrite.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <system/System.hpp>
+#include <system/Processor.hpp>
+#include <interrupts/Interrupts.hpp> // dealWithException
 
 typedef Result<size_t> SyscallFunction(const shared_ptr<Process> &, size_t, size_t, size_t, size_t, size_t);
 
@@ -96,22 +98,23 @@ void Syscall(size_t syscallNr,
     const shared_ptr<Process> process = CurrentProcess();
 
     Status status = Status::OK();
-    if (syscallNr >= sizeof(syscallFunctions) || syscallFunctions[syscallNr] == nullptr) {
-        cout << "invalid syscall number: " << syscallNr << endl;
-        status = Status::BadUserSpace();
-    } else {
-        Result<size_t> result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
-        if (result) {
-            CurrentThread()->registerState.setSyscallResult(*result);
+    do {
+        if (syscallNr >= sizeof(syscallFunctions) || syscallFunctions[syscallNr] == nullptr) {
+            cout << "invalid syscall number: " << syscallNr << endl;
+            status = Status::BadUserSpace();
         } else {
-            status = result.status();
+            Result<size_t> result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
+            if (result) {
+                CurrentThread()->registerState.setSyscallResult(*result);
+            } else {
+                status = result.status();
+            }
         }
-    }
 
-    if (!status) {
-        cout << "Exception during syscall handling" << endl;
-        Panic();
-    }
+        if (!status) {
+            dealWithException(status);
+        }
+    } while(!status);
 
-    CurrentProcessor->interrupts.returnToUserMode();
+    CurrentProcessor->returnToUserMode();
 }

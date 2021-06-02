@@ -163,9 +163,9 @@ size_t ProgramBinary::entryAddress() const {
     return readSize(OBJECT_HEADER_SIZE + 1);
 }
 
-UserVirtualAddress ProgramBinary::TLSBase() const {
+UserVirtualAddress ProgramBinary::TLSStart() const {
     if (hasTLS()) {
-        return _TLSBase;
+        return _TLSStart;
     } else {
         return {};
     }
@@ -194,7 +194,7 @@ UserVirtualAddress ProgramBinary::runMessageAddress() const {
         bool conflicts = false;
 
         for (size_t compareIndex = 0; compareIndex < numSections(); compareIndex++) {
-            if (sectionRegion(sectionOffset(insertIndex)).overlaps(testRegion)) {
+            if (sectionRegion(sectionOffset(compareIndex)).overlaps(testRegion)) {
                 conflicts = true;
             }
         }
@@ -271,11 +271,9 @@ void ProgramBinary::load(PagingContext pagingContext,
             }
         }
     }
-    cout << "frameIndex normal " << frameIndex << endl;
 
     /* if this is a user-space program, load run message */
     if (pagingContext == PagingContext::PROCESS) {
-        /* put run message directly below stack */
         PhysicalAddress physicalAddress = AllocatePhysicalFrame();
         struct UserMessageInfo {
             uint8_t type[16];
@@ -294,6 +292,7 @@ void ProgramBinary::load(PagingContext pagingContext,
             .numHandles = 0,
             .allocatedExternally = true
         };
+        cout << "loading runMessage to " << runMessageAddress().value() << endl;
 
         frames[frameIndex] = hos_v1::Frame{
             .address = physicalAddress.value(),
@@ -302,16 +301,18 @@ void ProgramBinary::load(PagingContext pagingContext,
         };
         frameIndex++;
 
-        cout << "frameIndex normal+msg " << frameIndex << endl;
-
         if (hasTLS()) {
             cout << "loading TLS..." << endl;
             size_t offset = TLSOffset();
             bool foundTLSRegion{false};
 
             _TLSRegion = sectionRegion(offset);
-            for (size_t startAfterIndex = 0; startAfterIndex < numSections(); startAfterIndex++) {
-                _TLSRegion.start = sectionRegion(sectionOffset(startAfterIndex)).end();
+            for (size_t startAfterIndex = 0; startAfterIndex < numSections() + 1; startAfterIndex++) {
+                if (startAfterIndex < numSections()) {
+                    _TLSRegion.start = sectionRegion(sectionOffset(startAfterIndex)).end();
+                } else {
+                    _TLSRegion.start = runMessageAddress().value() + PAGE_SIZE;
+                }
                 bool conflicts{false};
 
                 for (size_t checkConflictIndex = 0;
@@ -360,9 +361,8 @@ void ProgramBinary::load(PagingContext pagingContext,
                 };
                 frameIndex++;
             }
-            cout << "frameIndex normal+msg+tls " << frameIndex << endl;
 
-            _TLSBase = _TLSRegion.start + sectionAddress(offset) % PAGE_SIZE;
+            _TLSStart = _TLSRegion.start + sectionAddress(offset) % PAGE_SIZE;
         }
     }
 }

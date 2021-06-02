@@ -29,8 +29,8 @@ void Allocator::unmap(void *_address, size_t length, bool freeFrames) {
         bitmap[firstGroup] &= ~mask;
 
         for (size_t group = firstGroup + 1; group < lastGroup; group++) {
-            assert(bitmap[firstGroup] == ALL_BITS);
-            bitmap[firstGroup] = 0;
+            assert(bitmap[group] == ALL_BITS);
+            bitmap[group] = 0;
         }
 
         mask = ALL_BITS;
@@ -74,10 +74,8 @@ Result <void *> Allocator::map(size_t length, bool findNewFrames, const Physical
         } else {
             numFree++;
         }
-        cout << "startPosition " << startPosition << "position " << position << " numfree " << numFree << endl;
 
         if (numFree == numFrames) {
-                                      /* TODO: support region across startPosition ↓ */
             KernelVirtualAddress startAddress = KernelHeapRegion.start
                     + (position - (numFrames - 1)) * PAGE_SIZE;
 
@@ -94,7 +92,6 @@ Result <void *> Allocator::map(size_t length, bool findNewFrames, const Physical
                 } else {
                     physicalAddress = frames[frameIndex];
                 }
-                cout << "frameIndex " << frameIndex << " vaddress " << (startAddress.value() + frameIndex * PAGE_SIZE) << endl;
                 PagingContext::map(startAddress + frameIndex * PAGE_SIZE,
                                    physicalAddress,
                                    Permissions::READ_WRITE,
@@ -102,7 +99,6 @@ Result <void *> Allocator::map(size_t length, bool findNewFrames, const Physical
             }
 
             do {
-                cout << "setting " << position << " as in use" << endl;
                 setFrame(position);
                 numFrames--;
                 position--;

@@ -6,37 +6,35 @@
 
 extern size_t KERNEL_STACK_SIZE;
 
-Processor::KernelInterruptsLock Processor::kernelInterruptsLock;
+CommonProcessor::KernelInterruptsLock CommonProcessor::kernelInterruptsLock;
 
-void Processor::KernelInterruptsLock::lock() {
+void CommonProcessor::KernelInterruptsLock::lock() {
     basicDisableInterrupts();
     assert(CurrentProcessor->interruptsLockLocked == false);
     CurrentProcessor->interruptsLockLocked = true;
 }
 
-void Processor::KernelInterruptsLock::unlock() {
+void CommonProcessor::KernelInterruptsLock::unlock() {
     assert(CurrentProcessor->interruptsLockLocked == true);
     CurrentProcessor->interruptsLockLocked = false;
     basicEnableInterrupts();
 }
 
-bool Processor::KernelInterruptsLock::isLocked() const {
+bool CommonProcessor::KernelInterruptsLock::isLocked() const {
     return CurrentProcessor->interruptsLockLocked;
 }
 
-Processor::Processor(size_t id, Status &status) :
+CommonProcessor::CommonProcessor(size_t id, Status &status) :
         logBufferIndex{0},
         activeTLBContextID{CurrentSystem.tlbContextsPerProcessor * id},
         invalidateQueue{*this},
         id{id},
-        scheduler(this, status),
-        interrupts(id, status) {
-
+        scheduler(this, status) {
     if (!status) {
         return;
     }
 
-    TLBContexts[activeTLBContextID].activatePagingContext(&CurrentSystem.kernelOnlyPagingContext);
+    cout << "initializing Processor " << id << " at " << this << endl;
 
     Result<KernelVirtualAddress> address = DLMallocGlue.allocate(KERNEL_STACK_SIZE, 16);
     if (address) {
@@ -48,17 +46,18 @@ Processor::Processor(size_t id, Status &status) :
     }
 }
 
-Processor::~Processor() {
+CommonProcessor::~CommonProcessor() {
     // letting processors disappear is currently not supported
     Panic();
 }
 
-void Processor::sendInvalidateQueueProcessingIPI() {
+void CommonProcessor::sendInvalidateQueueProcessingIPI() {
     cout << "TODO: IPI sending" << endl;
     Panic();
 }
 
-TLBContextID Processor::activatePagingContext(PagingContext *pagingContext, TLBContextID tryFirst) {
+TLBContextID CommonProcessor::activatePagingContext(PagingContext *pagingContext,
+                                                    TLBContextID tryFirst) {
     assert(interruptsLockLocked);
     scoped_lock sl(tlbContextsLock);
 
@@ -73,6 +72,6 @@ TLBContextID Processor::activatePagingContext(PagingContext *pagingContext, TLBC
 
     assert(&TLBContexts[tlbID].processor() == CurrentProcessor);
 
-    TLBContexts[tlbID].activate();
+    TLBContexts[tlbID].activatePagingContext(pagingContext);
     return tlbID;
 }

@@ -1,7 +1,48 @@
 #include <processes/Thread.hpp>
 #include <processes/Process.hpp>
 #include <system/System.hpp>
+#include <system/Processor.hpp>
 
+
+Thread::Thread(shared_ptr<Process> process,
+       VirtualAddress entry,
+       Priority priority,
+       UserVirtualAddress stackPointer,
+       UserVirtualAddress runMessageAddress,
+       UserVirtualAddress tlsBase,
+       UserVirtualAddress masterTLSBase,
+       size_t tlsSize,
+       Status &) :
+    _ownPriority{priority},
+    _currentPriority{priority},
+    _state {State::Transition()},
+    registerState(entry, stackPointer, runMessageAddress, tlsBase, masterTLSBase, tlsSize),
+    process{process},
+    tlsBase{tlsBase} {
+
+    cout << "new Thread cs: " << registerState.cs << endl;
+
+}
+
+/* shorter constructor for non-first threads, which don't want to know info about master TLS */
+Thread::Thread(shared_ptr<Process> process,
+       VirtualAddress entry,
+       Priority priority,
+       UserVirtualAddress stackPointer,
+       UserVirtualAddress tlsBase,
+       Status &status) :
+    Thread(process, entry, priority, stackPointer, stackPointer, tlsBase, 0, 0, status) {}
+
+Thread::Thread(const hos_v1::Thread &handOver, Status &) :
+    _ownPriority{handOver.ownPriority},
+    _currentPriority{handOver.currentPriority},
+    _state{State::Transition()},
+    registerState{handOver.registerState},
+    tlsBase{handOver.TLSBase} {
+
+    cout << "thread handover cs: " << registerState.cs << endl;
+
+}
 
 Thread::~Thread() {
     /* Thread should either be destructed while active or directly on creation failure */

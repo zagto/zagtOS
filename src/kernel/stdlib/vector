@@ -66,7 +66,7 @@ protected:
         return Status::OK();
     }
     Status adjustAllocatedSize(size_t newNumElements) {
-        Status status;
+        Status status = Status::OK();
         if (newNumElements >= numAllocated) {
             status = changeAllocatedSize((newNumElements + 1) * 3 / 2);
         }

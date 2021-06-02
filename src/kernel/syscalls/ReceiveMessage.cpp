@@ -1,5 +1,6 @@
 #include <syscalls/ReceiveMessage.hpp>
 #include <system/System.hpp>
+#include <system/Processor.hpp>
 
 Result<size_t> ReceiveMessage(const shared_ptr<Process> &process,
                    size_t portHandle,

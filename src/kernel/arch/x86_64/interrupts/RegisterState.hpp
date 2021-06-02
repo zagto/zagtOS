@@ -7,7 +7,7 @@ class Processor;
 
 /* Although in a separate file, the register state is part of the kernel handover interface and
  * chaging it means introducing a new inteface */
-class alignas(16) RegisterState
+class RegisterState
 {
 public:
     static const uint64_t FLAG_USER_IOPL{(3 << 12)};

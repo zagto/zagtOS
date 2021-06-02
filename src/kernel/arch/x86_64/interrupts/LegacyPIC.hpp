@@ -1,6 +1,4 @@
-#ifndef LEGACYPIC_HPP
-#define LEGACYPIC_HPP
-
+#pragma once
 #include <common/common.hpp>
 
 /*
@@ -11,12 +9,7 @@
  */
 class LegacyPIC
 {
-private:
-    void initialize();
-
 public:
-    LegacyPIC(bool bootProcessor);
+    LegacyPIC();
     void handleSpuriousIRQ(size_t interruptNumber);
 };
-
-#endif // LEGACYPIC_HPP

@@ -5,6 +5,7 @@
 
 class Frame;
 class Status;
+class CommonProcessor;
 
 class InvalidateQueue {
 private:
@@ -15,7 +16,7 @@ private:
         uint64_t timestamp;
     };
 
-    Processor &processor;
+    CommonProcessor &processor;
     SpinLock lock;
     queue<Item> items;
     uint64_t processedUntilTimestamp{0};
@@ -23,7 +24,7 @@ private:
     void _localProcessing(optional<Item> extraItem);
 
 public:
-    InvalidateQueue(Processor &processor);
+    InvalidateQueue(CommonProcessor &processor);
 
     uint64_t add(TLBContextID tlbContextID,
                  Frame *frame,

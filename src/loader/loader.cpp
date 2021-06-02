@@ -111,7 +111,7 @@ void LoaderMain() {
 
 
     cout << "Starting secondary Processors..." << endl;
-    startSecondaryProcessors();
+    size_t numProcessors = startSecondaryProcessors();
 
     cout << "B ------ Handover Master Page Table is at: "
          << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
@@ -137,9 +137,9 @@ void LoaderMain() {
     RegisterState regState(process.entryAddress(),
                            UserSpaceRegion.end() - 1, /* ensure valid UserVirtualAddress */
                            process.runMessageAddress(),
-                           process.TLSBase(),
+                           process.TLSStart() + hos_v1::THREAD_STRUCT_AREA_SIZE,
                            process.masterTLSBase(),
-                           process.TLSRegion().length - process.TLSBase().value() % PAGE_SIZE);
+                           process.TLSRegion().length - process.TLSStart().value() % PAGE_SIZE);
 
     *handOverSystem = hos_v1::System{
         .version = 1,
@@ -159,7 +159,7 @@ void LoaderMain() {
         .memoryAreas = handOverMemoryAreas,
         .numFrames = numFrames,
         .frames = handOverFrames,
-        .numProcessors = 1,
+        .numProcessors = numProcessors,
         .numFutexes = 0,
         .futexes = nullptr,
         .nextFutexFrameID = PAGE_SIZE,
@@ -186,7 +186,7 @@ void LoaderMain() {
     };
     *handOverThread = hos_v1::Thread{
         .registerState = regState,
-        .TLSBase = process.TLSBase(),
+        .TLSBase = process.TLSStart() + hos_v1::THREAD_STRUCT_AREA_SIZE,
         .currentPriority = hos_v1::ThreadPriority::BACKGROUND,
         .ownPriority = hos_v1::ThreadPriority::BACKGROUND,
     };
@@ -253,6 +253,10 @@ void LoaderMain() {
     }
     assert(frameIndex == numFrames);
     isort(handOverMappedAreas, numMappings);
+
+    for (size_t index = 0; index < numFrames; index++) {
+        handOverFramesIDs[index] = index;
+    }
     memcpy(handOverString, "SystemEnvironment", 17);
 
     cout << "Converting frame stacks..." << endl;

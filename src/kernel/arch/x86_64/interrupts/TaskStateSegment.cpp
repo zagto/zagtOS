@@ -2,7 +2,7 @@
 #include <interrupts/util.hpp>
 #include <interrupts/TaskStateSegment.hpp>
 #include <processes/Thread.hpp>
-
+#include <system/Processor.hpp>
 
 TaskStateSegment::TaskStateSegment(Status &status) {
     if (!status) {
@@ -27,7 +27,7 @@ TaskStateSegment::TaskStateSegment(Status &status) {
 
 void TaskStateSegment::update(Thread *thread) {
     rsp = reinterpret_cast<size_t>(&thread->registerState) + sizeof(RegisterState);
-    loadTaskStateSegment();
+    loadTaskStateSegment(thread->currentProcessor()->id);
 }
 
 TaskStateSegment::~TaskStateSegment() {

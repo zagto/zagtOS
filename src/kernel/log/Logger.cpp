@@ -2,6 +2,7 @@
 #include <log/SerialBackend.hpp>
 #include <log/FramebufferBackend.hpp>
 #include <system/System.hpp>
+#include <system/Processor.hpp>
 
 
 #ifdef ZAGTOS_LOADER

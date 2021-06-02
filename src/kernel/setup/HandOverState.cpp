@@ -7,6 +7,8 @@
 #include <processes/MappedArea.hpp>
 #include <processes/Scheduler.hpp>
 
+#include <system/Processor.hpp>
+
 void hos_v1::System::decodeProcesses() {
     /* TODO: deal with OOM */
     Status status = Status::OK();
@@ -50,5 +52,8 @@ void hos_v1::System::decodeProcesses() {
 
     for (const shared_ptr<::Thread> &thread: allThreads) {
         Scheduler::schedule(thread.get());
+
+        cout << "1 -- On decode User cs of thread " << thread.get() <<" is " << thread->registerState.cs << endl;
     }
+
 }

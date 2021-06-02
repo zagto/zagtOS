@@ -6,6 +6,7 @@
 #include <processes/FutexManager.hpp>
 #include <system/System.hpp>
 #include <syscalls/ErrorCodes.hpp>
+#include <system/Processor.hpp>
 
 
 static constexpr uint32_t FUTEX_WAIT = 0,
@@ -27,6 +28,8 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
                      size_t) {
     Thread *thread = CurrentProcessor->scheduler.activeThread();
 
+    cout << "Futex(" << address << ", " << operation <<", "<< timeoutOrValue2 << ", " << passedValue << ")" << endl;
+
     bool isPrivate = operation & FUTEX_PRIVATE;
     operation = operation & ~FUTEX_PRIVATE;
     FutexManager &manager = isPrivate ? CurrentSystem.futexManager : thread->process->futexManager;
@@ -41,7 +44,7 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
             UserSpaceObject<timespec, USOOperation::READ> timeoutUSO(timeoutOrValue2, status);
             if (!status) {
                 if (status == Status::BadUserSpace()) {
-                    cout << "Futex: invalid pointer to timeout" << endl;
+                    cout << "Futex: invalid pointer to timeout: " << timeoutOrValue2 << endl;
                 }
                 return status;
             }

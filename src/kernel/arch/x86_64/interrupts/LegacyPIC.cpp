@@ -16,7 +16,7 @@ static const uint8_t ICW4_8086 = 0x01;
  * PIC initialization. based on:
  * https://wiki.osdev.org/PIC
  */
-void LegacyPIC::initialize() {
+LegacyPIC::LegacyPIC() {
     OutB(MASTER_PIC_COMMAND, ICW1_ICW4 | ICW1_INIT);
     waitIO();
     OutB(SLAVE_PIC_COMMAND, ICW1_ICW4 | ICW1_INIT);
@@ -49,17 +49,5 @@ void LegacyPIC::handleSpuriousIRQ(size_t interruptNumber) {
     /* 0x21 = spurious irq form slave -> EOI to master */
     if (interruptNumber == 0x21) {
         OutB(MASTER_PIC_COMMAND, 0x20); /* 0x20 = EOI */
-    }
-}
-
-
-/*
- * There is only one PIC in the system that is attached to the boot processor. It needs to be
- * disabled. Do nothing on secondary processors as they don't have a PIC
- */
-LegacyPIC::LegacyPIC(bool bootProcessor)
-{
-    if (bootProcessor) {
-        initialize();
     }
 }

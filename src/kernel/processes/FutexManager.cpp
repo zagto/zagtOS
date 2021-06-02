@@ -28,6 +28,7 @@ struct Futex {
             Thread *thread = threads.top();
             threads.pop();
 
+            scoped_lock sl(Processor::kernelInterruptsLock);
             Status crashStatus = thread->process->crash("Waiting on futex in memory region that"
                                                         " no longer exists",
                                                         thread);

@@ -5,6 +5,8 @@
 #include <processes/MappedArea.hpp>
 #include <processes/Port.hpp>
 #include <processes/Message.hpp>
+#include <processes/Scheduler.hpp>
+#include <system/Processor.hpp>
 
 
 Process::Process(const hos_v1::Process &handOver,
@@ -12,7 +14,7 @@ Process::Process(const hos_v1::Process &handOver,
         const vector<shared_ptr<Port>> &allPorts,
         const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
         Status &status) :
-    addressSpace(status),
+    addressSpace(handOver, allMemoryAreas, status),
     handleManager(handOver, allThreads, allPorts, allMemoryAreas, status),
     futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads, status)
 {
@@ -70,14 +72,14 @@ Process::Process(Process &sourceProcess,
         masterTLSBase = TLSSection->address;
     }
 
-    Result tlsAddress = addressSpace.addAnonymous(TLSSize + THREAD_STRUCT_AREA_SIZE,
+    Result tlsAddress = addressSpace.addAnonymous(TLSSize + hos_v1::THREAD_STRUCT_AREA_SIZE,
                                                  Permissions::READ_WRITE);
     if (!tlsAddress) {
         status = tlsAddress.status();
         return;
     }
 
-    UserVirtualAddress tlsBase(tlsAddress + THREAD_STRUCT_AREA_SIZE);
+    UserVirtualAddress tlsBase(tlsAddress + hos_v1::THREAD_STRUCT_AREA_SIZE);
     if (TLSSection) {
         status = addressSpace.copyFromOhter(tlsAddress,
                                             sourceProcess.addressSpace,
@@ -137,7 +139,7 @@ bool Process::canAccessPhysicalMemory() const {
 }
 
 Status Process::crash(const char *message, Thread *crashedThread) {
-    scoped_lock sl(Processor::kernelInterruptsLock);
+    assert(Processor::kernelInterruptsLock.isLocked());
     cout << "Terminating process for reason: " << message << endl;
     if (crashedThread != nullptr) {
         Status status = addressSpace.coreDump(crashedThread);

@@ -2,7 +2,6 @@
 
 #include <common/common.hpp>
 #include <vector>
-#include <system/Processor.hpp>
 #include <memory/FrameManagement.hpp>
 #include <setup/HandOverState.hpp>
 #include <common/globalregisters.hpp>
@@ -17,6 +16,10 @@ private:
     FutexFrameID nextFutexFrameID;
     uint64_t nextTLBTimestamp{1};
 
+protected:
+    /* only used during initial handover state deserialization */
+    Status handOverStatus{Status::OK()};
+
 public:
     Time time;
     /* Memory and the PaginContext must be initialized before dynamic memory can be used */
@@ -27,7 +30,7 @@ public:
     /* initialized by arch-specific constructor */
     size_t tlbContextsPerProcessor{0};
 
-    CommonSystem(const hos_v1::System &handOver, Status &status);
+    CommonSystem(const hos_v1::System &handOver);
 
     Status initProcessorsAndTLB();
     FutexFrameID getNewFutexFrameID();

@@ -16,10 +16,12 @@ RegisterState::RegisterState(VirtualAddress entry,
     while (rsp % 16 != 8) {
         rsp--;
     }
-    rsi = tlsBase.value();
     rdi = runMessageAddress.value();
+    cout << "creating RegisterState with tlsBase " << tlsBase.value() << endl;
+    rsi = tlsBase.value();
     rdx = masterTLSBase.value();
     rcx = tlsSize;
+    r8 = 1;
 
     if (entry.isKernel()) {
         cs = 0x08;

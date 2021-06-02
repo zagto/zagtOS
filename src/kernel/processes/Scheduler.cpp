@@ -2,6 +2,7 @@
 #include <system/System.hpp>
 #include <interrupts/util.hpp>
 #include <processes/Process.hpp>
+#include <system/Processor.hpp>
 
 
 void Scheduler::List::append(Thread *thread) {
@@ -56,7 +57,7 @@ bool Scheduler::List::empty() {
     return head == nullptr;
 }
 
-Scheduler::Scheduler(Processor *_processor, Status &status)
+Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
 {
     if (!status) {
         return;
@@ -72,16 +73,24 @@ Scheduler::Scheduler(Processor *_processor, Status &status)
     }
     idleThread = *result;
 
-    processor = _processor;
+    cout << "created idle thread at " << idleThread << " to scheduler " << _processor->id << endl;
+
+
+    processor = static_cast<Processor *>(_processor);
     _activeThread = idleThread;
     _activeThread->currentProcessor(processor);
     _activeThread->setState(Thread::State::Active(processor));
+
+    cout << "activeThread is now " << _activeThread << endl;
+
 }
 
 void Scheduler::add(Thread *thread) {
     // TODO: ensure current processor
     assert(thread->currentProcessor() == nullptr);
     scoped_lock sl(lock);
+
+    cout << "add thread " << thread << " to scheduler " << processor->id << endl;
 
     thread->currentProcessor(processor);
 
@@ -95,11 +104,15 @@ void Scheduler::add(Thread *thread) {
         threads[thread->currentPriority()].append(thread);
         thread->setState(Thread::State::Running(processor));
     }
+    cout << "activeThread is now " << _activeThread << endl;
 }
+
+size_t Scheduler::nextProcessorID{0};
 
 void Scheduler::schedule(Thread *thread) {
     // TODO
-    Processors[0].scheduler.add(thread);
+    size_t processorID = __atomic_fetch_add(&nextProcessorID, 1, __ATOMIC_RELAXED) % CurrentSystem.numProcessors;
+    Processors[processorID].scheduler.add(thread);
 }
 
 void Scheduler::remove(Thread *thread) {

@@ -1,6 +1,6 @@
 #include <common/common.hpp>
 #include <interrupts/InterruptDescriptorTable.hpp>
-#include <interrupts/Interrupts.hpp>
+#include <interrupts/util.hpp>
 
 
 InterruptDescriptorTable::InterruptDescriptorTable() {
@@ -13,6 +13,13 @@ InterruptDescriptorTable::InterruptDescriptorTable() {
             /* MC */
             ISTEntry = 2;
         }
-        entries[index].init(&InterruptServiceRoutines[index], ISTEntry);
+        idt[index].init(&InterruptServiceRoutines[index], ISTEntry);
     }
+
+    idtr.address = idt;
+    idtr.size = sizeof(idt) - 1;
+}
+
+void InterruptDescriptorTable::load() {
+    loadInterruptDescriptorTable(&idtr);
 }

@@ -1,15 +1,20 @@
-#ifndef INTERRUPTDESCRIPTORTABLE_HPP
-#define INTERRUPTDESCRIPTORTABLE_HPP
+#pragma once
 
 #include <interrupts/InterruptDescriptorTableEntry.hpp>
 #include <interrupts/ContextSwitch.hpp>
 
-class __attribute__((__packed__)) InterruptDescriptorTable {
+class InterruptDescriptorTable {
 private:
-    InterruptDescriptorTableEntry entries[NUM_INTERRUPT_SERIVICE_ROUTINES];
+    struct __attribute__((__packed__)) IDTRStruct {
+        uint16_t size;
+        InterruptDescriptorTableEntry *address;
+    };
+
+    InterruptDescriptorTableEntry idt[NUM_INTERRUPT_SERIVICE_ROUTINES];
+    IDTRStruct idtr;
 
 public:
     InterruptDescriptorTable();
-};
 
-#endif // INTERRUPTDESCRIPTORTABLE_HPP
+    void load();
+};

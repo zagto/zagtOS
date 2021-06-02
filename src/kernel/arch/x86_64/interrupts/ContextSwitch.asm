@@ -142,7 +142,7 @@ commonISR:
     cmp qword [rsp+(20*8)], 0x08
     je alreadyOnKernelStack
     cmp qword [rsp+(20*8)], 0x20|3
-    jne loop1 ; should never happen
+    jne wrongCsOnEntry ; should never happen
 
     ; currentProcessor is the field at the beginning of registerState
     ; this pointer is put in r15 (as the CurrentProcessor variable)
@@ -155,8 +155,13 @@ commonISR:
 alreadyOnKernelStack:
     call handleInterrupt
     ; handler should never return here and call returnFromInterrupt instead
-loop1:
-    jmp loop1
+
+handleInterruptReturned:
+    jmp handleInterruptReturned
+wrongCsOnEntry:
+    jmp wrongCsOnEntry
+wrongCsOnReturn:
+    jmp wrongCsOnReturn
 
 
 returnFromInterrupt:
@@ -168,7 +173,7 @@ returnFromInterrupt:
     cmp qword [rsp+(20*8)], 0x08
     je inKernelReturn
     cmp qword [rsp+(20*8)], 0x20|3
-    jne loop1 ; should never happen
+    jne wrongCsOnReturn ; should never happen
 
     mov ax, 0x18|3
     mov ds, ax
@@ -266,12 +271,6 @@ restoreVectorRegisters:
     xrstor [rsp]
     add rsp, 1024
 
-
-section .data
-KERNEL_STACK_SIZE:
-    dq KERNEL_STACK_SIZE_DEF
-
-
 basicDisableInterrupts:
     cli
     ret
@@ -279,3 +278,10 @@ basicDisableInterrupts:
 basicEnableInterrupts:
     sti
     ret
+
+
+section .data
+KERNEL_STACK_SIZE:
+    dq KERNEL_STACK_SIZE_DEF
+
+

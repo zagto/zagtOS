@@ -11,8 +11,6 @@ class Process;
 class Port;
 class FutexManager;
 
-static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
-
 
 class Thread {
 public:
@@ -88,8 +86,8 @@ protected:
     Thread *next{nullptr};
 
 public:
-    RegisterState registerState;
-    VectorRegisterState vectorState;
+    alignas(16) RegisterState registerState;
+    //VectorRegisterState vectorState;
     shared_ptr<Process> process;
     UserVirtualAddress tlsBase;
 
@@ -101,36 +99,24 @@ public:
            UserVirtualAddress tlsBase,
            UserVirtualAddress masterTLSBase,
            size_t tlsSize,
-           Status &) :
-        _ownPriority{priority},
-        _currentPriority{priority},
-        _state {State::Transition()},
-        registerState(entry, stackPointer, runMessageAddress, tlsBase, masterTLSBase, tlsSize),
-        process{process},
-        tlsBase{tlsBase} {}
+           Status &);
     /* shorter constructor for non-first threads, which don't want to know info about master TLS */
     Thread(shared_ptr<Process> process,
            VirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,
            UserVirtualAddress tlsBase,
-           Status &status) :
-        Thread(process, entry, priority, stackPointer, stackPointer, tlsBase, 0, 0, status) {}
+           Status &status);
     /* constructor used during kernel handover. process and handle fields need to be inserted
      * later. */
-    Thread(const hos_v1::Thread &handOver, Status &) :
-        _ownPriority{handOver.ownPriority},
-        _currentPriority{handOver.currentPriority},
-        _state{State::Transition()},
-        registerState{handOver.registerState},
-        tlsBase{handOver.TLSBase} {}
+    Thread(const hos_v1::Thread &handOver, Status &);
 
     ~Thread();
 
     UserVirtualAddress threadLocalStorage() {
         // having a TLS is optional, otherwise tlsBase is null
         if (tlsBase.value()) {
-            return UserVirtualAddress(tlsBase.value() - THREAD_STRUCT_AREA_SIZE);
+            return UserVirtualAddress(tlsBase.value() - hos_v1::THREAD_STRUCT_AREA_SIZE);
         } else {
             return {};
         }

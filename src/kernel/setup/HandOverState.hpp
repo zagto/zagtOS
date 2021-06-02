@@ -5,6 +5,8 @@
 
 namespace hos_v1 {
 
+static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
+
 enum class MappingSource : uint32_t {
     ANONYMOUS = 1, PHYSICAL = 2, DMA = 3,
 };
