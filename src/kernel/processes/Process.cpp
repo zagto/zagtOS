@@ -83,7 +83,7 @@ Process::Process(Process &sourceProcess,
         return;
     }
 
-    UserVirtualAddress tlsBase(tlsAddress + hos_v1::THREAD_STRUCT_AREA_SIZE);
+    UserVirtualAddress tlsBase = *tlsAddress + hos_v1::THREAD_STRUCT_AREA_SIZE;
     if (TLSSection) {
         status = addressSpace.copyFromOhter(tlsAddress,
                                             sourceProcess.addressSpace,
