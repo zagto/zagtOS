@@ -16,11 +16,3 @@ void operator delete(void *object, size_t) {
 void operator delete(void *object, size_t, std::align_val_t) {
     operator delete(object);
 }
-
-void operator delete[](void *object) {
-    operator delete(object);
-}
-
-void operator delete[](void *object, size_t) {
-    operator delete(object);
-}

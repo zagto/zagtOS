@@ -1,6 +1,7 @@
 #include <processes/MemoryArea.hpp>
 #include <system/System.hpp>
 #include <memory/FrameManagement.hpp>
+#include <memory>
 
 /* Anonymous */
 MemoryArea::MemoryArea(bool shared, Permissions permissions, size_t length, Status &status) :

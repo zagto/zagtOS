@@ -4,7 +4,9 @@
 #include <memory/FrameManagement.hpp>
 #include <log/Logger.hpp>
 #include <lib/Status.hpp>
+#include <memory/DLMallocGlue.hpp>
 #include <memory>
+
 
 template<typename ElementType> class vector {
 protected:
@@ -48,23 +50,25 @@ protected:
             return Status::OK();
         }
 
-        Result<ElementType *> newData = make_raw_array<ElementType>(newNumAllocated);
+        Result newData = DLMallocGlue.allocate(newNumAllocated * sizeof(ElementType),
+                                               sizeof(ElementType));
         if (!newData) {
             return newData.status();
         }
 
-        size_t elementsToMove = min(numAllocated, newNumAllocated);
-        if (_data != nullptr) {
-            for (size_t index = 0; index < elementsToMove; index++) {
-                (*newData)[index] = move(_data[index]);
-            }
-            delete[] _data;
+        for (size_t index = 0; index < numElements; index++) {
+            new(&newData->asPointer<ElementType>()[index]) ElementType(move(_data[index]));
+            _data[index].~ElementType();
         }
-        _data = *newData;
+        if (_data != nullptr) {
+            DLMallocGlue.free(_data);
+        }
+        _data = newData->asPointer<ElementType>();
         numAllocated = newNumAllocated;
 
         return Status::OK();
     }
+
     Status adjustAllocatedSize(size_t newNumElements) {
         Status status = Status::OK();
         if (newNumElements >= numAllocated) {
@@ -82,26 +86,42 @@ protected:
 
 public:
     vector() {}
-    vector(size_t numElements, Status &status):
-           _data{nullptr},
-           numElements{numElements},
-           numAllocated{numElements}  {
-
-        Result<ElementType *> result = make_raw_array<ElementType>(numElements);
-        if (result) {
-            _data = *result;
-        } else {
+    vector(size_t numElements, Status &status) {
+        if (!status) {
+            return;
+        }
+        Result result = DLMallocGlue.allocate(numElements * sizeof(ElementType),
+                                               sizeof(ElementType));
+        if (!result) {
             status = result.status();
+            return;
         }
-    }
-    vector(size_t numElements, ElementType fill, Status &status):
-           vector(numElements, status) {
-        if (status) {
-            for (size_t index = 0; index < numElements; index++) {
-                _data[index] = move(fill);
-            }
+
+        _data = result->asPointer<ElementType>();
+        for (size_t index = 0; index < numElements; index++) {
+            new(&_data[index]) ElementType;
         }
+        this->numElements = numElements;
+        this->numAllocated = numElements;
     }
+    vector(size_t numElements, ElementType initialize, Status &status) {
+        if (!status) {
+            return;
+        }
+        Result result = DLMallocGlue.allocate(numElements * sizeof(ElementType),
+                                               sizeof(ElementType));
+        if (!result) {
+            status = result.status();
+            return;
+        }
+
+        _data = result->asPointer<ElementType>();
+        for (size_t index = 0; index < numElements; index++) {
+            new(&_data[index]) ElementType(initialize);
+        }
+        this->numElements = numElements;
+    }
+
     /* There is currently no reason to copy vectors in kernel. Implement this if neeeded */
     vector(vector &other) = delete;
     vector(vector &&other) {
@@ -115,7 +135,7 @@ public:
     void operator=(vector &other) = delete;
     void operator=(vector &&other) {
         if (_data) {
-            delete[] _data;
+            DLMallocGlue.free(_data);
         }
         _data = other._data;
         numElements = other.numElements;
@@ -147,7 +167,7 @@ public:
         if (!status) {
             return status;
         }
-        _data[numElements - 1] = move(element);
+        new (&_data[numElements - 1]) ElementType(move(element));
         return Status::OK();
     }
     Status push_back(const ElementType &element) {
@@ -155,7 +175,7 @@ public:
         if (!status) {
             return status;
         }
-        _data[numElements - 1] = element;
+        new (&_data[numElements - 1]) ElementType(element);
         return Status::OK();
     }
 
@@ -168,10 +188,11 @@ public:
         }
 
         for (size_t moveIndex = numElements - 1; moveIndex > index; moveIndex--) {
-            _data[moveIndex] = move(_data[moveIndex - 1]);
+            new (&_data[moveIndex]) ElementType(move(_data[moveIndex - 1]));
+            _data[moveIndex - 1].~ElementType();
         }
 
-        _data[index] = move(element);
+        new (&_data[index]) ElementType(move(element));
         return Status::OK();
     }
 
@@ -179,8 +200,12 @@ public:
         size_t numRemove = last.position - first.position;
 
         numElements -= numRemove;
+        for (size_t removeIndex = first.position; removeIndex < last.position; removeIndex++) {
+            _data[removeIndex].~ElementType();
+        }
         for (size_t moveIndex = first.position; moveIndex < numElements; moveIndex++) {
-            _data[moveIndex] = move(_data[moveIndex + numRemove]);
+            new(&_data[moveIndex]) ElementType(move(_data[moveIndex + numRemove]));
+            _data[moveIndex + numRemove].~ElementType();
         }
         /* ignore status of adjustAllocatedSize - even if it failed we have removed the element */
 #pragma GCC diagnostic push
@@ -214,9 +239,14 @@ public:
     Status resize(size_t newSize) {
         while (newSize < numElements) {
             numElements--;
-            _data[numElements] = ElementType();
+            _data[numElements].~ElementType();
         }
+        size_t filledSize = numElements;
         Status status = adjustAllocatedSize(newSize);
+        while (filledSize < numElements) {
+            new (&_data[filledSize]) ElementType;
+            filledSize++;
+        }
         if (newSize == numElements) {
             /* ignore status of adjustAllocatedSize for shrinks - even if it failed to shrink the
              * allocated memory we have removed the element */
@@ -235,8 +265,11 @@ public:
 
 
     void clear() {
+        for (size_t index = 0; index < numElements; index++) {
+            _data[index].~ElementType();
+        }
         if (_data != nullptr) {
-            delete[] _data;
+            DLMallocGlue.free(_data);
         }
     }
 

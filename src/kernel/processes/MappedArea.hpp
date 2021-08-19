@@ -4,6 +4,7 @@
 #include <common/Region.hpp>
 #include <processes/MemoryArea.hpp>
 #include <utility>
+#include <memory>
 
 class MappedArea {
 private:

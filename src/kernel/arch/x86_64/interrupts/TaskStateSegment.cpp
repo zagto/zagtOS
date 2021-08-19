@@ -3,25 +3,26 @@
 #include <interrupts/TaskStateSegment.hpp>
 #include <processes/Thread.hpp>
 #include <system/Processor.hpp>
+#include <memory/DLMallocGlue.hpp>
 
 TaskStateSegment::TaskStateSegment(Status &status) {
     if (!status) {
         return;
     }
 
-    Result NMIStack = make_raw_array<uint64_t>(IST_STACK_QWORDS);
+    Result NMIStack = DLMallocGlue.allocate(IST_STACK_QWORDS * 8, 16);
     if (!NMIStack) {
         status = NMIStack.status();
         return;
     }
-    IST1 = *NMIStack + IST_STACK_QWORDS;
+    IST1 = NMIStack->asPointer<uint64_t>() + IST_STACK_QWORDS;
 
-    Result MCEStack = make_raw_array<uint64_t>(IST_STACK_QWORDS);
+    Result MCEStack = DLMallocGlue.allocate(IST_STACK_QWORDS * 8, 16);
     if (!MCEStack) {
         status = MCEStack.status();
         return;
     }
-    IST2 = *MCEStack + IST_STACK_QWORDS;
+    IST2 = MCEStack->asPointer<uint64_t>() + IST_STACK_QWORDS;
 }
 
 
@@ -32,9 +33,9 @@ void TaskStateSegment::update(Thread *thread) {
 
 TaskStateSegment::~TaskStateSegment() {
     if (IST1 != nullptr) {
-        delete[] (IST1 - IST_STACK_QWORDS);
+        delete (IST1 - IST_STACK_QWORDS);
     }
     if (IST2 != nullptr) {
-        delete[] (IST2 - IST_STACK_QWORDS);
+        delete (IST2 - IST_STACK_QWORDS);
     }
 }

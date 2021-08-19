@@ -3,18 +3,12 @@
 #include <interrupts/util.hpp>
 
 
-GlobalDescriptorTable::GlobalDescriptorTable(Status &status) {
+GlobalDescriptorTable::GlobalDescriptorTable(Status &status) :
+    gdt(FIRST_TSS_ENTRY + 2 * CurrentSystem.numProcessors /* GDT size in uint64_ts */, status) {
+
     if (!status) {
         return;
     }
-
-    size_t gdtSize = FIRST_TSS_ENTRY + 2 * CurrentSystem.numProcessors; /* in uint64_ts */
-    Result result = make_raw_array<uint64_t>(gdtSize);
-    if (!result) {
-        status = result.status();
-        return;
-    }
-    gdt = *result;
 
     gdt[NULL_ENTRY] = 0;
     gdt[KERNEL_CODE_ENTRY] = FLAG_PRESENT | FLAG_SEGMENT | FLAG_WRITEABLE | FLAG_CODE | FLAG_LONGMODE;
@@ -22,17 +16,10 @@ GlobalDescriptorTable::GlobalDescriptorTable(Status &status) {
     gdt[USER_DATA_ENTRY] = FLAG_USER | FLAG_PRESENT | FLAG_SEGMENT | FLAG_WRITEABLE;
     gdt[USER_CODE_ENTRY] = FLAG_USER | FLAG_PRESENT | FLAG_SEGMENT | FLAG_WRITEABLE | FLAG_CODE | FLAG_LONGMODE;
 
-    for (size_t processorID = 0; processorID < CurrentSystem.numProcessors; processorID++) {
-    }
+    /* TSS entries are initialized later once the Processor calls the setupTSS method */
 
-    gdtr.address = gdt;
-    gdtr.size = gdtSize * sizeof(uint64_t) - 1;
-}
-
-GlobalDescriptorTable::~GlobalDescriptorTable() {
-    if (gdt != nullptr) {
-        delete gdt;
-    }
+    gdtr.address = gdt.data();
+    gdtr.size = gdt.size() * sizeof(uint64_t) - 1;
 }
 
 void GlobalDescriptorTable::setupTSS(size_t processorID, TaskStateSegment *tss) {

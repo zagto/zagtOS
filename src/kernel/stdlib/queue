@@ -9,7 +9,15 @@ private:
     size_t firstIndex{0};
 
 public:
-    /* not implemented for now, but there is nothing wrong with copying/moving queues
+    queue() {};
+    queue(queue &other) = delete;
+    queue(queue &&other) :
+        buffer{move(other.buffer)},
+        firstIndex{other.firstIndex} {
+        other.firstIndex = 0;
+    }
+
+    /* not implemented for now, but there is nothing wrong with copying queues
      * implement this if you need it */
     void operator=(queue &) = delete;
     void operator=(queue &&other) {

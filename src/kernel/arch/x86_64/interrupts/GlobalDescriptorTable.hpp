@@ -2,6 +2,7 @@
 
 #include <common/common.hpp>
 #include <interrupts/TaskStateSegment.hpp>
+#include <vector>
 
 class GlobalDescriptorTable
 {
@@ -28,11 +29,10 @@ private:
     static const size_t FIRST_TSS_ENTRY = 5;
 
     GDTRStruct gdtr;
-    uint64_t *gdt{nullptr};
+    vector<uint64_t> gdt;
 
 public:
     GlobalDescriptorTable(Status &status);
-    ~GlobalDescriptorTable();
 
     void setupTSS(size_t processorID, TaskStateSegment *tss);
     void resetTSS(size_t processorID);

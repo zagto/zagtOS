@@ -13,7 +13,7 @@ ProcessAddressSpace::ProcessAddressSpace(const hos_v1::Process &handOver,
                                          Status &status):
     pagingContext(status),
     inTLBContextOfProcessor(CurrentSystem.numProcessors, TLB_CONTEXT_ID_NONE, status),
-    mappedAreas(handOver.numMappedAreas, nullptr, status) {
+    mappedAreas(handOver.numMappedAreas, status) {
     if (!status) {
         return;
     }
