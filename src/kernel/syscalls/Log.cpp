@@ -22,7 +22,7 @@ Result<size_t> Log(const shared_ptr<Process> &process,
         return 0;
     }
 
-    Status status;
+    Status status = Status::OK();
     vector<uint8_t> buffer(length, status);
     if (!status) {
         return status;
