@@ -241,13 +241,16 @@ Status MemoryArea::_copyFrom(uint8_t *destination,
     assert(offset < length);
     assert(offset + accessLength <= length);
 
+    cout << "MemoryArea copyFrom to " << destination << " length " << accessLength << endl;
+
+
     size_t frameIndex = offset / PAGE_SIZE;
     size_t destPosition = 0;
 
     size_t offsetInFrame = offset % PAGE_SIZE;
 
     while (destPosition < accessLength) {
-        size_t partLength = max(PAGE_SIZE - offsetInFrame, accessLength - destPosition);
+        size_t partLength = min(PAGE_SIZE - offsetInFrame, accessLength - destPosition);
 
         Status status = ensureFramePresent(offset / PAGE_SIZE, false);
         if (!status) {
@@ -289,7 +292,7 @@ Status MemoryArea::copyTo(size_t offset, const uint8_t *source, size_t accessLen
     size_t offsetInFrame = offset % PAGE_SIZE;
 
     while (sourcePosition < accessLength) {
-        size_t partLength = max(PAGE_SIZE - offsetInFrame, accessLength - sourcePosition);
+        size_t partLength = min(PAGE_SIZE - offsetInFrame, accessLength - sourcePosition);
 
         Status status = ensureFramePresent(offset / PAGE_SIZE, true);
         if (!status) {
@@ -331,7 +334,7 @@ Status MemoryArea::copyFromOther(size_t destinationOffset,
     size_t offsetInFrame = destinationOffset % PAGE_SIZE;
 
     while (position < accessLength) {
-        size_t partLength = max(PAGE_SIZE - offsetInFrame, accessLength - position);
+        size_t partLength = min(PAGE_SIZE - offsetInFrame, accessLength - position);
 
         Status status = ensureFramePresent(destinationOffset / PAGE_SIZE, true);
         if (!status) {
