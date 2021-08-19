@@ -86,6 +86,7 @@ Result <void *> Allocator::map(size_t length, bool findNewFrames, const Physical
         }
 
         if (numFree == numFrames) {
+            startPosition = position + 2;
             KernelVirtualAddress startAddress = KernelHeapRegion.start
                     + (position - (numFrames - 1)) * PAGE_SIZE;
 
