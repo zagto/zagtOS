@@ -336,7 +336,7 @@ Status MemoryArea::copyFromOther(size_t destinationOffset,
     while (position < accessLength) {
         size_t partLength = min(PAGE_SIZE - offsetInFrame, accessLength - position);
 
-        Status status = ensureFramePresent(destinationOffset / PAGE_SIZE, true);
+        Status status = ensureFramePresent(frameIndex, true);
         if (!status) {
             cout << "MemoryArea::copyFromOther: Unable to make required Frame present: "
                  << status << endl;
