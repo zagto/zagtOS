@@ -83,14 +83,14 @@ void Logger::basicWrite(char character) {
     }
 }
 
-Logger Logger::operator<<(char character) {
+Logger &Logger::operator<<(char character) {
     if (character >= ' ' || character == '\n') {
         basicWrite(character);
     }
     return *this;
 }
 
-Logger Logger::operator<<(const char *string) {
+Logger &Logger::operator<<(const char *string) {
     while (*string != '\0') {
         *this << *string;
         string++;
@@ -98,7 +98,7 @@ Logger Logger::operator<<(const char *string) {
     return *this;
 }
 
-Logger Logger::operator<<(uint64_t value) {
+Logger &Logger::operator<<(uint64_t value) {
     *this << "0x";
     for (int shift = sizeof(uint64_t) * 2 - 1; shift >= 0; shift--) {
         size_t part = (value >> (shift * 4)) & 0xf;
@@ -111,7 +111,7 @@ Logger Logger::operator<<(uint64_t value) {
     return *this;
 }
 
-Logger Logger::operator<<(uint32_t value) {
+Logger &Logger::operator<<(uint32_t value) {
     *this << "0x";
     for (int shift = sizeof(uint32_t) * 2 - 1; shift >= 0; shift--) {
         size_t part = (value >> (shift * 4)) & 0xf;
@@ -124,7 +124,7 @@ Logger Logger::operator<<(uint32_t value) {
     return *this;
 }
 
-Logger Logger::operator<<(uint16_t value) {
+Logger &Logger::operator<<(uint16_t value) {
     *this << "0x";
     for (int shift = sizeof(uint32_t) * 2 - 1; shift >= 0; shift--) {
         size_t part = (value >> (shift * 4)) & 0xf;
@@ -137,19 +137,19 @@ Logger Logger::operator<<(uint16_t value) {
     return *this;
 }
 
-Logger Logger::operator<<(volatile void *pointer) {
+Logger &Logger::operator<<(volatile void *pointer) {
     return *this << reinterpret_cast<size_t>(pointer);
 }
 
-Logger Logger::operator<<(const void *pointer) {
+Logger &Logger::operator<<(const void *pointer) {
     return *this << reinterpret_cast<size_t>(pointer);
 }
 
-Logger Logger::operator<<(void *pointer) {
+Logger &Logger::operator<<(void *pointer) {
     return *this << reinterpret_cast<size_t>(pointer);
 }
 
-Logger Logger::operator<<(const RegisterState &regs) {
+Logger &Logger::operator<<(const RegisterState &regs) {
     return *this << "[" << endl
                  << "\tRIP=" << regs.rip << ", RSP=" << regs.rsp << endl
                  << "\tCS=" << regs.cs << ", SS=" << regs.ss << endl
@@ -164,7 +164,7 @@ Logger Logger::operator<<(const RegisterState &regs) {
                  << "]";
 }
 
-Logger Logger::operator<<(hos_v1::Permissions permissions) {
+Logger &Logger::operator<<(hos_v1::Permissions permissions) {
     switch (permissions) {
     case Permissions::INVALID:
         return *this << "Invalid";
