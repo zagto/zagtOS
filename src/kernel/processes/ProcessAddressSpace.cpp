@@ -213,6 +213,8 @@ Result<UserVirtualAddress> ProcessAddressSpace::addAnonymous(Region region,
 Result<UserVirtualAddress> ProcessAddressSpace::addAnonymous(size_t length, Permissions permissions) {
     scoped_lock sl(lock);
 
+    length = align(length, PAGE_SIZE, AlignDirection::UP);
+
     Result result = findFreeRegion(length);
     if (!result) {
         return result.status();
@@ -438,14 +440,16 @@ Status ProcessAddressSpace::copyFromOhter(size_t destinationAddress,
     scoped_lock sl(lock, sourceSpace.lock);
 
     while (length > 0) {
-        optional sourceResult = findMemoryArea(sourceAddress, false);
+        optional sourceResult = sourceSpace.findMemoryArea(sourceAddress, false);
         if (!sourceResult) {
+            cout << "copyFromUser: Unable to find corresponding MemoryArea in source" << endl;
             return Status::BadUserSpace();
         }
         auto [sourceArea, sourceMaxRegion] = *sourceResult;
 
         optional result = findMemoryArea(destinationAddress, requireWriteAccessToDestination);
         if (!result) {
+            cout << "copyFromUser: Unable to find corresponding MemoryArea in destination" << endl;
             return Status::BadUserSpace();
         }
         auto [destinationArea, destinationMaxRegion] = *result;

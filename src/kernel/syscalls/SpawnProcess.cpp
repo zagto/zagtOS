@@ -125,7 +125,7 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
 
         if ((section.flags & section.FLAG_WRITEABLE)
                 && (section.flags & section.FLAG_EXECUTABLE)) {
-            cout << "ELF: Segment is marked as writeable and executable at the same time"
+            cout << "SYS_SPAWN_PROCESS: Segment is marked as writeable and executable at the same time"
                 << endl;
             return EINVAL;
         }
@@ -153,6 +153,7 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
     if (newProcess) {
         return 0;
     } else {
+        cout << "SYS_SPAWN_PROCESS: Process creation failed: " << status << endl;
         return newProcess.status();
     }
 }
