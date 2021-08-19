@@ -8,11 +8,13 @@ enum StatusType {
 };
 
 class Process;
+class Logger;
 
 #ifdef __cplusplus
 class [[nodiscard("Status code ignored")]] Status  {
 private:
     StatusType type{StatusType::NonInitialized};
+    friend Logger &operator<<(Logger &logger, Status &status);
 
 public:
     Status() {}
