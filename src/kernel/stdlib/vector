@@ -120,6 +120,7 @@ public:
             new(&_data[index]) ElementType(initialize);
         }
         this->numElements = numElements;
+        this->numAllocated = numElements;
     }
 
     /* There is currently no reason to copy vectors in kernel. Implement this if neeeded */
