@@ -35,9 +35,12 @@ public:
     static Status ThreadKilled() {
         return Status(StatusType::ThreadKilled);
     }
-    operator bool() {
+    operator bool() const {
         assert(type != StatusType::NonInitialized);
         return type == StatusType::OK;
+    }
+    bool operator==(const Status &other) {
+        return type == other.type;
     }
 };
 
