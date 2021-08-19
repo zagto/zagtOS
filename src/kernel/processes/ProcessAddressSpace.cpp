@@ -188,7 +188,12 @@ Result<UserVirtualAddress> ProcessAddressSpace::add(Region region,
         return ma.status();
     }
 
-    return mappedAreas.insert(move(*ma), index);
+    Status status = mappedAreas.insert(move(*ma), index);
+    if (status) {
+        return UserVirtualAddress(region.start);
+    } else {
+        return status;
+    }
 }
 
 Result<UserVirtualAddress> ProcessAddressSpace::addAnonymous(Region region,
