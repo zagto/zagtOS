@@ -103,7 +103,11 @@ void Syscall(size_t syscallNr,
             cout << "invalid syscall number: " << syscallNr << endl;
             status = Status::BadUserSpace();
         } else {
+
+            CurrentProcessor->kernelInterruptsLock.unlock();
             Result<size_t> result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
+            CurrentProcessor->kernelInterruptsLock.lock();
+
             if (result) {
                 CurrentThread()->registerState.setSyscallResult(*result);
             } else {
