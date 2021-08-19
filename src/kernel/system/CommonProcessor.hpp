@@ -55,6 +55,8 @@ public:
     TLBContextID activatePagingContext(PagingContext *pagingContext, TLBContextID tryFirst);
 
     CommonProcessor(size_t id, Status &status);
+    CommonProcessor(CommonProcessor &) = delete;
+    CommonProcessor &operator=(CommonProcessor &) = delete;
     ~CommonProcessor();
 };
 
