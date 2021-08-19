@@ -62,8 +62,8 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
         .logNameSize = strlen(binary.logName()),
     };
 
-    size_t ok = zagtos_syscall1(SYS_SPAWN_PROCESS, reinterpret_cast<size_t>(&args));
-    if (ok == 0) {
+    size_t result = zagtos_syscall1(SYS_SPAWN_PROCESS, reinterpret_cast<size_t>(&args));
+    if (result != 0) {
         throw std::invalid_argument("invalid executable to spawn process");
     }
 }
