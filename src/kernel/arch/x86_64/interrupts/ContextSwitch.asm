@@ -147,7 +147,7 @@ commonISR:
     ; currentProcessor is the field at the beginning of registerState
     ; this pointer is put in r15 (as the CurrentProcessor variable)
     mov r15, [rdi]
-    ; kernelStack is the first field of Processor class
+    ; kernelStack is the first field of CommonProcessor class
     mov rsp, [r15]
     ; start at the end of kernelStack region
     add rsp, KERNEL_STACK_SIZE_DEF
