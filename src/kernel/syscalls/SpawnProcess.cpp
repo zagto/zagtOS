@@ -21,7 +21,7 @@ Result<size_t> SpawnProcess(const shared_ptr<Process> &process,
 Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
     /* TODO: permissions checking */
 
-    /* make all the some returns in the error handlers return EINVAL to user space.
+    /* make some returns in the error handlers return EINVAL to user space.
      * return OK as kernel status so the process continues running.
      * Processes should be able to handle broken SpawnProcesses gracefully
      * since processes like UserEnvironment they may be launching processes
@@ -80,8 +80,7 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
             return EINVAL;
         }
 
-        static_assert(UserSpaceRegion.start == 0, "This code assumes user space starts at 0");
-        if (!VirtualAddress::checkInRegion(UserSpaceRegion, section.region().end())) {
+        if (!UserSpaceRegion.contains(section.region())) {
             cout << "SYS_SPAWN_PROCESS: segment does not fit in user space" << endl;
             return EINVAL;
         }
