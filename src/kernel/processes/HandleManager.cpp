@@ -31,7 +31,7 @@ Element::Element(shared_ptr<MemoryArea> &memoryArea) {
     new (&data.memoryArea) shared_ptr<MemoryArea>(memoryArea);
 }
 
-Element::Element(const Element &other) {
+Element::Element(const Element &&other) {
     type = other.type;
     switch (type) {
     case Type::INVALID:
@@ -40,16 +40,16 @@ Element::Element(const Element &other) {
         data.nextFreeNumber = other.data.nextFreeNumber;
         break;
     case Type::PORT:
-        new (&data.port) shared_ptr<Port>(other.data.port);
+        new (&data.port) shared_ptr<Port>(move(other.data.port));
         break;
     case Type::REMOTE_PORT:
-        new (&data.remotePort) weak_ptr<Port>(other.data.remotePort);
+        new (&data.remotePort) weak_ptr<Port>(move(other.data.remotePort));
         break;
     case Type::THREAD:
-        new (&data.thread) shared_ptr<Thread>(other.data.thread);
+        new (&data.thread) shared_ptr<Thread>(move(other.data.thread));
         break;
     case Type::MEMORY_AREA:
-        new (&data.memoryArea) shared_ptr<MemoryArea>(other.data.memoryArea);
+        new (&data.memoryArea) shared_ptr<MemoryArea>(move(other.data.memoryArea));
         break;
     }
 }
@@ -58,9 +58,9 @@ Element::~Element() {
     destructData();
 }
 
-void Element::operator=(const Element &other) {
+void Element::operator=(const Element &&other) {
     destructData();
-    new (this) Element(other);
+    new (this) Element(move(other));
 }
 
 void Element::destructData() {
@@ -224,6 +224,7 @@ Result<uint32_t> HandleManager::_addMemoryArea(shared_ptr<MemoryArea> &memoryAre
     if (handle) {
         elements[handle] = Element(memoryArea);
     }
+    assert(elements[handle].type == Type::MEMORY_AREA);
     return handle;
 }
 
@@ -297,7 +298,7 @@ Status HandleManager::_removeHandle(uint32_t number, shared_ptr<Thread> &removed
         removedThread = {};
     }
 
-    elements[number] = nextFreeNumber;
+    elements[number] = Element(nextFreeNumber);
     nextFreeNumber = number;
     return Status::OK();
 }

@@ -34,9 +34,11 @@ struct Element {
     Element(weak_ptr<Port> &port);
     Element(shared_ptr<Thread> &thread);
     Element(shared_ptr<MemoryArea> &memoryArea);
-    Element(const Element &other);
+    Element(const Element &) = delete;
+    Element(const Element &&other);
     ~Element();
-    void operator=(const Element &other);
+    void operator=(const Element &) = delete;
+    void operator=(const Element &&other);
     void destructData();
 };
 
