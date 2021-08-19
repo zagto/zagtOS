@@ -29,7 +29,7 @@ protected:
     Status _copyFrom(uint8_t *destination,
                      size_t offset,
                      size_t accessLength,
-                     scoped_lock<mutex> &scopedLock);
+                     optional<scoped_lock<mutex> *> relaxLock);
 
 public:
     const bool isShared;

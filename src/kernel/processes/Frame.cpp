@@ -152,14 +152,13 @@ Status Frame::copyTo(size_t offset, const uint8_t *source, size_t length) {
 Status Frame::copyFromMemoryArea(size_t frameOffset,
                                  MemoryArea &memoryArea,
                                  size_t areaOffset,
-                                 size_t length,
-                                 scoped_lock<mutex> &scopedLock) {
+                                 size_t length) {
     /* Danger Zone: be careful when introducing any locks here! The copyFrom call can actually
      * access this Frame again. */
     assert(frameOffset + length <= PAGE_SIZE);
 
     uint8_t *directMapping = (address + frameOffset).identityMapped().asPointer<uint8_t>();
-    return memoryArea._copyFrom(directMapping, areaOffset, length, scopedLock);
+    return memoryArea._copyFrom(directMapping, areaOffset, length, {});
 }
 
 Result<uint32_t> Frame::atomicCopyFrom32(size_t offset) {

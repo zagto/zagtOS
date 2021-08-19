@@ -38,8 +38,7 @@ public:
     Status copyFromMemoryArea(size_t frameOffset,
                               MemoryArea &memoryArea,
                               size_t areaOffset,
-                              size_t length,
-                              scoped_lock<mutex> &scopedLock);
+                              size_t length);
     Result<uint32_t> atomicCopyFrom32(size_t offset);
     Result<bool> atomicCompareExchange32(size_t offset,
                                          uint32_t expectedValue,

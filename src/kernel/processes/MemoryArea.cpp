@@ -238,7 +238,7 @@ Result<uint64_t> MemoryArea::getFutexID(size_t offset) {
 Status MemoryArea::_copyFrom(uint8_t *destination,
                              size_t offset,
                              size_t accessLength,
-                             scoped_lock<mutex> &scopedLock) {
+                             optional<scoped_lock<mutex> *> relaxLock) {
     assert(offset < length);
     assert(offset + accessLength <= length);
 
@@ -266,14 +266,16 @@ Status MemoryArea::_copyFrom(uint8_t *destination,
         frameIndex++;
         offsetInFrame = 0;
 
-        scopedLock.checkWaiters();
+        if (relaxLock) {
+            (*relaxLock)->checkWaiters();
+        }
     }
     return Status::OK();
 }
 
 Status MemoryArea::copyFrom(uint8_t *destination, size_t offset, size_t accessLength) {
     scoped_lock sl(lock);
-    return _copyFrom(destination, offset, accessLength, sl);
+    return _copyFrom(destination, offset, accessLength, &sl);
 }
 
 
@@ -324,7 +326,7 @@ Status MemoryArea::copyFromOther(size_t destinationOffset,
     assert(sourceOffset + accessLength <= sourceArea.length);
     assert(destinationOffset + accessLength <= length);
 
-    scoped_lock sl(lock);
+    scoped_lock sl(lock, sourceArea.lock);
 
     size_t frameIndex = destinationOffset / PAGE_SIZE;
     size_t position = 0;
@@ -336,14 +338,15 @@ Status MemoryArea::copyFromOther(size_t destinationOffset,
 
         Status status = ensureFramePresent(destinationOffset / PAGE_SIZE, true);
         if (!status) {
+            cout << "MemoryArea::copyFromOther: Unable to make required Frame present: "
+                 << status << endl;
             return status;
         }
 
         status = frames[frameIndex]->copyFromMemoryArea(offsetInFrame,
                                                         sourceArea,
                                                         sourceOffset + position,
-                                                        partLength,
-                                                        sl);
+                                                        partLength);
         if (!status) {
             return status;
         }
@@ -351,6 +354,8 @@ Status MemoryArea::copyFromOther(size_t destinationOffset,
         position += partLength;
         frameIndex++;
         offsetInFrame = 0;
+
+        sl.checkWaiters();
     }
     return Status::OK();
 }
