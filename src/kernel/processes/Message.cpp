@@ -131,7 +131,7 @@ Status Message::transferHandles() {
      * but does not contain handles. */
     assert(sourceProcess);
 
-    Status status;
+    Status status = Status::OK();
     vector<uint32_t> handles(numHandles, status);
     if (!status) {
         return status;
