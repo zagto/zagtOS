@@ -42,8 +42,11 @@ Process::Process(Process &sourceProcess,
         logName{move(logName)},
         futexManager(status) {
     if (!status) {
+        cout << "Process constructor cancelled: " << status << endl;
         return;
     }
+
+    cout << "Process constructor" << endl;
 
     for (const auto &section: sections) {
         Result result = addressSpace.addAnonymous(section.region(),
@@ -52,8 +55,11 @@ Process::Process(Process &sourceProcess,
                                                   false);
         if (!result) {
             status = result.status();
+            cout << "Could not add section to address space of new Process: " << status << endl;
             return;
         }
+
+        cout << "dataAddress: " << section.dataAddress << endl;
 
         status = addressSpace.copyFromOhter(section.address,
                                             sourceProcess.addressSpace,
@@ -61,6 +67,7 @@ Process::Process(Process &sourceProcess,
                                             section.dataSize,
                                             false);
         if (!status) {
+            cout << "Could not load section of new Process: " << status << endl;
             return;
         }
     }
@@ -73,9 +80,10 @@ Process::Process(Process &sourceProcess,
     }
 
     Result tlsAddress = addressSpace.addAnonymous(TLSSize + hos_v1::THREAD_STRUCT_AREA_SIZE,
-                                                 Permissions::READ_WRITE);
+                                                  Permissions::READ_WRITE);
     if (!tlsAddress) {
         status = tlsAddress.status();
+        cout << "Could not add TLS to address space of new Process: " << status << endl;
         return;
     }
 
@@ -87,6 +95,7 @@ Process::Process(Process &sourceProcess,
                                             TLSSection->dataSize,
                                             false);
         if (!status) {
+            cout << "Could not load TLS segment for new Process: " << status << endl;
             return;
         }
     }
@@ -94,11 +103,13 @@ Process::Process(Process &sourceProcess,
     runMessage.setDestinationProcess(this);
     status = runMessage.transfer();
     if (!status) {
+        cout << "Could not transfer run message for new Process: " << status << endl;
         return;
     }
 
     shared_ptr<Process> sharedProcess = shared_ptr<Process>(this, status);
     if (!status) {
+        cout << "Could not create shared_ptr for new Process: " << status << endl;
         return;
     }
 
@@ -112,6 +123,7 @@ Process::Process(Process &sourceProcess,
                                             masterTLSBase,
                                             TLSSize);
     if (!mainThread) {
+        cout << "Could not create main thread for new Process: " << status << endl;
         status = mainThread.status();
         return;
     }
@@ -121,11 +133,16 @@ Process::Process(Process &sourceProcess,
         Scheduler::schedule(mainThread->get());
     } else {
         status = handle.status();
+        cout << "Could not add Thread to HandleManager of new Process: " << status << endl;
     }
 }
 
 Process::~Process() {
-    cout << "destroying Process..." << endl;
+    cout << "destroying Process";
+    for (auto c : logName) {
+        cout.output(c);
+    }
+    cout << "..." << endl;
 
     cout << "TODO: actually unmap stuff" << endl;
     Panic();
