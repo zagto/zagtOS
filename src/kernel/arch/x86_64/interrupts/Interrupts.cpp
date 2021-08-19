@@ -43,7 +43,6 @@ void dealWithException(Status status) {
 
 __attribute__((noreturn)) void userHandler(RegisterState *registerState) {
     {
-        cout << "user interrupt on " << CurrentProcessor->id << endl;
         Thread *activeThread = CurrentProcessor->scheduler.activeThread();
         assert(&activeThread->registerState == registerState);
 

@@ -242,9 +242,6 @@ Status MemoryArea::_copyFrom(uint8_t *destination,
     assert(offset < length);
     assert(offset + accessLength <= length);
 
-    cout << "MemoryArea copyFrom to " << destination << " length " << accessLength << endl;
-
-
     size_t frameIndex = offset / PAGE_SIZE;
     size_t destPosition = 0;
 
