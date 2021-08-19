@@ -14,6 +14,9 @@ enum class AlignDirection {
 using Permissions = hos_v1::Permissions;
 
 bool operator>(Permissions a, Permissions b);
+bool operator>=(Permissions a, Permissions b);
+bool operator<(Permissions a, Permissions b);
+bool operator<=(Permissions a, Permissions b);
 
 /* move implementation
  * https://stackoverflow.com/questions/53604753/how-does-one-force-a-c-move-operator-without-

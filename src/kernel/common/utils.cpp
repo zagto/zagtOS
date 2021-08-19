@@ -19,6 +19,18 @@ bool operator>(Permissions a, Permissions b) {
     }
 }
 
+bool operator>=(Permissions a, Permissions b) {
+    return a == b || a > b;
+}
+
+bool operator<(Permissions a, Permissions b) {
+    return b > a;
+}
+
+bool operator<=(Permissions a, Permissions b) {
+    return a == b || a < b;
+}
+
 void *memset(void *pointer, int value, size_t len)
 {
     for (size_t i = 0; i < len; i++) {
