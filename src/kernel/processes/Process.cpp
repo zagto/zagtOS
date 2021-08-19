@@ -46,8 +46,6 @@ Process::Process(Process &sourceProcess,
         return;
     }
 
-    cout << "Process constructor" << endl;
-
     for (const auto &section: sections) {
         Result result = addressSpace.addAnonymous(section.region(),
                                                   section.permissions(),
@@ -58,8 +56,6 @@ Process::Process(Process &sourceProcess,
             cout << "Could not add section to address space of new Process: " << status << endl;
             return;
         }
-
-        cout << "dataAddress: " << section.dataAddress << endl;
 
         status = addressSpace.copyFromOhter(section.address,
                                             sourceProcess.addressSpace,
