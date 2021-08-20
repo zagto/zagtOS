@@ -56,7 +56,7 @@ MemoryArea::MemoryArea(PhysicalAddress physicalStart,
                        Status &status) :
     frames(length / PAGE_SIZE, nullptr, status),
     futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
-    source{Source::DMA},
+    source{Source::PHYSICAL},
     permissions{Permissions::READ_WRITE},
     physicalStart{physicalStart},
     isShared{true},
