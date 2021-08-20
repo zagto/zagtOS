@@ -35,5 +35,5 @@ void Processor::returnToUserMode() {
 void Processor::sendCheckSchedulerIPI() {
     cout << "sending Check Scheduler IPI from " <<  CurrentProcessor->hardwareID << " to " << hardwareID << endl;
 
-    CurrentProcessor->localAPIC.sendIPI(0, 0x40);
+    CurrentProcessor->localAPIC.sendIPI(hardwareID, 0x40);
 }
