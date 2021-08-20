@@ -1,6 +1,6 @@
 #pragma once
 
-#include <interrupts/RegisterState.hpp>
+#include <processes/KernelStack.hpp>
 #include <memory>
 #include <vector>
 #include <utility>
@@ -86,7 +86,7 @@ protected:
     Thread *next{nullptr};
 
 public:
-    alignas(16) RegisterState registerState;
+    KernelStack kernelStack;
     //VectorRegisterState vectorState;
     shared_ptr<Process> process;
     UserVirtualAddress tlsBase;

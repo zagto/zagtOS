@@ -119,6 +119,10 @@ __attribute__((noreturn)) void handler(RegisterState *registerState) {
 
 
 __attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState) {
+    if (registerState->intNr != 0xe) {
+        cout << "Interrupt " << registerState->intNr << " on CPU " << CurrentProcessor->id << endl;
+    }
+
     if (registerState->intNr < 0x20) {
         /* x86 Exception */
         if (registerState->cs == static_cast<uint64_t>(0x20|3)) {

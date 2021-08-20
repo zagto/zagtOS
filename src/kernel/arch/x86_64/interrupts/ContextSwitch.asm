@@ -34,6 +34,9 @@ InterruptServiceRoutines:
         ; these have a special small stack! If you want do da more than ignoring here, change their size
         ; in Interrupts.cpp
         iretq
+    %elif (%1 == 0x40)
+    self:
+        jmp self
     %else
         ; if this interrupt has no error code, push 0 as replacement
         ; to keep the stack layout always the same

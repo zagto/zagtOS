@@ -23,6 +23,7 @@ loadTaskStateSegment:
     ret
 
 idleEntry:
+    sti
     hlt
     jmp idleEntry
 
