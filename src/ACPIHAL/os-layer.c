@@ -77,7 +77,8 @@ void *AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length) {
 }
 
 void AcpiOsUnmapMemory(void *where, ACPI_SIZE length) {
-    munmap(where, length);
+    size_t offset = ((size_t)where) % PAGE_SIZE;
+    munmap(((char *)where) - offset, length + offset);
 }
 
 /*ACPI_STATUS AcpiOsGetPhysicalAddress(void *LogicalAddress,
