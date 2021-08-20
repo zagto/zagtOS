@@ -17,7 +17,7 @@ size_t *CurrentEntryStack = nullptr;
 
 static void wakeSecondaryProcessor(LocalAPIC &localAPIC, size_t hardwareID, size_t processorID) {
     startingID = processorID;
-    startingID = hardwareID;
+    startingHardwareID = hardwareID;
     CurrentEntryStack = &temporaryStack[processorID][TEMPORY_STACK_SIZE / 2];
     cout << "1 ------ Handover Master Page Table is at: "
          << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
@@ -45,7 +45,7 @@ extern "C" void LoaderEntrySecondaryProcessor() {
     cout << "2 ------ Handover Master Page Table is at: "
          << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
 
-    cout << "Processor " << id << " online" << endl;
+    cout << "Processor " << id << " hardwareID " << hardwareID << " online" << endl;
 
     __atomic_store_n(&currentlyStarting, false, __ATOMIC_SEQ_CST);
 

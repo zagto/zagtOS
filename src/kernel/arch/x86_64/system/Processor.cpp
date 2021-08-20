@@ -26,3 +26,9 @@ void Processor::returnToUserMode() {
     tss.update(thread);
     returnFromInterrupt(&thread->registerState, thread->threadLocalStorage());
 }
+
+void Processor::sendCheckSchedulerIPI() {
+    cout << "sending Check Scheduler IPI" << endl;
+
+    CurrentProcessor->localAPIC.sendIPI(hardwareID, 1);
+}

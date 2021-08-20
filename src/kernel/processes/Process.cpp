@@ -126,7 +126,7 @@ Process::Process(Process &sourceProcess,
 
     Result handle = handleManager.addThread(*mainThread);
     if (handle) {
-        Scheduler::schedule(mainThread->get());
+        Scheduler::schedule(mainThread->get(), true);
     } else {
         status = handle.status();
         cout << "Could not add Thread to HandleManager of new Process: " << status << endl;

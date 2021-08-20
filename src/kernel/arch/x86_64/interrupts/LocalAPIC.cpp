@@ -23,6 +23,32 @@ Status LocalAPIC::setupMap(PhysicalAddress base) {
     return Status::OK();
 }
 
+void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
+                                              Level level,
+                                              TriggerMode triggerMode,
+                                              uint32_t destination,
+                                              uint8_t vector) {
+    writeRegister(Register::INTERRUPT_COMMAND_HIGH, destination << (56 - 32));
+    writeRegister(Register::INTERRUPT_COMMAND_LOW,
+            vector
+            | (static_cast<uint32_t>(deliveryMode) << 8)
+            | (static_cast<uint32_t>(level) << 14)
+            | (static_cast<uint32_t>(triggerMode) << 15));
+}
+
+void LocalAPIC::sendIPI(uint32_t apicID, uint8_t vector) {
+    wirteInterruptControlRegister(DeliveryMode::FIXED,
+                                  Level::ASSERT,
+                                  TriggerMode::EDGE,
+                                  apicID,
+                                  vector);
+    wirteInterruptControlRegister(DeliveryMode::FIXED,
+                                  Level::DEASSERT,
+                                  TriggerMode::EDGE,
+                                  apicID,
+                                  vector);
+}
+
 LocalAPIC::LocalAPIC(PhysicalAddress base, Status &status) :
         timer(this) {
 
@@ -34,23 +60,6 @@ LocalAPIC::LocalAPIC(PhysicalAddress base, Status &status) :
     if (!status) {
         return;
     }
-
-    /* initialization sequence from:
-     * http://www.osdever.net/tutorials/view/advanced-programming-interrupt-controller */
-    writeRegister(Register::TASK_PRIORITY, 0x20);
-    writeRegister(Register::LVT_TIMER, 0x10000);
-    writeRegister(Register::LVT_PERFORMANCE_COUNTER, 0x10000);
-    writeRegister(Register::LVT_REGULATOR_INTTERRUPTS, 0x08700);
-    writeRegister(Register::LVT_NON_MASKABLE_INTERRUPTS, 0x00400);
-    writeRegister(Register::LVT_ERROR, 0x10000);
-
-    /* enables the APIC and sets spurious interrupts vector.
-     * make spurious interrupts use 0x20 the same vector they use on the legacy PIC, so we can
-     * ignore them all the same way */
-    writeRegister(Register::SPURIOUS_INTERRUPT_VECTOR, 0x120);
-
-    writeRegister(Register::LVT_REGULATOR_INTTERRUPTS, 0x08700);
-    writeRegister(Register::LVT_NON_MASKABLE_INTERRUPTS, 0x00400);
 }
 
 

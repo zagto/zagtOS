@@ -54,4 +54,6 @@ public:
 
     LocalAPIC(PhysicalAddress base, Status &status);
     ~LocalAPIC();
+
+    void sendIPI(uint32_t apicID, uint8_t vector);
 };

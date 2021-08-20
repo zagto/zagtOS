@@ -65,7 +65,7 @@ Status Port::addMessage(unique_ptr<Message> message) {
         waitingThread->setState(Thread::State::Transition());
         Thread *tmp = waitingThread;
         waitingThread = nullptr;
-        Scheduler::schedule(tmp);
+        Scheduler::schedule(tmp, true);
         return Status::OK();
     } else {
         return messages.push_back(move(message));

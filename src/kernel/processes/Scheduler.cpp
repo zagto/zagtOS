@@ -81,13 +81,16 @@ Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
     _activeThread->currentProcessor(processor);
     _activeThread->setState(Thread::State::Active(processor));
 
-    cout << "activeThread is now " << _activeThread << endl;
+    cout << "activeThread on " << processor->id << " is now " << _activeThread << endl;
 
 }
 
-void Scheduler::add(Thread *thread) {
+void Scheduler::add(Thread *thread, bool online) {
     // TODO: ensure current processor
     assert(thread->currentProcessor() == nullptr);
+    if (online) {
+        Processor::kernelInterruptsLock.lock();
+    }
     scoped_lock sl(lock);
 
     cout << "add thread " << thread << " to scheduler " << processor->id << endl;
@@ -96,26 +99,35 @@ void Scheduler::add(Thread *thread) {
 
     if (thread->currentPriority() > _activeThread->currentPriority()) {
         /* new thread has heigher proirity - switch */
-        _activeThread->setState(Thread::State::Running(processor));
-        threads[_activeThread->currentPriority()].append(_activeThread);
-        thread->setState(Thread::State::Active(processor));
-        _activeThread = thread;
+        if (CurrentProcessor == processor || !online) {
+            _activeThread->setState(Thread::State::Running(processor));
+            threads[_activeThread->currentPriority()].append(_activeThread);
+            thread->setState(Thread::State::Active(processor));
+            _activeThread = thread;
+        } else {
+            processor->sendCheckSchedulerIPI();
+        }
     } else {
         threads[thread->currentPriority()].append(thread);
         thread->setState(Thread::State::Running(processor));
     }
-    cout << "activeThread is now " << _activeThread << endl;
+
+    if (online) {
+        Processor::kernelInterruptsLock.unlock();
+    }
+    cout << "activeThread on " << processor->id << " is now " << _activeThread << endl;
 }
 
 size_t Scheduler::nextProcessorID{0};
 
-void Scheduler::schedule(Thread *thread) {
+void Scheduler::schedule(Thread *thread, bool online) {
     // TODO
     size_t processorID = __atomic_fetch_add(&nextProcessorID, 1, __ATOMIC_RELAXED) % CurrentSystem.numProcessors;
-    Processors[processorID].scheduler.add(thread);
+    Processors[processorID].scheduler.add(thread, online);
 }
 
 void Scheduler::remove(Thread *thread) {
+    scoped_lock sl1(Processor::kernelInterruptsLock);
     scoped_lock sl(lock);
     removeLocked(thread);
 }

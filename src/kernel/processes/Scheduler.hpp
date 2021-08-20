@@ -28,7 +28,7 @@ private:
     List threads[Thread::NUM_PRIORITIES];
     Processor *processor;
 
-    void add(Thread *thread);
+    void add(Thread *thread, bool online);
     void scheduleNext();
 
 public:
@@ -37,7 +37,7 @@ public:
     Scheduler(CommonProcessor *processor, Status &status);
     ~Scheduler();
     /* new threads should be added to any scheduler in the system for even load distribution */
-    static void schedule(Thread *thread);
+    static void schedule(Thread *thread, bool online);
     void remove(Thread *thread);
     /* TODO: figure out if this is sufficient */
     void removeLocked(Thread *thread);

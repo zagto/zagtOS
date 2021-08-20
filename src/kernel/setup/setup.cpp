@@ -45,7 +45,7 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
 
     CurrentProcessor = &Processors[processorID];
     CurrentProcessor->hardwareID = hardwareID;
-    cout << "Processor " << processorID << " running." << endl;
+    cout << "Processor " << processorID << " hardwareID "  << hardwareID << " running." << endl;
     assert(CurrentProcessor->id == processorID);
 
     switchStack(CurrentProcessor->kernelStack, KernelEntry2, handOver);
