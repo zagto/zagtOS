@@ -55,6 +55,7 @@ __attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
     size_t processorID = CurrentProcessor->id;
 
     CurrentSystem.setupCurrentProcessor();
+    CurrentProcessor->localInitialization();
 
     if (processorID == 0) {
         cout << "Setting up time..." << endl;

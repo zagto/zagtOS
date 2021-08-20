@@ -3,6 +3,8 @@
 #include <common/common.hpp>
 #include <lib/Status.hpp>
 #include <mutex>
+#include <paging/PagingContext.hpp>
+
 
 namespace kernelPageAllocator {
 
@@ -25,7 +27,10 @@ private:
 
 public:
     void unmap(void *_address, size_t length, bool freeFrames);
-    Result<void *> map(size_t length, bool findNewFrames, const PhysicalAddress *frames = nullptr);
+    Result<void *> map(size_t length,
+                       bool findNewFrames,
+                       const PhysicalAddress *frames = nullptr,
+                       CacheType cacheType = CacheType::NORMAL_WRITE_BACK);
 
     SpinLock lock;
 };

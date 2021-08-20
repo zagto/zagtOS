@@ -62,10 +62,14 @@ void Allocator::unsetFrame(size_t frame) {
     bitmap[frame / FRAMES_PER_GROUP] ^= (1ul << (frame % FRAMES_PER_GROUP));
 }
 
-Result <void *> Allocator::map(size_t length, bool findNewFrames, const PhysicalAddress *frames) {
+Result <void *> Allocator::map(size_t length,
+                               bool findNewFrames,
+                               const PhysicalAddress *frames,
+                               CacheType cacheType) {
     assert(lock.isLocked());
     assert(length > 0);
     assert(length % PAGE_SIZE == 0);
+    assert(findNewFrames == (frames == nullptr));
     if (length > KernelHeapRegion.length) {
         cout << "Kernel MMap attempt larger than kernel heap" << endl;
         return Status::OutOfKernelHeap();
@@ -106,7 +110,7 @@ Result <void *> Allocator::map(size_t length, bool findNewFrames, const Physical
                 PagingContext::map(startAddress + frameIndex * PAGE_SIZE,
                                    physicalAddress,
                                    Permissions::READ_WRITE,
-                                   CacheType::NORMAL_WRITE_BACK);
+                                   cacheType);
             }
 
             do {

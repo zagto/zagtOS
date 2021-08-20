@@ -37,7 +37,7 @@ protected:
         LVT_TIMER = 0x320,
         LVT_THERMAL = 0x330,
         LVT_PERFORMANCE_COUNTER = 0x340,
-        LVT_REGULATOR_INTTERRUPTS = 0x350,
+        LVT_REGULAR_INTTERRUPTS = 0x350,
         LVT_NON_MASKABLE_INTERRUPTS = 0x360,
         LVT_ERROR = 0x370,
         INITIAL_COUNT = 0x380,
@@ -52,8 +52,9 @@ protected:
 public:
     APICTimer timer;
 
-    LocalAPIC(PhysicalAddress base, Status &status);
+    LocalAPIC(Status &);
     ~LocalAPIC();
 
+    Status initialize(PhysicalAddress base);
     void sendIPI(uint32_t apicID, uint8_t vector);
 };

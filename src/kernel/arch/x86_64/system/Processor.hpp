@@ -10,6 +10,8 @@ private:
 public:
     Processor(size_t id, Status &status);
 
+    void localInitialization();
+
     void sendCheckSchedulerIPI();
 
     __attribute__((noreturn)) void returnToUserMode();

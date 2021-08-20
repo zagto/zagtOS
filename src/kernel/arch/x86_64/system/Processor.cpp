@@ -6,13 +6,18 @@
 Processor::Processor(size_t id, Status &status):
         CommonProcessor(id, status),
         tss(status),
-        localAPIC(readModelSpecificRegister(MSR::IA32_APIC_BASE), status) {
+        localAPIC(status) {
 
     if (!status) {
         return;
     }
 
     CurrentSystem.gdt.setupTSS(id, &tss);
+}
+
+void Processor::localInitialization() {
+    Status status = localAPIC.initialize(readModelSpecificRegister(MSR::IA32_APIC_BASE) & 0xfffff000);
+    assert(static_cast<bool>(status));
 }
 
 __attribute__((noreturn))
@@ -28,7 +33,7 @@ void Processor::returnToUserMode() {
 }
 
 void Processor::sendCheckSchedulerIPI() {
-    cout << "sending Check Scheduler IPI" << endl;
+    cout << "sending Check Scheduler IPI from " <<  CurrentProcessor->hardwareID << " to " << hardwareID << endl;
 
-    CurrentProcessor->localAPIC.sendIPI(hardwareID, 1);
+    CurrentProcessor->localAPIC.sendIPI(0, 0x40);
 }
