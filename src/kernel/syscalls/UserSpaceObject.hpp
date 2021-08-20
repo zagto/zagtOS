@@ -21,7 +21,7 @@ public:
             status = CurrentProcess()->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&object),
                                                              address,
                                                              sizeof(T));
-            valid = status;
+            valid = static_cast<bool>(status);
         } else {
             valid = true;
         }

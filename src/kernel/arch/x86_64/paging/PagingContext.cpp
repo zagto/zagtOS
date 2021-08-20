@@ -84,7 +84,7 @@ void PagingContext::map(KernelVirtualAddress from,
 void PagingContext::_unmap(VirtualAddress address, bool freeFrame) {
     Result<PageTableEntry *>entry = walkEntries(address, MissingStrategy::NONE);
     /* Exceptions should only happen with CREATE MissingStategy */
-    assert(entry);
+    assert(static_cast<bool>(entry));
     assert((*entry)->present());
 
     if (freeFrame) {

@@ -13,15 +13,15 @@ void hos_v1::System::decodeProcesses() {
     /* TODO: deal with OOM */
     Status status = Status::OK();
     vector<shared_ptr<::Thread>> allThreads(numThreads, status);
-    assert(status);
+    assert(static_cast<bool>(status));
     vector<shared_ptr<::Port>> allPorts(numPorts, status);
-    assert(status);
+    assert(static_cast<bool>(status));
     vector<shared_ptr<::MemoryArea>> allMemoryAreas(numMemoryAreas, status);
-    assert(status);
+    assert(static_cast<bool>(status));
     vector<shared_ptr<::Process>> allProcesses(numProcesses, status);
-    assert(status);
+    assert(static_cast<bool>(status));
     vector<::Frame *> allFrames(numFrames, nullptr, status);
-    assert(status);
+    assert(static_cast<bool>(status));
 
     for (size_t index = 0; index < numThreads; index++) {
         allThreads[index] = *make_shared<::Thread>(threads[index]);

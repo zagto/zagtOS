@@ -58,7 +58,11 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
 
     // TODO: actually do the priority thing
 
-    size_t futexID = process->addressSpace.getFutexID(address);
+    Result futexIdResult = process->addressSpace.getFutexID(address);
+    if (!futexIdResult) {
+        return futexIdResult.status();
+    }
+    size_t futexID = *futexIdResult;
 
     switch (operation) {
     case FUTEX_WAIT: {
@@ -82,17 +86,29 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
     }
     case FUTEX_LOCK_PI:
         while (true) {
-            uint32_t value = process->addressSpace.atomicCopyFrom32(address);
-            if (value == 0) {
-                if (process->addressSpace.atomicCompareExchange32(address,
-                                                                  value,
-                                                                  thread->handle())) {
+            Result<uint32_t> copyResult = process->addressSpace.atomicCopyFrom32(address);
+            if (!copyResult) {
+                return copyResult.status();
+            }
+
+            if (*copyResult == 0) {
+                Result<bool> exchangeResult = process->addressSpace.atomicCompareExchange32(
+                            address, 0, thread->handle());
+                if (!exchangeResult) {
+                    return exchangeResult.status();
+                }
+
+                if (*exchangeResult) {
                     return 0;
                 }
             } else {
-                if (process->addressSpace.atomicCompareExchange32(address,
-                                                                  value,
-                                                                  value | FUTEX_WAITERS_BIT)) {
+                Result<bool> exchangeResult = process->addressSpace.atomicCompareExchange32(
+                             address, *copyResult, *copyResult | FUTEX_WAITERS_BIT);
+                if (!exchangeResult) {
+                    return exchangeResult.status();
+                }
+
+                if (*exchangeResult) {
                     Status status = manager.wait(futexID, thread);
                     if (status) {
                         return 0;
@@ -106,8 +122,12 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
             }
         }
     case FUTEX_UNLOCK_PI: {
-        uint32_t value = process->addressSpace.atomicCopyFrom32(address);
-        if ((value & FUTEX_HANDLE_MASK) != thread->handle()) {
+        Result<uint32_t> copyResult = process->addressSpace.atomicCopyFrom32(address);
+        if (!copyResult) {
+            return copyResult.status();
+        }
+
+        if ((*copyResult & FUTEX_HANDLE_MASK) != thread->handle()) {
             cout << "Attempt to unlock Priority-inheritance futex from wrong thread" << endl;
             return EPERM;
         }

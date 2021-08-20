@@ -261,7 +261,7 @@ public:
     void shrinkTo(size_t newSize) {
         assert(newSize <= numElements);
         Status success = resize(newSize);
-        assert(success);
+        assert(static_cast<bool>(success));
     }
 
 

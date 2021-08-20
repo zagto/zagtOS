@@ -35,7 +35,7 @@ public:
     static Status ThreadKilled() {
         return Status(StatusType::ThreadKilled);
     }
-    operator bool() const {
+    explicit operator bool() const {
         assert(type != StatusType::NonInitialized);
         return type == StatusType::OK;
     }
@@ -56,18 +56,18 @@ public:
         _value{move(value)} {}
     Result(Status status):
             _status{status} {
-        assert(!_status);
+        assert(!static_cast<bool>(_status));
     }
     T *operator->() {
-        assert(_status);
+        assert(static_cast<bool>(_status));
         return &_value;
     }
     T &operator*() {
-        assert(_status);
+        assert(static_cast<bool>(_status));
         return _value;
     }
-    operator bool() {
-        return _status;
+    explicit operator bool() {
+        return static_cast<bool>(_status);
     }
     Status status() {
         Status result = _status;

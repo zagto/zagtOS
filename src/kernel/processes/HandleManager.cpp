@@ -222,9 +222,8 @@ Result<uint32_t> HandleManager::_addMemoryArea(shared_ptr<MemoryArea> &memoryAre
 
     Result handle = grabFreeNumber();
     if (handle) {
-        elements[handle] = Element(memoryArea);
+        elements[*handle] = Element(memoryArea);
     }
-    assert(elements[handle].type == Type::MEMORY_AREA);
     return handle;
 }
 
@@ -272,7 +271,7 @@ shared_ptr<Thread> HandleManager::extractThread() {
             shared_ptr<Thread> result;
             Status success = _removeHandle(number, result);
             /* number is valid, we just found it and are locked */
-            assert(success);
+            assert(static_cast<bool>(success));
             return result;
         }
     }
