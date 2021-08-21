@@ -4,8 +4,6 @@
 #include <memory/TLBContext.hpp>
 #include <system/System.hpp>
 
-extern size_t KERNEL_STACK_SIZE;
-
 CommonProcessor::KernelInterruptsLock CommonProcessor::kernelInterruptsLock;
 
 void CommonProcessor::KernelInterruptsLock::lock() {

@@ -1,6 +1,9 @@
-#include "KernelStack.hpp"
+#include <processes/KernelStack.hpp>
 
-KernelStack::KernelStack()
-{
+KernelStack(RegisterState initialRegisterState, Status &status) {
+
+}
+
+RegisterState *userRegisterState() {
 
 }

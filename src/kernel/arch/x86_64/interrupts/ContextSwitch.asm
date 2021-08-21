@@ -21,8 +21,6 @@ section .text
 %define FSBASE_MSR 0xC0000100
 %define KERNEL_GSBASE_MSR 0xC0000102
 
-%define KERNEL_STACK_SIZE_DEF 0x1000
-
 InterruptServiceRoutines:
 
 ; %1 - interrupt number
@@ -281,10 +279,5 @@ basicDisableInterrupts:
 basicEnableInterrupts:
     sti
     ret
-
-
-section .data
-KERNEL_STACK_SIZE:
-    dq KERNEL_STACK_SIZE_DEF
 
 
