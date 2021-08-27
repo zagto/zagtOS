@@ -71,7 +71,7 @@ public:
     static const uint32_t INVALID_HANDLE = -1;
 
 private:
-    Priority _ownPriority;
+    const Priority _ownPriority;
     Priority _currentPriority;
     State _state;
     SpinLock stateLock;
@@ -86,13 +86,15 @@ protected:
     Thread *next{nullptr};
 
 public:
-    KernelStack kernelStack;
+    //RegisterState *registerState{nullptr};
     //VectorRegisterState vectorState;
+    void (*kernelEntry)(void *){nullptr};
+    shared_ptr<KernelStack> kernelStack;
     shared_ptr<Process> process;
     UserVirtualAddress tlsBase;
 
     Thread(shared_ptr<Process> process,
-           VirtualAddress entry,
+           UserVirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,
            UserVirtualAddress runMessageAddress,
@@ -102,10 +104,14 @@ public:
            Status &);
     /* shorter constructor for non-first threads, which don't want to know info about master TLS */
     Thread(shared_ptr<Process> process,
-           VirtualAddress entry,
+           UserVirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,
            UserVirtualAddress tlsBase,
+           Status &status);
+    /* for kernel-only threads: */
+    Thread(void (*entry)(void *),
+           Priority priority,
            Status &status);
     /* constructor used during kernel handover. process and handle fields need to be inserted
      * later. */
@@ -131,10 +137,11 @@ public:
     void currentProcessor(Processor *processor);
     void setHandle(uint32_t handle);
     uint32_t handle() const;
+    void switchTo();
 
     /* danger zone - only call this while holding no locks on potential owners. This is for
      * scenarios, like exit, kill ... and puts the thread in EXIT state. */
-    void terminate() noexcept;
+    void terminate();
 };
 
 Thread *CurrentThread();

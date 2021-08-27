@@ -2,7 +2,7 @@
 
 global loadInterruptDescriptorTable
 global loadTaskStateSegment
-global idleEntry
+global basicIdleProcessor
 global readCR2
 global loadGlobalDescriptorTable
 global setFSBase
@@ -14,18 +14,18 @@ loadInterruptDescriptorTable:
     ret
 
 loadTaskStateSegment:
-    mov ax, di
-    mov dx, 16 ; size of 1 TSS entry
-    mul dx
-    add ax, 0x28 ; first TSS entry
-    or ax, 3
+    mov rax, rdi
+    mov rdx, 16 ; size of 1 TSS entry
+    mul rdx
+    add rax, 0x28 ; first TSS entry
+    or rax, 3
     ltr ax
     ret
 
-idleEntry:
-    sti
+basicIdleProcessor:
+    ;sti
     hlt
-    jmp idleEntry
+    ret
 
 readCR2:
     mov rax, cr2

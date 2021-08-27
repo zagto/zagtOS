@@ -1,8 +1,8 @@
 #include <system/Processor.hpp>
 #include <paging/PagingContext.hpp>
-#include <memory/DLMallocGlue.hpp>
 #include <memory/TLBContext.hpp>
 #include <system/System.hpp>
+#include <memory>
 
 CommonProcessor::KernelInterruptsLock CommonProcessor::kernelInterruptsLock;
 
@@ -34,13 +34,11 @@ CommonProcessor::CommonProcessor(size_t id, Status &status) :
 
     cout << "initializing Processor " << id << " at " << this << endl;
 
-    Result<KernelVirtualAddress> address = DLMallocGlue.allocate(KERNEL_STACK_SIZE, 16);
-    if (address) {
-        kernelStack = address->asPointer<uint8_t>();
-        status = Status::OK();
+    Result kernelStack = make_shared<KernelStack>(RegisterState());
+    if (kernelStack) {
+        this->kernelStack = *kernelStack;
     } else {
-        kernelStack = nullptr;
-        status = address.status();
+        status = kernelStack.status();
     }
 }
 

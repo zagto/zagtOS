@@ -89,10 +89,9 @@ syscallEntry:
     ; currentProcessor is the field at the beginning of registerState
     ; this pointer is put in r15 (as the CurrentProcessor variable)
     mov r15, [gs:0x0]
-    ; kernelStack is the first field of Processor class
-    mov rsp, [r15]
-    ; start at the end of kernelStack region
-    add rsp, KERNEL_STACK_SIZE_DEF
+
+    ; the kernel stack starts with the saved RegisterState
+    mov rsp, gs:0x0
 
     ; syscall instruction overwrites rcx so this variable put into r10 by user space
     mov rcx, r10
@@ -148,10 +147,6 @@ commonISR:
     ; currentProcessor is the field at the beginning of registerState
     ; this pointer is put in r15 (as the CurrentProcessor variable)
     mov r15, [rdi]
-    ; kernelStack is the first field of CommonProcessor class
-    mov rsp, [r15]
-    ; start at the end of kernelStack region
-    add rsp, KERNEL_STACK_SIZE_DEF
 
 alreadyOnKernelStack:
     call handleInterrupt

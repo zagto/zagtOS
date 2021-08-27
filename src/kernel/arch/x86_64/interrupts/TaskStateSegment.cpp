@@ -27,7 +27,8 @@ TaskStateSegment::TaskStateSegment(Status &status) {
 
 
 void TaskStateSegment::update(Thread *thread) {
-    rsp = reinterpret_cast<size_t>(&thread->registerState) + sizeof(RegisterState);
+    rsp = reinterpret_cast<size_t>(thread->kernelStack->userRegisterState())
+            + sizeof(RegisterState);
     loadTaskStateSegment(thread->currentProcessor()->id);
 }
 

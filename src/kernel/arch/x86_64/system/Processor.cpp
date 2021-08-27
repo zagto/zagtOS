@@ -23,13 +23,19 @@ void Processor::localInitialization() {
 __attribute__((noreturn))
 void Processor::returnToUserMode() {
     Thread *thread = CurrentProcessor->scheduler.activeThread();
-    // Idle thread does not have a process
-    if (thread->process) {
-        thread->process->addressSpace.activate();
-    }
+
+    cout << "A" << endl;
+    /* Idle thread does not have a process, but it can't enter user mode */
+    assert(thread->process);
+
+    thread->process->addressSpace.activate();
+    cout << "B" << endl;
+
     CurrentSystem.gdt.resetTSS(CurrentProcessor->id);
+    cout << "C" << endl;
     tss.update(thread);
-    returnFromInterrupt(&thread->registerState, thread->threadLocalStorage());
+    cout << "D" << endl;
+    returnFromInterrupt(thread->kernelStack->userRegisterState(), thread->threadLocalStorage());
 }
 
 void Processor::sendCheckSchedulerIPI() {

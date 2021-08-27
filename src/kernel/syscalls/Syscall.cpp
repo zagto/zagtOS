@@ -89,36 +89,32 @@ static SyscallFunction *syscallFunctions[] = {
 };
 
 extern "C" [[noreturn]]
-void Syscall(size_t syscallNr,
-             size_t arg0,
-             size_t arg1,
-             size_t arg2,
-             size_t arg3,
-             size_t arg4) {
-    const shared_ptr<Process> process = CurrentProcess();
-
-    Status status = Status::OK();
-    do {
-        if (syscallNr >= sizeof(syscallFunctions) || syscallFunctions[syscallNr] == nullptr) {
-            cout << "invalid syscall number: " << syscallNr << endl;
-            status = Status::BadUserSpace();
-        } else {
-
-            CurrentProcessor->kernelInterruptsLock.unlock();
-            Result<size_t> result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
-            CurrentProcessor->kernelInterruptsLock.lock();
+size_t Syscall(size_t syscallNr,
+               size_t arg0,
+               size_t arg1,
+               size_t arg2,
+               size_t arg3,
+               size_t arg4) {
+    {
+        cout << "Syscall " << syscallNr << endl;
+        const shared_ptr<Process> process = CurrentProcess();
+        Result<size_t> result;
+        do {
+            if (syscallNr >= sizeof(syscallFunctions) || syscallFunctions[syscallNr] == nullptr) {
+                cout << "invalid syscall number: " << syscallNr << endl;
+                result = Status::BadUserSpace();
+            } else {
+                CurrentProcessor->kernelInterruptsLock.unlock();
+                result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
+                CurrentProcessor->kernelInterruptsLock.lock();
+            }
 
             if (result) {
-                CurrentThread()->registerState.setSyscallResult(*result);
+                CurrentThread()->kernelStack->userRegisterState()->setSyscallResult(*result);
             } else {
-                status = result.status();
+                dealWithException(result.status());
             }
-        }
-
-        if (!status) {
-            dealWithException(status);
-        }
-    } while(!status);
-
+        } while(!result);
+    }
     CurrentProcessor->returnToUserMode();
 }

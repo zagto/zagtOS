@@ -52,8 +52,6 @@ void hos_v1::System::decodeProcesses() {
 
     for (const shared_ptr<::Thread> &thread: allThreads) {
         Scheduler::schedule(thread.get(), false);
-
-        cout << "1 -- On decode User cs of thread " << thread.get() <<" is " << thread->registerState.cs << endl;
     }
 
 }

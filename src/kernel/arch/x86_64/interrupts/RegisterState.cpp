@@ -3,14 +3,18 @@
 #include <memory/ArchRegions.hpp>
 
 
-RegisterState::RegisterState(VirtualAddress entry,
+RegisterState::RegisterState() {
+    memset(this, 0, sizeof(RegisterState));
+}
+
+RegisterState::RegisterState(UserVirtualAddress entry,
                              UserVirtualAddress stackPointer,
                              UserVirtualAddress runMessageAddress,
                              UserVirtualAddress tlsBase,
                              UserVirtualAddress masterTLSBase,
                              size_t tlsSize)
-{
-    memset(this, 0, sizeof(RegisterState));
+    : RegisterState() {
+
     rsp = stackPointer.value();
     /* stack-pointer needs to be misaligned on x86_64 */
     while (rsp % 16 != 8) {

@@ -2,6 +2,7 @@
 #include <system/System.hpp>
 #include <interrupts/util.hpp>
 #include <processes/Process.hpp>
+#include <processes/KernelThreadEntry.hpp>
 #include <system/Processor.hpp>
 
 
@@ -63,10 +64,8 @@ Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
         return;
     }
 
-    Result result = make_raw<Thread>(shared_ptr<Process>{},
-                                     VirtualAddress(reinterpret_cast<size_t>(&idleEntry)),
-                                     Thread::Priority::IDLE,
-                                     0, 0);
+    Result result = make_raw<Thread>(IdleThreadEntry,
+                                     Thread::Priority::IDLE);
     if (!result) {
         status = result.status();
         return;
@@ -77,12 +76,7 @@ Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
 
 
     processor = static_cast<Processor *>(_processor);
-    _activeThread = idleThread;
-    _activeThread->currentProcessor(processor);
-    _activeThread->setState(Thread::State::Active(processor));
-
-    cout << "activeThread on " << processor->id << " is now " << _activeThread << endl;
-
+    idleThread->setState(Thread::State::Running(processor));
 }
 
 void Scheduler::add(Thread *thread, bool online) {
@@ -97,9 +91,9 @@ void Scheduler::add(Thread *thread, bool online) {
 
     thread->currentProcessor(processor);
 
-    if (thread->currentPriority() > _activeThread->currentPriority()) {
+    if (online && thread->currentPriority() > _activeThread->currentPriority()) {
         /* new thread has heigher proirity - switch */
-        if (CurrentProcessor == processor || !online) {
+        if (CurrentProcessor == processor) {
             _activeThread->setState(Thread::State::Running(processor));
             threads[_activeThread->currentPriority()].append(_activeThread);
             thread->setState(Thread::State::Active(processor));
@@ -150,6 +144,7 @@ Thread *Scheduler::activeThread() const {
     return _activeThread;
 }
 
+[[noreturn]]
 void Scheduler::scheduleNext() {
     assert(!_activeThread);
     assert(lock.isLocked());
@@ -158,7 +153,7 @@ void Scheduler::scheduleNext() {
         if (!threads[prio].empty()) {
             _activeThread = threads[prio].pop();
             _activeThread->setState(Thread::State::Active(processor));
-            return;
+            _activeThread->kernelStack->switchToKernelEntry(_activeThread->kernelEntry, nullptr);
         }
     }
 

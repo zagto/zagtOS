@@ -171,7 +171,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     }
 
     NoteHeader noteHeader;
-    RegisterState &regs = crashedThread->registerState;
+    RegisterState &regs = *crashedThread->kernelStack->userRegisterState();
 
     PRStatus prStatus;
     memset(&prStatus, 0, sizeof(PRStatus));

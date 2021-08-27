@@ -7,12 +7,8 @@
 
 
 extern "C" void _init();
-extern "C" __attribute__((noreturn)) void switchStack(uint8_t *newStack,
-                                                      void nextCode(hos_v1::System *),
-                                                      hos_v1::System *arg);
 
-void KernelEntry2(hos_v1::System *handOver);
-void KernelEntrySecondaryProcessor2(hos_v1::System *handOver);
+void KernelEntry2(void *handOver);
 
 
 static size_t secondaryProcessorsStartLock = 1;
@@ -48,10 +44,11 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
     cout << "Processor " << processorID << " hardwareID "  << hardwareID << " running." << endl;
     assert(CurrentProcessor->id == processorID);
 
-    switchStack(CurrentProcessor->kernelStack, KernelEntry2, handOver);
+    CurrentProcessor->kernelStack->switchToKernelEntry(KernelEntry2, handOver);
 }
 
-__attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
+__attribute__((noreturn)) void KernelEntry2(void *_handOver) {
+    hos_v1::System *handOver = static_cast<hos_v1::System *>(_handOver);
     size_t processorID = CurrentProcessor->id;
 
     CurrentSystem.setupCurrentProcessor();
@@ -84,5 +81,7 @@ __attribute__((noreturn)) void KernelEntry2(hos_v1::System *handOver) {
     {
         cout << "Processor " << processorID << " entering normal operation" << endl;
     }
-    CurrentProcessor->returnToUserMode();
+
+    CurrentProcessor->scheduler.lock.lock();
+    CurrentProcessor->scheduler.scheduleNext();
 }

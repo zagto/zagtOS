@@ -1,47 +1,94 @@
 #include <processes/Thread.hpp>
 #include <processes/Process.hpp>
+#include <processes/KernelThreadEntry.hpp>
 #include <system/System.hpp>
 #include <system/Processor.hpp>
 
 
 Thread::Thread(shared_ptr<Process> process,
-       VirtualAddress entry,
+       UserVirtualAddress entry,
        Priority priority,
        UserVirtualAddress stackPointer,
        UserVirtualAddress runMessageAddress,
        UserVirtualAddress tlsBase,
        UserVirtualAddress masterTLSBase,
        size_t tlsSize,
-       Status &) :
+       Status &status) :
     _ownPriority{priority},
     _currentPriority{priority},
     _state {State::Transition()},
-    registerState(entry, stackPointer, runMessageAddress, tlsBase, masterTLSBase, tlsSize),
     process{process},
     tlsBase{tlsBase} {
 
-    cout << "new Thread cs: " << registerState.cs << endl;
+    if (!status) {
+        return;
+    }
 
+    RegisterState userRegisterState(entry,
+                                    stackPointer,
+                                    runMessageAddress,
+                                    tlsBase,
+                                    masterTLSBase,
+                                    tlsSize);
+
+    Result result = make_shared<KernelStack>(userRegisterState);
+    if (!result) {
+        status = result.status();
+        return;
+    }
+    kernelStack = *result;
 }
 
 /* shorter constructor for non-first threads, which don't want to know info about master TLS */
 Thread::Thread(shared_ptr<Process> process,
-       VirtualAddress entry,
+       UserVirtualAddress entry,
        Priority priority,
        UserVirtualAddress stackPointer,
        UserVirtualAddress tlsBase,
        Status &status) :
     Thread(process, entry, priority, stackPointer, stackPointer, tlsBase, 0, 0, status) {}
 
-Thread::Thread(const hos_v1::Thread &handOver, Status &) :
+Thread::Thread(const hos_v1::Thread &handOver, Status &status) :
     _ownPriority{handOver.ownPriority},
     _currentPriority{handOver.currentPriority},
     _state{State::Transition()},
-    registerState{handOver.registerState},
     tlsBase{handOver.TLSBase} {
 
-    cout << "thread handover cs: " << registerState.cs << endl;
+    if (!status) {
+        return;
+    }
 
+    RegisterState userRegisterState(handOver.registerState);
+    Result result = make_shared<KernelStack>(userRegisterState);
+    if (!result) {
+        status = result.status();
+        return;
+    }
+    kernelStack = *result;
+    kernelEntry = RegularThreadEntry;
+
+    cout << "thread handover cs: " << kernelStack->userRegisterState()->cs << endl;
+}
+
+/* for kernel-only threads: */
+Thread::Thread(void (*entry)(void *),
+               Priority priority,
+               Status &status):
+    _ownPriority{priority},
+    _currentPriority{priority},
+    _state {State::Transition()},
+    kernelEntry{entry} {
+
+    if (!status) {
+        return;
+    }
+
+    Result result = make_shared<KernelStack>(RegisterState());
+    if (!result) {
+        status = result.status();
+        return;
+    }
+    kernelStack = *result;
 }
 
 Thread::~Thread() {
@@ -89,18 +136,27 @@ void Thread::setHandle(uint32_t handle) {
     assert(handle != INVALID_HANDLE);
 
     _handle = handle;
-    registerState.setThreadHandle(handle);
+    kernelStack->userRegisterState()->setThreadHandle(handle);
 }
 
+/* The currentProcessor variable is stored on the stack for easy loding during the user-to-kernel
+ * switch */
 Processor *Thread::currentProcessor() const {
-    return registerState.currentProcessor;
+    return kernelStack->userRegisterState()->currentProcessor;
 }
 
 void Thread::currentProcessor(Processor *processor) {
-    registerState.currentProcessor = processor;
+    kernelStack->userRegisterState()->currentProcessor = processor;
 }
 
-void Thread::terminate() noexcept {
+void Thread::switchTo() {
+    if (kernelEntry) {
+        kernelStack->switchToKernelEntry(kernelEntry, nullptr);
+        CurrentProcessor->kernelStack = kernelStack;
+    }
+}
+
+void Thread::terminate() {
     assert(CurrentProcessor->kernelInterruptsLock.isLocked());
 
     cout << "Thread::terminate" << endl;

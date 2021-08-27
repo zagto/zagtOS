@@ -7,8 +7,7 @@ class Processor;
 
 /* Although in a separate file, the register state is part of the kernel handover interface and
  * chaging it means introducing a new inteface */
-class RegisterState
-{
+class RegisterState {
 public:
     static const uint64_t FLAG_USER_IOPL{(3 << 12)};
     static const uint64_t FLAG_INTERRUPTS{(1 << 9)};
@@ -26,11 +25,13 @@ public:
     uint64_t intNr, errorCode;
     uint64_t rip, cs, rflags, rsp, ss;
 
-    RegisterState(VirtualAddress entry, UserVirtualAddress stackPointer,
+    RegisterState();
+    RegisterState(UserVirtualAddress entry, UserVirtualAddress stackPointer,
                   UserVirtualAddress runMessageAddress,
                   UserVirtualAddress tlsBase,
                   UserVirtualAddress masterTLSBase,
                   size_t tlsSize);
+    RegisterState(KernelVirtualAddress entry, KernelVirtualAddress stackPointer);
 
     inline size_t stackPointer() const {
         return rsp;

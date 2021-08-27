@@ -3,6 +3,7 @@
 #include <processes/Scheduler.hpp>
 #include <interrupts/Interrupts.hpp>
 #include <memory/InvalidateQueue.hpp>
+#include <memory>
 
 class Process;
 class TLBContext;
@@ -22,8 +23,7 @@ public:
         bool isLocked() const;
     };
 
-    /* kernelStack has to be the first field, context switch code relies on this */
-    uint8_t *kernelStack;
+    shared_ptr<KernelStack> kernelStack;
 
     size_t hardwareID;
 

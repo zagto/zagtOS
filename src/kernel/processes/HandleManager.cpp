@@ -121,7 +121,6 @@ HandleManager::HandleManager(const hos_v1::Process &handOver,
         {
             shared_ptr<Thread> thread = allThreads[hosHandle.objectID];
             element = Element(thread);
-            cout << "handover thread " << thread.get() << " handle " << hosHandle.handle << " cs " << thread->registerState.cs << endl;
             thread->setHandle(hosHandle.handle);
             break;
         }

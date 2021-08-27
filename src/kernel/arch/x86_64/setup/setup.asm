@@ -7,10 +7,8 @@ extern KERNEL_STACK_SIZE
 section .text
 
 switchStack:
-    mov rax, KERNEL_STACK_SIZE
-    add rdi, [rax]
     mov rsp, rdi
     mov rdi, rdx
-    sub rsp, 8 ; alignment matters!
+    ;sub rsp, 8 ; alignment matters!
     push rsi
     ret

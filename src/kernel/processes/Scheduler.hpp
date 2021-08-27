@@ -24,12 +24,16 @@ private:
     static size_t nextProcessorID;
 
     Thread *idleThread;
-    Thread *_activeThread;
+    Thread *_activeThread{nullptr};
     List threads[Thread::NUM_PRIORITIES];
     Processor *processor;
 
     void add(Thread *thread, bool online);
+    [[noreturn]]
     void scheduleNext();
+
+    /* KernelEntry2 calls scheduleNext at the end */
+    friend void KernelEntry2(void *);
 
 public:
     SpinLock lock;

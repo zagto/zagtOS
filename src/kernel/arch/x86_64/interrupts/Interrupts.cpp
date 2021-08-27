@@ -44,7 +44,7 @@ void dealWithException(Status status) {
 __attribute__((noreturn)) void userHandler(RegisterState *registerState) {
     {
         Thread *activeThread = CurrentProcessor->scheduler.activeThread();
-        assert(&activeThread->registerState == registerState);
+        assert(activeThread->kernelStack->userRegisterState() == registerState);
 
         switch (registerState->intNr) {
         case PIC1_SPURIOUS_IRQ:
