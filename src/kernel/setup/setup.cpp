@@ -55,9 +55,6 @@ __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
     CurrentProcessor->localInitialization();
 
     if (processorID == 0) {
-        cout << "Setting up time..." << endl;
-        CurrentSystem.time.initialize();
-
         cout << "Creating initial processes..." << endl;
         handOver->decodeProcesses();
 

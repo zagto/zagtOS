@@ -8,7 +8,7 @@ using namespace efi;
 static EFI_FILE_PROTOCOL *volume{nullptr};
 
 
-EFI_FILE_PROTOCOL *findOwnVolume() {
+static EFI_FILE_PROTOCOL *findOwnVolume() {
     EFI_STATUS status;
     EFI_LOADED_IMAGE_PROTOCOL *loadedImage;
     EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *simpleFileSystem;

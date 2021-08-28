@@ -5,6 +5,7 @@
 
 CommonSystem::CommonSystem(const hos_v1::System &handOver):
     nextFutexFrameID{handOver.nextFutexFrameID},
+    time{handOver.timerFrequency},
     kernelOnlyPagingContext(handOver.handOverPagingContext, handOverStatus),
     futexManager(handOverStatus),
     numProcessors{handOver.numProcessors} {}

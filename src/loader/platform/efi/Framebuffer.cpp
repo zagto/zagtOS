@@ -85,7 +85,7 @@ static void setBestMode(EFI_GRAPHICS_OUTPUT_PROTOCOL *graphicsOutput) {
 }
 
 
-void generateFramebufferInfo(EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode) {
+static void generateFramebufferInfo(EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode) {
     framebufferInfo = hos_v1::FramebufferInfo{
         .frontBuffer = reinterpret_cast<uint8_t *>(mode->FrameBufferBase),
         .backBuffer = nullptr, /* inserted by mapFrameBuffer */

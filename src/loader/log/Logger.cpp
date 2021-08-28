@@ -1,6 +1,8 @@
 #include <log/Logger.hpp>
 #include <Output.hpp>
 
+Logger cout;
+
 Logger Logger::operator<<(char character) {
     if (character >= ' ' || character == '\n') {
         Output(character);

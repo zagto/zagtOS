@@ -1,3 +1,4 @@
+#include <EFI.hpp>
 #include <Firmware.hpp>
 #include <log/Logger.hpp>
 

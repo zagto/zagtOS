@@ -1,5 +1,5 @@
 #include <portio.hpp>
-#include <time/LegacyTimer.hpp>
+#include <LegacyTimer.hpp>
 
 using namespace portio;
 

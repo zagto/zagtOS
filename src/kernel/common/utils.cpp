@@ -83,7 +83,7 @@ size_t align(size_t address, size_t alignment, AlignDirection direction) {
 void alignedShrink(size_t &start, size_t &length, size_t alignment) {
     size_t newStart = align(start, alignment, AlignDirection::UP);
     if (length < newStart - start) {
-        length = newStart; // TODO : 0????
+        length = 0;
     } else {
         length -= newStart - start;
         length = align(length, alignment, AlignDirection::DOWN);

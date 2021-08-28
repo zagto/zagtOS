@@ -48,7 +48,7 @@ void isort(hos_v1::MappedArea *mappedAreas, size_t len) {
     }
 }
 
-void LoaderMain() {
+extern "C" void LoaderMain() {
     cout << "Initializing..." << endl;
     hos_v1::FramebufferInfo &framebufferInfo = InitFramebuffer();
 
@@ -159,6 +159,7 @@ void LoaderMain() {
         .memoryAreas = handOverMemoryAreas,
         .numFrames = numFrames,
         .frames = handOverFrames,
+        .timerFrequency = timerFrequency,
         .numProcessors = numProcessors,
         .numFutexes = 0,
         .futexes = nullptr,

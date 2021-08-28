@@ -143,6 +143,8 @@ struct System {
     size_t numFrames;
     Frame *frames;
 
+    uint64_t timerFrequency;
+
     size_t numProcessors;
     size_t numFutexes;
     Futex *futexes;

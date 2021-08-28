@@ -1,22 +1,16 @@
 #pragma once
 
 #include <common/common.hpp>
-#include <time/LegacyTimer.hpp>
 #include <mutex>
 
 class Time {
-private:
-    LegacyTimer legacyTimer;
-
-    void detectTimerFrequency();
-
 public:
     mutex offsetLock;
     bool offsetValid{false};
     uint64_t timerFrequency{0};
     timespec realTimeOffset;
 
-    void initialize();
+    Time(uint64_t timerFrequency);
     void delayMilliseconds(uint64_t ms);
 };
 

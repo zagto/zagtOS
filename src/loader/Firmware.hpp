@@ -1,6 +1,5 @@
 #pragma once
 
-#include <EFI.hpp>
 #include <setup/HandOverState.hpp>
 
 PhysicalAddress GetFirmwareRoot();

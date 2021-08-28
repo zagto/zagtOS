@@ -1,6 +1,4 @@
-#ifndef LEGACYTIMER_HPP
-#define LEGACYTIMER_HPP
-
+#pragma once
 #include <common/common.hpp>
 
 class LegacyTimer {
@@ -12,5 +10,3 @@ public:
     void setOperatingMode();
     uint16_t readValue();
 };
-
-#endif // LEGACYTIMER_HPP
