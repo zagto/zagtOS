@@ -2,7 +2,7 @@
 set -e
 
 mkdir -p out/esp/EFI/BOOT
-cp build/loader/BOOTX64.EFI out/esp/EFI/BOOT/
+cp build/loader/efi/BOOTX64.EFI out/esp/EFI/BOOT/BOOTX64.EFI
 cp build/kernel/ZAGTKERN.ZBN out/esp/
 cp build/SystemEnvironment/SYSENV.ZBN out/esp/
 # create image
