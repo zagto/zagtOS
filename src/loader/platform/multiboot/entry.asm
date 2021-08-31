@@ -33,8 +33,7 @@ global MultibootInfo
 section .text:
 [bits 32]
 _start:
-    jmp _start
-
+cli
     mov [MultibootInfo], ebx
 
     ; enable Longmode and SSE
@@ -52,7 +51,6 @@ _start:
     mov ecx, pageMapLevel4
     mov cr3, ecx
 
-
     ; set bits in EFER MSR to enable Long Mode and Non-Execute and Syscall instruction features
     mov ecx, MSR_EFER
     rdmsr
@@ -69,7 +67,6 @@ _start:
     and ecx, ~CR0_COPROCESSOR_EMULATION
     or ecx, CR0_PAGING | CR0_PROTECTED_MODE | CR0_COPROCESSOR_MONITORING
     mov cr0, ecx
-
 
     lgdt [gdtr]
 
@@ -99,30 +96,52 @@ __cxa_atexit:
     mov rax, 0
     ret
 
-section .multiboot:
+section .multiboot
 MultibootHeader:
     dd 0xe85250d6       ; magic
     dd 0                ; architecture = x86
     dd (MultibootHeaderEnd - MultibootHeader) ; size
     dd - (MultibootHeaderEnd - MultibootHeader) - 0xe85250d6 ; checksum
+
+    align 8
 MultibootInfoTag:
     dw 1                ; tag type
     dw 0                ; flags
-    dd (Multiboot2Tag - MultibootInfoTag)
+    dd (LoadAddressTag - MultibootInfoTag)
     dd 8                ; Framebuffer
     dd 6                ; Memory Map
     dd 14               ; ACPI old
     dd 15               ; ACPI new
     dd 3                ; Modules
     dd 0                ; end
-Multiboot2Tag:
+
+    align 8
+LoadAddressTag:
     dw 2
     dw 0
-    dd (MultibootEndTag - Multiboot2Tag)
+    dd (EntryAddressTag - LoadAddressTag)
     dd MultibootHeader  ; Header Address
     dd MultibootHeader  ; Load Address
-    dd _bss             ; Load End Address
+    dd _bss         ; Load End Address
     dd _end             ; BSS End Address
+
+    align 8
+EntryAddressTag:
+    dw 3
+    dw 0
+    dd (MultibootFramebuferTag - EntryAddressTag)
+    dd _start  ; Entry Address
+
+    align 8
+MultibootFramebuferTag:
+    dw 5                ; tag type
+    dw 0                ; flags
+    dd (MultibootEndTag - MultibootFramebuferTag)
+    dd 3840
+    dd 2160
+    dd 32
+    align 8
+
 MultibootEndTag:
     dw 0                ; tag type
     dw 0                ; flags
@@ -134,6 +153,7 @@ section .bss
 MultibootInfo:
     resq 0 ; Pointer to Multiboot Info Stucture passed by Multiboot loader
 
+    align 16
 stack:
     resb 0x1000
 stackEnd:
@@ -148,19 +168,21 @@ gdtr:
     dw $ - gdt - 1
     dd gdt
 
+    align 0x1000
 pageMapLevel4:
     ; 256GiB Physical Addresses max.
     %define NUM_PML4_ENTRIES 1
-    %define ENTRIES_PER_TABLE 0x1000/8
-    %define TWO_M 2*1024*1024
+    %define ENTRIES_PER_TABLE 512
+    %define TWO_M (2*1024*1024)
 
     %define PAGE_PRESENT 0x1
+    %define PAGE_WRITE 0x2
     %define PAGE_NO_CACHE 0x08 ; PAT, was 0x10
-    %define PAGE_HUGE 0x800
+    %define PAGE_HUGE 0x80
 
     %assign index 0
     %rep NUM_PML4_ENTRIES
-        dq (pageDirectoryPointerTable + index * 0x1000) + (PAGE_PRESENT | PAGE_NO_CACHE)
+        dq (pageDirectoryPointerTable + index * 0x1000) + (PAGE_PRESENT|PAGE_WRITE | PAGE_NO_CACHE)
         %assign index index+1
     %endrep
     %rep ENTRIES_PER_TABLE - NUM_PML4_ENTRIES
@@ -172,7 +194,7 @@ pageMapLevel4:
     %rep NUM_PML4_ENTRIES
         %assign entryIndex 0
         %rep ENTRIES_PER_TABLE
-            dq (pageDirectory + tableIndex * ENTRIES_PER_TABLE * 0x1000 + entryIndex * 0x1000) + (PAGE_PRESENT | PAGE_NO_CACHE)
+            dq (pageDirectory + tableIndex * ENTRIES_PER_TABLE * 0x1000 + entryIndex * 0x1000) + (PAGE_PRESENT |PAGE_WRITE| PAGE_NO_CACHE)
             %assign entryIndex entryIndex+1
         %endrep
         %assign tableIndex tableIndex+1
@@ -183,7 +205,7 @@ pageMapLevel4:
     %rep NUM_PML4_ENTRIES * ENTRIES_PER_TABLE
         %assign entryIndex 0
         %rep ENTRIES_PER_TABLE
-            dq (tableIndex * TWO_M * ENTRIES_PER_TABLE + entryIndex * TWO_M) | PAGE_HUGE | PAGE_PRESENT | PAGE_NO_CACHE
+            dq (tableIndex * TWO_M * ENTRIES_PER_TABLE + entryIndex * TWO_M) | PAGE_HUGE |PAGE_WRITE| PAGE_PRESENT | PAGE_NO_CACHE
             %assign entryIndex entryIndex+1
         %endrep
         %assign tableIndex tableIndex+1

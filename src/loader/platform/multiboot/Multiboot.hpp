@@ -48,7 +48,7 @@ struct __attribute__((packed)) FramebufferTag : Tag {
     uint32_t height;
     uint8_t bpp;
     uint8_t framebufferType;
-    uint8_t reserved;
+    uint16_t reserved;
 
     /* color info */
     uint8_t redFieldPosition;
@@ -74,6 +74,10 @@ struct __attribute__((packed)) NewACPITag : Tag {
 };
 
 struct __attribute__((packed)) MultibootInfoClass {
+    uint32_t totalSize;
+    uint32_t reserved;
+    Tag firstTag;
+
     template<typename TagType> TagType *getTag(size_t index) {
         Tag *tag = reinterpret_cast<Tag *>(reinterpret_cast<size_t>(this) + 8);
         size_t currentIndex = 0;
@@ -84,7 +88,7 @@ struct __attribute__((packed)) MultibootInfoClass {
                 }
                 currentIndex++;
             }
-            tag = reinterpret_cast<Tag *>(reinterpret_cast<size_t>(tag) + tag->size);
+            tag = reinterpret_cast<Tag *>(reinterpret_cast<size_t>(tag) + align(tag->size, 8, AlignDirection::UP));
         }
         return nullptr;
     }

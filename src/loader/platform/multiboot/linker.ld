@@ -3,6 +3,7 @@
 ENTRY(_start)
 SECTIONS
 {
+    . = 1M;
     .multiboot :
     {
         _multiboot = .;
@@ -12,7 +13,7 @@ SECTIONS
 
     .text :
     {
-        _code = .;
+        _text = .;
         *(.text)
         *(.rodata*)
         . = ALIGN(4096);

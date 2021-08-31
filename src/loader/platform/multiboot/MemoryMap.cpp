@@ -16,7 +16,10 @@ uint8_t *allocateHandOver(size_t numPages) {
 
     for (size_t index = 0; index < mmap->numEntries(); index++) {
         MemoryMapTag::Entry *entry = mmap->getEntry(index);
-        if (entry->usableRegion()->length <= numPages * PAGE_SIZE) {
+
+        cout << "Entry " << index << " type " << static_cast<size_t>(entry->type) << " start " << entry->baseAddress << " length " << entry->length << endl;
+
+        if (entry->usableRegion() && entry->usableRegion()->length <= numPages * PAGE_SIZE) {
             handOverRegion = {entry->usableRegion()->start, numPages * PAGE_SIZE};
 
             /* update entry, so this memory is not detected again as usable */
