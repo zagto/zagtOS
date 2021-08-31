@@ -270,7 +270,7 @@ extern "C" void LoaderMain() {
 
 
     KernelEntryAddress = kernel.entryAddress();
-    BootInfo = handOverSystem;
+    BootInfo = convertPointer(handOverSystem);
 
     cout << "Releasing secondary Processors to Kernel..." << endl;
     releaseSecondaryProcessorsToKernel();
