@@ -21,7 +21,11 @@ struct __attribute__((packed)) MemoryMapTag : Tag {
                 /* available RAM type */
                 Region region(baseAddress, length);
                 alignedShrink(region.start, region.length, PAGE_SIZE);
-                return region;
+                if (region.length > 0) {
+                    return region;
+                } else {
+                    return {};
+                }
             } else {
                 return {};
             }
