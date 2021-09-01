@@ -96,7 +96,6 @@ size_t Syscall(size_t syscallNr,
                size_t arg3,
                size_t arg4) {
     {
-        cout << "Syscall " << syscallNr << endl;
         const shared_ptr<Process> process = CurrentProcess();
         Result<size_t> result;
         do {

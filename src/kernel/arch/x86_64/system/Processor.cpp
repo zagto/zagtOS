@@ -24,17 +24,13 @@ __attribute__((noreturn))
 void Processor::returnToUserMode() {
     Thread *thread = CurrentProcessor->scheduler.activeThread();
 
-    cout << "A" << endl;
     /* Idle thread does not have a process, but it can't enter user mode */
     assert(thread->process);
 
     thread->process->addressSpace.activate();
-    cout << "B" << endl;
 
     CurrentSystem.gdt.resetTSS(CurrentProcessor->id);
-    cout << "C" << endl;
     tss.update(thread);
-    cout << "D" << endl;
     returnFromInterrupt(thread->kernelStack->userRegisterState(), thread->threadLocalStorage());
 }
 
