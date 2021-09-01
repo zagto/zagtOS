@@ -20,5 +20,5 @@ void LegacyTimer::setOperatingMode() {
     /* channel = 0
      * access mode = low-byte/high-byte
      * operating mode = 0 */
-    OutB(DATA_PORT, 0b11u << 4);
+    OutB(COMMAND_PORT, 0b11u << 4);
 }
