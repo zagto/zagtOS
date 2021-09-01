@@ -51,7 +51,7 @@ void detectTimerFrequency() {
                 }
                 timerFrequency = busFreqency * busRatio;
             } else {
-                cout << "Unsupported CPU Model: Family " << model.familyID << " model "
+                cout << "Unsupported CPU Model for Frequency detection: Family " << model.familyID << " model "
                      << model.modelID << endl;
                 Panic();
             }
@@ -73,7 +73,7 @@ void detectTimerFrequency() {
 
 
 
-    cout << "Detected TSC timer frequency using << " << methodName << ": " << (timerFrequency/(1000000)) << "MHz" << endl;
+    cout << "Detected TSC timer frequency using " << methodName << ": " << (timerFrequency/(1000000)) << "MHz" << endl;
     assert(timerFrequency != 0);
 }
 
