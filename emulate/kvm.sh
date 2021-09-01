@@ -12,6 +12,7 @@ qemu-system-x86_64 \
     -smp 2 \
     -serial telnet:localhost:30000,server \
     -machine q35 \
+    -cpu host,invtsc,fsgsbase \
     -no-reboot \
      -no-reboot -no-shutdown   -d int,guest_errors,cpu_reset \
     -s &

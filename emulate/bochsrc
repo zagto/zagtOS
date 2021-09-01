@@ -34,13 +34,13 @@ display_library: x
 # twice in a row can lead to different results (because they started
 # at different times, for instance).  If you want to use non-real
 # time, then use sync=none.
-clock: sync=realtime, time0=local
-# clock: sync=none, time0=946681200 # jan 1, 2000
+# clock: sync=realtime, time0=local
+clock: sync=none, time0=946681200 # jan 1, 2000
 
 #reset_on_triple_fault=0
 
 com1: enabled=1, mode=file, dev=/dev/stdout
 
-cpu: count=1, ips=10000000, reset_on_triple_fault=0
+cpu: model=corei5_lynnfield_750, count=1, ips=10000000, reset_on_triple_fault=0
 
 #magic_break: enabled=1
