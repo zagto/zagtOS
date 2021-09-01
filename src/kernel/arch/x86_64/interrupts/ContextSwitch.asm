@@ -69,7 +69,6 @@ syscallEntry:
 
     ; get stack pointer for register save from kernel gsbase
     swapgs
-    xor bx, bx
     mov [gs:0x20], r15
     mov [gs:0x28], r14
     mov [gs:0x30], r13
