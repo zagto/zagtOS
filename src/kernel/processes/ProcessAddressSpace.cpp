@@ -360,6 +360,12 @@ Status ProcessAddressSpace::handlePageFault(size_t address, Permissions required
 
     unique_ptr<MappedArea> &mappedArea = mappedAreas[index];
 
+    if (mappedArea->permissions == Permissions::INVALID) {
+        cout << "Process tried to access address " << address
+             << " which is explicitly access-disabled." << endl;
+        return Status::BadUserSpace();
+    }
+
     if (requiredPermissions > mappedArea->permissions) {
         cout << "Process tried to access address " << address << " using permissions "
             << requiredPermissions << " which is mapped with " << mappedArea->permissions << endl;
