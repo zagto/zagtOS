@@ -69,29 +69,30 @@ syscallEntry:
 
     ; get stack pointer for register save from kernel gsbase
     swapgs
-    mov [gs:0x10], r15
-    mov [gs:0x18], r14
-    mov [gs:0x20], r13
-    mov [gs:0x28], r12
-    mov [gs:0x30], rbp
-    mov [gs:0x38], rbx
+    xor bx, bx
+    mov [gs:0x20], r15
+    mov [gs:0x28], r14
+    mov [gs:0x30], r13
+    mov [gs:0x38], r12
+    mov [gs:0x40], rbp
+    mov [gs:0x48], rbx
     ; r11-errorCode no need to save
 
-    mov [gs:0x98], rcx ; rip
-    mov qword [gs:0xa0], 0x20|3 ; cs
-    mov [gs:0xa8], r11 ; rflags
-    mov [gs:0xb0], rsp
-    mov qword [gs:0xb8], 0x18|3 ; ss
+    mov [gs:0xa8], rcx ; rip
+    mov qword [gs:0xb0], 0x20|3 ; cs
+    mov [gs:0xb8], r11 ; rflags
+    mov [gs:0xc0], rsp
+    mov qword [gs:0xc8], 0x18|3 ; ss
 
     ; fromSyscall = 1
-    mov qword [gs:0x8], 1
+    mov qword [gs:0x10], 1
 
-    ; currentProcessor is the field at the beginning of registerState
+    ; currentProcessor is the second field at the beginning of registerState
     ; this pointer is put in r15 (as the CurrentProcessor variable)
-    mov r15, [gs:0x0]
+    mov r15, [gs:0x8]
 
     ; the kernel stack starts with the saved RegisterState
-    mov rsp, gs:0x0
+    mov rsp, [gs:0x0]
 
     ; syscall instruction overwrites rcx so this variable put into r10 by user space
     mov rcx, r10
@@ -129,25 +130,31 @@ commonISR:
     mov fs, ax
     mov gs, ax
 
+    ; dummy = 0
+    push 0
     ; fromSyscall = 0
     push 0
 
-    ; make rsp point to the exact beginning of registerState structure, 1 field before
-    sub rsp, 8
+    ; make rsp point to the exact beginning of registerState structure, 2 fields before
+    sub rsp, 8*2
     ; place a pointer to the saved register state in rdi
     mov rdi, rsp
 
     ; switch to real stack if coming from user space interrupt
     ; check if the cs on stack is 0x20|3
-    cmp qword [rsp+(20*8)], 0x08
+    cmp qword [rsp+(22*8)], 0x08
     je alreadyOnKernelStack
-    cmp qword [rsp+(20*8)], 0x20|3
+
+    cmp qword [rsp+(22*8)], 0x20|3
     jne wrongCsOnEntry ; should never happen
 
-    ; currentProcessor is the field at the beginning of registerState
-    ; this pointer is put in r15 (as the CurrentProcessor variable)
-    mov r15, [rdi]
+    ; rsp should now point to the "self" variable of the RegisterState structure
+    cmp rsp, [rsp]
+    jne wrongRspOnEntry
 
+    ; currentProcessor is the second field at the beginning of registerState
+    ; this pointer is put in r15 (as the CurrentProcessor variable)
+    mov r15, [rdi+8]
 alreadyOnKernelStack:
     call handleInterrupt
     ; handler should never return here and call returnFromInterrupt instead
@@ -158,7 +165,8 @@ wrongCsOnEntry:
     jmp wrongCsOnEntry
 wrongCsOnReturn:
     jmp wrongCsOnReturn
-
+wrongRspOnEntry:
+    jmp wrongRspOnEntry
 
 returnFromInterrupt:
     ; switch to state-save-stack passed as parameter
@@ -166,9 +174,9 @@ returnFromInterrupt:
 
     ; switch to real stack if coming from user space interrupt
     ; check if the cs on stack is 0x20|3
-    cmp qword [rsp+(20*8)], 0x08
+    cmp qword [rsp+(22*8)], 0x08
     je inKernelReturn
-    cmp qword [rsp+(20*8)], 0x20|3
+    cmp qword [rsp+(22*8)], 0x20|3
     jne wrongCsOnReturn ; should never happen
 
     mov ax, 0x18|3
@@ -192,11 +200,15 @@ returnFromInterrupt:
     wrmsr
 
 inKernelReturn:
-    ; ignore currentProcessor
-    add rsp, 8
+    ; ignore currentProcessor, self
+    add rsp, 8*2
 
     ; if the fromSyscall field is set we can skip restoring caller-saved registers
     pop rax
+
+    ; ignore dummy
+    add rsp, 8
+
     cmp rax, 1
     je fromSyscall
 

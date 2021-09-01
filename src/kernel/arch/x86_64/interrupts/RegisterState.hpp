@@ -12,9 +12,13 @@ public:
     static const uint64_t FLAG_USER_IOPL{(3 << 12)};
     static const uint64_t FLAG_INTERRUPTS{(1 << 9)};
 
+    RegisterState *self;
     Processor *currentProcessor;
     /* if state was saved from syscall, less registers need to be restored */
     bool fromSyscall;
+
+    /* keep things 16-byte aligned */
+    uint64_t dummy;
 
     /* callee-saved */
     uint64_t r15, r14, r13, r12, rbp, rbx;
@@ -32,6 +36,8 @@ public:
                   UserVirtualAddress masterTLSBase,
                   size_t tlsSize);
     RegisterState(KernelVirtualAddress entry, KernelVirtualAddress stackPointer);
+    RegisterState(const RegisterState &other);
+    RegisterState &operator=(const RegisterState &other);
 
     inline size_t stackPointer() const {
         return rsp;
