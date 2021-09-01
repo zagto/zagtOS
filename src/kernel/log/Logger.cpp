@@ -152,6 +152,7 @@ Logger &Logger::operator<<(void *pointer) {
 Logger &Logger::operator<<(const RegisterState &regs) {
     return *this << "[" << endl
                  << "\tRIP=" << regs.rip << ", RSP=" << regs.rsp << endl
+                 << "\tRBP=" << regs.rbp << endl
                  << "\tCS=" << regs.cs << ", SS=" << regs.ss << endl
                  << "\tRDI=" << regs.rdi << ", RSI=" << regs.rsi << endl
                  << "\tRAX=" << regs.rax << ", RBX=" << regs.rbx << endl
