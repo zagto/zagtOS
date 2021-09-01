@@ -7,6 +7,9 @@ enum class MSR : uint32_t {
     LSTAR = 0xC0000082,
     SFMASK = 0xC0000084,
     IA32_APIC_BASE = 0x1B,
+    PLATFORM_ID = 0x17,
+    FSB_FREQ = 0xce,
+    PLATFORM_INFO = 0xce,
 };
 
 extern "C" uint64_t readModelSpecificRegister(MSR msr);
