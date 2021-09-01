@@ -66,10 +66,6 @@ flushCS:
     ; enable Longmode and SSE
     ; based on: https://wiki.osdev.org/Entering_Long_Mode_Directly
     ; and: https://wiki.osdev.org/SSE
-    mov eax, cr0
-    and eax, ~CR0_COPROCESSOR_EMULATION
-    or eax, CR0_COPROCESSOR_MONITORING
-    ;mov cr0, eax
     mov eax, cr4
     or eax, CR4_OSFXSR | CR4_OSXMMEXCPT | CR4_PAE | CR4_PGE
     mov cr4, eax
