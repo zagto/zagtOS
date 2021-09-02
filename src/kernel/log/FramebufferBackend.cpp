@@ -94,12 +94,9 @@ void FramebufferBackend::write(char character) {
 }
 
 void FramebufferBackend::flip() {
-    for (uint32_t y = 0; y < height; y++) {
-        uint32_t srcY = (y + (currentLine * Font::characterHeight)) % height;
-        for (uint32_t x = 0; x < width * bytesPerPixel; x++) {
-            frontBuffer[y * bytesPerLine + x] = backBuffer[srcY * bytesPerLine + x];
-        }
-    }
+    size_t offset = currentLine * Font::characterHeight;
+    memcpy(frontBuffer, backBuffer + offset * bytesPerLine, (height - offset) * bytesPerLine);
+    memcpy(frontBuffer + (height - offset) * bytesPerLine, backBuffer, offset * bytesPerLine);
 }
 
 void FramebufferBackend::setKernelColor() {

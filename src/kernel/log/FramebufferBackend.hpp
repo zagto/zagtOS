@@ -18,7 +18,7 @@ private:
     constexpr static const Color backgroundColor{0xff, 0xff, 0xff};
     Color foregroundColor;
 
-    volatile uint8_t *frontBuffer;
+    uint8_t *frontBuffer;
     uint8_t *backBuffer;
     uint32_t width;
     uint32_t height;
