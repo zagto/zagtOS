@@ -36,9 +36,7 @@ void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
     while (readRegister(Register::INTERRUPT_COMMAND_LOW) & (1u<<12)) {
         /* wait for Delivery status bit to clear */
     }
-    cout << "A" << endl;
     writeRegister(Register::INTERRUPT_COMMAND_HIGH, destination << (56 - 32));
-    cout << "B" << endl;
 
     writeRegister(Register::INTERRUPT_COMMAND_LOW,
             vector
@@ -46,12 +44,10 @@ void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
             | (static_cast<uint32_t>(level) << 14)
             | (static_cast<uint32_t>(triggerMode) << 15)
             | (readRegister(Register::INTERRUPT_COMMAND_LOW) & 0b111111111111000010000000000000u));
-    cout << "C" << endl;
 
     while (readRegister(Register::INTERRUPT_COMMAND_LOW) & (1u<<12)) {
         /* wait for Delivery status bit to clear */
     }
-    cout << "D" << endl;
 
 }
 
