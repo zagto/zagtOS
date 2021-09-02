@@ -1,4 +1,7 @@
 #pragma once
+#include <common/common.hpp>
+
 void IdleThreadEntry(void *);
-void RegularThreadEntry(void *);
-void PortEntry(void *);
+void UserReturnEntry(void *);
+extern "C" void InKernelReturnEntry(void *);
+extern "C" void InKernelReturnEntryRestoreInterruptsLock(RegisterState *);

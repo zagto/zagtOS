@@ -6,10 +6,12 @@ global syscallEntry
 global KERNEL_STACK_SIZE
 global basicDisableInterrupts
 global basicEnableInterrupts
+global InKernelReturnEntry
 
 extern handleInterrupt
 extern Syscall
 extern kernelStackEnd
+extern InKernelReturnEntryRestoreInterruptsLock
 
 
 section .text
@@ -164,10 +166,16 @@ wrongCsOnReturn:
 wrongRspOnEntry:
     jmp wrongRspOnEntry
 
+InKernelReturnEntry:
+    mov rsp, rdi
+    call InKernelReturnEntryRestoreInterruptsLock
+    mov rdi, rsp
+
 returnFromInterrupt:
     ; switch to state-save-stack passed as parameter
     mov rsp, rdi
 
+commonReturn:
     ; switch to real stack if coming from user space interrupt
     ; check if the cs on stack is 0x20|3
     cmp qword [rsp+(22*8)], 0x08

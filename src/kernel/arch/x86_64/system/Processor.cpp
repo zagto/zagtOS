@@ -20,8 +20,7 @@ void Processor::localInitialization() {
     assert(static_cast<bool>(status));
 }
 
-__attribute__((noreturn))
-void Processor::returnToUserMode() {
+[[noreturn]] void Processor::returnToUserMode() {
     Thread *thread = CurrentProcessor->scheduler.activeThread();
 
     /* Idle thread does not have a process, but it can't enter user mode */
@@ -32,6 +31,10 @@ void Processor::returnToUserMode() {
     CurrentSystem.gdt.resetTSS(CurrentProcessor->id);
     tss.update(thread);
     returnFromInterrupt(thread->kernelStack->userRegisterState(), thread->threadLocalStorage());
+}
+
+[[noreturn]] void Processor::returnInsideKernelMode(RegisterState *state) {
+    returnFromInterrupt(state, {});
 }
 
 void Processor::sendCheckSchedulerIPI() {

@@ -48,6 +48,9 @@ public:
     inline void setThreadHandle(uint32_t value) {
         r8 = value;
     }
+    bool interruptsFlagSet() const {
+        return rflags & FLAG_INTERRUPTS;
+    }
 };
 
 class alignas(64) VectorRegisterState {

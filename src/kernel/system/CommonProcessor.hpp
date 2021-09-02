@@ -3,6 +3,7 @@
 #include <processes/Scheduler.hpp>
 #include <interrupts/Interrupts.hpp>
 #include <memory/InvalidateQueue.hpp>
+#include <processes/KernelThreadEntry.hpp>
 #include <memory>
 
 class Process;
@@ -40,7 +41,8 @@ protected:
 
     friend class SpinLock;
     friend class KernelInterruptsLock;
-    friend void _handleInterrupt(RegisterState* registerState);
+    friend void _handleInterrupt(RegisterState *);
+    friend void InKernelReturnEntryRestoreInterruptsLock(RegisterState *);
     bool interruptsLockLocked{true};
 
 public:

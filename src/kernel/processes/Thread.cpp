@@ -37,7 +37,7 @@ Thread::Thread(shared_ptr<Process> process,
         return;
     }
     kernelStack = *result;
-    kernelEntry = RegularThreadEntry;
+    kernelEntry = UserReturnEntry;
 }
 
 /* shorter constructor for non-first threads, which don't want to know info about master TLS */
@@ -66,7 +66,7 @@ Thread::Thread(const hos_v1::Thread &handOver, Status &status) :
         return;
     }
     kernelStack = *result;
-    kernelEntry = RegularThreadEntry;
+    kernelEntry = UserReturnEntry;
 
     cout << "thread handover cs: " << kernelStack->userRegisterState()->cs << endl;
 }
@@ -150,11 +150,9 @@ void Thread::currentProcessor(Processor *processor) {
     kernelStack->userRegisterState()->currentProcessor = processor;
 }
 
-void Thread::switchTo() {
-    if (kernelEntry) {
-        kernelStack->switchToKernelEntry(kernelEntry, nullptr);
-        CurrentProcessor->kernelStack = kernelStack;
-    }
+void Thread::setKernelEntry(void (*entry)(void *), void *data) {
+    kernelEntry = entry;
+    kernelEntryData = data;
 }
 
 void Thread::terminate() {

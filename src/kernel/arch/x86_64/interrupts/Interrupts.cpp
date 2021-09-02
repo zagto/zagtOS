@@ -6,6 +6,7 @@
 #include <processes/Process.hpp>
 #include <common/ModelSpecificRegister.hpp>
 #include <system/Processor.hpp>
+#include <processes/KernelThreadEntry.hpp>
 
 
 InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
@@ -43,7 +44,7 @@ void dealWithException(Status status) {
     }
 }
 
-__attribute__((noreturn)) void userHandler(RegisterState *registerState) {
+[[noreturn]] void userHandler(RegisterState *registerState) {
     {
         Thread *activeThread = CurrentProcessor->scheduler.activeThread();
         assert(activeThread->kernelStack->userRegisterState() == registerState);
@@ -109,29 +110,35 @@ __attribute__((noreturn)) void userHandler(RegisterState *registerState) {
 }
 
 
-__attribute__((noreturn)) void handler(RegisterState *registerState) {
-    assert(registerState->cs == (0x20|3) || registerState->cs == 0x8);
-
-    if (registerState->cs == static_cast<uint64_t>(0x20|3)) {
-        userHandler(registerState);
-    } else {
-        kernelHandler(registerState);
-    }
-}
-
-
-__attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState) {
+[[noreturn]] void _handleInterrupt(RegisterState* registerState) {
     if (registerState->intNr != 0xe) {
         cout << "Interrupt " << registerState->intNr << " on CPU " << CurrentProcessor->id << endl;
     }
 
-    CurrentProcessor->interruptsLockLocked = true;
+    bool fromUserSpace = registerState->cs == static_cast<uint64_t>(0x20|3);
+    bool interruptsVariableBackup = CurrentProcessor->interruptsLockLocked;
+
+    if (fromUserSpace) {
+        assert(interruptsVariableBackup == true);
+    } else {
+        assert(interruptsVariableBackup != registerState->interruptsFlagSet());
+    }
+    if (interruptsVariableBackup == false) {
+        CurrentProcessor->interruptsLockLocked = true;
+    }
+
+    assert(CurrentThread());
+    if (fromUserSpace) {
+        CurrentThread()->setKernelEntry(UserReturnEntry);
+    } else {
+        CurrentThread()->setKernelEntry(InKernelReturnEntry, registerState);
+    }
 
     Status status;
 
     if (registerState->intNr < 0x20) {
         /* x86 Exception */
-        if (registerState->cs == static_cast<uint64_t>(0x20|3)) {
+        if (fromUserSpace) {
             userHandler(registerState);
         } else {
             kernelHandler(registerState);
@@ -146,17 +153,25 @@ __attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState) {
         status = CurrentProcessor->scheduler.checkChanges();
         if (status) {
             cout << "Info: CheckProcessor IPI did not lead to change." << endl;
-            CurrentProcessor->returnToUserMode();
         }
     } else {
         cout << "Unknown Interrupt " << registerState->intNr << endl;
         Panic();
     }
 
-    dealWithException(status);
-    assert(false);
-    while (1) {
-
+    if (status) {
+        assert(CurrentProcessor->kernelInterruptsLock.isLocked());
+        CurrentProcessor->interruptsLockLocked = interruptsVariableBackup;
+        if (fromUserSpace) {
+            CurrentProcessor->returnToUserMode();
+        } else {
+            CurrentProcessor->returnInsideKernelMode(registerState);
+        }
+    } else {
+        dealWithException(status);
+        /* TODO: may there be ways to continue here in the future */
+        assert(false);
+        while (1);
     }
 }
 

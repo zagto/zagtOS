@@ -25,7 +25,7 @@ void IdleThreadEntry(void *) {
     }
 }
 
-void RegularThreadEntry(void *) {
+void UserReturnEntry(void *) {
     commonSetup();
 
     cout << "Hello World from Regular Thread on Processor " << CurrentProcessor->id << endl;
@@ -33,10 +33,6 @@ void RegularThreadEntry(void *) {
     CurrentProcessor->returnToUserMode();
 }
 
-void PortEntry(void *) {
-    commonSetup();
-
-    cout << "Hello World from Regular Thread on Processor " << CurrentProcessor->id << endl;
-
-    CurrentProcessor->returnToUserMode();
+extern "C" void InKernelReturnEntryRestoreInterruptsLock(RegisterState *registerState) {
+    CurrentProcessor->interruptsLockLocked = !registerState->interruptsFlagSet();
 }

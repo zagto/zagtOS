@@ -14,5 +14,6 @@ public:
 
     void sendCheckSchedulerIPI();
 
-    __attribute__((noreturn)) void returnToUserMode();
+    [[noreturn]] void returnToUserMode();
+    [[noreturn]] void returnInsideKernelMode(RegisterState *state);
 };

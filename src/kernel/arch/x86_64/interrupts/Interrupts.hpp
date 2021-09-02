@@ -13,7 +13,7 @@ static const size_t PIC2_SPURIOUS_IRQ = 0x21;
 extern "C" void basicEnableInterrupts();
 extern "C" void basicDisableInterrupts();
 
-__attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState);
+[[noreturn]] void _handleInterrupt(RegisterState* registerState);
 void dealWithException(Status status);
 
 extern InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;

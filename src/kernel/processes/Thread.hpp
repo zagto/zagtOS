@@ -85,10 +85,11 @@ protected:
     Thread *previous{nullptr};
     Thread *next{nullptr};
 
+    void (*kernelEntry)(void *){nullptr};
+    void *kernelEntryData;
 public:
     //RegisterState *registerState{nullptr};
     //VectorRegisterState vectorState;
-    void (*kernelEntry)(void *){nullptr};
     shared_ptr<KernelStack> kernelStack;
     shared_ptr<Process> process;
     UserVirtualAddress tlsBase;
@@ -137,7 +138,7 @@ public:
     void currentProcessor(Processor *processor);
     void setHandle(uint32_t handle);
     uint32_t handle() const;
-    void switchTo();
+    void setKernelEntry(void (*entry)(void *), void *data = nullptr);
 
     /* danger zone - only call this while holding no locks on potential owners. This is for
      * scenarios, like exit, kill ... and puts the thread in EXIT state. */
