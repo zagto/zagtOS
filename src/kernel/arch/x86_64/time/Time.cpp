@@ -3,7 +3,10 @@
 #include <time/Time.hpp>
 
 Time::Time(uint64_t timerFrequency):
-    timerFrequency{timerFrequency} {}
+    timerFrequency{timerFrequency} {
+
+    cout << "Got Timer Frequency: " << (timerFrequency/1000000) << " MHz." << endl;
+}
 
 
 void Time::delayMilliseconds(uint64_t ms) {
