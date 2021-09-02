@@ -105,7 +105,7 @@ MemoryArea::MemoryArea(MemoryArea &other, size_t offset, size_t length, Status &
 
     scoped_lock sl(other.lock);
 
-    for (size_t frameIndex = 0; length / PAGE_SIZE; frameIndex++) {
+    for (size_t frameIndex = 0; frameIndex < length / PAGE_SIZE; frameIndex++) {
         Frame *frame = other.frames[offset / PAGE_SIZE + frameIndex];
         if (frame != nullptr) {
             frame->copyOnWriteDuplicate();
