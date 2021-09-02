@@ -105,7 +105,15 @@ size_t Syscall(size_t syscallNr,
             } else {
                 CurrentProcessor->kernelInterruptsLock.unlock();
                 result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
-                CurrentProcessor->kernelInterruptsLock.lock();
+
+                /* When returning DiscardStateAndSchedule, functions need to leave
+                 * kernelInterruptsLock and Scheduler::lock locked. */
+                if (result.status() == Status::DiscardStateAndSchedule()) {
+                    assert(CurrentProcessor->kernelInterruptsLock.isLocked());
+                    assert(CurrentProcessor->scheduler.lock.isLocked());
+                } else {
+                    CurrentProcessor->kernelInterruptsLock.lock();
+                }
             }
 
             if (result) {

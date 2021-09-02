@@ -22,7 +22,9 @@ __attribute__((noreturn)) void kernelHandler(RegisterState *registerState) {
 
 void dealWithException(Status status) {
     Thread *activeThread = CurrentProcessor->scheduler.activeThread();
-    if (status == Status::BadUserSpace()) {
+    if (status == Status::DiscardStateAndSchedule()) {
+        CurrentProcessor->scheduler.scheduleNext();
+    } else if (status == Status::BadUserSpace()) {
         Status status2 = activeThread->process->crash("BadUserSpace Exception", activeThread);
         assert(status2 == Status::ThreadKilled());
         dealWithException(status2);
@@ -123,6 +125,8 @@ __attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState) {
         cout << "Interrupt " << registerState->intNr << " on CPU " << CurrentProcessor->id << endl;
     }
 
+    CurrentProcessor->interruptsLockLocked = true;
+
     if (registerState->intNr < 0x20) {
         /* x86 Exception */
         if (registerState->cs == static_cast<uint64_t>(0x20|3)) {
@@ -134,6 +138,11 @@ __attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState) {
                || registerState->intNr == PIC2_SPURIOUS_IRQ) {
         cout << "Spurious IRQ!" << endl;
         CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
+        CurrentProcessor->returnToUserMode();
+    } else if (registerState->intNr == 0x40) {
+        /* check scheduler IPI */
+        CurrentProcessor->scheduler.checkChanges();
+        cout << "IPI did not lead to change. TODO" << endl;
         CurrentProcessor->returnToUserMode();
     } else {
         cout << "Unknown Interrupt " << registerState->intNr << endl;

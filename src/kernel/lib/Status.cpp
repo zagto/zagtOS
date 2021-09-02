@@ -18,6 +18,9 @@ Logger &operator<<(Logger &logger, Status &status) {
     case ThreadKilled:
         logger << "Thread Killed";
         break;
+    case DiscardStateAndSchedule:
+        logger << "Discard Kernel State and Schedule";
+        break;
     case NonInitialized:
         cout << "Tried to print not initialized Status" << endl;
         Panic();

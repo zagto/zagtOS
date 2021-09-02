@@ -4,7 +4,7 @@
 #include <common/utils.hpp>
 
 enum StatusType {
-    OK, OutOfMemory, OutOfKernelHeap, BadUserSpace, ThreadKilled, NonInitialized
+    OK, OutOfMemory, OutOfKernelHeap, BadUserSpace, ThreadKilled, NonInitialized, DiscardStateAndSchedule
 };
 
 class Process;
@@ -35,12 +35,18 @@ public:
     static Status ThreadKilled() {
         return Status(StatusType::ThreadKilled);
     }
+    static Status DiscardStateAndSchedule() {
+        return Status(StatusType::DiscardStateAndSchedule);
+    }
     explicit operator bool() const {
         assert(type != StatusType::NonInitialized);
         return type == StatusType::OK;
     }
     bool operator==(const Status &other) {
         return type == other.type;
+    }
+    bool operator!=(const Status &other) {
+        return type != other.type;
     }
 };
 
