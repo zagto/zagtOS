@@ -45,6 +45,13 @@ MappedArea::MappedArea(ProcessAddressSpace &addressSpace,
 
 
 MappedArea::~MappedArea() {
+    if (offset == static_cast<size_t>(-1)) {
+        /* invilated area by split() method */
+        assert(region.length == 1);
+        assert(isPagedIn.size() == 0);
+        return;
+    }
+
     PageOutContext pageOut = pageOutRegion(region);
     pageOut.realize();
 }
@@ -156,6 +163,7 @@ MappedArea::split(size_t splitOffset) {
     memoryArea.reset();
     offset = -1;
     region = {static_cast<size_t>(-1), 1};
+    isPagedIn = vector<bool>();
 
     return make_pair(move(*first), move(*second));
 }

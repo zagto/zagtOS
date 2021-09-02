@@ -58,7 +58,6 @@ Result<unique_ptr<Message>> Port::getMessageOrMakeThreadWait() {
     } else {
         auto msg = move(messages.top());
         messages.pop();
-        lock.unlock();
         return move(msg);
     }
 }
