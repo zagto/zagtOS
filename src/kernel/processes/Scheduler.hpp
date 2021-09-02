@@ -44,7 +44,7 @@ public:
     ~Scheduler();
     /* new threads should be added to any scheduler in the system for even load distribution */
     static void schedule(Thread *thread, bool online);
-    void checkChanges();
+    Status checkChanges();
     /* TODO: figure out if this is sufficient */
     void removeOtherThread(Thread *thread);
     void removeActiveThread();

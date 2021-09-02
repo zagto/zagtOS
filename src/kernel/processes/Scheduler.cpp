@@ -117,18 +117,21 @@ void Scheduler::add(Thread *thread, bool online) {
     }
 }
 
-void Scheduler::checkChanges() {
-    scoped_lock sl(lock);
+Status Scheduler::checkChanges() {
+    lock.lock();
 
-    //for (size_t prio = Thread::NUM_PRIORITIES-1; prio > _activeThread->currentPriority(); prio--) {
-    //    if (!threads[prio].empty()) {
+    for (size_t prio = Thread::NUM_PRIORITIES-1; prio > _activeThread->currentPriority(); prio--) {
+        if (!threads[prio].empty()) {
             _activeThread->setState(Thread::State::Running(processor));
             threads[_activeThread->currentPriority()].append(_activeThread);
             _activeThread = {};
-            scheduleNext();
-            // TODO: state
-    //    }
-    //}
+
+            return Status::DiscardStateAndSchedule();
+        }
+    }
+
+    lock.unlock();
+    return Status::OK();
 }
 
 size_t Scheduler::nextProcessorID{0};

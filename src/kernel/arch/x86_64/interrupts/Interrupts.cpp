@@ -38,7 +38,7 @@ void dealWithException(Status status) {
         cout << "TODO: deal with ThreadKilled" << endl;
         Panic();
     } else {
-        cout << "Unknown Exception" << endl;
+        cout << "Unknown Exception: " << status << endl;
         Panic();
     }
 }
@@ -127,6 +127,8 @@ __attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState) {
 
     CurrentProcessor->interruptsLockLocked = true;
 
+    Status status;
+
     if (registerState->intNr < 0x20) {
         /* x86 Exception */
         if (registerState->cs == static_cast<uint64_t>(0x20|3)) {
@@ -141,12 +143,20 @@ __attribute__((noreturn)) void _handleInterrupt(RegisterState* registerState) {
         CurrentProcessor->returnToUserMode();
     } else if (registerState->intNr == 0x40) {
         /* check scheduler IPI */
-        CurrentProcessor->scheduler.checkChanges();
-        cout << "IPI did not lead to change. TODO" << endl;
-        CurrentProcessor->returnToUserMode();
+        status = CurrentProcessor->scheduler.checkChanges();
+        if (status) {
+            cout << "Info: CheckProcessor IPI did not lead to change." << endl;
+            CurrentProcessor->returnToUserMode();
+        }
     } else {
         cout << "Unknown Interrupt " << registerState->intNr << endl;
         Panic();
+    }
+
+    dealWithException(status);
+    assert(false);
+    while (1) {
+
     }
 }
 
