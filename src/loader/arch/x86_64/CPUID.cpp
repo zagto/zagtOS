@@ -39,11 +39,8 @@ Model getModel() {
         result.hypervisor = Hypervisor::VMWARE;
     } else if (memcmp(hypervisorString, HYPERVISOR_STRING_VIRTUALBOX, VENDOR_STRING_LENGTH) == 0) {
         result.hypervisor = Hypervisor::VIRTUALBOX;
-    } else if (!hypervisorString[0] && !hypervisorString[1] && !hypervisorString[2]) {
-        result.hypervisor = Hypervisor::NONE;
     } else {
-        cout << "Warning: Unknown Hypervisor: " << reinterpret_cast<char *>(hypervisorString)
-             << endl;
+        result.hypervisor = Hypervisor::NONE;
     }
 
     result.steppingID = combinedModel & 0xf;
@@ -62,7 +59,9 @@ Model getModel() {
     __cpuid(0x80000007, unused, unused, unused, advancedPowerManagement);
     result.invariantTSC = advancedPowerManagement & (1u << 8);
 
-    if (result.vendor == Vendor::INTEL && maxFunction >= 0x15) {
+    if (result.vendor == Vendor::INTEL
+            && result.hypervisor == Hypervisor::NONE
+            && maxFunction >= 0x15) {
         CrystalInfo info;
         __cpuid(0x15, info.crystalTSCRatio2, info.crystalTSCRatio1, info.crystal, unused);
 
@@ -70,7 +69,7 @@ Model getModel() {
         if (info.crystalTSCRatio1 != 0 && info.crystalTSCRatio2 != 0) {
             /* crystal frequency is not enumerated -> intel manual says to use table */
             if (info.crystal == 0) {
-                if (result.isIntelSkylakeClient() || result.isIntelKabyLake()) {
+                if (result.isIntelSkylakeClient() || result.isNewerIntelClient()) {
                     info.crystal = 24'000'000;
                 } else if (result.isIntelGoldmont()) {
                     info.crystal = 19'200'000;
@@ -184,11 +183,24 @@ bool Model::isIntelSkylakeClient() const {
     return false;
 }
 
-bool Model::isIntelKabyLake() const {
+/* CPUs not explicitly named in Intel Manual, but we will handle them like Kaby Lake if no
+ * core Frequency information is present in CPUID. */
+bool Model::isNewerIntelClient() const {
     if (vendor == Vendor::INTEL && familyID == 6) {
         switch (modelID) {
+        /* Kaby/Whiskey/Amber/Comet/Coffee Lake */
         case 142:
         case 158:
+        /* Cannon Lake */
+        case 102:
+        /* Comet Lake */
+        case 165:
+        /* Ice Lake */
+        case 125:
+        case 126:
+        /* Some IceLake CPUs already have full data in CPUID, so they won't need to be handled
+         * by this:
+         *  https://github.com/InstLatx64/InstLatx64/blob/master/GenuineIntel/GenuineIntel00706E5_IceLakeY_CPUID.txt */
             return true;
         }
     }

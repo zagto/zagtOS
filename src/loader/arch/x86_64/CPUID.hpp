@@ -37,7 +37,8 @@ namespace cpuid {
         bool isIntelHaswell() const;
         bool isIntelBroadwell() const;
         bool isIntelSkylakeClient() const;
-        bool isIntelKabyLake() const;
+        bool isNewerIntelClient() const;
+        bool isIntelNewerClient() const;
         bool isIntelSilvermont() const;
         bool isIntelAirmont() const;
         bool isIntelGoldmont() const;
