@@ -37,6 +37,15 @@ RegisterState *KernelStack::userRegisterState() {
 [[noreturn]] void KernelStack::switchToKernelEntry(void kernelEntry(void *),void *argument) {
     assert(CurrentProcessor->kernelInterruptsLock.isLocked());
 
+    /* On early inititalization, we need to switch to the initial KernelStack of each Processor.
+     * in this case the following Assertion will fail. Note that activeThread being nullptr does
+     * not nessesarily mean we are in early initializion. */
+    if (CurrentProcessor->scheduler.activeThread() != nullptr) {
+        assert(CurrentProcessor->kernelStack.get() != this);
+    }
+
+    lock.lock();
+
     size_t initialStackPointer = reinterpret_cast<size_t>(data) + INITIAL_KERNEL_STACK_POINTER_OFFSET;
     switchStack(initialStackPointer, kernelEntry, argument);
 }

@@ -14,10 +14,11 @@ Result<size_t> ReceiveMessage(const shared_ptr<Process> &process,
         return port.status();
     }
 
-    unique_ptr<Message> msg = (*port)->getMessageOrMakeThreadWait(CurrentProcessor->scheduler.activeThread());
-    if (msg) {
-        return msg->infoAddress.value();
+    Result msg = (*port)->getMessageOrMakeThreadWait();
+    if (!msg) {
+        return msg.status();
     }
-    return 0;
+
+    return (*msg)->infoAddress.value();
 }
 

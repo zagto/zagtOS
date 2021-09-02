@@ -201,8 +201,10 @@ FutexManager::~FutexManager() {
     }
 }
 
-Status FutexManager::wait(uint64_t id, Thread *&thread) {
+Status FutexManager::wait(uint64_t id) {
     assert(lock.isLocked());
+
+    Thread *thread = CurrentThread();
 
     /* Thread can only do the syscall if it's active. */
     assert(thread->state().kind() == Thread::ACTIVE);
@@ -218,9 +220,14 @@ Status FutexManager::wait(uint64_t id, Thread *&thread) {
                 return status;
             }
 
-            thread->currentProcessor()->scheduler.remove(thread);
+            /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
+             * method leaves, but once the thread state is discarded. */
+            Processor::kernelInterruptsLock.lock();
+            CurrentProcessor->scheduler.lock.lock();
+
+            CurrentProcessor->scheduler.removeActiveThread();
             thread->setState(Thread::State::Futex(this, id));
-            return Status::OK();
+            return Status::DiscardStateAndSchedule();
         }
         index = (index + 1) % numAllocated();
     }
@@ -239,14 +246,20 @@ Status FutexManager::wait(uint64_t id, Thread *&thread) {
         return status;
     }
 
-    thread->currentProcessor()->scheduler.remove(thread);
-    thread->setState(Thread::State::Futex(this, id));
-
     element.active = true;
     element.id = id;
     element.hash = hash;
     numElements++;
-    return Status::OK();
+
+    /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
+     * method leaves, but once the thread state is discarded. */
+    Processor::kernelInterruptsLock.lock();
+    CurrentProcessor->scheduler.lock.lock();
+
+    CurrentProcessor->scheduler.removeActiveThread();
+    thread->setState(Thread::State::Futex(this, id));
+
+    return Status::DiscardStateAndSchedule();
 }
 
 size_t FutexManager::wake(uint64_t id, size_t numWake) {

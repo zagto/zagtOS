@@ -40,6 +40,7 @@ protected:
 
     friend class SpinLock;
     friend class KernelInterruptsLock;
+    friend void _handleInterrupt(RegisterState* registerState);
     bool interruptsLockLocked{true};
 
 public:

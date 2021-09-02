@@ -37,6 +37,7 @@ Thread::Thread(shared_ptr<Process> process,
         return;
     }
     kernelStack = *result;
+    kernelEntry = RegularThreadEntry;
 }
 
 /* shorter constructor for non-first threads, which don't want to know info about master TLS */
@@ -172,7 +173,7 @@ void Thread::terminate() {
             Scheduler &scheduler = localState.currentProcessor()->scheduler;
             if (scheduler.lock.trylock()) {
                 if (state() == localState) {
-                    scheduler.removeLocked(this);
+                    scheduler.removeOtherThread(this);
                     scheduler.lock.unlock();
                     return;
                 }

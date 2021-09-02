@@ -21,6 +21,10 @@ private:
     void *data{nullptr};
 
 public:
+    /* The Stack may be used sightly longer than the corresponding Thread is active on a
+     * Processor. This lock prevents using it on anohter Processor in such a case. */
+    SpinLock lock;
+
     KernelStack(RegisterState userRegisterState, Status &status);
     ~KernelStack();
 

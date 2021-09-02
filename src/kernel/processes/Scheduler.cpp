@@ -71,9 +71,9 @@ Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
         return;
     }
     idleThread = *result;
+    threads[Thread::Priority::IDLE].append(idleThread);
 
     cout << "created idle thread at " << idleThread << " to scheduler " << _processor->id << endl;
-
 
     processor = static_cast<Processor *>(_processor);
     idleThread->setState(Thread::State::Running(processor));
@@ -85,7 +85,11 @@ void Scheduler::add(Thread *thread, bool online) {
     if (online) {
         Processor::kernelInterruptsLock.lock();
     }
+
     scoped_lock sl(lock);
+    if (online) {
+        assert(_activeThread != nullptr);
+    }
 
     cout << "add thread " << thread << " to scheduler " << processor->id << endl;
 
@@ -93,14 +97,16 @@ void Scheduler::add(Thread *thread, bool online) {
 
     if (online && thread->currentPriority() > _activeThread->currentPriority()) {
         /* new thread has heigher proirity - switch */
-        if (CurrentProcessor == processor) {
+        /*if (CurrentProcessor == processor) {
             _activeThread->setState(Thread::State::Running(processor));
             threads[_activeThread->currentPriority()].append(_activeThread);
             thread->setState(Thread::State::Active(processor));
             _activeThread = thread;
-        } else {
+        } else {*/
+            threads[thread->currentPriority()].append(thread);
+            thread->setState(Thread::State::Running(processor));
             processor->sendCheckSchedulerIPI();
-        }
+       //}
     } else {
         threads[thread->currentPriority()].append(thread);
         thread->setState(Thread::State::Running(processor));
@@ -109,7 +115,20 @@ void Scheduler::add(Thread *thread, bool online) {
     if (online) {
         Processor::kernelInterruptsLock.unlock();
     }
-    cout << "activeThread on " << processor->id << " is now " << _activeThread << endl;
+}
+
+void Scheduler::checkChanges() {
+    scoped_lock sl(lock);
+
+    //for (size_t prio = Thread::NUM_PRIORITIES-1; prio > _activeThread->currentPriority(); prio--) {
+    //    if (!threads[prio].empty()) {
+            _activeThread->setState(Thread::State::Running(processor));
+            threads[_activeThread->currentPriority()].append(_activeThread);
+            _activeThread = {};
+            scheduleNext();
+            // TODO: state
+    //    }
+    //}
 }
 
 size_t Scheduler::nextProcessorID{0};
@@ -120,24 +139,22 @@ void Scheduler::schedule(Thread *thread, bool online) {
     Processors[processorID].scheduler.add(thread, online);
 }
 
-void Scheduler::remove(Thread *thread) {
-    scoped_lock sl1(Processor::kernelInterruptsLock);
-    scoped_lock sl(lock);
-    removeLocked(thread);
-}
-
-void Scheduler::removeLocked(Thread *thread) {
-    // TODO: ensure current processor
+void Scheduler::removeOtherThread(Thread *thread) {
     assert(lock.isLocked());
+    assert(thread != _activeThread);
 
-    if (thread == _activeThread) {
-        _activeThread = {};
-        scheduleNext();
-    } else {
-        threads[thread->currentPriority()].remove(thread);
-    }
+    threads[thread->currentPriority()].remove(thread);
     thread->setState(Thread::State::Transition());
     thread->currentProcessor(nullptr);
+}
+
+void Scheduler::removeActiveThread() {
+    assert(CurrentProcessor == processor);
+    assert(CurrentThread() == _activeThread);
+
+    _activeThread->setState(Thread::State::Transition());
+    _activeThread->currentProcessor(nullptr);
+    _activeThread = nullptr;
 }
 
 Thread *Scheduler::activeThread() const {
@@ -153,6 +170,9 @@ void Scheduler::scheduleNext() {
         if (!threads[prio].empty()) {
             _activeThread = threads[prio].pop();
             _activeThread->setState(Thread::State::Active(processor));
+
+            cout << "activeThread on " << processor->id << " is now " << _activeThread << endl;
+
             _activeThread->kernelStack->switchToKernelEntry(_activeThread->kernelEntry, nullptr);
         }
     }

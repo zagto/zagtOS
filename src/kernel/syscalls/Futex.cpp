@@ -26,13 +26,11 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
                      size_t timeoutOrValue2,
                      size_t passedValue,
                      size_t) {
-    Thread *thread = CurrentProcessor->scheduler.activeThread();
-
     cout << "Futex(" << address << ", " << operation <<", "<< timeoutOrValue2 << ", " << passedValue << ")" << endl;
 
     bool isPrivate = operation & FUTEX_PRIVATE;
     operation = operation & ~FUTEX_PRIVATE;
-    FutexManager &manager = isPrivate ? CurrentSystem.futexManager : thread->process->futexManager;
+    FutexManager &manager = isPrivate ? CurrentSystem.futexManager : process->futexManager;
 
     scoped_lock sl2(manager.lock);
 
@@ -74,11 +72,10 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
         if (*directValue != passedValue) {
             return EAGAIN;
         }
-        Status status = manager.wait(futexID, thread);
-        if (!status) {
-            return status;
-        }
-        return 0;
+        Status status = manager.wait(futexID);
+        /* Wait will return DiscardStateAndSchedule on success */
+        assert(!status);
+        return status;
     }
     case FUTEX_WAKE: {
         size_t numWoken = manager.wake(futexID, passedValue);
@@ -93,7 +90,7 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
 
             if (*copyResult == 0) {
                 Result<bool> exchangeResult = process->addressSpace.atomicCompareExchange32(
-                            address, 0, thread->handle());
+                            address, 0, CurrentThread()->handle());
                 if (!exchangeResult) {
                     return exchangeResult.status();
                 }
@@ -109,15 +106,14 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
                 }
 
                 if (*exchangeResult) {
-                    Status status = manager.wait(futexID, thread);
-                    if (status) {
-                        return 0;
-                    } else {
-                        /* we leave the FUTEX_WAITERS_BIT set here. This is safe as even if the
-                         * futex is unlocked before we retry, the unlocking thread will do a
-                         * syscall unnecessarily but not causing any problems. */
-                        return status;
-                    }
+                    Status status = manager.wait(futexID);
+                    /* Wait will return DiscardStateAndSchedule on success */
+                    assert(!status);
+
+                    /* we leave the FUTEX_WAITERS_BIT set here. This is safe as even if the
+                     * futex is unlocked before we retry, the unlocking thread will do a
+                     * syscall unnecessarily but not causing any problems. */
+                    return status;
                 }
             }
         }
@@ -127,7 +123,7 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
             return copyResult.status();
         }
 
-        if ((*copyResult & FUTEX_HANDLE_MASK) != thread->handle()) {
+        if ((*copyResult & FUTEX_HANDLE_MASK) != CurrentThread()->handle()) {
             cout << "Attempt to unlock Priority-inheritance futex from wrong thread" << endl;
             return EPERM;
         }

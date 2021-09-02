@@ -37,21 +37,29 @@ Port::~Port() {
     }
 }
 
-unique_ptr<Message> Port::getMessageOrMakeThreadWait(Thread *thread) {
+Result<unique_ptr<Message>> Port::getMessageOrMakeThreadWait() {
     /* only one thread can wait on a port at a given time */
     assert(waitingThread == nullptr);
 
     scoped_lock sl(lock);
-
     if (messages.empty()) {
-        thread->currentProcessor()->scheduler.remove(thread);
+        /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
+         * method leaves, but once the thread state is discarded. */
+        Processor::kernelInterruptsLock.lock();
+        CurrentProcessor->scheduler.lock.lock();
+
+        Thread *thread = CurrentThread();
+        CurrentProcessor->scheduler.removeActiveThread();
         thread->setState(Thread::State::WaitMessage(this));
+
         waitingThread = thread;
-        return nullptr;
+
+        return Status::DiscardStateAndSchedule();
     } else {
         auto msg = move(messages.top());
         messages.pop();
-        return msg;
+        lock.unlock();
+        return move(msg);
     }
 }
 
@@ -59,9 +67,7 @@ Status Port::addMessage(unique_ptr<Message> message) {
     scoped_lock sl(lock);
 
     if (waitingThread) {
-        //waitingThread->registerState.setSyscallResult(message->infoAddress.value());
-        cout << "TODO: implement kernel threading" << endl;
-        Panic();
+        waitingThread->kernelStack->userRegisterState()->setSyscallResult(message->infoAddress.value());
         waitingThread->setState(Thread::State::Transition());
         Thread *tmp = waitingThread;
         waitingThread = nullptr;

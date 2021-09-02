@@ -6,6 +6,9 @@ extern "C" void basicIdleProcessor();
 
 static void commonSetup() {
     Scheduler &scheduler = CurrentProcessor->scheduler;
+    if (CurrentProcessor->kernelStack) {
+        CurrentProcessor->kernelStack->lock.unlock();
+    }
     CurrentProcessor->kernelStack = scheduler.activeThread()->kernelStack;
     scheduler.lock.unlock();
 }
@@ -23,6 +26,14 @@ void IdleThreadEntry(void *) {
 }
 
 void RegularThreadEntry(void *) {
+    commonSetup();
+
+    cout << "Hello World from Regular Thread on Processor " << CurrentProcessor->id << endl;
+
+    CurrentProcessor->returnToUserMode();
+}
+
+void PortEntry(void *) {
     commonSetup();
 
     cout << "Hello World from Regular Thread on Processor " << CurrentProcessor->id << endl;

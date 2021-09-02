@@ -24,6 +24,6 @@ public:
     Port(Port &) = delete;
     ~Port();
 
-    unique_ptr<Message> getMessageOrMakeThreadWait(Thread *thread);
+    Result<unique_ptr<Message>> getMessageOrMakeThreadWait();
     Status addMessage(unique_ptr<Message> message);
 };

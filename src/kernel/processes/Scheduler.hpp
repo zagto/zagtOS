@@ -29,6 +29,8 @@ private:
     Processor *processor;
 
     void add(Thread *thread, bool online);
+
+    friend void dealWithException(Status);
     [[noreturn]]
     void scheduleNext();
 
@@ -42,8 +44,9 @@ public:
     ~Scheduler();
     /* new threads should be added to any scheduler in the system for even load distribution */
     static void schedule(Thread *thread, bool online);
-    void remove(Thread *thread);
+    void checkChanges();
     /* TODO: figure out if this is sufficient */
-    void removeLocked(Thread *thread);
+    void removeOtherThread(Thread *thread);
+    void removeActiveThread();
     Thread *activeThread() const;
 };
