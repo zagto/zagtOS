@@ -39,6 +39,7 @@ clock: sync=none, time0=946681200 # jan 1, 2000
 
 #reset_on_triple_fault=0
 
+#com1: enabled=1, mode=socket-server, dev=127.0.0.1:30000
 com1: enabled=1, mode=file, dev=/dev/stdout
 
 cpu: model=corei5_lynnfield_750, count=1, ips=10000000, reset_on_triple_fault=0
