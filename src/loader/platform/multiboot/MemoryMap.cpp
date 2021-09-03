@@ -93,6 +93,8 @@ optional<Region> findNextAvailableRegion(bool reset, size_t minimumSize) {
 static void blockRegion(Region region) {
     assert(numBlockedRegions < MAX_BLOCKED_REGIONS);
 
+    cout << "Blocking region " << region.start << "," << region.length << endl;
+
     size_t insertIndex;
     for (insertIndex = 0; insertIndex < numBlockedRegions; insertIndex++) {
         if (blockedRegions[insertIndex].start >= region.start) {
@@ -107,11 +109,14 @@ static void blockRegion(Region region) {
 
     /* merge overlapping areas */
     for (size_t index = 0; index < numBlockedRegions-1; index++) {
-        if (blockedRegions[index].overlaps(blockedRegions[index + 1])) {
+        if (blockedRegions[index].overlaps(blockedRegions[index + 1]) || blockedRegions[index].end() == blockedRegions[index + 1].start) {
+            cout << "merging blockedRegion " << blockedRegions[index].start << "," << blockedRegions[index].length << " with "
+                << blockedRegions[index+1].start << "," << blockedRegions[index+1].length << endl;
+
             blockedRegions[index].merge(blockedRegions[index + 1]);
 
-            memmove(blockedRegions + index,
-                    blockedRegions + index + 1,
+            memmove(blockedRegions + index + 1,
+                    blockedRegions + index + 2,
                     (numBlockedRegions - index - 2) * sizeof(Region));
 
             numBlockedRegions--;
@@ -140,7 +145,7 @@ static void initialize() {
             return;
         }
 
-        Region moduleRegion(mod->startAddress, mod->size);
+        Region moduleRegion(mod->startAddress, mod->endAddress - mod->startAddress);
         alignedGrow(moduleRegion.start, moduleRegion.length, PAGE_SIZE);
         blockRegion(moduleRegion);
 
