@@ -36,7 +36,9 @@ void dealWithException(Status status) {
         cout << "TODO: deal with OutOfMemory" << endl;
         Panic();
     } else if (status == Status::ThreadKilled()) {
-        cout << "TODO: deal with ThreadKilled" << endl;
+        CurrentProcessor->scheduler.lock.lock();
+        CurrentProcessor->scheduler.removeActiveThread();
+        CurrentProcessor->scheduler.scheduleNext();
         Panic();
     } else {
         cout << "Unknown Exception: " << status << endl;
