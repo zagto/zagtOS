@@ -3,7 +3,8 @@
 
 namespace memoryMap {
 
-static Region blockedRegions[2];
+constexpr size_t MAX_BLOCKED_REGIONS = 5;
+static Region blockedRegions[MAX_BLOCKED_REGIONS];
 static size_t numBlockedRegions = 0;
 
 static MemoryMapTag *mmap;
@@ -90,9 +91,32 @@ optional<Region> findNextAvailableRegion(bool reset, size_t minimumSize) {
 }
 
 static void blockRegion(Region region) {
-    assert(numBlockedRegions < 2);
-    blockedRegions[numBlockedRegions] = region;
+    assert(numBlockedRegions < MAX_BLOCKED_REGIONS);
+
+    size_t insertIndex;
+    for (insertIndex = 0; insertIndex < numBlockedRegions; insertIndex++) {
+        if (blockedRegions[insertIndex].start >= region.start) {
+            break;
+        }
+    }
+    memmove(blockedRegions + insertIndex + 1,
+            blockedRegions + insertIndex,
+            (numBlockedRegions - insertIndex) * sizeof(Region));
+    blockedRegions[insertIndex] = region;
     numBlockedRegions++;
+
+    /* merge overlapping areas */
+    for (size_t index = 0; index < numBlockedRegions-1; index++) {
+        if (blockedRegions[index].overlaps(blockedRegions[index + 1])) {
+            blockedRegions[index].merge(blockedRegions[index + 1]);
+
+            memmove(blockedRegions + index,
+                    blockedRegions + index + 1,
+                    (numBlockedRegions - index - 2) * sizeof(Region));
+
+            numBlockedRegions--;
+        }
+    }
 }
 
 static void initialize() {
@@ -103,6 +127,25 @@ static void initialize() {
                         reinterpret_cast<size_t>(&_end) - reinterpret_cast<size_t>(&_multiboot));
     alignedGrow(loaderRegion.start, loaderRegion.length, PAGE_SIZE);
     blockRegion(loaderRegion);
+
+    Region multibootInfoRegion(reinterpret_cast<size_t>(MultibootInfo), MultibootInfo->totalSize);
+    alignedGrow(multibootInfoRegion.start, multibootInfoRegion.length, PAGE_SIZE);
+    blockRegion(multibootInfoRegion);
+
+
+    size_t index = 0;
+    while (true) {
+        ModuleTag *mod = MultibootInfo->getTag<ModuleTag>(index);
+        if (!mod) {
+            return;
+        }
+
+        Region moduleRegion(mod->startAddress, mod->size);
+        alignedGrow(moduleRegion.start, moduleRegion.length, PAGE_SIZE);
+        blockRegion(moduleRegion);
+
+        index++;
+    }
 }
 
 uint8_t *allocateHandOver(size_t numPages) {
