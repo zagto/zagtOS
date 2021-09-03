@@ -8,20 +8,18 @@ static const char *VENDOR_STRING_INTEL = "GenuineIntel";
 static const char *VENDOR_STRING_AMD = "AuthenticAMD";
 static const char *HYPERVISOR_STRING_VMWARE = "VMwareVMware";
 static const char *HYPERVISOR_STRING_KVM = "KVMKVMKVM\0\0";
-static const char *HYPERVISOR_STRING_VIRTUALBOX = "VBoxVBoxVBox";
+static const char *HYPERVISOR_STRING_EMPTY = "\0\0\0\0\0\0\0\0\0\0\0\0";
 static const size_t VENDOR_STRING_LENGTH = 12;
 
 Model getModel() {
     size_t maxFunction;
     uint32_t unused;
-    uint32_t vendorString[4];
-    uint32_t hypervisorString[4];
+    uint32_t vendorString[4] = {0};
+    uint32_t hypervisorString[4] = {0};
     uint32_t combinedModel;
     __cpuid(0, maxFunction, vendorString[0], vendorString[2], vendorString[1]);
     __cpuid(1, combinedModel, unused, unused, unused);
     __cpuid(0x40000000, unused, hypervisorString[0], hypervisorString[1], hypervisorString[2]);
-    vendorString[3] = 0;
-    hypervisorString[3] = 0;
 
     Model result;
     if (memcmp(vendorString, VENDOR_STRING_INTEL, VENDOR_STRING_LENGTH) == 0) {
@@ -33,14 +31,29 @@ Model getModel() {
         Panic();
     }
 
+    uint32_t hypervisorTSCKHz = 0, hypervisorBusKHz = 0;
+    __cpuid(0x40000010, hypervisorTSCKHz, hypervisorBusKHz, unused, unused);
+
     if (memcmp(hypervisorString, HYPERVISOR_STRING_KVM, VENDOR_STRING_LENGTH) == 0) {
         result.hypervisor = Hypervisor::KVM;
     } else if (memcmp(hypervisorString, HYPERVISOR_STRING_VMWARE, VENDOR_STRING_LENGTH) == 0) {
         result.hypervisor = Hypervisor::VMWARE;
-    } else if (memcmp(hypervisorString, HYPERVISOR_STRING_VIRTUALBOX, VENDOR_STRING_LENGTH) == 0) {
-        result.hypervisor = Hypervisor::VIRTUALBOX;
+    } else if (memcmp(hypervisorString, HYPERVISOR_STRING_EMPTY, VENDOR_STRING_LENGTH) == 0) {
+        cout << "hypervisorBusKHz " << hypervisorBusKHz << endl;
+        if (hypervisorBusKHz == 1000000) {
+            cout << "VirtualBox detected from Hypervisor Bus speeed value" << endl;
+            result.hypervisor = Hypervisor::VIRTUALBOX;
+        } else {
+            cout << "Hypervisor String empty. Assuming real Hardware" << endl;
+            result.hypervisor = Hypervisor::NONE;
+        }
     } else {
         result.hypervisor = Hypervisor::NONE;
+    }
+
+    result.hypervisorTSCKHz = 0;
+    if (result.hypervisor != Hypervisor::NONE) {
+        result.hypervisorTSCKHz = hypervisorTSCKHz;
     }
 
     result.steppingID = combinedModel & 0xf;
@@ -81,11 +94,6 @@ Model getModel() {
             }
             result.frequencyInfo = info;
         }
-    }
-
-    result.hypervisorTSCKHz = 0;
-    if (result.hypervisor != Hypervisor::NONE) {
-        __cpuid(0x40000010, result.hypervisorTSCKHz, unused, unused, unused);
     }
 
     return result;
