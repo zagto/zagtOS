@@ -8,26 +8,16 @@ extern "C" void basicUnlock(volatile size_t &value);
 
 class mutex {
 private:
-    volatile size_t value{0};
+    size_t value{0};
 
 public:
     mutex() {}
     mutex(const mutex &) = delete;
     void operator=(const mutex &) =delete;
 
-    void lock() {
-        basicLock(value);
-    }
-    bool trylock() {
-        return basicTrylock(value);
-    }
-    void unlock() {
-        if (!value) {
-            cout << "Attempt to unlock non-locked lock" << endl;
-            Panic();
-        }
-        basicUnlock(value);
-    }
+    void lock();
+    bool trylock();
+    void unlock();
     bool isLocked() const {
         return value;
     }
@@ -42,41 +32,9 @@ public:
     SpinLock(const SpinLock &) = delete;
     void operator=(const SpinLock &) =delete;
 
-    void lock() {
-        while (true) {
-            size_t expected = 0;
-            if (__atomic_compare_exchange_n(&value,
-                                            &expected,
-                                            1,
-                                            false,
-                                            __ATOMIC_SEQ_CST,
-                                            __ATOMIC_SEQ_CST)) {
-                return;
-            }
-        };
-    }
-    bool trylock() {
-        size_t expected = 0;
-        return __atomic_compare_exchange_n(&value,
-                                          &expected,
-                                          1,
-                                          false,
-                                          __ATOMIC_SEQ_CST,
-                                          __ATOMIC_SEQ_CST);
-    }
-    void unlock() {
-        size_t expected = 1;
-        bool ok = __atomic_compare_exchange_n(&value,
-                                              &expected,
-                                              0,
-                                              false,
-                                              __ATOMIC_SEQ_CST,
-                                              __ATOMIC_SEQ_CST);
-        if (!ok) {
-            cout << "Attempt to unlock non-locked lock" << endl;
-            Panic();
-        }
-    }
+    void lock();
+    bool trylock();
+    void unlock();
     bool isLocked() const {
         return value;
     }
