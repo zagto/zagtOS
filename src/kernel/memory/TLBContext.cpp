@@ -114,9 +114,6 @@ PageOutContext TLBContext::requestInvalidate(Frame *frame, UserVirtualAddress ad
         frame->decreaseInvalidateRequestReference();
         return {};
     } else {
-        cout << "using InvalidateList for address " << address.value()
-             << " in TLB " << id() << " which is on Processor " << processorID
-             << " while running on Processor " << CurrentProcessor->id << endl;
         uint64_t timestamp = processor().invalidateQueue.add(id(), frame, address);
         return {{processor()}, timestamp};
     }

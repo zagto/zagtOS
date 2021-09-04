@@ -40,7 +40,6 @@ MappedArea::MappedArea(ProcessAddressSpace &addressSpace,
     if (!status) {
         return;
     }
-    cout << "handover MappedArea " << handOver.start << " len " << handOver.length << endl;
 }
 
 
