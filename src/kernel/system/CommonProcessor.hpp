@@ -14,17 +14,6 @@ class Processor;
 
 class CommonProcessor {
 public:
-    class KernelInterruptsLock {
-    public:
-        KernelInterruptsLock() {}
-        KernelInterruptsLock(const KernelInterruptsLock &) = delete;
-        void operator=(const KernelInterruptsLock &) = delete;
-
-        void lock();
-        void unlock();
-        bool isLocked() const;
-    };
-
     shared_ptr<KernelStack> kernelStack;
 
     size_t hardwareID;
@@ -41,16 +30,12 @@ protected:
     TLBContextID activeTLBContextID;
 
     friend class SpinLock;
-    friend class KernelInterruptsLock;
+    friend class KernelInterruptsLockClass;
     friend void _handleInterrupt(RegisterState *);
     friend void InKernelReturnEntryRestoreInterruptsLock(RegisterState *);
-    bool interruptsLockLocked{true};
+    size_t interruptsLockValue{1};
 
 public:
-    /* has to be static - the actual current processor can only be determined once this is
-     * locked. */
-    static KernelInterruptsLock kernelInterruptsLock;
-
     InvalidateQueue invalidateQueue;
     const size_t id;
     Scheduler scheduler;

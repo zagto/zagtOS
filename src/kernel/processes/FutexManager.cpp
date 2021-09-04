@@ -28,7 +28,7 @@ struct Futex {
             Thread *thread = threads.top();
             threads.pop();
 
-            scoped_lock sl(Processor::kernelInterruptsLock);
+            scoped_lock sl(KernelInterruptsLock);
             Status crashStatus = thread->process->crash("Waiting on futex in memory region that"
                                                         " no longer exists",
                                                         thread);
@@ -222,7 +222,7 @@ Status FutexManager::wait(uint64_t id) {
 
             /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
              * method leaves, but once the thread state is discarded. */
-            Processor::kernelInterruptsLock.lock();
+            KernelInterruptsLock.lock();
             CurrentProcessor->scheduler.lock.lock();
 
             CurrentProcessor->scheduler.removeActiveThread();
@@ -253,7 +253,7 @@ Status FutexManager::wait(uint64_t id) {
 
     /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
      * method leaves, but once the thread state is discarded. */
-    Processor::kernelInterruptsLock.lock();
+    KernelInterruptsLock.lock();
     CurrentProcessor->scheduler.lock.lock();
 
     CurrentProcessor->scheduler.removeActiveThread();

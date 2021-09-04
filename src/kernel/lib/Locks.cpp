@@ -1,10 +1,10 @@
 #include <mutex>
 #include <system/Processor.hpp>
-
+#include <interrupts/KernelInterruptsLock.hpp>
 
 void mutex::lock() {
     if (CurrentProcessor) {
-        assert(!Processor::kernelInterruptsLock.isLocked());
+        assert(!KernelInterruptsLock.isLocked());
     }
 
     /* TODO: make actually a mutex */
@@ -24,7 +24,7 @@ void mutex::lock() {
 
 bool mutex::trylock() {
     if (CurrentProcessor) {
-        assert(!Processor::kernelInterruptsLock.isLocked());
+        assert(!KernelInterruptsLock.isLocked());
     }
 
     size_t expected = 0;
@@ -38,7 +38,7 @@ bool mutex::trylock() {
 
 void mutex::unlock() {
     if (CurrentProcessor) {
-        assert(!Processor::kernelInterruptsLock.isLocked());
+        assert(!KernelInterruptsLock.isLocked());
     }
 
     size_t expected = 1;
@@ -56,7 +56,7 @@ void mutex::unlock() {
 
 void SpinLock::lock() {
     if (CurrentProcessor) {
-        assert(Processor::kernelInterruptsLock.isLocked());
+        assert(KernelInterruptsLock.isLocked());
     }
 
     while (true) {
@@ -74,7 +74,7 @@ void SpinLock::lock() {
 
 bool SpinLock::trylock() {
     if (CurrentProcessor) {
-        assert(Processor::kernelInterruptsLock.isLocked());
+        assert(KernelInterruptsLock.isLocked());
     }
 
     size_t expected = 0;
@@ -88,7 +88,7 @@ bool SpinLock::trylock() {
 
 void SpinLock::unlock() {
     if (CurrentProcessor) {
-        assert(Processor::kernelInterruptsLock.isLocked());
+        assert(KernelInterruptsLock.isLocked());
     }
 
     size_t expected = 1;

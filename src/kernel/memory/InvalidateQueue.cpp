@@ -115,7 +115,6 @@ void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp) {
 }
 
 void InvalidateQueue::localProcessing() {
-    assert(Processor::kernelInterruptsLock.isLocked());
     assert(CurrentProcessor->id == processor.id);
 
     scoped_lock sl(lock);

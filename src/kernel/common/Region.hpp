@@ -30,6 +30,9 @@ public:
     bool contains(Region otherRegion) const {
         return start <= otherRegion.start && end() >= otherRegion.end();
     }
+    bool contains(size_t value) const {
+        return start <= value && end() > value;
+    }
     void merge(Region otherRegion) {
         size_t newEnd = end() > otherRegion.end() ? end() : otherRegion.end();
         start = start < otherRegion.start ? start : otherRegion.start;

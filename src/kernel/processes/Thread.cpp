@@ -156,7 +156,7 @@ void Thread::setKernelEntry(void (*entry)(void *), void *data) {
 }
 
 void Thread::terminate() {
-    assert(CurrentProcessor->kernelInterruptsLock.isLocked());
+    assert(KernelInterruptsLock.isLocked());
 
     cout << "Thread::terminate" << endl;
     while (true) {

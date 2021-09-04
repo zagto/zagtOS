@@ -5,6 +5,7 @@
 #include <mutex>
 #include <memory/DLMallocGlue.hpp>
 #include <lib/Status.hpp>
+#include <interrupts/KernelInterruptsLock.hpp>
 
 namespace std {
     enum class align_val_t: size_t {};
@@ -60,7 +61,7 @@ template<typename T> class shared_ptr {
 protected:
     friend class weak_ptr<T>;
     struct InternalPointer {
-        mutex lock;
+        SpinLock lock;
         size_t referenceCount{1};
         size_t weakReferenceCount{0};
         bool valid{true};

@@ -3,24 +3,7 @@
 #include <memory/TLBContext.hpp>
 #include <system/System.hpp>
 #include <memory>
-
-CommonProcessor::KernelInterruptsLock CommonProcessor::kernelInterruptsLock;
-
-void CommonProcessor::KernelInterruptsLock::lock() {
-    basicDisableInterrupts();
-    assert(CurrentProcessor->interruptsLockLocked == false);
-    CurrentProcessor->interruptsLockLocked = true;
-}
-
-void CommonProcessor::KernelInterruptsLock::unlock() {
-    assert(CurrentProcessor->interruptsLockLocked == true);
-    CurrentProcessor->interruptsLockLocked = false;
-    basicEnableInterrupts();
-}
-
-bool CommonProcessor::KernelInterruptsLock::isLocked() const {
-    return CurrentProcessor->interruptsLockLocked;
-}
+#include <interrupts/KernelInterruptsLock.hpp>
 
 CommonProcessor::CommonProcessor(size_t id, Status &status) :
         logBufferIndex{0},
@@ -49,7 +32,7 @@ CommonProcessor::~CommonProcessor() {
 
 TLBContextID CommonProcessor::activatePagingContext(PagingContext *pagingContext,
                                                     TLBContextID tryFirst) {
-    assert(interruptsLockLocked);
+    assert(KernelInterruptsLock.isLocked());
     scoped_lock sl(tlbContextsLock);
 
     TLBContextID tlbID;

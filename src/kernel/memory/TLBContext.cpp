@@ -3,6 +3,7 @@
 #include <system/Processor.hpp>
 #include <system/System.hpp>
 #include <processes/Frame.hpp>
+#include <interrupts/KernelInterruptsLock.hpp>
 
 extern "C" void basicSwitchToTLBContext(size_t localID);
 
@@ -106,8 +107,7 @@ void TLBContext::localInvalidate(UserVirtualAddress address) {
 }
 
 PageOutContext TLBContext::requestInvalidate(Frame *frame, UserVirtualAddress address) {
-    assert(Processor::kernelInterruptsLock.isLocked());
-    assert(CurrentProcessor->interruptsLockLocked);
+    assert(KernelInterruptsLock.isLocked());
 
     if (processorID == CurrentProcessor->id) {
         localInvalidate(address);

@@ -74,7 +74,7 @@ Status LocalAPIC::initialize(PhysicalAddress base) {
         return status;
     }
 
-    assert(Processor::kernelInterruptsLock.isLocked());
+    assert(KernelInterruptsLock.isLocked());
 
     cout << "Initializing local APIC on Processor" << CurrentProcessor->id << " APIC base " << base.value() << " mapped to " << map << endl;
 

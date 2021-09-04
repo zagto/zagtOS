@@ -103,18 +103,21 @@ size_t Syscall(size_t syscallNr,
                 cout << "invalid syscall number: " << syscallNr << endl;
                 result = Status::BadUserSpace();
             } else {
-                CurrentProcessor->kernelInterruptsLock.unlock();
+                KernelInterruptsLock.unlock();
+                /* KernelInterruptsLock can be locked recusively */
+                assert(!KernelInterruptsLock.isLocked());
+
                 result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
 
                 /* When returning DiscardStateAndSchedule, functions need to leave
                  * kernelInterruptsLock and Scheduler::lock locked. */
                 if (result.status() == Status::DiscardStateAndSchedule()) {
-                    assert(CurrentProcessor->kernelInterruptsLock.isLocked());
+                    assert(KernelInterruptsLock.isLocked());
                     assert(CurrentProcessor->scheduler.lock.isLocked());
 
                     CurrentThread()->setKernelEntry(UserReturnEntry);
                 } else {
-                    CurrentProcessor->kernelInterruptsLock.lock();
+                    KernelInterruptsLock.lock();
                 }
             }
 

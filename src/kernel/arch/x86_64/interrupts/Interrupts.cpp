@@ -12,10 +12,10 @@
 InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
 
 
-__attribute__((noreturn)) void kernelHandler(RegisterState *registerState) {
+[[noreturn]] void kernelHandler(RegisterState *registerState) {
     switch (registerState->intNr) {
     default:
-        cout << "Unhandled x86 Exception occured In Kernel Mode:" << *registerState
+        cout << "x86 Exception occured In Kernel Mode:" << *registerState
              << " on Processor " << CurrentProcessor->id << endl;
         Panic();
     }
@@ -49,13 +49,9 @@ void dealWithException(Status status) {
 
 [[noreturn]] void userHandler(RegisterState *registerState) {
     {
-        Thread *activeThread = CurrentProcessor->scheduler.activeThread();
-        assert(activeThread->kernelStack->userRegisterState() == registerState);
+        assert(CurrentThread()->kernelStack->userRegisterState() == registerState);
 
         switch (registerState->intNr) {
-        case PIC1_SPURIOUS_IRQ:
-        case PIC2_SPURIOUS_IRQ:
-            break;
         case 0xe:
         {
             static const size_t PAGING_ERROR_FLAGS{0b11111};
@@ -89,8 +85,11 @@ void dealWithException(Status status) {
             }
             Status status;
             do {
-                status = activeThread->process->addressSpace.handlePageFault(cr2,
-                                                                             requiredPermissions);
+                /* Page fault handling works with address spaces, which uses mutexes */
+                KernelInterruptsLock.unlock();
+                status = CurrentThread()->process->addressSpace.handlePageFault(
+                            cr2, requiredPermissions);
+                KernelInterruptsLock.lock();
                 if (!status) {
                     dealWithException(status);
                 }
@@ -104,7 +103,7 @@ void dealWithException(Status status) {
             cout << "should not reach here" << endl;
             Panic();
         default:
-            cout << "x86 Exception " << registerState->intNr << endl;
+            cout << "Unhandled x86 Exception " << registerState->intNr << " in user space" << endl;
             Panic();
         }
     }
@@ -112,6 +111,8 @@ void dealWithException(Status status) {
     CurrentProcessor->returnToUserMode();
 }
 
+static Region X86ExceptionRegion{0x00, 0x20};
+static Region LegacySpuriousIRQRegion{0x20, 0x02};
 
 [[noreturn]] void _handleInterrupt(RegisterState* registerState) {
     if (registerState->intNr != 0xe) {
@@ -119,41 +120,40 @@ void dealWithException(Status status) {
     }
 
     bool fromUserSpace = registerState->cs == static_cast<uint64_t>(0x20|3);
-    bool interruptsVariableBackup = CurrentProcessor->interruptsLockLocked;
 
     if (fromUserSpace) {
-        assert(interruptsVariableBackup == true);
+        assert(CurrentProcessor->interruptsLockValue == 1);
     } else {
-        assert(interruptsVariableBackup != registerState->interruptsFlagSet());
-    }
-    if (interruptsVariableBackup == false) {
-        CurrentProcessor->interruptsLockLocked = true;
+        /* x86 Exceptions can always occur, but are fatal in kernel mode. For non-exception
+         * interrupts we care about the KernelInterruptsLock beeing unlocked as expected, so we
+         * can return cleanly. */
+        if (X86ExceptionRegion.contains(registerState->intNr)) {
+            assert(CurrentProcessor->interruptsLockValue == 0);
+            assert(registerState->interruptsFlagSet());
+        }
+        /* Interrupts are disabled in Interrupt context, make our variable reflect that */
+        CurrentProcessor->interruptsLockValue++;
     }
 
-    assert(CurrentThread());
-    if (fromUserSpace) {
-        CurrentThread()->setKernelEntry(UserReturnEntry);
-    } else {
-        CurrentThread()->setKernelEntry(InKernelReturnEntry, registerState);
-    }
+    Thread *thread = CurrentThread();
+    assert(thread);
 
     Status status;
 
     KernelPageAllocator.processInvalidateQueue();
     CurrentProcessor->invalidateQueue.localProcessing();
 
-    if (registerState->intNr < 0x20) {
+    if (X86ExceptionRegion.contains(registerState->intNr)) {
         /* x86 Exception */
         if (fromUserSpace) {
             userHandler(registerState);
         } else {
             kernelHandler(registerState);
         }
-    } else if (registerState->intNr == PIC1_SPURIOUS_IRQ
-               || registerState->intNr == PIC2_SPURIOUS_IRQ) {
+    } else if (LegacySpuriousIRQRegion.contains(registerState->intNr)) {
         cout << "Spurious IRQ!" << endl;
-        CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
-        CurrentProcessor->returnToUserMode();
+        //CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
+        status = Status::OK();
     } else if (registerState->intNr == 0x40) {
         /* check scheduler IPI */
         status = CurrentProcessor->scheduler.checkChanges();
@@ -168,19 +168,30 @@ void dealWithException(Status status) {
         Panic();
     }
 
+    assert(KernelInterruptsLock.isLocked());
+
+    /* It is important to set these down here instead of at the beginning. Code like Page Fault
+     * handling enables Interrupts, which could override these variables. */
+    if (fromUserSpace) {
+        thread->setKernelEntry(UserReturnEntry);
+    } else {
+        thread->setKernelEntry(InKernelReturnEntry, registerState);
+    }
+
     if (status) {
-        assert(CurrentProcessor->kernelInterruptsLock.isLocked());
-        CurrentProcessor->interruptsLockLocked = interruptsVariableBackup;
         if (fromUserSpace) {
             CurrentProcessor->returnToUserMode();
         } else {
+            CurrentProcessor->interruptsLockValue--;
+            /* We are returning from an interrupt, which means the interrupted code had interrupts
+             * enabled. */
+            assert(CurrentProcessor->interruptsLockValue == 0);
             CurrentProcessor->returnInsideKernelMode(registerState);
         }
     } else {
         dealWithException(status);
-        /* TODO: may there be ways to continue here in the future */
-        assert(false);
-        while (1);
+        cout << "TODO: may there be ways to continue here in the future" << endl;
+        Panic();
     }
 }
 

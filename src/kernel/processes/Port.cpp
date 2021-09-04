@@ -4,6 +4,7 @@
 #include <processes/Thread.hpp>
 #include <processes/Scheduler.hpp>
 #include <system/Processor.hpp>
+#include <interrupts/KernelInterruptsLock.hpp>
 
 Port::Port(const shared_ptr<Process> process, Status &) :
     process{process} {}
@@ -45,7 +46,7 @@ Result<unique_ptr<Message>> Port::getMessageOrMakeThreadWait() {
     if (messages.empty()) {
         /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
          * method leaves, but once the thread state is discarded. */
-        Processor::kernelInterruptsLock.lock();
+        KernelInterruptsLock.lock();
         CurrentProcessor->scheduler.lock.lock();
 
         Thread *thread = CurrentThread();

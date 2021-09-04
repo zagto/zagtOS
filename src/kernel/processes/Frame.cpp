@@ -97,7 +97,7 @@ PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace, UserVirtualAddr
 
     addressSpace.pagingContext.unmap(address);
 
-    scoped_lock sl1(Processor::kernelInterruptsLock);
+    scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl2(addressSpace.tlbIDsLock);
 
     PageOutContext pageOutContext;

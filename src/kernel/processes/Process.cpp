@@ -152,7 +152,7 @@ bool Process::canAccessPhysicalMemory() const {
 }
 
 Status Process::crash(const char *message, Thread *crashedThread) {
-    assert(Processor::kernelInterruptsLock.isLocked());
+    assert(KernelInterruptsLock.isLocked());
     cout << "Terminating process for reason: " << message << endl;
     if (crashedThread != nullptr) {
         Status status = addressSpace.coreDump(crashedThread);
@@ -183,7 +183,7 @@ Status Process::exitLocked() {
 }
 
 Status Process::exit() {
-    scoped_lock sl(Processor::kernelInterruptsLock);
+    scoped_lock sl(KernelInterruptsLock);
     return exitLocked();
 }
 

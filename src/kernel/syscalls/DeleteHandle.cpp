@@ -13,11 +13,11 @@ Result<size_t> DeleteHandle(const shared_ptr<Process> &process,
         return status;
     }
     if (removedThread) {
-        scoped_lock sl(Processor::kernelInterruptsLock);
-        if (removedThread.get() == CurrentProcessor->scheduler.activeThread()) {
+        if (removedThread.get() == CurrentThread()) {
             cout << "removed thread was active thread. returning" << endl;
             return Status::ThreadKilled();
         } else {
+            scoped_lock sl(KernelInterruptsLock);
             cout << "removed thread was not active thread. sending terminate" << endl;
             removedThread->terminate();
         }

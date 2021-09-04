@@ -82,10 +82,8 @@ Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
 void Scheduler::add(Thread *thread, bool online) {
     // TODO: ensure current processor
     assert(thread->currentProcessor() == nullptr);
-    if (online) {
-        Processor::kernelInterruptsLock.lock();
-    }
 
+    scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl(lock);
     if (online) {
         assert(_activeThread != nullptr);
@@ -110,10 +108,6 @@ void Scheduler::add(Thread *thread, bool online) {
     } else {
         threads[thread->currentPriority()].append(thread);
         thread->setState(Thread::State::Running(processor));
-    }
-
-    if (online) {
-        Processor::kernelInterruptsLock.unlock();
     }
 }
 
