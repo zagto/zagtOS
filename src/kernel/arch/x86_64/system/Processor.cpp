@@ -42,3 +42,10 @@ void Processor::sendCheckSchedulerIPI() {
 
     CurrentProcessor->localAPIC.sendIPI(hardwareID, 0x40);
 }
+
+void Processor::sendInvalidateQueueProcessingIPI() {
+    cout << "sending InvalidateQueueProcessing IPI from " <<  CurrentProcessor->hardwareID << " to " << hardwareID << endl;
+
+    CurrentProcessor->localAPIC.sendIPI(hardwareID, 0x41);
+}
+

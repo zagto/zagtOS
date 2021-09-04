@@ -3,6 +3,7 @@
 #include <processes/Scheduler.hpp>
 #include <interrupts/Interrupts.hpp>
 #include <memory/InvalidateQueue.hpp>
+#include <memory/KernelPageAllocator.hpp>
 #include <processes/KernelThreadEntry.hpp>
 #include <memory>
 
@@ -54,7 +55,9 @@ public:
     const size_t id;
     Scheduler scheduler;
 
-    void sendInvalidateQueueProcessingIPI();
+    /* For KernelPageAllocator::invalidateQueue */
+    KernelVirtualAddress kernelInvalidateProcessedUntil;
+
     TLBContextID activatePagingContext(PagingContext *pagingContext, TLBContextID tryFirst);
 
     CommonProcessor(size_t id, Status &status);

@@ -19,9 +19,10 @@ private:
     CommonProcessor &processor;
     SpinLock lock;
     queue<Item> items;
+    optional<Item> extraItem;
     uint64_t processedUntilTimestamp{0};
 
-    void _localProcessing(optional<Item> extraItem);
+    void _localProcessing();
 
 public:
     InvalidateQueue(CommonProcessor &processor);
@@ -29,6 +30,6 @@ public:
     uint64_t add(TLBContextID tlbContextID,
                  Frame *frame,
                  UserVirtualAddress address);
-    void ensureProcessedUntil(uint64_t timestamp, optional<Item> extraItem = {});
+    void ensureProcessedUntil(uint64_t timestamp);
     void localProcessing();
 };

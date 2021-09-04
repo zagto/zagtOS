@@ -47,11 +47,6 @@ CommonProcessor::~CommonProcessor() {
     Panic();
 }
 
-void CommonProcessor::sendInvalidateQueueProcessingIPI() {
-    cout << "TODO: IPI sending" << endl;
-    Panic();
-}
-
 TLBContextID CommonProcessor::activatePagingContext(PagingContext *pagingContext,
                                                     TLBContextID tryFirst) {
     assert(interruptsLockLocked);

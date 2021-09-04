@@ -5,8 +5,25 @@
 #include <mutex>
 #include <paging/PagingContext.hpp>
 
-
 namespace kernelPageAllocator {
+
+/* TODO: Not very efficient. We should a structure similar to FrameStack, that does not need to
+ * does not split information around the individual pages */
+class InvalidateQueue {
+private:
+    struct Item {
+        KernelVirtualAddress next;
+        size_t referenceCount;
+        size_t timestamp;
+        bool freeFrame;
+    };
+
+    KernelVirtualAddress head;
+
+public:
+    void add(size_t frameIndex, bool freeFrame);
+    void localProcessing();
+};
 
 class Allocator {
 private:
@@ -18,11 +35,15 @@ private:
     size_t bitmap[NUM_BITMAP_GROUPS]{0};
     size_t startPosition = 0;
 
+    InvalidateQueue invalidateQueue;
+
     static_assert(KernelHeapRegion.length % PAGE_SIZE == 0);
     static_assert(TOTAL_NUM_HEAP_FRAMES % FRAMES_PER_GROUP == 0);
 
     bool getFrame(size_t frame) const;
     void setFrame(size_t frame);
+
+    friend class InvalidateQueue;
     void unsetFrame(size_t frame);
 
 public:
@@ -31,6 +52,7 @@ public:
                        bool findNewFrames,
                        const PhysicalAddress *frames = nullptr,
                        CacheType cacheType = CacheType::NORMAL_WRITE_BACK);
+    void processInvalidateQueue();
 
     SpinLock lock;
 };

@@ -2,7 +2,9 @@
 #include <memory/FrameManagement.hpp>
 #include <memory/DLMallocGlue.hpp>
 #include <memory/KernelPageAllocator.hpp>
+#include <memory/PageOutContext.hpp>
 #include <paging/PagingContext.hpp>
+#include <system/Processor.hpp>
 
 
 namespace kernelPageAllocator {
@@ -40,11 +42,8 @@ void Allocator::unmap(void *_address, size_t length, bool freeFrames) {
     bitmap[lastGroup] &= ~mask;*/
 
     for (size_t i = 0; i < numFrames; i++) {
-        unsetFrame(firstFrame+i);
+        invalidateQueue.add(firstFrame+i, freeFrames);
     }
-
-    /* TODO: TLB Shootdown!!!!!!! */
-    PagingContext::unmapRange(_address, numFrames, freeFrames);
 }
 
 /* TODO: optimze, or change to something better than bitmap */
@@ -128,6 +127,68 @@ Result <void *> Allocator::map(size_t length,
         }
     }
     return Status::OutOfKernelHeap();
+}
+
+extern "C" void basicInvalidate(KernelVirtualAddress address);
+
+void Allocator::processInvalidateQueue() {
+    scoped_lock sl(lock);
+    invalidateQueue.localProcessing();
+}
+
+void InvalidateQueue::add(size_t frameIndex, bool freeFrame) {
+    KernelVirtualAddress address = KernelHeapRegion.start + frameIndex * PAGE_SIZE;
+    basicInvalidate(address);
+
+    if (CurrentSystem.numProcessors == 1) {
+        return;
+    }
+
+    /* Claer all existing items from this CPU. This is important because we assume Items further
+     * from head can only be pending on a subset of Procesors compared to items closer to head */
+    localProcessing();
+
+    Item *item = address.asPointer<Item>();
+    /* all remaining CPUs that have to process this item */
+    item->referenceCount = CurrentSystem.numProcessors - 1;
+    item->timestamp = CurrentSystem.getNextTLBTimetamp();
+    item->next = head;
+    item->freeFrame = freeFrame;
+
+    CurrentProcessor->kernelInvalidateProcessedUntil = item->timestamp;
+}
+
+void InvalidateQueue::localProcessing() {
+    KernelVirtualAddress address = head;
+
+    while (!address.isNull() && address != CurrentProcessor->kernelInvalidateProcessedUntil) {
+        Item *realItem = address.asPointer<Item>();
+        realItem->referenceCount--;
+
+        /* save next pointer, as we are going to invalidate the real one */
+        Item item = *realItem;
+
+        while (!realItem->next.isNull()
+               && realItem->next != CurrentProcessor->kernelInvalidateProcessedUntil
+               && realItem->next.asPointer<Item>()->referenceCount == 1) {
+            /* Next item is going to be fully unmapped. This means we have to update the "next"
+             * pointer. Do it now to avoid accessing this item after it has been invalidated */
+            realItem->next = nullptr;
+        }
+
+        basicInvalidate(address);
+
+        if (item.referenceCount == 0) {
+            PagingContext::unmap(address, item.freeFrame);
+
+            assert(address.isPageAligned());
+            assert(address.isInRegion(KernelHeapRegion));
+            KernelPageAllocator.unsetFrame((address.value() - KernelHeapRegion.start) / PAGE_SIZE);
+        }
+
+        CurrentProcessor->kernelInvalidateProcessedUntil = address;
+        address = item.next;
+    }
 }
 
 }

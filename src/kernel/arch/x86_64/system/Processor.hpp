@@ -13,6 +13,7 @@ public:
     void localInitialization();
 
     void sendCheckSchedulerIPI();
+    void sendInvalidateQueueProcessingIPI();
 
     [[noreturn]] void returnToUserMode();
     [[noreturn]] void returnInsideKernelMode(RegisterState *state);

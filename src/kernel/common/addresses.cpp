@@ -26,12 +26,16 @@ bool VirtualAddress::checkInRegion(const Region &region, size_t address) {
     return address >= region.start && address < region.end();
 }
 
-bool VirtualAddress::isInRegion(const Region &region) {
+bool VirtualAddress::isInRegion(const Region &region) const {
     return VirtualAddress::checkInRegion(region, value());
 }
 
-bool VirtualAddress::isKernel() {
+bool VirtualAddress::isKernel() const {
     return value() >= UserSpaceRegion.end();
+}
+
+bool VirtualAddress::isNull() const {
+    return value() == 0;
 }
 
 

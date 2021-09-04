@@ -38,6 +38,7 @@ public:
                     Permissions permissions,
                     CacheType cacheType);
     static void invalidateLocally(KernelVirtualAddress address);
+    static void unmap(KernelVirtualAddress address, bool freeFrame);
     static void unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames);
 
     Status map(UserVirtualAddress from,

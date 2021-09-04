@@ -99,6 +99,11 @@ void PagingContext::unmap(UserVirtualAddress address) {
 }
 
 
+void PagingContext::unmap(KernelVirtualAddress address, bool freeFrame) {
+    assert(KernelPageAllocator.lock.isLocked());
+    CurrentSystem.kernelOnlyPagingContext._unmap(address, freeFrame);
+}
+
 void PagingContext::unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames) {
     assert(KernelPageAllocator.lock.isLocked());
     for (size_t index = 0; index < numPages; index++) {

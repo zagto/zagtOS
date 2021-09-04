@@ -39,6 +39,7 @@ void dealWithException(Status status) {
         CurrentProcessor->scheduler.lock.lock();
         CurrentProcessor->scheduler.removeActiveThread();
         CurrentProcessor->scheduler.scheduleNext();
+        cout << "TODO: deal with ThreadKilled" << endl;
         Panic();
     } else {
         cout << "Unknown Exception: " << status << endl;
@@ -138,6 +139,9 @@ void dealWithException(Status status) {
 
     Status status;
 
+    KernelPageAllocator.processInvalidateQueue();
+    CurrentProcessor->invalidateQueue.localProcessing();
+
     if (registerState->intNr < 0x20) {
         /* x86 Exception */
         if (fromUserSpace) {
@@ -156,6 +160,9 @@ void dealWithException(Status status) {
         if (status) {
             cout << "Info: CheckProcessor IPI did not lead to change." << endl;
         }
+    } else if (registerState->intNr == 0x41) {
+        /* Process Invalidate Queue - we allways to this */
+        status = Status::OK();
     } else {
         cout << "Unknown Interrupt " << registerState->intNr << endl;
         Panic();

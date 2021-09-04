@@ -24,10 +24,17 @@ public:
 
     static bool checkInRegion(const Region &region, size_t address);
 
-    bool isInRegion(const Region &region);
-    bool isKernel();
+    bool isInRegion(const Region &region) const;
+    bool isKernel() const;
+    bool isNull() const;
     template<typename T> T *asPointer() const {
         return reinterpret_cast<T *>(value());
+    }
+    bool operator==(VirtualAddress other) const {
+        return value() == other.value();
+    }
+    bool operator!=(VirtualAddress other) const {
+        return value() != other.value();
     }
 };
 
