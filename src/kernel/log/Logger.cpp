@@ -23,6 +23,7 @@ Logger::Logger() {
 
 
 void Logger::flush() {
+    scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(logLock);
 
     char *buffer = CurrentProcessor->logBuffer;
@@ -68,6 +69,7 @@ void Logger::setProgramColor() {
 void Logger::basicWrite(char character) {
     /* On early boot there is no Processor object, write unbuffered in this case */
     if (CurrentProcessor == nullptr) {
+        scoped_lock lg1(KernelInterruptsLock);
         scoped_lock lg(logLock);
         output(character);
     } else {
@@ -190,6 +192,7 @@ void Logger::sendCoreDump(size_t nameLength,
     cout << "sending coredump data size " << dataLength << endl;
     flush();
 
+    scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(logLock);
     /* core dump marker */
     serialBackend.write(static_cast<char>(0xf2));
