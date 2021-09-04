@@ -14,7 +14,6 @@ private:
     struct Item {
         KernelVirtualAddress next;
         size_t referenceCount;
-        size_t timestamp;
         bool freeFrame;
     };
 

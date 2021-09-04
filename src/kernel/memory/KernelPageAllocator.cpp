@@ -151,15 +151,15 @@ void InvalidateQueue::add(size_t frameIndex, bool freeFrame) {
     Item *item = address.asPointer<Item>();
     /* all remaining CPUs that have to process this item */
     item->referenceCount = CurrentSystem.numProcessors - 1;
-    item->timestamp = CurrentSystem.getNextTLBTimetamp();
     item->next = head;
     item->freeFrame = freeFrame;
 
-    CurrentProcessor->kernelInvalidateProcessedUntil = item->timestamp;
+    CurrentProcessor->kernelInvalidateProcessedUntil = item;
 }
 
 void InvalidateQueue::localProcessing() {
     KernelVirtualAddress address = head;
+    KernelVirtualAddress oldHead = head;
 
     while (!address.isNull() && address != CurrentProcessor->kernelInvalidateProcessedUntil) {
         Item *realItem = address.asPointer<Item>();
@@ -186,8 +186,10 @@ void InvalidateQueue::localProcessing() {
             KernelPageAllocator.unsetFrame((address.value() - KernelHeapRegion.start) / PAGE_SIZE);
         }
 
-        CurrentProcessor->kernelInvalidateProcessedUntil = address;
         address = item.next;
+    }
+    if (!oldHead.isNull()) {
+        CurrentProcessor->kernelInvalidateProcessedUntil = oldHead;
     }
 }
 
