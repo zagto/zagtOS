@@ -189,6 +189,8 @@ void Logger::sendCoreDump(size_t nameLength,
                           const uint8_t *data) {
     cout << "sending coredump data size " << dataLength << endl;
     flush();
+
+    scoped_lock lg(logLock);
     /* core dump marker */
     serialBackend.write(static_cast<char>(0xf2));
     for (size_t i = 0; i < 8; i++) {
