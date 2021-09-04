@@ -6,58 +6,6 @@
 #include <system/Processor.hpp>
 
 
-void Scheduler::List::append(Thread *thread) {
-    assert(!thread->previous);
-    assert(!thread->next);
-
-    if (tail) {
-        tail->next = thread;
-        thread->previous = tail;
-        tail = thread;
-    } else {
-        head = thread;
-        tail = thread;
-    }
-}
-
-void Scheduler::List::remove(Thread *thread) {
-    assert(thread->previous || thread == head);
-    assert(thread->next || thread == tail);
-    assert(&thread->currentProcessor()->scheduler.threads[thread->currentPriority()] == this);
-
-    if (thread == head) {
-        head = thread->next;
-    } else {
-        thread->previous->next = thread->next;
-    }
-    if (thread == tail) {
-        tail = thread->previous;
-    } else {
-        thread->next->previous = thread->previous;
-    }
-    thread->previous = nullptr;
-    thread->next = nullptr;
-}
-
-Thread *Scheduler::List::pop() {
-    assert(!empty());
-    assert(!head->previous);
-
-    Thread *result = head;
-    head = head->next;
-    if (!head) {
-        tail = nullptr;
-    } else {
-        head->previous = nullptr;
-    }
-    result->next = nullptr;
-    return result;
-}
-
-bool Scheduler::List::empty() {
-    return head == nullptr;
-}
-
 Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
 {
     if (!status) {

@@ -10,22 +10,12 @@ class CommonProcessor;
 class Scheduler
 {
 private:
-    struct List {
-        Thread *head{nullptr};
-        Thread *tail{nullptr};
-
-        void append(Thread *thread);
-        void remove(Thread *thread);
-        Thread *pop();
-        bool empty();
-    };
-
     /* TODO: more useful distribution of threads */
     static size_t nextProcessorID;
 
     Thread *idleThread;
     Thread *_activeThread{nullptr};
-    List threads[Thread::NUM_PRIORITIES];
+    threadList::List<&Thread::ownerReceptor> threads[Thread::NUM_PRIORITIES];
     Processor *processor;
 
     void add(Thread *thread, bool online);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <processes/KernelStack.hpp>
+#include <processes/ThreadList.hpp>
 #include <memory>
 #include <vector>
 #include <utility>
@@ -80,10 +81,10 @@ private:
 protected:
     /* State */
     friend class Scheduler;
+    template <threadList::Receptor Thread::*>
+    friend class threadList::List;
 
-    /* stuff only to be changed with stateLock aquired */
-    Thread *previous{nullptr};
-    Thread *next{nullptr};
+    threadList::Receptor ownerReceptor;
 
     void (*kernelEntry)(void *){nullptr};
     void *kernelEntryData;
