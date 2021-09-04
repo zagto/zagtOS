@@ -51,7 +51,6 @@ public:
 
     size_t runMessageAddress();
     Status crash(const char *message, Thread *crashedThread);
-    Status exitLocked();
     Status exit();
 };
 

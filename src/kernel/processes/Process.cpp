@@ -161,11 +161,11 @@ Status Process::crash(const char *message, Thread *crashedThread) {
         }
     }
 
-    return exitLocked();
+    return exit();
 }
 
-Status Process::exitLocked() {
-    // TODO: this is not very efficient
+Status Process::exit() {
+    scoped_lock sl(KernelInterruptsLock);
 
     shared_ptr<Thread> thread;
     do {
@@ -180,11 +180,6 @@ Status Process::exitLocked() {
     } else {
         return Status::OK();
     }
-}
-
-Status Process::exit() {
-    scoped_lock sl(KernelInterruptsLock);
-    return exitLocked();
 }
 
 shared_ptr<Process> CurrentProcess() {
