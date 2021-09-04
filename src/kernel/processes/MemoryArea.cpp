@@ -35,6 +35,11 @@ MemoryArea::MemoryArea(frameManagement::ZoneID zoneID,
         return;
     }
 
+    deviceAddresses = vector<size_t>(frames.size(), PhysicalAddress::NULL, status);
+    if (!status) {
+        return;
+    }
+
     for (Frame *&frame : frames) {
         Result result = make_raw<Frame>(zoneID);
         if (!result) {
