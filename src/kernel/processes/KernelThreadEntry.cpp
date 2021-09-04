@@ -36,6 +36,10 @@ void UserReturnEntry(void *) {
 
 extern "C" void InKernelReturnEntryRestoreInterruptsLock(RegisterState *registerState) {
     /* The Thread was interrtupted, so interrupts should have been enabled */
+    commonSetup();
     assert(registerState->interruptsFlagSet());
     CurrentProcessor->interruptsLockValue = 0;
+
+    /* avoid overwriting the CurrentProcessor register with a copy from another processor */
+    registerState->r15 = (size_t)CurrentProcessor;
 }
