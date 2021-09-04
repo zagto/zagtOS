@@ -11,6 +11,7 @@ KernelStack::KernelStack(RegisterState _userRegisterState, Status &status) {
         return;
     }
 
+    scoped_lock lg1(KernelInterruptsLock);
     scoped_lock sl(KernelPageAllocator.lock);
 
     Result<void *> dataAddress = KernelPageAllocator.map(SIZE, true);
@@ -25,6 +26,7 @@ KernelStack::KernelStack(RegisterState _userRegisterState, Status &status) {
 
 KernelStack::~KernelStack() {
     if (data) {
+        scoped_lock lg1(KernelInterruptsLock);
         scoped_lock sl(KernelPageAllocator.lock);
         KernelPageAllocator.unmap(data, SIZE, true);
     }

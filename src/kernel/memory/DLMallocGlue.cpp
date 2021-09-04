@@ -1,6 +1,7 @@
 #include <common/common.hpp>
 #include <memory/DLMallocGlue.hpp>
 #include <memory/KernelPageAllocator.hpp>
+#include <interrupts/KernelInterruptsLock.hpp>
 
 
 extern "C" {
@@ -24,6 +25,7 @@ Glue::Glue() {
 }
 
 Result<KernelVirtualAddress> Glue::allocate(size_t length, size_t align) {
+    scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(KernelPageAllocator.lock);
     DLMallocStatus = Status::OK();
     void *rawAddress;
@@ -42,6 +44,7 @@ Result<KernelVirtualAddress> Glue::allocate(size_t length, size_t align) {
 }
 
 Result<KernelVirtualAddress> Glue::resize(KernelVirtualAddress address, size_t length) {
+    scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(KernelPageAllocator.lock);
     DLMallocStatus = Status::OK();
 
@@ -55,6 +58,7 @@ Result<KernelVirtualAddress> Glue::resize(KernelVirtualAddress address, size_t l
 }
 
 void Glue::free(KernelVirtualAddress address) {
+    scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(KernelPageAllocator.lock);
     dlfree(address.asPointer<void>());
 }
