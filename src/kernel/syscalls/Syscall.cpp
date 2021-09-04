@@ -118,6 +118,12 @@ size_t Syscall(size_t syscallNr,
 
                     thread->setKernelEntry(UserReturnEntry);
                 } else {
+                    if (result.status() == Status::BadUserSpace()) {
+                        Status coreDumpStatus = process->addressSpace.coreDump(thread);
+                        if (!coreDumpStatus) {
+                            cout << "CoreDump failed: " << coreDumpStatus << endl;
+                        }
+                    }
                     KernelInterruptsLock.lock();
                 }
             }

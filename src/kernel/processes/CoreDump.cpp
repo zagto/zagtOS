@@ -80,6 +80,8 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     cout << "Sending Core Dump to Serial Port..." << endl;
     vector<uint8_t> dumpFile;
 
+    scoped_lock sl(lock);
+
     size_t numProgramHeaders = mappedAreas.size() + 1; /* each mapped area + registers */
 
     FileHeader fileHeader = {
@@ -160,7 +162,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
             static uint8_t page[PAGE_SIZE];
 
             if (mappedAreas[index]->permissions == Permissions::INVALID
-                    || !copyFrom(page, address, PAGE_SIZE)) {
+                    || !copyFromLocked(page, address, PAGE_SIZE)) {
                 memset(page, 0, PAGE_SIZE);
             }
             status = writeDump(dumpFile, page, PAGE_SIZE);

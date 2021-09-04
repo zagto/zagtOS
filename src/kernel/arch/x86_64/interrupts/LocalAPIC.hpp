@@ -31,6 +31,7 @@ protected:
     /* These values are offsets in the memory-mapped APIC */
     enum class Register : size_t {
         TASK_PRIORITY = 0x080,
+        END_OF_INTERRUPT = 0xb0,
         SPURIOUS_INTERRUPT_VECTOR = 0x0f0,
         INTERRUPT_COMMAND_LOW = 0x300,
         INTERRUPT_COMMAND_HIGH = 0x310,
@@ -57,4 +58,5 @@ public:
 
     Status initialize(PhysicalAddress base);
     void sendIPI(uint32_t apicID, uint8_t vector);
+    void endOfInterrupt();
 };

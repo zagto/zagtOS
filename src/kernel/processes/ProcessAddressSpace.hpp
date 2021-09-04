@@ -26,6 +26,8 @@ private:
     Status ensureSplitAt(size_t address);
     Status ensureRegionIndependent(Region region);
 
+    Status copyFromLocked(uint8_t *destination, size_t address, size_t length);
+
 public:
     ProcessAddressSpace(Status &status);
     ProcessAddressSpace(const hos_v1::Process &handOver,
@@ -56,9 +58,7 @@ public:
     Status removeMapping(size_t startAddress);
     Status handlePageFault(size_t address, Permissions requiredPermissions);
     Result<uint64_t> getFutexID(size_t address);
-    Status copyFrom(uint8_t *destination,
-                    size_t address,
-                    size_t length);
+    Status copyFrom(uint8_t *destination, size_t address, size_t length);
     Status copyTo(size_t address,
                   const uint8_t *source,
                   size_t length,

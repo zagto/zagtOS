@@ -14,6 +14,7 @@ public:
 
     void sendCheckSchedulerIPI();
     void sendInvalidateQueueProcessingIPI();
+    void endOfInterrupt();
 
     [[noreturn]] void returnToUserMode();
     [[noreturn]] void returnInsideKernelMode(RegisterState *state);

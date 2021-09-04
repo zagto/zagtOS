@@ -20,8 +20,6 @@ void InvalidateQueue::_localProcessing() {
         items.pop();
     }
 
-    size_t maxTimestamp = 0;
-
     while (true) {
         assert(item.tlbContextID != TLB_CONTEXT_ID_NONE);
 
@@ -30,11 +28,12 @@ void InvalidateQueue::_localProcessing() {
         assert(item.frame != nullptr);
         item.frame->decreaseInvalidateRequestReference();
 
-        maxTimestamp = max(maxTimestamp, item.timestamp);
-
         if (items.empty()) {
+            /* Create a new timestamp, since the most recent we processed may still be older than
+             * what exists on other CPUs */
+            uint64_t newTimestamp = CurrentSystem.getNextTLBTimetamp();
             /* Use atomic since ensureProcessedUntil reads this without holding lock */
-            __atomic_store(&processedUntilTimestamp, &maxTimestamp, __ATOMIC_SEQ_CST);
+            __atomic_store(&processedUntilTimestamp, &newTimestamp, __ATOMIC_SEQ_CST);
             return;
         }
         item = items.top();

@@ -64,6 +64,10 @@ void LocalAPIC::sendIPI(uint32_t apicID, uint8_t vector) {
                                   vector);*/
 }
 
+void LocalAPIC::endOfInterrupt() {
+    writeRegister(Register::END_OF_INTERRUPT, 0);
+}
+
 LocalAPIC::LocalAPIC(Status &) :
         timer(this) {
 }

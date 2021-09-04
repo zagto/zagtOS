@@ -54,7 +54,7 @@ public:
     bool canAccessPhysicalMemory() const;
 
     size_t runMessageAddress();
-    Status crash(const char *message, Thread *crashedThread);
+    Status crash(const char *message);
     Status exit();
 };
 

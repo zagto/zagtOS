@@ -26,7 +26,7 @@ void dealWithException(Status status) {
     if (status == Status::DiscardStateAndSchedule()) {
         CurrentProcessor->scheduler.scheduleNext();
     } else if (status == Status::BadUserSpace()) {
-        Status status2 = activeThread->process->crash("BadUserSpace Exception", activeThread);
+        Status status2 = activeThread->process->crash("BadUserSpace Exception");
         assert(status2 == Status::ThreadKilled());
         dealWithException(status2);
     } else if (status == Status::OutOfKernelHeap()) {
@@ -89,6 +89,14 @@ void dealWithException(Status status) {
                 KernelInterruptsLock.unlock();
                 status = CurrentThread()->process->addressSpace.handlePageFault(
                             cr2, requiredPermissions);
+
+                if (status == Status::BadUserSpace()) {
+                    Status dumpStatus = CurrentProcess()->addressSpace.coreDump(CurrentThread());
+                    if (!dumpStatus) {
+                        cout << "Core Dump failed: " << dumpStatus << endl;
+                    }
+                }
+
                 KernelInterruptsLock.lock();
                 if (!status) {
                     dealWithException(status);
@@ -156,11 +164,13 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
         status = Status::OK();
     } else if (registerState->intNr == 0x40) {
         /* check scheduler IPI */
+        CurrentProcessor->endOfInterrupt();
         status = CurrentProcessor->scheduler.checkChanges();
         if (status) {
             cout << "Info: CheckProcessor IPI did not lead to change." << endl;
         }
     } else if (registerState->intNr == 0x41) {
+        CurrentProcessor->endOfInterrupt();
         /* Process Invalidate Queue - we allways to this */
         status = Status::OK();
     } else {

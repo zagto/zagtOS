@@ -49,3 +49,9 @@ void Processor::sendInvalidateQueueProcessingIPI() {
     CurrentProcessor->localAPIC.sendIPI(hardwareID, 0x41);
 }
 
+void Processor::endOfInterrupt() {
+    assert(KernelInterruptsLock.isLocked());
+    assert(CurrentProcessor == this);
+
+    localAPIC.endOfInterrupt();
+}

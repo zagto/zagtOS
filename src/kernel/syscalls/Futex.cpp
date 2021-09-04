@@ -23,8 +23,8 @@ static constexpr uint32_t FUTEX_WAITERS_BIT = 0x80000000;
 Result<size_t> Futex(const shared_ptr<Process> &process,
                      size_t address,
                      size_t operation,
-                     size_t timeoutOrValue2,
                      size_t passedValue,
+                     size_t timeoutOrValue2,
                      size_t) {
     cout << "Futex(" << address << ", " << operation <<", "<< timeoutOrValue2 << ", " << passedValue << ")" << endl;
 

@@ -386,10 +386,8 @@ Result<uint64_t> ProcessAddressSpace::getFutexID(size_t address) {
     return memoryArea->getFutexID(maxRegionInside.start);
 }
 
-Status ProcessAddressSpace::copyFrom(uint8_t *destination,
-                                     size_t address,
-                                     size_t length) {
-    scoped_lock sl(lock);
+Status ProcessAddressSpace::copyFromLocked(uint8_t *destination, size_t address, size_t length) {
+    assert(lock.isLocked());
 
     while (length > 0) {
         optional result = findMemoryArea(address, false);
@@ -411,6 +409,12 @@ Status ProcessAddressSpace::copyFrom(uint8_t *destination,
     }
     return Status::OK();
 }
+
+Status ProcessAddressSpace::copyFrom(uint8_t *destination, size_t address, size_t length) {
+    scoped_lock sl(lock);
+    return copyFromLocked(destination, address, length);
+}
+
 
 Status ProcessAddressSpace::copyTo(size_t address,
                                    const uint8_t *source,
