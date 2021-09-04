@@ -174,9 +174,17 @@ void Scheduler::scheduleNext() {
             _activeThread = threads[prio].pop();
             _activeThread->setState(Thread::State::Active(processor));
 
-            cout << "activeThread on " << processor->id << " is now " << _activeThread << endl;
+            if (_activeThread == idleThread) {
+                cout << "activeThread on " << processor->id << " is our idle Thread" << endl;
+            } else {
+                cout << "activeThread on " << processor->id << " is now ";
+                for (char c: _activeThread->process->logName) {
+                    cout << c;
+                }
+                cout <<":" << _activeThread->handle() << " (" << _activeThread << ")" << endl;
+            }
 
-            _activeThread->kernelStack->switchToKernelEntry(_activeThread->kernelEntry, nullptr);
+            _activeThread->kernelStack->switchToKernelEntry(_activeThread->kernelEntry, _activeThread->kernelEntryData);
         }
     }
 
