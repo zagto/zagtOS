@@ -31,15 +31,14 @@ namespace threadList {
         bool operator!=(const Iterator &other) {
             return item != other.item;
         }
-        Thread *operator++() {
+        Iterator &operator++() {
             assert(item != nullptr);
             item = (item->*ReceptorMember).next;
-            assert(item != nullptr);
-            return item;
+            return *this;
         }
-        Thread *operator++(int) {
+        Iterator operator++(int) {
             assert(item != nullptr);
-            Thread *copy = item;
+            Iterator copy = item;
             item = (item->*ReceptorMember).next;
             return copy;
         }

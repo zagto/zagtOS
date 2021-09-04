@@ -21,6 +21,7 @@ Thread::Thread(shared_ptr<Process> process,
     tlsBase{tlsBase} {
 
     {
+        scoped_lock sl1(KernelInterruptsLock);
         scoped_lock sl(process->allThreadsLock);
         process->allThreads.append(this);
     }
