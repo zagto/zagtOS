@@ -71,7 +71,6 @@ public:
     Result<weak_ptr<Port>> lookupRemotePort(uint32_t number);
     Result<shared_ptr<Thread>> lookupThread(uint32_t number);
     Result<shared_ptr<MemoryArea>> lookupMemoryArea(uint32_t number);
-    shared_ptr<Thread> extractThread();
     Status removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
     Status transferHandles(vector<uint32_t> &handleValues, HandleManager &destination);
     uint32_t numFreeHandles();

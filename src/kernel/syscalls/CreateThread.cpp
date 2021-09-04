@@ -26,6 +26,7 @@ Result<size_t> CreateThread(const shared_ptr<Process> &process,
     if (!handle) {
         return handle.status();
     }
+
     Scheduler::schedule(newThread->get(), true);
     cout << "created Thread with handle " << *handle << endl;
     return *handle;

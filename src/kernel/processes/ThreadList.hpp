@@ -11,10 +11,42 @@ namespace threadList {
     private:
         template <Receptor Thread::*>
         friend class List;
+        template <Receptor Thread::*>
+        friend class Iterator;
 
         AbstractList *list;
         Thread *previous;
         Thread *next;
+    };
+
+    template <Receptor Thread::*ReceptorMember>
+    class Iterator {
+    private:
+        Thread *item;
+
+    public:
+        Iterator(Thread *thread) {
+            item = thread;
+        }
+        bool operator!=(const Iterator &other) {
+            return item != other.item;
+        }
+        Thread *operator++() {
+            assert(item != nullptr);
+            item = (item->*ReceptorMember).next;
+            assert(item != nullptr);
+            return item;
+        }
+        Thread *operator++(int) {
+            assert(item != nullptr);
+            Thread *copy = item;
+            item = (item->*ReceptorMember).next;
+            return copy;
+        }
+        Thread *operator*() {
+            assert(item != nullptr);
+            return item;
+        }
     };
 
     template <Receptor Thread::*ReceptorMember>
@@ -24,6 +56,14 @@ namespace threadList {
         Thread *tail{nullptr};
 
     public:
+        Iterator<ReceptorMember> begin() {
+            return {head};
+        }
+
+        Iterator<ReceptorMember> end() {
+            return {nullptr};
+        }
+
         void append(Thread *thread) {
             Receptor &receptor = thread->*ReceptorMember;
             assert(receptor.list == nullptr);

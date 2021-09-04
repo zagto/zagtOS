@@ -166,16 +166,15 @@ Status Process::crash(const char *message, Thread *crashedThread) {
 
 Status Process::exit() {
     scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl1(allThreadsLock);
 
-    shared_ptr<Thread> thread;
-    do {
-        thread = handleManager.extractThread();
-        if (thread && thread.get() != CurrentProcessor->scheduler.activeThread()) {
+    for (Thread *thread: allThreads) {
+        if (thread != CurrentThread()) {
             thread->terminate();
         }
-    } while (thread);
+    }
 
-    if (CurrentProcessor->scheduler.activeThread()->process.get() == this) {
+    if (CurrentThread()->process.get() == this) {
         return Status::ThreadKilled();
     } else {
         return Status::OK();

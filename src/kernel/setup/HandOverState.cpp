@@ -51,6 +51,7 @@ void hos_v1::System::decodeProcesses() {
     /* TODO: Sanity check that all our elements are now referenced somewhere */
 
     for (const shared_ptr<::Thread> &thread: allThreads) {
+        thread->process->allThreads.append(thread.get());
         Scheduler::schedule(thread.get(), false);
     }
 

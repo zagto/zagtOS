@@ -26,6 +26,10 @@ public:
     vector<uint8_t> logName;
     FutexManager futexManager;
 
+    /* This list is used when the Process exits to quickly find all Threads to terminate */
+    SpinLock allThreadsLock;
+    threadList::List<&Thread::processReceptor> allThreads;
+
     /* The handover constructor is the only constructor you should take the result of and put it
      * into a shared pointer to pass it to the Threads. The other constructors do this by
      * themselves. DO NEVER create a shared_ptr of their results to prevent shared_ptr

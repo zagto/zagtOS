@@ -20,6 +20,11 @@ Thread::Thread(shared_ptr<Process> process,
     process{process},
     tlsBase{tlsBase} {
 
+    {
+        scoped_lock sl(process->allThreadsLock);
+        process->allThreads.append(this);
+    }
+
     if (!status) {
         return;
     }
@@ -97,6 +102,11 @@ Thread::~Thread() {
     assert(currentProcessor() == CurrentProcessor || currentProcessor() == nullptr);
     /* don't try deleting special threads */
     assert(process);
+
+    {
+        scoped_lock sl(process->allThreadsLock);
+        process->allThreads.remove(this);
+    }
 }
 
 Thread::Priority Thread::ownPriority() const {

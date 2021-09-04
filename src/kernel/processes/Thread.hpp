@@ -81,10 +81,12 @@ private:
 protected:
     /* State */
     friend class Scheduler;
+    friend class Process;
     template <threadList::Receptor Thread::*>
     friend class threadList::List;
 
     threadList::Receptor ownerReceptor;
+    threadList::Receptor processReceptor;
 
     void (*kernelEntry)(void *){nullptr};
     void *kernelEntryData;
