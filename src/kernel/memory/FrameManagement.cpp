@@ -12,6 +12,7 @@ Management::Management() {
 }
 
 Result<PhysicalAddress> Management::get(ZoneID zoneID) {
+    scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(lock);
     assert(zoneID < NUM_ZONES);
 
@@ -27,6 +28,7 @@ Result<PhysicalAddress> Management::get(ZoneID zoneID) {
 }
 
 void Management::put(PhysicalAddress frame) {
+    scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(lock);
     for (size_t stackIndex = 0; stackIndex < NUM_ZONES; stackIndex++) {
         if (frame.value() <= hos_v1::DMAZoneMax[stackIndex]) {
