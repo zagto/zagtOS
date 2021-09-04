@@ -3,7 +3,9 @@
 
 
 void mutex::lock() {
-    assert(!Processor::kernelInterruptsLock.isLocked());
+    if (CurrentProcessor) {
+        assert(!Processor::kernelInterruptsLock.isLocked());
+    }
 
     /* TODO: make actually a mutex */
     while (true) {
@@ -21,7 +23,9 @@ void mutex::lock() {
 }
 
 bool mutex::trylock() {
-    assert(!Processor::kernelInterruptsLock.isLocked());
+    if (CurrentProcessor) {
+        assert(!Processor::kernelInterruptsLock.isLocked());
+    }
 
     size_t expected = 0;
     return __atomic_compare_exchange_n(&value,
@@ -33,7 +37,9 @@ bool mutex::trylock() {
 }
 
 void mutex::unlock() {
-    assert(!Processor::kernelInterruptsLock.isLocked());
+    if (CurrentProcessor) {
+        assert(!Processor::kernelInterruptsLock.isLocked());
+    }
 
     size_t expected = 1;
     bool ok = __atomic_compare_exchange_n(&value,
@@ -49,7 +55,9 @@ void mutex::unlock() {
 }
 
 void SpinLock::lock() {
-    assert(Processor::kernelInterruptsLock.isLocked());
+    if (CurrentProcessor) {
+        assert(Processor::kernelInterruptsLock.isLocked());
+    }
 
     while (true) {
         size_t expected = 0;
@@ -65,7 +73,9 @@ void SpinLock::lock() {
 }
 
 bool SpinLock::trylock() {
-    assert(Processor::kernelInterruptsLock.isLocked());
+    if (CurrentProcessor) {
+        assert(Processor::kernelInterruptsLock.isLocked());
+    }
 
     size_t expected = 0;
     return __atomic_compare_exchange_n(&value,
@@ -77,7 +87,9 @@ bool SpinLock::trylock() {
 }
 
 void SpinLock::unlock() {
-    assert(Processor::kernelInterruptsLock.isLocked());
+    if (CurrentProcessor) {
+        assert(Processor::kernelInterruptsLock.isLocked());
+    }
 
     size_t expected = 1;
     bool ok = __atomic_compare_exchange_n(&value,
