@@ -48,6 +48,7 @@ Model getModel() {
             result.hypervisor = Hypervisor::NONE;
         }
     } else {
+        cout << "Unsupported Hypervisor Vendor String: " << reinterpret_cast<char *>(hypervisorString) << endl;
         result.hypervisor = Hypervisor::NONE;
     }
 
