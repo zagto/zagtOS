@@ -97,6 +97,7 @@ size_t Syscall(size_t syscallNr,
                size_t arg4) {
     {
         const shared_ptr<Process> process = CurrentProcess();
+        Thread *thread = CurrentThread();
         Result<size_t> result;
         do {
             if (syscallNr >= sizeof(syscallFunctions) || syscallFunctions[syscallNr] == nullptr) {
@@ -115,14 +116,14 @@ size_t Syscall(size_t syscallNr,
                     assert(KernelInterruptsLock.isLocked());
                     assert(CurrentProcessor->scheduler.lock.isLocked());
 
-                    CurrentThread()->setKernelEntry(UserReturnEntry);
+                    thread->setKernelEntry(UserReturnEntry);
                 } else {
                     KernelInterruptsLock.lock();
                 }
             }
 
             if (result) {
-                CurrentThread()->kernelStack->userRegisterState()->setSyscallResult(*result);
+                thread->kernelStack->userRegisterState()->setSyscallResult(*result);
             } else {
                 dealWithException(result.status());
             }

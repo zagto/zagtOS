@@ -113,12 +113,13 @@ void Thread::setCurrentPriority(Thread::Priority newValue) {
 }
 
 Thread::State Thread::state() {
-    //assert(stateLock.isLocked());
+    scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl(stateLock);
     return _state;
 }
 
 void Thread::setState(Thread::State newValue) {
+    scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl(stateLock);
     assert(((newValue.kind() == Thread::TRANSITION) != (_state.kind() == Thread::TRANSITION))
            || (newValue.kind() == Thread::ACTIVE && _state.kind() == Thread::RUNNING)

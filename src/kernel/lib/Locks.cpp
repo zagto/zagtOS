@@ -37,9 +37,9 @@ bool mutex::trylock() {
 }
 
 void mutex::unlock() {
-    if (CurrentProcessor) {
-        assert(!KernelInterruptsLock.isLocked());
-    }
+    /* KernelInterruptsLock may actually be locked here. The Kernel does an asymmetrick lock/unlock
+     * order in case of the DiscardStateAndSchedule Status, to avoid beeing interrupted while in
+     * this Status. */
 
     size_t expected = 1;
     bool ok = __atomic_compare_exchange_n(&value,
