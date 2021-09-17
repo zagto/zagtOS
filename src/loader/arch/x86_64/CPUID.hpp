@@ -10,7 +10,7 @@ namespace cpuid {
         INTEL, AMD
     };
     enum class Hypervisor {
-        NONE, VMWARE, KVM, VIRTUALBOX, UNKNOWN
+        NONE, VMWARE, KVM, VIRTUALBOX, QEMU_TCG, UNKNOWN
     };
 
     struct CrystalInfo {

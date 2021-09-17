@@ -7,7 +7,8 @@ namespace cpuid {
 static const char *VENDOR_STRING_INTEL = "GenuineIntel";
 static const char *VENDOR_STRING_AMD = "AuthenticAMD";
 static const char *HYPERVISOR_STRING_VMWARE = "VMwareVMware";
-static const char *HYPERVISOR_STRING_KVM = "KVMKVMKVM\0\0";
+static const char *HYPERVISOR_STRING_KVM = "KVMKVMKVM\0\0\0";
+static const char *HYPERVISOR_STRING_QEMU_TCG = "TCGTCGTCGTCG";
 static const char *HYPERVISOR_STRING_EMPTY = "\0\0\0\0\0\0\0\0\0\0\0\0";
 static const size_t VENDOR_STRING_LENGTH = 12;
 
@@ -38,6 +39,8 @@ Model getModel() {
         result.hypervisor = Hypervisor::KVM;
     } else if (memcmp(hypervisorString, HYPERVISOR_STRING_VMWARE, VENDOR_STRING_LENGTH) == 0) {
         result.hypervisor = Hypervisor::VMWARE;
+    } else if (memcmp(hypervisorString, HYPERVISOR_STRING_QEMU_TCG, VENDOR_STRING_LENGTH) == 0) {
+        result.hypervisor = Hypervisor::QEMU_TCG;
     } else if (memcmp(hypervisorString, HYPERVISOR_STRING_EMPTY, VENDOR_STRING_LENGTH) == 0) {
         cout << "hypervisorBusKHz " << hypervisorBusKHz << endl;
         if (hypervisorBusKHz == 1000000) {
