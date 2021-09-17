@@ -25,6 +25,7 @@ Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
 
     processor = static_cast<Processor *>(_processor);
     idleThread->setState(Thread::State::Running(processor));
+    idleThread->currentProcessor(processor);
 }
 
 void Scheduler::add(Thread *thread, bool online) {
@@ -110,6 +111,7 @@ Thread *Scheduler::activeThread() const {
 void Scheduler::scheduleNext() {
     assert(!_activeThread);
     assert(lock.isLocked());
+    assert(processor == CurrentProcessor);
 
     for (ssize_t prio = Thread::NUM_PRIORITIES - 1; prio >= 0; prio--) {
         if (!threads[prio].empty()) {
@@ -126,6 +128,7 @@ void Scheduler::scheduleNext() {
                 cout <<":" << _activeThread->handle() << " (" << _activeThread << ")" << endl;
             }
 
+            assert(_activeThread->currentProcessor() == CurrentProcessor);
             _activeThread->kernelStack->switchToKernelEntry(_activeThread->kernelEntry, _activeThread->kernelEntryData);
         }
     }
