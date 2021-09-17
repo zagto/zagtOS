@@ -98,6 +98,7 @@ size_t Syscall(size_t syscallNr,
     {
         const shared_ptr<Process> process = CurrentProcess();
         Thread *thread = CurrentThread();
+        assert(CurrentThread()->kernelStack->userRegisterState()->fromSyscall == 1);
         Result<size_t> result;
         do {
             if (syscallNr >= sizeof(syscallFunctions) || syscallFunctions[syscallNr] == nullptr) {
@@ -124,6 +125,7 @@ size_t Syscall(size_t syscallNr,
                             cout << "CoreDump failed: " << coreDumpStatus << endl;
                         }
                     }
+                    assert(!KernelInterruptsLock.isLocked());
                     KernelInterruptsLock.lock();
                 }
             }
