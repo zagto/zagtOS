@@ -150,9 +150,6 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
 
     Status status;
 
-    KernelPageAllocator.processInvalidateQueue();
-    CurrentProcessor->invalidateQueue.localProcessing();
-
     if (X86ExceptionRegion.contains(registerState->intNr)) {
         /* x86 Exception */
         if (fromUserSpace) {
@@ -169,6 +166,7 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
         CurrentProcessor->endOfInterrupt();
 
         uint32_t ipis = __atomic_exchange_n(&CurrentProcessor->ipiFlags, 0, __ATOMIC_SEQ_CST);
+        status = Status::OK();
 
         if (ipis & IPI::CheckScheduler) {
             status = CurrentProcessor->scheduler.checkChanges();
@@ -176,15 +174,17 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
                 cout << "Info: CheckProcessor IPI did not lead to change." << endl;
             }
         }
-    } else if (registerState->intNr == 0x41) {
-        CurrentProcessor->endOfInterrupt();
-        /* Process Invalidate Queue - we allways to this. TODO: do this after the EOI to ensure
-         * Processing in case of lost IPIs  */
-        CurrentProcessor->invalidateQueue.localProcessing();
-        status = Status::OK();
     } else {
         cout << "Unknown Interrupt " << registerState->intNr << endl;
         Panic();
+    }
+
+    if (status) {
+        /* Generic kernel work. This may be refactored to an own method */
+        KernelPageAllocator.processInvalidateQueue();
+        /* Important: The following has to happen after EOI of an InvalidateQueue IPI was sent,
+         * otherwise we may lose requests */
+        CurrentProcessor->invalidateQueue.localProcessing();
     }
 
     assert(KernelInterruptsLock.isLocked());
