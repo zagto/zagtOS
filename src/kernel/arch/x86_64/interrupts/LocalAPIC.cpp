@@ -65,7 +65,9 @@ void LocalAPIC::sendIPI(uint32_t apicID, uint8_t vector) {
 }
 
 void LocalAPIC::endOfInterrupt() {
+    assert(CurrentProcessor->interruptsLockValue == 1);
     writeRegister(Register::END_OF_INTERRUPT, 0);
+    assert(CurrentProcessor->interruptsLockValue == 1);
 }
 
 LocalAPIC::LocalAPIC(Status &) :

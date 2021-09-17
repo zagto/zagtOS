@@ -123,25 +123,27 @@ static Region X86ExceptionRegion{0x00, 0x20};
 static Region LegacySpuriousIRQRegion{0x20, 0x02};
 
 [[noreturn]] void _handleInterrupt(RegisterState* registerState) {
-    if (registerState->intNr != 0xe) {
-        cout << "Interrupt " << registerState->intNr << " on CPU " << CurrentProcessor->id << endl;
-    }
-
     bool fromUserSpace = registerState->cs == static_cast<uint64_t>(0x20|3);
 
+    /* fix CurrentProcessor->interruptsLockValue first! do not print anything before! */
     if (fromUserSpace) {
         assert(CurrentProcessor->interruptsLockValue == 1);
     } else {
         /* x86 Exceptions can always occur, but are fatal in kernel mode. For non-exception
          * interrupts we care about the KernelInterruptsLock beeing unlocked as expected, so we
          * can return cleanly. */
-        if (X86ExceptionRegion.contains(registerState->intNr)) {
+        if (!X86ExceptionRegion.contains(registerState->intNr)) {
             assert(CurrentProcessor->interruptsLockValue == 0);
             assert(registerState->interruptsFlagSet());
         }
         /* Interrupts are disabled in Interrupt context, make our variable reflect that */
         CurrentProcessor->interruptsLockValue++;
     }
+
+    if (registerState->intNr != 0xe) {
+        cout << "Interrupt " << registerState->intNr << " on CPU " << CurrentProcessor->id << endl;
+    }
+    assert(registerState->fromSyscall == 0);
 
     Thread *thread = CurrentThread();
     assert(thread);
@@ -171,7 +173,9 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
         }
     } else if (registerState->intNr == 0x41) {
         CurrentProcessor->endOfInterrupt();
-        /* Process Invalidate Queue - we allways to this */
+        /* Process Invalidate Queue - we allways to this. TODO: do this after the EOI to ensure
+         * Processing in case of lost IPIs  */
+        CurrentProcessor->invalidateQueue.localProcessing();
         status = Status::OK();
     } else {
         cout << "Unknown Interrupt " << registerState->intNr << endl;
@@ -189,13 +193,13 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
     }
 
     if (status) {
+        assert(CurrentProcessor->interruptsLockValue == 1);
         if (fromUserSpace) {
             CurrentProcessor->returnToUserMode();
         } else {
             CurrentProcessor->interruptsLockValue--;
             /* We are returning from an interrupt, which means the interrupted code had interrupts
              * enabled. */
-            assert(CurrentProcessor->interruptsLockValue == 0);
             CurrentProcessor->returnInsideKernelMode(registerState);
         }
     } else {
