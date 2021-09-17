@@ -132,9 +132,13 @@ Thread::State Thread::state() {
 void Thread::setState(Thread::State newValue) {
     scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl(stateLock);
-    assert(((newValue.kind() == Thread::TRANSITION) != (_state.kind() == Thread::TRANSITION))
+    if (!(((newValue.kind() == Thread::TRANSITION) != (_state.kind() == Thread::TRANSITION))
            || (newValue.kind() == Thread::ACTIVE && _state.kind() == Thread::RUNNING)
-           || (newValue.kind() == Thread::RUNNING && _state.kind() == Thread::ACTIVE));
+           || (newValue.kind() == Thread::RUNNING && _state.kind() == Thread::ACTIVE))) {
+        cout << "Illegal Thread state Transition from " << _state.kind()
+             << " to " << newValue.kind() << endl;
+        Panic();
+    }
     _state = newValue;
 }
 
