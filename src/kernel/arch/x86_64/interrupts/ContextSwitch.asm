@@ -183,6 +183,8 @@ commonReturn:
     cmp qword [rsp+(22*8)], 0x20|3
     jne wrongCsOnReturn ; should never happen
 
+    ; to-user return:
+
     mov ax, 0x18|3
     mov ds, ax
     mov es, ax
@@ -202,6 +204,7 @@ commonReturn:
     shr rdx, 32
     mov rcx, KERNEL_GSBASE_MSR
     wrmsr
+
 
 inKernelReturn:
     ; ignore currentProcessor, self
