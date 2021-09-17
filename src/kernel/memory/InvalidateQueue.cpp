@@ -14,6 +14,9 @@ void InvalidateQueue::_localProcessing() {
         extraItem = {};
     } else {
         if (items.empty()) {
+            uint64_t newTimestamp = CurrentSystem.getNextTLBTimetamp();
+            /* Use atomic since ensureProcessedUntil reads this without holding lock */
+            __atomic_store(&processedUntilTimestamp, &newTimestamp, __ATOMIC_SEQ_CST);
             return;
         }
         item = items.top();
@@ -104,11 +107,13 @@ void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp) {
         scoped_lock sl(lock);
         _localProcessing();
     } else {
-        static_cast<Processor &>(processor).sendInvalidateQueueProcessingIPI();
-
         while (procesedTimestampLocal < timestamp) {
-            /* busy waiting */
-            __atomic_load(&processedUntilTimestamp, &procesedTimestampLocal, __ATOMIC_SEQ_CST);
+            static_cast<Processor &>(processor).sendInvalidateQueueProcessingIPI();
+
+            for (size_t counter = 0; counter < 100000 && procesedTimestampLocal < timestamp; counter++) {
+                /* busy waiting */
+                __atomic_load(&processedUntilTimestamp, &procesedTimestampLocal, __ATOMIC_SEQ_CST);
+            }
         }
     }
 }

@@ -17,6 +17,7 @@ PageOutContext &PageOutContext::operator|=(const PageOutContext &other) {
 void PageOutContext::realize() {
     for (Processor &processor: mask) {
         /* TODO: this could be done asynchronously if there are performance issues */
+        scoped_lock sl(KernelInterruptsLock);
         processor.invalidateQueue.ensureProcessedUntil(timestamp);
     }
 }
