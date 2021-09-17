@@ -108,7 +108,7 @@ void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp) {
         _localProcessing();
     } else {
         while (procesedTimestampLocal < timestamp) {
-            static_cast<Processor &>(processor).sendInvalidateQueueProcessingIPI();
+            static_cast<Processor &>(processor).sendIPI(IPI::InvalidateQueueProcessing);
 
             for (size_t counter = 0; counter < 100000 && procesedTimestampLocal < timestamp; counter++) {
                 /* busy waiting */

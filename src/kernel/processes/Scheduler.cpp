@@ -52,7 +52,7 @@ void Scheduler::add(Thread *thread, bool online) {
         } else {*/
             threads[thread->currentPriority()].append(thread);
             thread->setState(Thread::State::Running(processor));
-            processor->sendCheckSchedulerIPI();
+            processor->sendIPI(IPI::CheckScheduler);
        //}
     } else {
         threads[thread->currentPriority()].append(thread);

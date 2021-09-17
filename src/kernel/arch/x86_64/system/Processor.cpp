@@ -37,16 +37,11 @@ void Processor::localInitialization() {
     returnFromInterrupt(state, {});
 }
 
-void Processor::sendCheckSchedulerIPI() {
-    cout << "sending Check Scheduler IPI from " <<  CurrentProcessor->hardwareID << " to " << hardwareID << endl;
+void Processor::sendIPI(IPI ipi) {
+    cout << "sending IPI " << static_cast<uint32_t>(ipi) << " from " <<  CurrentProcessor->hardwareID << " to " << hardwareID << endl;
 
+    __atomic_or_fetch(&ipiFlags, ipi, __ATOMIC_SEQ_CST);
     CurrentProcessor->localAPIC.sendIPI(hardwareID, 0x40);
-}
-
-void Processor::sendInvalidateQueueProcessingIPI() {
-    cout << "sending InvalidateQueueProcessing IPI from " <<  CurrentProcessor->hardwareID << " to " << hardwareID << endl;
-
-    CurrentProcessor->localAPIC.sendIPI(hardwareID, 0x41);
 }
 
 void Processor::endOfInterrupt() {

@@ -165,11 +165,16 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
         //CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
         status = Status::OK();
     } else if (registerState->intNr == 0x40) {
-        /* check scheduler IPI */
+        /* IPI */
         CurrentProcessor->endOfInterrupt();
-        status = CurrentProcessor->scheduler.checkChanges();
-        if (status) {
-            cout << "Info: CheckProcessor IPI did not lead to change." << endl;
+
+        uint32_t ipis = __atomic_exchange_n(&CurrentProcessor->ipiFlags, 0, __ATOMIC_SEQ_CST);
+
+        if (ipis & IPI::CheckScheduler) {
+            status = CurrentProcessor->scheduler.checkChanges();
+            if (status) {
+                cout << "Info: CheckProcessor IPI did not lead to change." << endl;
+            }
         }
     } else if (registerState->intNr == 0x41) {
         CurrentProcessor->endOfInterrupt();

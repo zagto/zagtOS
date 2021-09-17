@@ -2,6 +2,11 @@
 
 #include <system/CommonProcessor.hpp>
 
+enum IPI {
+    CheckScheduler = 1u << 0,
+    InvalidateQueueProcessing = 1u << 1
+};
+
 class Processor : public CommonProcessor {
 private:
     TaskStateSegment tss;
@@ -12,8 +17,7 @@ public:
 
     void localInitialization();
 
-    void sendCheckSchedulerIPI();
-    void sendInvalidateQueueProcessingIPI();
+    void sendIPI(IPI ipi);
     void endOfInterrupt();
 
     [[noreturn]] void returnToUserMode();

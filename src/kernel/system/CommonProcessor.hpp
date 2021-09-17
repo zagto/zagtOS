@@ -34,6 +34,7 @@ protected:
     friend void _handleInterrupt(RegisterState *);
     friend void InKernelReturnEntryRestoreInterruptsLock(RegisterState *);
     size_t interruptsLockValue{1};
+    uint32_t ipiFlags;
 
 public:
     InvalidateQueue invalidateQueue;
