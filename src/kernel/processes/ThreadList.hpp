@@ -14,9 +14,9 @@ namespace threadList {
         template <Receptor Thread::*>
         friend class Iterator;
 
-        AbstractList *list;
-        Thread *previous;
-        Thread *next;
+        AbstractList *list{nullptr};
+        Thread *previous{nullptr};
+        Thread *next{nullptr};
     };
 
     template <Receptor Thread::*ReceptorMember>
