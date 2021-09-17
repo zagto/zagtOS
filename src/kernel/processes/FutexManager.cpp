@@ -274,11 +274,12 @@ size_t FutexManager::wake(uint64_t id, size_t numWake) {
 
             for (size_t i = 0; i < numWake; i++) {
                 Thread *thread = element.threads.top();
+                element.threads.pop();
 
                 assert(thread->state().kind() == Thread::FUTEX);
-                Scheduler::schedule(thread, true);
+                thread->setState(Thread::State::Transition());
 
-                element.threads.pop();
+                Scheduler::schedule(thread, true);
             }
 
             if (element.threads.empty()) {
