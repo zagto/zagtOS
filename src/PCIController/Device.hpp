@@ -13,18 +13,26 @@ private:
     static const uint32_t MEMORY_ADDRESS_MASK = 0xfffffff0;
     static const uint32_t GET_LENGTH_COMMAND = 0xffffffff;
 
+    static const uint32_t CAPABILITY_MSI = 0x05;
+    static const uint32_t CAPABILITY_MSIX = 0x11;
+
     zagtos::pci::Device info;
     ConfigSpace *configSpace;
     zagtos::Port driverPort;
 
-    bool powerManagement;
+
+    MSICapability *MSI = nullptr;
+    MSIXCapability *MSIX = nullptr;
+
+    /*bool powerManagement;
     bool MSI;
     struct {
         bool available = false;
 
-    } MSI_X;
+    } MSI_X;*/
 
     void detectBARs();
+    void detectCapablities();
 
 public:
     Device(ConfigSpace *configSpace);

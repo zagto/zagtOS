@@ -21,7 +21,7 @@ enum Status {
     HasCapabilitiesList = 1<<4,
 };
 
-struct alignas(0x1000) FunctionConfigSpace {
+/*struct alignas(0x1000) FunctionConfigSpace {
     uint32_t vendorDevice;
     uint32_t commandStatus;
     uint32_t classCodeProgIFRevisionID;
@@ -73,14 +73,14 @@ struct alignas(0x1000) FunctionConfigSpace {
             uint32_t reg = readRegister(pointer);
             uint8_t id = (reg >> 8) & 0xff;
             if (id != 0) {
-                /* NULL capability is ignored */
+                 NULL capability is ignored
                 result.push_back(id);
             }
             pointer = reg & pointerMask;
         }
         return result;
     }
-};
+};*/
 
 int main() {
     auto [envPort, segmentGroupsInfo] = decodeRunMessage<std::tuple<RemotePort, std::vector<pci::SegmentGroup>>>(MSG_START_CONTROLLER);

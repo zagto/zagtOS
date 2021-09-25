@@ -57,6 +57,33 @@ void Device::detectBARs() {
     }
 }
 
+void Device::detectCapablities() {
+    if (!configSpace->hasCapabilitiesList()) {
+        return;
+    }
+
+    uint32_t index = configSpace->capabilitiesPointer();
+    while (index != 0) {
+        Capability *cap = reinterpret_cast<Capability *>(configSpace->__register_data + index);
+        switch (cap->header.id()) {
+        case CAPABILITY_MSI:
+            if (MSI != nullptr) {
+                std::cout << "MSI capability found twice!" << std::endl;
+            }
+            MSI = reinterpret_cast<MSICapability *>(cap);
+            break;
+        case CAPABILITY_MSIX:
+            if (MSIX != nullptr) {
+                std::cout << "MSI-X capability found twice!" << std::endl;
+            }
+            MSIX = reinterpret_cast<MSIXCapability *>(cap);
+            break;
+        }
+
+        index = cap->header.nextIndex();
+    }
+}
+
 Device::Device(ConfigSpace *configSpace) :
     configSpace{configSpace} {
 
@@ -70,6 +97,12 @@ Device::Device(ConfigSpace *configSpace) :
     configSpace->busMasterEnable(1);
     configSpace->IOSpaceEnable(0);
     configSpace->memorySpaceEnable(1);
+
+    detectCapablities();
+
+    std::cout << "device having MSI: " << (MSI != nullptr) << std::endl;
+    std::cout << "device having MSI-X: " << (MSIX != nullptr) << std::endl;
+
     /* avoid sending any legacy interrupts - we only support MSI / MSI-X */
     configSpace->interruptDisable(1);
 }

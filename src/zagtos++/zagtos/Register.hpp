@@ -21,7 +21,7 @@
 #define BIT(name, shift) BITS(name, shift, 1)
 
 #define REGISTER(name, ...) \
-    class { \
+    struct { \
     private: \
         uint32_t __register_data; \
     public: \
