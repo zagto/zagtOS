@@ -37,8 +37,8 @@ public:
         static State Running(Processor *processor) {
             return State(Thread::RUNNING, reinterpret_cast<size_t>(processor));
         }
-        static State WaitMessage(Port *port) {
-            return State(Thread::MESSAGE, reinterpret_cast<size_t>(port));
+        static State WaitMessage() {
+            return State(Thread::MESSAGE);
         }
         static State Futex(FutexManager *manager, uint64_t futexID) {
             return State(Thread::FUTEX, reinterpret_cast<size_t>(manager), futexID);

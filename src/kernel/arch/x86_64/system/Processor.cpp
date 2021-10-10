@@ -41,7 +41,7 @@ void Processor::sendIPI(IPI ipi) {
     cout << "sending IPI " << static_cast<uint32_t>(ipi) << " from " <<  CurrentProcessor->hardwareID << " to " << hardwareID << endl;
 
     __atomic_or_fetch(&ipiFlags, ipi, __ATOMIC_SEQ_CST);
-    CurrentProcessor->localAPIC.sendIPI(hardwareID, 0x40);
+    CurrentProcessor->localAPIC.sendIPI(hardwareID);
 }
 
 void Processor::endOfInterrupt() {

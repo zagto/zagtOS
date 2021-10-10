@@ -51,17 +51,12 @@ void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
 
 }
 
-void LocalAPIC::sendIPI(uint32_t apicID, uint8_t vector) {
+void LocalAPIC::sendIPI(uint32_t apicID) {
     wirteInterruptControlRegister(DeliveryMode::FIXED,
                                   Level::ASSERT,
                                   TriggerMode::EDGE,
                                   apicID,
-                                  vector);
-    /*wirteInterruptControlRegister(DeliveryMode::FIXED,
-                                  Level::DEASSERT,
-                                  TriggerMode::EDGE,
-                                  apicID,
-                                  vector);*/
+                                  static_cast<uint32_t>(StaticInterrupt::IPI));
 }
 
 void LocalAPIC::endOfInterrupt() {
@@ -94,7 +89,8 @@ Status LocalAPIC::initialize(PhysicalAddress base) {
     /* enables the APIC and sets spurious interrupts vector.
      * make spurious interrupts use 0x20 the same vector they use on the legacy PIC, so we can
      * ignore them all the same way */
-    writeRegister(Register::SPURIOUS_INTERRUPT_VECTOR, 0x120);
+    writeRegister(Register::SPURIOUS_INTERRUPT_VECTOR,
+                  static_cast<uint32_t>(StaticInterrupt::APIC_SPURIOUS) | 0x100);
 
     writeRegister(Register::LVT_REGULAR_INTTERRUPTS, 0x08040);
     writeRegister(Register::LVT_NON_MASKABLE_INTERRUPTS, 0x0040c);

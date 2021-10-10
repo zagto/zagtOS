@@ -118,7 +118,7 @@ void UnmapWhole(void *pointer) {
 }
 
 std::unique_ptr<MessageInfo> Port::receiveMessage() {
-    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, _handle, reinterpret_cast<size_t>(&result));
+    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(&_handle), 1);
     return std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result));
 }
 

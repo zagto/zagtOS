@@ -40,6 +40,10 @@ Result<KernelVirtualAddress> Glue::allocate(size_t length, size_t align) {
         assert(DLMallocStatus != Status::OK());
         return DLMallocStatus;
     }
+    if (DLMallocStatus != Status::OK()) {
+        cout << "DLMallocStatus " << DLMallocStatus << " but allocation returned "
+             << rawAddress << endl;
+    }
     return KernelVirtualAddress(rawAddress);
 }
 

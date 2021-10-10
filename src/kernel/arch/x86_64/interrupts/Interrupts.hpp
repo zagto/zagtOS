@@ -7,8 +7,19 @@
 #include <interrupts/RegisterState.hpp>
 #include <interrupts/LocalAPIC.hpp>
 
-static const size_t PIC1_SPURIOUS_IRQ = 0x20;
-static const size_t PIC2_SPURIOUS_IRQ = 0x21;
+enum class StaticInterrupt : uint8_t {
+    PAGE_FAULT = 0x0e,
+    PIC1_SPURIOUS = 0x20,
+    PIC2_SPURIOUS = 0x21,
+    APIC_SPURIOUS = 0x22,
+    IPI = 0x31,
+};
+
+static inline bool operator==(uint64_t a, StaticInterrupt b) {
+    return a == static_cast<uint64_t>(b);
+}
+
+static Region X86ExceptionRegion{0x00, 0x20};
 
 extern "C" void basicEnableInterrupts();
 extern "C" void basicDisableInterrupts();

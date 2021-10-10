@@ -3,8 +3,6 @@
 #include <processes/Port.hpp>
 #include <processes/Thread.hpp>
 #include <processes/Scheduler.hpp>
-#include <system/Processor.hpp>
-#include <interrupts/KernelInterruptsLock.hpp>
 
 Port::Port(const shared_ptr<Process> process, Status &) :
     process{process} {}
@@ -38,33 +36,34 @@ Port::~Port() {
     }
 }
 
-Result<unique_ptr<Message>> Port::getMessageOrMakeThreadWait() {
+Result<unique_ptr<Message>> Port::getMessage() {
+    assert(lock.isLocked());
+
+    /* only one thread can wait on a port at a given time  */
+    if (waitingThread != nullptr) {
+        cout << "Tried to get message from Port while another Thread is already waiting" << endl;
+        return Status::BadUserSpace();
+    }
+
+    if (messages.empty()) {
+        return {unique_ptr<Message>()};
+    }
+
+    auto msg = move(messages.top());
+    messages.pop();
+    return move(msg);
+}
+
+void Port::setWaitingThread(Thread *thread) {
+    assert(lock.isLocked());
     /* only one thread can wait on a port at a given time */
     assert(waitingThread == nullptr);
 
-    scoped_lock sl(lock);
-    if (messages.empty()) {
-        /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
-         * method leaves, but once the thread state is discarded. */
-        KernelInterruptsLock.lock();
-        CurrentProcessor->scheduler.lock.lock();
-
-        Thread *thread = CurrentThread();
-        CurrentProcessor->scheduler.removeActiveThread();
-        thread->setState(Thread::State::WaitMessage(this));
-
-        waitingThread = thread;
-
-        return Status::DiscardStateAndSchedule();
-    } else {
-        auto msg = move(messages.top());
-        messages.pop();
-        return move(msg);
-    }
+    waitingThread = thread;
 }
 
 Status Port::addMessage(unique_ptr<Message> message) {
-    scoped_lock sl(lock);
+    assert(lock.isLocked());
 
     if (waitingThread) {
         waitingThread->kernelStack->userRegisterState()->setSyscallResult(message->infoAddress.value());

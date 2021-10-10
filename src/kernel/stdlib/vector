@@ -286,3 +286,9 @@ public:
         return Iterator(*this, numElements);
     }
 };
+
+template<typename ElementType> size_t distance(typename vector<ElementType>::Iterator first,
+                                             typename vector<ElementType>::Iterator last) {
+    assert(last.position >= first.position);
+    return last.position - first.position;
+}

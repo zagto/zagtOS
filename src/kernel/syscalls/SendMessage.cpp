@@ -41,6 +41,7 @@ Result<size_t> SendMessage(const shared_ptr<Process> &process,
         return status;
     }
 
+    scoped_lock sl(port->lock);
     status = port->addMessage(move(*message));
     if (status) {
         return 0;

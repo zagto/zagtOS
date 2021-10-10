@@ -11,11 +11,12 @@ class Thread;
 class Tag {};
 
 class Port {
-    mutex lock;
+private:
     Thread *waitingThread{nullptr};
     queue<unique_ptr<Message>> messages;
 
 public:
+    mutex lock;
     /* should be seen as const besides during handover */
     shared_ptr<Process> process;
 
@@ -24,6 +25,7 @@ public:
     Port(Port &) = delete;
     ~Port();
 
-    Result<unique_ptr<Message>> getMessageOrMakeThreadWait();
+    Result<unique_ptr<Message>> getMessage();
+    void setWaitingThread(Thread *thread);
     Status addMessage(unique_ptr<Message> message);
 };

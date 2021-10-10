@@ -12,7 +12,7 @@
 InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
 
 
-[[noreturn]] void kernelHandler(RegisterState *registerState) {
+[[noreturn]] void handleKernelException(RegisterState *registerState) {
     switch (registerState->intNr) {
     default:
         cout << "x86 Exception occured In Kernel Mode:" << *registerState
@@ -47,80 +47,52 @@ void dealWithException(Status status) {
     }
 }
 
-[[noreturn]] void userHandler(RegisterState *registerState) {
-    {
-        assert(CurrentThread()->kernelStack->userRegisterState() == registerState);
+Status handleUserException(RegisterState *registerState) {
+    assert(CurrentThread()->kernelStack->userRegisterState() == registerState);
 
-        switch (registerState->intNr) {
-        case 0xe:
-        {
-            static const size_t PAGING_ERROR_FLAGS{0b11111};
-            static const size_t PAGING_ERROR_INACTIVE{0b1};
-            static const size_t PAGING_ERROR_WRITE{0b10};
-            static const size_t PAGING_ERROR_USER{0b100};
-            static const size_t PAGING_ERROR_INSTRUCTION_FETCH{0b10000};
+    if (registerState->intNr == StaticInterrupt::PAGE_FAULT) [[likely]] {
+        static const size_t PAGING_ERROR_FLAGS{0b11111};
+        static const size_t PAGING_ERROR_INACTIVE{0b1};
+        static const size_t PAGING_ERROR_WRITE{0b10};
+        static const size_t PAGING_ERROR_USER{0b100};
+        static const size_t PAGING_ERROR_INSTRUCTION_FETCH{0b10000};
 
-            size_t cr2 = readCR2();
+        size_t cr2 = readCR2();
 
-            size_t errorFlags{registerState->errorCode & PAGING_ERROR_FLAGS};
-            if (!(errorFlags & PAGING_ERROR_USER)) {
-                cout << "userHandler called for non user page fault" << endl;
-                Panic();
-            }
+        size_t errorFlags{registerState->errorCode & PAGING_ERROR_FLAGS};
+        if (!(errorFlags & PAGING_ERROR_USER)) {
+            cout << "userHandler called for non user page fault" << endl;
+            Panic();
+        }
 
-            Permissions requiredPermissions;
-            switch (errorFlags & ~PAGING_ERROR_INACTIVE) {
-            case PAGING_ERROR_USER:
-                requiredPermissions = Permissions::READ;
-                break;
-            case PAGING_ERROR_USER | PAGING_ERROR_WRITE:
-                requiredPermissions = Permissions::READ_WRITE;
-                break;
-            case PAGING_ERROR_USER | PAGING_ERROR_INSTRUCTION_FETCH:
-                requiredPermissions = Permissions::READ_EXECUTE;
-                break;
-            default:
-                cout << "Unexpected Page Fault Flags: " << errorFlags << " fetching address " << cr2 << endl;
-                Panic();
-            }
-            Status status;
-            do {
-                /* Page fault handling works with address spaces, which uses mutexes */
-                KernelInterruptsLock.unlock();
-                status = CurrentThread()->process->addressSpace.handlePageFault(
-                            cr2, requiredPermissions);
-
-                if (status == Status::BadUserSpace()) {
-                    Status dumpStatus = CurrentProcess()->addressSpace.coreDump(CurrentThread());
-                    if (!dumpStatus) {
-                        cout << "Core Dump failed: " << dumpStatus << endl;
-                    }
-                }
-
-                KernelInterruptsLock.lock();
-                if (!status) {
-                    dealWithException(status);
-                }
-            } while(!status);
+        Permissions requiredPermissions;
+        switch (errorFlags & ~PAGING_ERROR_INACTIVE) {
+        case PAGING_ERROR_USER:
+            requiredPermissions = Permissions::READ;
             break;
-        }
-        case 0xd:
-            cout << "General Protection Fault in user space" << endl;
-            dealWithException(Status::BadUserSpace());
-
-            cout << "should not reach here" << endl;
-            Panic();
+        case PAGING_ERROR_USER | PAGING_ERROR_WRITE:
+            requiredPermissions = Permissions::READ_WRITE;
+            break;
+        case PAGING_ERROR_USER | PAGING_ERROR_INSTRUCTION_FETCH:
+            requiredPermissions = Permissions::READ_EXECUTE;
+            break;
         default:
-            cout << "Unhandled x86 Exception " << registerState->intNr << " in user space" << endl;
+            cout << "Unexpected Page Fault Flags: " << errorFlags << " fetching address " << cr2 << endl;
             Panic();
         }
-    }
 
-    CurrentProcessor->returnToUserMode();
+        /* Page fault handling works with address spaces, which uses mutexes */
+        KernelInterruptsLock.unlock();
+        Status status = CurrentProcess()->addressSpace.handlePageFault(cr2, requiredPermissions);
+        KernelInterruptsLock.lock();
+
+        return status;
+    } else {
+        cout << "Unhandled x86 Exception " << registerState->intNr << " in user space" << endl;
+        return Status::BadUserSpace();
+    }
 }
 
-static Region X86ExceptionRegion{0x00, 0x20};
-static Region LegacySpuriousIRQRegion{0x20, 0x02};
 
 [[noreturn]] void _handleInterrupt(RegisterState* registerState) {
     bool fromUserSpace = registerState->cs == static_cast<uint64_t>(0x20|3);
@@ -140,7 +112,7 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
         CurrentProcessor->interruptsLockValue++;
     }
 
-    if (registerState->intNr != 0xe) {
+    if (registerState->intNr != StaticInterrupt::PAGE_FAULT) {
         cout << "Interrupt " << registerState->intNr << " on CPU " << CurrentProcessor->id << endl;
     }
     assert(registerState->fromSyscall == 0);
@@ -148,25 +120,26 @@ static Region LegacySpuriousIRQRegion{0x20, 0x02};
     Thread *thread = CurrentThread();
     assert(thread);
 
-    Status status;
+    Status status = Status::OK();
 
     if (X86ExceptionRegion.contains(registerState->intNr)) {
         /* x86 Exception */
         if (fromUserSpace) {
-            userHandler(registerState);
+            status = handleUserException(registerState);
         } else {
-            kernelHandler(registerState);
+            handleKernelException(registerState);
         }
-    } else if (LegacySpuriousIRQRegion.contains(registerState->intNr)) {
-        cout << "Spurious IRQ!" << endl;
+    } else if (registerState->intNr == StaticInterrupt::PIC1_SPURIOUS
+               || registerState->intNr == StaticInterrupt::PIC2_SPURIOUS) {
+        cout << "Legacy Spurious IRQ!" << endl;
         //CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
-        status = Status::OK();
-    } else if (registerState->intNr == 0x40) {
-        /* IPI */
+    } else if (registerState->intNr == StaticInterrupt::APIC_SPURIOUS) {
+        cout << "APIC Spurious IRQ" << endl;
+        CurrentProcessor->endOfInterrupt();
+    } else if (registerState->intNr == StaticInterrupt::IPI) {
         CurrentProcessor->endOfInterrupt();
 
         uint32_t ipis = __atomic_exchange_n(&CurrentProcessor->ipiFlags, 0, __ATOMIC_SEQ_CST);
-        status = Status::OK();
 
         if (ipis & IPI::CheckScheduler) {
             status = CurrentProcessor->scheduler.checkChanges();
