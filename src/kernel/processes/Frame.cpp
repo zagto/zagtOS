@@ -1,6 +1,7 @@
 #include <processes/Frame.hpp>
 #include <processes/ProcessAddressSpace.hpp>
 #include <processes/MemoryArea.hpp>
+#include <processes/Process.hpp>
 #include <memory/TLBContext.hpp>
 #include <system/Processor.hpp>
 
@@ -103,10 +104,29 @@ PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace, UserVirtualAddr
     PageOutContext pageOutContext;
     for (TLBContextID tlbID: addressSpace.inTLBContextOfProcessor) {
         if (tlbID != TLB_CONTEXT_ID_NONE) {
-           TLBContext &tlbContext = TLBContexts[tlbID];
-           if (tlbContext.potentiallyHolds(&addressSpace.pagingContext)) {
-               __atomic_add_fetch(&referenceCount, 1, __ATOMIC_SEQ_CST);
-               pageOutContext |= tlbContext.requestInvalidate(this, address);
+            TLBContext &tlbContext = TLBContexts[tlbID];
+            if (tlbContext.potentiallyHolds(&addressSpace.pagingContext)) {
+                /* Optimization: if the addressSpace is not currently active on the Processor, we
+                 * don't need to add the Frame to PageOutContext. It is garateed to be processed in
+                 * returnToUserMode before the user space could abuse it to access the paged out
+                 * frame. */
+                bool isCurrentlyActive = false;
+                {
+                    Scheduler &scheduler = Processors[tlbContext.processorID].scheduler;
+                    scoped_lock sl(scheduler.lock);
+                    if (scheduler.activeThread() != nullptr && scheduler.activeThread()->process) {
+                        isCurrentlyActive = scheduler.activeThread()->process->addressSpace == addressSpace;
+                    }
+                }
+
+                assert(isCurrentlyActive || tlbContext.processorID != CurrentProcessor->id);
+
+                __atomic_add_fetch(&referenceCount, 1, __ATOMIC_SEQ_CST);
+                PageOutContext pageOutAddition = tlbContext.requestInvalidate(this, address);
+
+                if (isCurrentlyActive) {
+                    pageOutContext |= pageOutAddition;
+                }
            }
         }
     }

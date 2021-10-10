@@ -47,6 +47,10 @@ ProcessAddressSpace::~ProcessAddressSpace() {
     }
 }
 
+bool ProcessAddressSpace::operator==(const ProcessAddressSpace &other) const {
+    return this == &other;
+}
+
 pair<size_t, bool> ProcessAddressSpace::findIndexFor(size_t userAddress) {
     static_assert (UserSpaceRegion.start == 0);
     if (!UserVirtualAddress::checkInRegion(userAddress)) {

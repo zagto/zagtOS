@@ -26,6 +26,11 @@ void Processor::localInitialization() {
     /* Idle thread does not have a process, but it can't enter user mode */
     assert(thread->process);
 
+    /* Optimization: Frame::pageOut does not add Entries for non-current Threads to the
+     * PageOutContext. To ensure they still get processed before user-space code could access the
+     * frames, we need to do localProcessing here. */
+    CurrentProcessor->invalidateQueue.localProcessing();
+
     thread->process->addressSpace.activate();
 
     CurrentSystem.gdt.resetTSS(CurrentProcessor->id);

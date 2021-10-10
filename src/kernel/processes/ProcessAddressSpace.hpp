@@ -37,6 +37,8 @@ public:
     ProcessAddressSpace operator=(ProcessAddressSpace &) = delete;
     ~ProcessAddressSpace();
 
+    bool operator==(const ProcessAddressSpace &other) const;
+    bool operator!=(const ProcessAddressSpace &other) const;
     void activate();
     Result<UserVirtualAddress> add(Region region,
                                    size_t offset,
