@@ -3,6 +3,7 @@
 #include <processes/Port.hpp>
 #include <processes/Thread.hpp>
 #include <processes/Scheduler.hpp>
+#include <processes/Process.hpp>
 
 Port::Port(const shared_ptr<Process> process, Status &) :
     process{process} {}
@@ -54,19 +55,31 @@ Result<unique_ptr<Message>> Port::getMessage() {
     return move(msg);
 }
 
-void Port::setWaitingThread(Thread *thread) {
+void Port::setWaitingThread(Thread *thread, size_t index) {
     assert(lock.isLocked());
     /* only one thread can wait on a port at a given time */
     assert(waitingThread == nullptr);
 
     waitingThread = thread;
+    waitingThreadIndex = index;
 }
 
 Status Port::addMessage(unique_ptr<Message> message) {
     assert(lock.isLocked());
 
     if (waitingThread) {
-        waitingThread->kernelStack->userRegisterState()->setSyscallResult(message->infoAddress.value());
+        size_t infoAddress = message->infoAddress.value();
+
+        /* Transfer the waitingThreadIndex variable into the message info */
+        Status status = waitingThread->process->addressSpace.copyTo(infoAddress,
+                reinterpret_cast<uint8_t *>(&waitingThreadIndex),
+                sizeof(size_t),
+                false);
+        if (!status) {
+            return status;
+        }
+
+        waitingThread->kernelStack->userRegisterState()->setSyscallResult(infoAddress);
         waitingThread->setState(Thread::State::Transition());
         Thread *tmp = waitingThread;
         waitingThread = nullptr;

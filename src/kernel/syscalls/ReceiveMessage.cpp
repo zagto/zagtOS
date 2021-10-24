@@ -128,8 +128,8 @@ Result<size_t> ReceiveMessage(const shared_ptr<Process> &process,
         CurrentProcessor->scheduler.removeActiveThread();
         thread->setState(Thread::State::WaitMessage());
 
-        for (auto &port: ports) {
-            port->setWaitingThread(thread);
+        for (size_t index = 0; index < ports.size(); index++) {
+            ports[index]->setWaitingThread(thread, index);
         }
 
         messageResult = Status::DiscardStateAndSchedule();

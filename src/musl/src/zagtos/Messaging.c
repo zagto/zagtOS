@@ -2,10 +2,11 @@
 #include <zagtos/Messaging.h>
 #include <zagtos/syscall.h>
 
+struct ZoMessageInfo *__run_message;
+
 int ZoCreateDMASharedMemory(size_t deviceMax, size_t length, size_t *deviceAddresses) {
     return zagtos_syscall(SYS_CREATE_SHARED_MEMORY, 2, deviceMax, length, deviceAddresses);
 }
-
 
 int ZoCreatePhysicalSharedMemory(size_t physicalAddress, size_t length) {
     return zagtos_syscall(SYS_CREATE_SHARED_MEMORY, 1, physicalAddress, length, 0);
@@ -26,6 +27,10 @@ void ZoUnmapWhole(void *pointer) {
     assert(ret == 0);
 }
 
+struct ZoMessageInfo *ZoGetRunMessage(void) {
+    return __run_message;
+}
+
 
 /* legacy */
 void zagtos_send_message() {
@@ -33,8 +38,4 @@ void zagtos_send_message() {
 void zagtos_create_port() {
 }
 void zagtos_spawn_process() {
-}
-struct zagtos_run_message_info *__run_message;
-struct zagtos_run_message_info *zagtos_get_run_message(void) {
-    return __run_message;
 }

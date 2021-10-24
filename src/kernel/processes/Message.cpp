@@ -30,6 +30,8 @@ Status Message::transfer() {
     /* destination process may be null at first, but must exist now (see setDestinationProcess)*/
     assert(destinationProcess);
 
+    /* TODO: find a way to deal with bad user space here. It currently simply kills the source thread */
+
     Status status = prepareMemoryArea();
     if (!status) {
         return status;
@@ -108,6 +110,7 @@ Status Message::prepareMemoryArea() {
 /* Writes the UserMessageInfo structure in the destination process. */
 Status Message::transferMessageInfo() {
     UserMessageInfo msgInfo = {
+        0, /* filled in later */
         messageType,
         destinationAddress().value(),
         numBytes,

@@ -6,6 +6,7 @@
 #include <zagtos/UUID.hpp>
 #include <zagtos/ZBON.hpp>
 #include <cstdint>
+#include <functional>
 
 namespace zagtos {
     class ExternalBinary;
@@ -64,6 +65,8 @@ namespace zagtos {
     void UnmapWhole(void *pointer);
 
     struct MessageInfo {
+        /* index into the ports array of a ReceiveMessage call */
+        size_t portIndex;
         UUID type;
         zbon::EncodedData data;
 
@@ -89,13 +92,13 @@ namespace zagtos {
                 } else if (!zbon::decode(msgInfo->data, result)) {
                     std::cerr << "receiveMessage: invalid data" << std::endl;
                 } else {
-                    result = 1;
                     return;
                 }
             }
         }
+        static std::pair<std::unique_ptr<MessageInfo>, size_t>
+        receiveMessage(std::vector<std::reference_wrapper<Port>> ports);
     };
-
 
 
     extern "C" void exit(int);

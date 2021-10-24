@@ -61,6 +61,8 @@ public:
 
 /* when changing this struct also change it in loader/ProgramBinary.hpp */
 struct UserMessageInfo {
+    /* index into the ports array of a ReceiveMessage call */
+    size_t portIndex;
     UUID type;
     size_t address;
     size_t length;

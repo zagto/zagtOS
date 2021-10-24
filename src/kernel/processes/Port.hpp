@@ -13,6 +13,8 @@ class Tag {};
 class Port {
 private:
     Thread *waitingThread{nullptr};
+    /* index into the array of handles the Thread got with the ReceiveMessage call */
+    size_t waitingThreadIndex{0};
     queue<unique_ptr<Message>> messages;
 
 public:
@@ -26,6 +28,6 @@ public:
     ~Port();
 
     Result<unique_ptr<Message>> getMessage();
-    void setWaitingThread(Thread *thread);
+    void setWaitingThread(Thread *thread, size_t index);
     Status addMessage(unique_ptr<Message> message);
 };

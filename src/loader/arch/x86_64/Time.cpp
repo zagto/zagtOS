@@ -74,7 +74,10 @@ void detectTimerFrequency() {
 
 
     cout << "Detected TSC timer frequency using " << methodName << ": " << (timerFrequency/(1000000)) << "MHz" << endl;
-    assert(timerFrequency != 0);
+    //assert(timerFrequency != 0);
+    if (timerFrequency == 0) {
+        timerFrequency = 1'000'000'000;
+    }
 }
 
 void delayMilliseconds(uint64_t ms) {
