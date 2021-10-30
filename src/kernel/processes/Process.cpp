@@ -151,6 +151,7 @@ bool Process::canAccessPhysicalMemory() const {
     return true;
 }
 
+/* will return ThreadKilled when the current Thread is killed, and OK otherwise */
 Status Process::crash(const char *message) {
     assert(KernelInterruptsLock.isLocked());
     cout << "Terminating process for reason: " << message << endl;
@@ -158,6 +159,7 @@ Status Process::crash(const char *message) {
     return exit();
 }
 
+/* will return ThreadKilled when the current Thread is killed, and OK otherwise */
 Status Process::exit() {
     scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl1(allThreadsLock);

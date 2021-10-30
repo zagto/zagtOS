@@ -14,6 +14,7 @@ class Logger;
 class [[nodiscard("Status code ignored")]] Status  {
 private:
     StatusType type{StatusType::NonInitialized};
+    weak_ptr<Process> process;
     friend Logger &operator<<(Logger &logger, Status &status);
 
 public:

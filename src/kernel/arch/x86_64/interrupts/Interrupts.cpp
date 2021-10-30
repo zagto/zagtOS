@@ -24,11 +24,17 @@ InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
 void dealWithException(Status status) {
     Thread *activeThread = CurrentProcessor->scheduler.activeThread();
     if (status == Status::DiscardStateAndSchedule()) {
+        /* make sure status holds no dynamic allocations because destructor is never called */
+        status = {};
         CurrentProcessor->scheduler.scheduleNext();
     } else if (status == Status::BadUserSpace()) {
         Status status2 = activeThread->process->crash("BadUserSpace Exception");
-        assert(status2 == Status::ThreadKilled());
-        dealWithException(status2);
+        if (!status2) {
+            assert(status2 == Status::ThreadKilled());
+            /* make sure status holds no dynamic allocations because destructor is never called */
+            status = {};
+            dealWithException(move(status2));
+        }
     } else if (status == Status::OutOfKernelHeap()) {
         cout << "TODO: deal with OutOfKernelHeap" << endl;
         Panic();

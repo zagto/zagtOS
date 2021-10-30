@@ -12,6 +12,6 @@ private:
 static const size_t NUM_INTERRUPT_SERIVICE_ROUTINES = 256;
 extern "C" InterruptServiceRoutine InterruptServiceRoutines[NUM_INTERRUPT_SERIVICE_ROUTINES];
 
-extern "C" __attribute__((noreturn)) void returnFromInterrupt(RegisterState *registerState,
+extern "C" [[noreturn]] void returnFromInterrupt(RegisterState *registerState,
                                                               UserVirtualAddress fsBase);
 extern "C" char syscallEntry;
