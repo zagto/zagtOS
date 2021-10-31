@@ -18,7 +18,7 @@ private:
     const Source source;
     const Permissions permissions;
     /* for PHYSICAL source only */
-    const PhysicalAddress physicalStart{PhysicalAddress::NULL};
+    const PhysicalAddress physicalStart{PhysicalAddress::Null};
 
     /* The frames vector may contain null pointers for lazy initialization. This method ensures
      * a frame actually exists */

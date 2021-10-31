@@ -35,7 +35,7 @@ MemoryArea::MemoryArea(frameManagement::ZoneID zoneID,
         return;
     }
 
-    deviceAddresses = vector<size_t>(frames.size(), PhysicalAddress::NULL, status);
+    deviceAddresses = vector<size_t>(frames.size(), PhysicalAddress::Null, status);
     if (!status) {
         return;
     }

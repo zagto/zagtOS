@@ -5,12 +5,12 @@
 #include <common/utils.hpp>
 
 static frameStack::Node *const FRAMESTACK_NULL =
-        reinterpret_cast<frameStack::Node *>(PhysicalAddress::NULL);
+        reinterpret_cast<frameStack::Node *>(PhysicalAddress::Null);
 
 FrameStack DirtyFrameStack[hos_v1::DMAZone::COUNT];
 FrameStack CleanFrameStack[hos_v1::DMAZone::COUNT];
 
-PhysicalAddress SecondaryProcessorEntry{PhysicalAddress::NULL};
+PhysicalAddress SecondaryProcessorEntry{PhysicalAddress::Null};
 static bool secondaryProcessorEntryFound{false};
 static bool handOvermasterPageTableFound{false};
 
@@ -94,7 +94,7 @@ PhysicalAddress AllocatePhysicalFrame(int zone) {
             break;
         }
     }
-    if (address == PhysicalAddress::NULL) {
+    if (address == PhysicalAddress::Null) {
         cout << "out of memory" << endl;
         Panic();
     }

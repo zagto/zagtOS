@@ -8,7 +8,7 @@ class MemoryArea;
 
 class Frame {
 private:
-    PhysicalAddress address = PhysicalAddress::NULL;
+    PhysicalAddress address = PhysicalAddress::Null;
     size_t copyOnWriteCount = 1;
     size_t referenceCount = 1;
     bool isForPhysicalAccess = false;

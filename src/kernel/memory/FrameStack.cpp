@@ -6,7 +6,7 @@ bool FrameStack::isEmpty() {
 #ifndef ZAGTOS_LOADER
     return head == nullptr;
 #else
-    return reinterpret_cast<size_t>(head) == PhysicalAddress::NULL;
+    return reinterpret_cast<size_t>(head) == PhysicalAddress::Null;
 #endif
 }
 

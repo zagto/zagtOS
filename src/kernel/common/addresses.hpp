@@ -60,9 +60,9 @@ public:
 
 class PhysicalAddress : public Address {
 public:
-    static const size_t NULL{0x1337affe1337affe};
+    static const size_t Null{0x1337affe1337affe};
 
-    PhysicalAddress() : Address(NULL) {}
+    PhysicalAddress() : Address(Null) {}
     PhysicalAddress(size_t value) : Address(value) {}
 
     KernelVirtualAddress identityMapped() const {

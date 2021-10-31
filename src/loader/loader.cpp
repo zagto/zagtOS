@@ -16,7 +16,7 @@
 /* converts pointers to physical memory for use in kernel where the identity mapping is offset at
  * an address in high kernel memory */
 template<typename T> T *convertPointer(T *loaderPointer) {
-    if (reinterpret_cast<size_t>(loaderPointer) == PhysicalAddress::NULL) {
+    if (reinterpret_cast<size_t>(loaderPointer) == PhysicalAddress::Null) {
         return nullptr;
     } else {
         return reinterpret_cast<T *>(reinterpret_cast<size_t>(loaderPointer) + IdentityMapping.start);
@@ -24,11 +24,11 @@ template<typename T> T *convertPointer(T *loaderPointer) {
 }
 
 void convertFrameStack(frameStack::Node *head) {
-    if (reinterpret_cast<size_t>(head) == PhysicalAddress::NULL) {
+    if (reinterpret_cast<size_t>(head) == PhysicalAddress::Null) {
         return;
     }
     frameStack::Node *node = head;
-    while (reinterpret_cast<size_t>(node->next) != PhysicalAddress::NULL) {
+    while (reinterpret_cast<size_t>(node->next) != PhysicalAddress::Null) {
         frameStack::Node *last = node;
         node = node->next;
         last->next = convertPointer(last->next);
