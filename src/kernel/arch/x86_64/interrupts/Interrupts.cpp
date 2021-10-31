@@ -23,25 +23,25 @@ InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
 
 void dealWithException(Status status) {
     Thread *activeThread = CurrentProcessor->scheduler.activeThread();
-    if (status == Status::DiscardStateAndSchedule()) {
+    if (status.type() == DiscardStateAndSchedule) {
         /* make sure status holds no dynamic allocations because destructor is never called */
         status = {};
         CurrentProcessor->scheduler.scheduleNext();
-    } else if (status == Status::BadUserSpace()) {
+    } else if (status.type() == BadUserSpace) {
         Status status2 = activeThread->process->crash("BadUserSpace Exception");
         if (!status2) {
-            assert(status2 == Status::ThreadKilled());
+            assert(status2.type() == ThreadKilled);
             /* make sure status holds no dynamic allocations because destructor is never called */
             status = {};
             dealWithException(move(status2));
         }
-    } else if (status == Status::OutOfKernelHeap()) {
+    } else if (status.type() == OutOfKernelHeap) {
         cout << "TODO: deal with OutOfKernelHeap" << endl;
         Panic();
-    } else if (status == Status::OutOfMemory()) {
+    } else if (status.type() == OutOfMemory) {
         cout << "TODO: deal with OutOfMemory" << endl;
         Panic();
-    } else if (status == Status::ThreadKilled()) {
+    } else if (status.type() == ThreadKilled) {
         CurrentProcessor->scheduler.lock.lock();
         CurrentProcessor->scheduler.removeActiveThread();
         CurrentProcessor->scheduler.scheduleNext();

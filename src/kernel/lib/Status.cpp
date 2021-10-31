@@ -2,7 +2,7 @@
 #include <log/Logger.hpp>
 
 Logger &operator<<(Logger &logger, Status &status) {
-    switch (status.type) {
+    switch (status.type()) {
     case OK:
         logger << "OK";
         break;

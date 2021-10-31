@@ -7,20 +7,26 @@ enum StatusType {
     OK, OutOfMemory, OutOfKernelHeap, BadUserSpace, ThreadKilled, NonInitialized, DiscardStateAndSchedule
 };
 
+template<typename T> class shared_ptr;
 class Process;
 class Logger;
 
 #ifdef __cplusplus
 class [[nodiscard("Status code ignored")]] Status  {
 private:
-    StatusType type{StatusType::NonInitialized};
-    weak_ptr<Process> process;
+    StatusType _type{StatusType::NonInitialized};
+    size_t data[2]{0};
+
+
     friend Logger &operator<<(Logger &logger, Status &status);
 
 public:
     Status() {}
     Status(StatusType type) :
-        type{type} {}
+        _type{type},
+        data{0} {}
+    ~Status();
+
     static Status OK() {
         return Status(StatusType::OK);
     }
@@ -39,15 +45,18 @@ public:
     static Status DiscardStateAndSchedule() {
         return Status(StatusType::DiscardStateAndSchedule);
     }
+    StatusType type() const {
+        return _type;
+    }
     explicit operator bool() const {
-        assert(type != StatusType::NonInitialized);
-        return type == StatusType::OK;
+        assert(_type != StatusType::NonInitialized);
+        return _type == StatusType::OK;
     }
     bool operator==(const Status &other) {
-        return type == other.type;
+        return _type == other._type;
     }
     bool operator!=(const Status &other) {
-        return type != other.type;
+        return _type != other._type;
     }
 };
 
