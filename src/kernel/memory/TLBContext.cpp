@@ -106,7 +106,9 @@ void TLBContext::localInvalidate(UserVirtualAddress address) {
     basicInvalidateTLBContext(localID, address);
 }
 
-PageOutContext TLBContext::requestInvalidate(Frame *frame, UserVirtualAddress address) {
+PageOutContext TLBContext::requestInvalidate(Frame *frame,
+                                             ProcessAddressSpace *addressSpace,
+                                             UserVirtualAddress address) {
     assert(KernelInterruptsLock.isLocked());
 
     if (processorID == CurrentProcessor->id) {
@@ -115,6 +117,6 @@ PageOutContext TLBContext::requestInvalidate(Frame *frame, UserVirtualAddress ad
         return {};
     } else {
         uint64_t timestamp = processor().invalidateQueue.add(id(), frame, address);
-        return {{processor()}, timestamp};
+        return PageOutContext(addressSpace, {processor()}, timestamp);
     }
 }

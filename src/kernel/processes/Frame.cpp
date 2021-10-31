@@ -122,7 +122,8 @@ PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace, UserVirtualAddr
                 assert(isCurrentlyActive || tlbContext.processorID != CurrentProcessor->id);
 
                 __atomic_add_fetch(&referenceCount, 1, __ATOMIC_SEQ_CST);
-                PageOutContext pageOutAddition = tlbContext.requestInvalidate(this, address);
+                PageOutContext pageOutAddition = tlbContext.requestInvalidate(
+                            this, &addressSpace, address);
 
                 if (isCurrentlyActive) {
                     pageOutContext |= pageOutAddition;

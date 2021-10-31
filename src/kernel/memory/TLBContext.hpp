@@ -37,7 +37,9 @@ public:
      * of false means the TLBContext did not hold the PagingContext at a time, meaning it is safe
      * to assume this Frame's mapping address does not need to be invalidated */
     bool potentiallyHolds(PagingContext *pagingContext);
-    PageOutContext requestInvalidate(Frame *frame, UserVirtualAddress address);
+    PageOutContext requestInvalidate(Frame *frame,
+                                     ProcessAddressSpace *addressSpace,
+                                     UserVirtualAddress address);
 
 };
 
