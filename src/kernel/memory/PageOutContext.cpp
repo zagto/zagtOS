@@ -24,8 +24,8 @@ void PageOutContext::realize() {
         scoped_lock sl(KernelInterruptsLock);
 
         scoped_lock sl2(processor.scheduler.lock);
-        if (CurrentProcess()
-                && &CurrentProcess()->addressSpace == addressSpace) {
+        if (processor.scheduler.activeThread()->process
+                && &processor.scheduler.activeThread()->process->addressSpace == addressSpace) {
             processor.invalidateQueue.ensureProcessedUntil(timestamp);
         }
     }
