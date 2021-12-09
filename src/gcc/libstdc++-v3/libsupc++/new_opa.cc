@@ -24,8 +24,13 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <bits/c++config.h>
-#include <stdlib.h>
-#include <stdint.h>
+#ifdef _ZAGTOS_KERNEL
+ #include <common/inttypes.hpp>
+ #include <memory/DLMallocGlue.hpp>
+#else
+ #include <stdlib.h>
+ #include <stdint.h>
+#endif
 #include <bit>
 #include "new"
 
@@ -63,7 +68,11 @@ extern "C"
 #endif
 
 namespace __gnu_cxx {
-#if _GLIBCXX_HAVE_ALIGNED_ALLOC
+#ifdef _ZAGTOS_KERNEL
+static inline void*
+aligned_alloc (std::size_t al, std::size_t sz)
+{ return DLMallocGlue.allocate(sz, al).asPointer<void>(); }
+#elif _GLIBCXX_HAVE_ALIGNED_ALLOC
 using ::aligned_alloc;
 #elif _GLIBCXX_HAVE__ALIGNED_MALLOC
 static inline void*

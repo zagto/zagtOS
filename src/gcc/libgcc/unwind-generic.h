@@ -118,7 +118,7 @@ typedef int _Unwind_Action;
 /* The target can override this macro to define any back-end-specific
    attributes required for the lowest-level stack frame.  */
 #ifndef LIBGCC2_UNWIND_ATTRIBUTE
-#define LIBGCC2_UNWIND_ATTRIBUTE
+#define LIBGCC2_UNWIND_ATTRIBUTE 
 #endif
 
 /* This is an opaque type used to refer to a system-specific data

@@ -12,7 +12,7 @@ private:
 
 public:
     Glue();
-    Result<KernelVirtualAddress> allocate(size_t length, size_t align);
+    KernelVirtualAddress allocate(size_t length, size_t align);
     Result<KernelVirtualAddress> resize(KernelVirtualAddress address, size_t length);
     void free(KernelVirtualAddress address);
 };

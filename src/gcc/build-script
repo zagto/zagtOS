@@ -20,7 +20,7 @@ function check_toolchain() {
     mkdir -p "$GCC_BUILD_DIR"
     pushd "$GCC_BUILD_DIR"
     "$GCC_SOURCE_DIR/configure" --target="$TARGET" --prefix="$TOOLCHAIN_DIR" --enable-languages=c,c++,lto --disable-nls --disable-libstdc__-v3 $EXTRA_FLAGS_GCC
-    make -j "$PARALLEL_JOBS" all-gcc
+    make -j "$PARALLEL_JOBS" all-gcc CFLAGS_FOR_TARGET="`echo "$TARGET_CFLAGS" | sed -s 's/-mgeneral-regs-only//g'`"
     make -j "$PARALLEL_JOBS" all-target-libgcc CFLAGS_FOR_TARGET="`echo "$TARGET_CFLAGS" | sed -s 's/-mgeneral-regs-only//g'`"
     popd
 }

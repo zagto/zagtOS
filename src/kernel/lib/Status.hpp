@@ -25,7 +25,6 @@ public:
     Status(StatusType type) :
         _type{type},
         data{0} {}
-    ~Status();
 
     static Status OK() {
         return Status(StatusType::OK);

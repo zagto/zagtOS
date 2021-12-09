@@ -16,6 +16,7 @@ static SpinLock logLock;
 
 
 Logger::Logger() {
+    assert(CurrentProcessor == nullptr);
     serialBackend.init();
     framebufferBackend.init(_HandOverSystem->framebufferInfo);
     setKernelColor();

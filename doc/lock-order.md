@@ -4,6 +4,7 @@ mutex ProcessAddressSpace::lock > mutex MemoryArea::lock
 mutex ProcessAddressSpace::lock > SpinLock ProcessAddressSpace::tlbIDsLock
 MemoryArea::lock > Spinlock Processor::tlbContextsLock
 MemoryArea::lock > Spinlock InvalidateList::lock
+Processor::tlbContextsLock?? > SpinLock InvalidateList::lock
 SpinLock InvalidateList::lock > SpinLock Logger::lock
 SpinLock InvalidateList::lock > SpinLock FrameManagement.lock
 SpinLock FrameManagement.lock> SpinLock KernelPageAllocator.lock

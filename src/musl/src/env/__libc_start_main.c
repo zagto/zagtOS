@@ -5,12 +5,12 @@
 #include "syscall.h"
 #include "atomic.h"
 #include "libc.h"
-#include <zagtos/messaging.h>
+#include <zagtos/Messaging.h>
 #include <zagtos/unixcompat.h>
 
 extern weak hidden void (*const __init_array_start)(void), (*const __init_array_end)(void);
 
-extern struct zagtos_run_message_info *__run_message;
+extern struct ZoMessageInfo *__run_message;
 
 static char *dummy_environ = NULL;
 static char *dummy_pn = "/run";
@@ -62,7 +62,7 @@ typedef int lsm2_fn(int (*)(int,char **,char **), int, char **);
 static lsm2_fn libc_start_main_stage2;
 
 int __libc_start_main(int (*main)(int,char **,char **),
-                      struct zagtos_run_message_info *run_msg,
+                      struct ZoMessageInfo *run_msg,
                       size_t tls_base,
                       size_t master_tls_base,
                       size_t tls_size,

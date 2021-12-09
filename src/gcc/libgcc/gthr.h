@@ -145,7 +145,12 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define GTHREAD_USE_WEAK 1
 #endif
 #endif
+
+#ifdef _ZAGTOS_KERNEL
+#include "../../kernel/stdlib/bits/gthr.h"
+#else
 #include "gthr-default.h"
+#endif
 
 #ifndef HIDE_EXPORTS
 #pragma GCC visibility pop

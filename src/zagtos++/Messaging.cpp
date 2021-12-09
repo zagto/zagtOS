@@ -128,6 +128,9 @@ Port::receiveMessage(std::vector<std::reference_wrapper<Port>> ports) {
     for (size_t index = 0; index < ports.size(); index++) {
         handles[index] = ports[index].get()._handle;
     }
+    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(handles.data()), handles.size());
+    return {std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result)), 42};
+
 }
 
 void RemotePort::sendMessage(UUID messageTypeID, zbon::EncodedData message) const {

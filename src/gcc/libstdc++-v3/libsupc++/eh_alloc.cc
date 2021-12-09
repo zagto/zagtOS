@@ -26,7 +26,9 @@
 // for cross-architecture compatibility are noted with "@@@".
 
 #include <bits/c++config.h>
-#include <cstdlib>
+#ifndef _ZAGTOS_KERNEL
+ #include <cstdlib>
+#endif
 #if _GLIBCXX_HOSTED
 #include <cstring>
 #endif
@@ -98,7 +100,10 @@ namespace
       };
       struct allocated_entry {
 	std::size_t size;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 	char data[] __attribute__((aligned));
+#pragma GCC diagnostic pop
       };
 
       // A single mutex controlling emergency allocations.
@@ -106,29 +111,20 @@ namespace
 
       // The free-list
       free_entry *first_free_entry;
+
+
+      static constexpr std::size_t arena_size = (EMERGENCY_OBJ_SIZE * EMERGENCY_OBJ_COUNT
+          + EMERGENCY_OBJ_COUNT * sizeof (__cxa_dependent_exception));
+
       // The arena itself - we need to keep track of these only
       // to implement in_pool.
-      char *arena;
-      std::size_t arena_size;
+      char arena[arena_size];
 
       friend void __gnu_cxx::__freeres();
     };
 
   pool::pool()
     {
-      // Allocate the arena - we could add a GLIBCXX_EH_ARENA_SIZE environment
-      // to make this tunable.
-      arena_size = (EMERGENCY_OBJ_SIZE * EMERGENCY_OBJ_COUNT
-		    + EMERGENCY_OBJ_COUNT * sizeof (__cxa_dependent_exception));
-      arena = (char *)malloc (arena_size);
-      if (!arena)
-	{
-	  // If the allocation failed go without an emergency pool.
-	  arena_size = 0;
-	  first_free_entry = NULL;
-	  return;
-	}
-
       // Populate the free-list with a single entry covering the whole arena
       first_free_entry = reinterpret_cast <free_entry *> (arena);
       new (first_free_entry) free_entry;
@@ -267,21 +263,19 @@ namespace __gnu_cxx
   void
   __freeres()
   {
-    if (emergency_pool.arena)
-      {
-	::free(emergency_pool.arena);
-	emergency_pool.arena = 0;
-      }
+     /* do nothing */
   }
 }
 
 extern "C" void *
 __cxxabiv1::__cxa_allocate_exception(std::size_t thrown_size) _GLIBCXX_NOTHROW
 {
-  void *ret;
+  void *ret = nullptr;
 
   thrown_size += sizeof (__cxa_refcounted_exception);
+#ifndef _ZAGTOS_KERNEL
   ret = malloc (thrown_size);
+#endif
 
   if (!ret)
     ret = emergency_pool.allocate (thrown_size);
@@ -309,10 +303,12 @@ __cxxabiv1::__cxa_free_exception(void *vptr) _GLIBCXX_NOTHROW
 extern "C" __cxa_dependent_exception*
 __cxxabiv1::__cxa_allocate_dependent_exception() _GLIBCXX_NOTHROW
 {
-  __cxa_dependent_exception *ret;
+  __cxa_dependent_exception *ret = nullptr;
 
+#ifndef _ZAGTOS_KERNEL
   ret = static_cast<__cxa_dependent_exception*>
     (malloc (sizeof (__cxa_dependent_exception)));
+#endif
 
   if (!ret)
     ret = static_cast <__cxa_dependent_exception*>

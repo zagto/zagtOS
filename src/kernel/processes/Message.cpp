@@ -110,8 +110,8 @@ Status Message::prepareMemoryArea() {
 /* Writes the UserMessageInfo structure in the destination process. */
 Status Message::transferMessageInfo() {
     UserMessageInfo msgInfo = {
-        0, /* filled in later */
         messageType,
+        0, /* filled in later */
         destinationAddress().value(),
         numBytes,
         numHandles,

@@ -33,7 +33,7 @@ Frame::Frame(hos_v1::Frame &handOver, Status &):
     isForPhysicalAccess{handOver.isForPhysicalAccess} {}
 
 Frame::~Frame() {
-    if (address.value() != PhysicalAddress::NULL && !isForPhysicalAccess) {
+    if (address.value() != PhysicalAddress::Null && !isForPhysicalAccess) {
         FrameManagement.put(address);
     }
 }

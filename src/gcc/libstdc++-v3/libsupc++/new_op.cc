@@ -24,7 +24,12 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <bits/c++config.h>
-#include <cstdlib>
+#ifdef _ZAGTOS_KERNEL
+ #include <common/inttypes.hpp>
+ #include <memory/DLMallocGlue.hpp>
+#else
+ #include <cstdlib>
+#endif
 #include <bits/exception_defines.h>
 #include "new"
 
@@ -47,7 +52,11 @@ operator new (std::size_t sz) _GLIBCXX_THROW (std::bad_alloc)
   if (__builtin_expect (sz == 0, false))
     sz = 1;
 
+#ifdef _ZAGTOS_KERNEL
+  while ((p = DLMallocGlue.allocate(sz, 0).asPointer<void>()) == 0)
+#else
   while ((p = malloc (sz)) == 0)
+#endif
     {
       new_handler handler = std::get_new_handler ();
       if (! handler)

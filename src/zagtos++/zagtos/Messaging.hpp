@@ -65,9 +65,9 @@ namespace zagtos {
     void UnmapWhole(void *pointer);
 
     struct MessageInfo {
+        UUID type;
         /* index into the ports array of a ReceiveMessage call */
         size_t portIndex;
-        UUID type;
         zbon::EncodedData data;
 
         static void *operator new(std::size_t);

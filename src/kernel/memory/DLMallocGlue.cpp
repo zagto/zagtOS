@@ -24,9 +24,10 @@ Glue::Glue() {
     init_mparams();
 }
 
-Result<KernelVirtualAddress> Glue::allocate(size_t length, size_t align) {
+KernelVirtualAddress Glue::allocate(size_t length, size_t align) {
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(KernelPageAllocator.lock);
+
     DLMallocStatus = Status::OK();
     void *rawAddress;
 
@@ -38,7 +39,7 @@ Result<KernelVirtualAddress> Glue::allocate(size_t length, size_t align) {
 
     if (rawAddress == nullptr) {
         assert(DLMallocStatus != Status::OK());
-        return DLMallocStatus;
+        return KernelVirtualAddress(); // TODO
     }
     if (DLMallocStatus != Status::OK()) {
         cout << "DLMallocStatus " << DLMallocStatus << " but allocation returned "

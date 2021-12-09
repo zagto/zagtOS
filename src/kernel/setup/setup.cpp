@@ -47,6 +47,10 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
     CurrentProcessor->kernelStack->switchToKernelEntry(KernelEntry2, handOver);
 }
 
+void testThrow() {
+    throw (uint64_t)42;
+}
+
 __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
     hos_v1::System *handOver = static_cast<hos_v1::System *>(_handOver);
     size_t processorID = CurrentProcessor->id;
@@ -65,6 +69,12 @@ __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
         size_t startedCount = 0;
         while (startedCount != CurrentSystem.numProcessors) {
             startedCount = __atomic_load_n(&processorsStarted, __ATOMIC_SEQ_CST);
+        }
+
+        try {
+            testThrow();
+        }  catch (uint64_t i) {
+            cout << "caught int: " << i << endl;
         }
 
         cout << "All processors started: TODO: unlock loader memory" << endl;
