@@ -17,8 +17,6 @@ static size_t processorsStarted = 1;
 extern "C" __attribute__((noreturn))
 void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID) {
     if (processorID == 0) {
-        CurrentProcessor = nullptr;
-
         /* glocal constructor for System and cout needs this */
         _HandOverSystem = handOver;
 
@@ -32,19 +30,25 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
             cout << "Exception during boot processors initialization" << endl;
             Panic();
         }
+
         cout << "Processors initialized." << endl;
+
+        /* The first thing code on any Processor should do after this variable is set is calling
+         * InitCurrentProcessorPointer, since Locks and other code now think they can use
+         * CurrentProcessor(). */
+        ProcessorsInitialized = true;
     } else {
         while (__atomic_load_n(&secondaryProcessorsStartLock, __ATOMIC_SEQ_CST) != 0) {
             /* wait for first processor to clear start lock */
         }
     }
 
-    CurrentProcessor = &Processors[processorID];
-    CurrentProcessor->hardwareID = hardwareID;
+    InitCurrentProcessorPointer(&Processors[processorID]);
+    CurrentProcessor()->hardwareID = hardwareID;
     cout << "Processor " << processorID << " hardwareID "  << hardwareID << " running." << endl;
-    assert(CurrentProcessor->id == processorID);
+    assert(CurrentProcessor()->id == processorID);
 
-    CurrentProcessor->kernelStack->switchToKernelEntry(KernelEntry2, handOver);
+    CurrentProcessor()->kernelStack->switchToKernelEntry(KernelEntry2, handOver);
 }
 
 void testThrow() {
@@ -53,10 +57,10 @@ void testThrow() {
 
 __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
     hos_v1::System *handOver = static_cast<hos_v1::System *>(_handOver);
-    size_t processorID = CurrentProcessor->id;
+    size_t processorID = CurrentProcessor()->id;
 
     CurrentSystem.setupCurrentProcessor();
-    CurrentProcessor->localInitialization();
+    CurrentProcessor()->localInitialization();
 
     if (processorID == 0) {
         cout << "Creating initial processes..." << endl;
@@ -71,11 +75,11 @@ __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
             startedCount = __atomic_load_n(&processorsStarted, __ATOMIC_SEQ_CST);
         }
 
-        try {
+        /*try {
             testThrow();
         }  catch (uint64_t i) {
             cout << "caught int: " << i << endl;
-        }
+        }*/
 
         cout << "All processors started: TODO: unlock loader memory" << endl;
         /* TODO: clear handover state from the lower half of kernelOnlyPagingContext */
@@ -89,6 +93,6 @@ __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
         cout << "Processor " << processorID << " entering normal operation" << endl;
     }
 
-    CurrentProcessor->scheduler.lock.lock();
-    CurrentProcessor->scheduler.scheduleNext();
+    CurrentProcessor()->scheduler.lock.lock();
+    CurrentProcessor()->scheduler.scheduleNext();
 }

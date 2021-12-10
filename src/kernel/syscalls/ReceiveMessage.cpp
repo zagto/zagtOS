@@ -122,10 +122,11 @@ Result<size_t> ReceiveMessage(const shared_ptr<Process> &process,
         /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
          * method leaves, but once the thread state is discarded. */
         KernelInterruptsLock.lock();
-        CurrentProcessor->scheduler.lock.lock();
+        Processor *processor = CurrentProcessor();
+        processor->scheduler.lock.lock();
 
         Thread *thread = CurrentThread();
-        CurrentProcessor->scheduler.removeActiveThread();
+        processor->scheduler.removeActiveThread();
         thread->setState(Thread::State::WaitMessage());
 
         for (size_t index = 0; index < ports.size(); index++) {

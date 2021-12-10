@@ -178,5 +178,6 @@ Status Process::exit() {
 }
 
 shared_ptr<Process> CurrentProcess() {
-    return CurrentProcessor->scheduler.activeThread()->process;
+    scoped_lock sl(KernelInterruptsLock);
+    return CurrentProcessor()->activeThread()->process;
 }

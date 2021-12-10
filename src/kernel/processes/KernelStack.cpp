@@ -40,8 +40,9 @@ RegisterState *KernelStack::userRegisterState() {
     /* On early inititalization, we need to switch to the initial KernelStack of each Processor.
      * in this case the following Assertion will fail. Note that activeThread being nullptr does
      * not nessesarily mean we are in early initializion. */
-    if (CurrentProcessor->scheduler.activeThread() != nullptr) {
-        assert(CurrentProcessor->kernelStack.get() != this);
+    Processor *currentProcessor = CurrentProcessor();
+    if (currentProcessor->activeThread() != nullptr) {
+        assert(currentProcessor->kernelStack.get() != this);
     }
 
     lock.lock();

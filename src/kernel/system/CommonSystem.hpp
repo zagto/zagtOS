@@ -4,7 +4,6 @@
 #include <vector>
 #include <memory/FrameManagement.hpp>
 #include <setup/HandOverState.hpp>
-#include <common/globalregisters.hpp>
 #include <time/Time.hpp>
 #include <paging/PagingContext.hpp>
 #include <processes/FutexManager.hpp>

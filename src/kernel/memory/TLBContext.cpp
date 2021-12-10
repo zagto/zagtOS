@@ -35,7 +35,7 @@ TLBContextID TLBContext::id() const {
 void TLBContext::activate() {
     /* TODO: current PCID/ASID setting goes here */
 
-    TLBContextID oldID = CurrentProcessor->activeTLBContextID;
+    TLBContextID oldID = processor().activeTLBContextID;
     assert(oldID != id());
 
     if (TLBContexts[oldID].nextLocalID != localID) {
@@ -53,13 +53,13 @@ void TLBContext::activate() {
         TLBContexts[oldID].nextLocalID = localID;
     }
 
-    CurrentProcessor->activeTLBContextID = id();
+    processor().activeTLBContextID = id();
 }
 
 void TLBContext::activatePagingContext(PagingContext *pagingContext) {
     assert(processor().tlbContextsLock.isLocked());
 
-    if (CurrentProcessor->activeTLBContextID != id()) {
+    if (processor().activeTLBContextID != id()) {
         activate();
     }
     if (pagingContext != activePagingContext) {
@@ -77,7 +77,7 @@ void TLBContext::remove(PagingContext *pagingContext) {
         activePagingContext = nullptr;
 
         /* position ourselves at the "start" of the cycle as this context is free now */
-        TLBContextID activeID = CurrentProcessor->activeTLBContextID;
+        TLBContextID activeID = processor().activeTLBContextID;
         if (TLBContexts[activeID].nextLocalID != localID) {
             /* We're not next in cycle, Position ourselves at the "start" of the cycle */
 
@@ -111,7 +111,7 @@ PageOutContext TLBContext::requestInvalidate(Frame *frame,
                                              UserVirtualAddress address) {
     assert(KernelInterruptsLock.isLocked());
 
-    if (processorID == CurrentProcessor->id) {
+    if (processorID == CurrentProcessor()->id) {
         localInvalidate(address);
         frame->decreaseInvalidateRequestReference();
         return {};

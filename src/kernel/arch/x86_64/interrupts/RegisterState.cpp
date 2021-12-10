@@ -5,17 +5,6 @@
 
 RegisterState::RegisterState() {
     memset(this, 0, sizeof(RegisterState));
-    self = this;
-}
-
-RegisterState::RegisterState(const RegisterState &other) {
-    memcpy(this, &other, sizeof(RegisterState));
-    self = this;
-}
-RegisterState &RegisterState::operator=(const RegisterState &other) {
-    memcpy(this, &other, sizeof(RegisterState));
-    self = this;
-    return *this;
 }
 
 RegisterState::RegisterState(UserVirtualAddress entry,

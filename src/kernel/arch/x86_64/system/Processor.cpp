@@ -21,7 +21,8 @@ void Processor::localInitialization() {
 }
 
 [[noreturn]] void Processor::returnToUserMode() {
-    Thread *thread = CurrentProcessor->scheduler.activeThread();
+    assert(this == CurrentProcessor());
+    Thread *thread = activeThread();
 
     /* Idle thread does not have a process, but it can't enter user mode */
     assert(thread->process);
@@ -29,11 +30,11 @@ void Processor::localInitialization() {
     /* Optimization: Frame::pageOut does not add Entries for non-current Threads to the
      * PageOutContext. To ensure they still get processed before user-space code could access the
      * frames, we need to do localProcessing here. */
-    CurrentProcessor->invalidateQueue.localProcessing();
+    invalidateQueue.localProcessing();
 
     thread->process->addressSpace.activate();
 
-    CurrentSystem.gdt.resetTSS(CurrentProcessor->id);
+    CurrentSystem.gdt.resetTSS(id);
     tss.update(thread);
     returnFromInterrupt(thread->kernelStack->userRegisterState(), thread->threadLocalStorage());
 }
@@ -43,15 +44,22 @@ void Processor::localInitialization() {
 }
 
 void Processor::sendIPI(IPI ipi) {
-    cout << "sending IPI " << static_cast<uint32_t>(ipi) << " from " <<  CurrentProcessor->hardwareID << " to " << hardwareID << endl;
+    cout << "sending IPI " << static_cast<uint32_t>(ipi) << " from " <<  CurrentProcessor()->hardwareID << " to " << hardwareID << endl;
 
     __atomic_or_fetch(&ipiFlags, ipi, __ATOMIC_SEQ_CST);
-    CurrentProcessor->localAPIC.sendIPI(hardwareID);
+    CurrentProcessor()->localAPIC.sendIPI(hardwareID);
 }
 
 void Processor::endOfInterrupt() {
     assert(KernelInterruptsLock.isLocked());
-    assert(CurrentProcessor == this);
+    assert(CurrentProcessor() == this);
 
     localAPIC.endOfInterrupt();
 }
+
+void InitCurrentProcessorPointer(Processor *processor) {
+    writeModelSpecificRegister(MSR::KERNEL_GSBASE, reinterpret_cast<uint64_t>(processor));
+    asm volatile("swapgs");
+}
+
+bool ProcessorsInitialized = false;

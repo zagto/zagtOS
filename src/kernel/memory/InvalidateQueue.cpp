@@ -103,7 +103,7 @@ void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp) {
         return;
     }
 
-    if (CurrentProcessor->id == processor.id) {
+    if (CurrentProcessor()->id == processor.id) {
         scoped_lock sl(lock);
         _localProcessing();
     } else {
@@ -119,7 +119,7 @@ void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp) {
 }
 
 void InvalidateQueue::localProcessing() {
-    assert(CurrentProcessor->id == processor.id);
+    assert(CurrentProcessor()->id == processor.id);
 
     scoped_lock sl(lock);
     _localProcessing();

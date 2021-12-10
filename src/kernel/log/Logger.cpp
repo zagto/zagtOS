@@ -16,7 +16,7 @@ static SpinLock logLock;
 
 
 Logger::Logger() {
-    assert(CurrentProcessor == nullptr);
+    assert(!ProcessorsInitialized);
     serialBackend.init();
     framebufferBackend.init(_HandOverSystem->framebufferInfo);
     setKernelColor();
@@ -27,11 +27,13 @@ void Logger::flush() {
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(logLock);
 
-    char *buffer = CurrentProcessor->logBuffer;
-    for (size_t i = 0; i < CurrentProcessor->logBufferIndex; i++) {
+    /* TODO: we may want to do this in a way the flusch happens on the same processor as write */
+
+    char *buffer = CurrentProcessor()->logBuffer;
+    for (size_t i = 0; i < CurrentProcessor()->logBufferIndex; i++) {
         output(buffer[i]);
     }
-    CurrentProcessor->logBufferIndex = 0;
+    CurrentProcessor()->logBufferIndex = 0;
 }
 
 void Logger::output(char character) {
@@ -69,13 +71,13 @@ void Logger::setProgramColor() {
 
 void Logger::basicWrite(char character) {
     /* On early boot there is no Processor object, write unbuffered in this case */
-    if (CurrentProcessor == nullptr) {
+    if (!ProcessorsInitialized) {
         scoped_lock lg1(KernelInterruptsLock);
         scoped_lock lg(logLock);
         output(character);
     } else {
-        char *buffer = CurrentProcessor->logBuffer;
-        size_t &index = CurrentProcessor->logBufferIndex;
+        char *buffer = CurrentProcessor()->logBuffer;
+        size_t &index = CurrentProcessor()->logBufferIndex;
 
         buffer[index] = character;
         index++;

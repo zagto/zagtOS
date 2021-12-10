@@ -23,3 +23,7 @@ public:
     [[noreturn]] void returnToUserMode();
     [[noreturn]] void returnInsideKernelMode(RegisterState *state);
 };
+
+extern "C" Processor *CurrentProcessor();
+void InitCurrentProcessorPointer(Processor *processor);
+extern bool ProcessorsInitialized;

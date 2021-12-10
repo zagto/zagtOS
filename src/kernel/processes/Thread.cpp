@@ -100,7 +100,7 @@ Thread::Thread(void (*entry)(void *),
 
 Thread::~Thread() {
     /* Thread should either be destructed while active or directly on creation failure */
-    assert(currentProcessor() == CurrentProcessor || currentProcessor() == nullptr);
+    assert(currentProcessor() == CurrentProcessor() || currentProcessor() == nullptr);
     /* don't try deleting special threads */
     assert(process);
 
@@ -156,14 +156,12 @@ void Thread::setHandle(uint32_t handle) {
     kernelStack->userRegisterState()->setThreadHandle(handle);
 }
 
-/* The currentProcessor variable is stored on the stack for easy loding during the user-to-kernel
- * switch */
 Processor *Thread::currentProcessor() const {
-    return kernelStack->userRegisterState()->currentProcessor;
+    return _currentProcessor;
 }
 
 void Thread::currentProcessor(Processor *processor) {
-    kernelStack->userRegisterState()->currentProcessor = processor;
+    _currentProcessor = processor;
 }
 
 void Thread::setKernelEntry(void (*entry)(void *), void *data) {
@@ -179,7 +177,7 @@ void Thread::terminate() {
         State localState = state();
         switch (localState.kind()) {
         case ACTIVE:
-            assert(localState.currentProcessor() != CurrentProcessor);
+            assert(localState.currentProcessor() != CurrentProcessor());
             cout << "TODO: send IPI to terminate active thread" << endl;
             Panic();
             break;
@@ -208,5 +206,6 @@ void Thread::terminate() {
 }
 
 Thread *CurrentThread() {
-    return CurrentProcessor->scheduler.activeThread();
+    scoped_lock sl(KernelInterruptsLock);
+    return CurrentProcessor()->activeThread();
 }

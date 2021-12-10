@@ -6,18 +6,18 @@
 extern "C" void basicIdleProcessor();
 
 static void commonSetup() {
-    Scheduler &scheduler = CurrentProcessor->scheduler;
-    if (CurrentProcessor->kernelStack) {
-        CurrentProcessor->kernelStack->lock.unlock();
+    Processor *processor = CurrentProcessor();
+    if (processor->kernelStack) {
+        processor->kernelStack->lock.unlock();
     }
-    CurrentProcessor->kernelStack = scheduler.activeThread()->kernelStack;
-    scheduler.lock.unlock();
+    processor->kernelStack = processor->activeThread()->kernelStack;
+    processor->scheduler.lock.unlock();
 }
 
 void IdleThreadEntry(void *) {
     commonSetup();
 
-    cout << "Hello World from Idle Thread on Processor " << CurrentProcessor->id << endl;
+    cout << "Hello World from Idle Thread on Processor " << CurrentProcessor()->id << endl;
 
     KernelInterruptsLock.unlock();
 
@@ -29,17 +29,14 @@ void IdleThreadEntry(void *) {
 void UserReturnEntry(void *) {
     commonSetup();
 
-    cout << "Hello World from Regular Thread on Processor " << CurrentProcessor->id << endl;
+    cout << "Hello World from Regular Thread on Processor " << CurrentProcessor()->id << endl;
 
-    CurrentProcessor->returnToUserMode();
+    CurrentProcessor()->returnToUserMode();
 }
 
 extern "C" void InKernelReturnEntryRestoreInterruptsLock(RegisterState *registerState) {
     /* The Thread was interrtupted, so interrupts should have been enabled */
     commonSetup();
     assert(registerState->interruptsFlagSet());
-    CurrentProcessor->interruptsLockValue = 0;
-
-    /* avoid overwriting the CurrentProcessor register with a copy from another processor */
-    registerState->r15 = (size_t)CurrentProcessor;
+    CurrentProcessor()->interruptsLockValue = 0;
 }

@@ -3,7 +3,6 @@
 #include <common/common.hpp>
 #include <interrupts/InterruptDescriptorTable.hpp>
 #include <interrupts/GlobalDescriptorTable.hpp>
-#include <interrupts/Record.hpp>
 #include <interrupts/RegisterState.hpp>
 #include <interrupts/LocalAPIC.hpp>
 

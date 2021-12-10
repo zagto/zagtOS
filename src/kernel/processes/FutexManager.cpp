@@ -221,9 +221,10 @@ Status FutexManager::wait(uint64_t id) {
             /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
              * method leaves, but once the thread state is discarded. */
             KernelInterruptsLock.lock();
-            CurrentProcessor->scheduler.lock.lock();
+            Scheduler &scheduler = CurrentProcessor()->scheduler;
+            scheduler.lock.lock();
 
-            CurrentProcessor->scheduler.removeActiveThread();
+            scheduler.removeActiveThread();
             thread->setState(Thread::State::Futex(this, id));
             return Status::DiscardStateAndSchedule();
         }
@@ -252,9 +253,10 @@ Status FutexManager::wait(uint64_t id) {
     /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
      * method leaves, but once the thread state is discarded. */
     KernelInterruptsLock.lock();
-    CurrentProcessor->scheduler.lock.lock();
+    Scheduler &scheduler = CurrentProcessor()->scheduler;
+    scheduler.lock.lock();
 
-    CurrentProcessor->scheduler.removeActiveThread();
+    scheduler.removeActiveThread();
     thread->setState(Thread::State::Futex(this, id));
 
     return Status::DiscardStateAndSchedule();

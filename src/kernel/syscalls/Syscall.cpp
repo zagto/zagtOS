@@ -115,7 +115,7 @@ size_t Syscall(size_t syscallNr,
                  * kernelInterruptsLock and Scheduler::lock locked. */
                 if (result.status() == Status::DiscardStateAndSchedule()) {
                     assert(KernelInterruptsLock.isLocked());
-                    assert(CurrentProcessor->scheduler.lock.isLocked());
+                    assert(CurrentProcessor()->scheduler.lock.isLocked());
 
                     thread->setKernelEntry(UserReturnEntry);
                 } else {
@@ -137,5 +137,5 @@ size_t Syscall(size_t syscallNr,
             }
         } while(!result);
     }
-    CurrentProcessor->returnToUserMode();
+    CurrentProcessor()->returnToUserMode();
 }

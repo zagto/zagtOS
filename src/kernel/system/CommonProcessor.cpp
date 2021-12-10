@@ -6,6 +6,7 @@
 #include <interrupts/KernelInterruptsLock.hpp>
 
 CommonProcessor::CommonProcessor(size_t id, Status &status) :
+        self{this},
         logBufferIndex{0},
         activeTLBContextID{CurrentSystem.tlbContextsPerProcessor * id},
         invalidateQueue{*this},
@@ -44,8 +45,24 @@ TLBContextID CommonProcessor::activatePagingContext(PagingContext *pagingContext
         tlbID = TLBContext::localIDToGlobal(TLBContexts[activeTLBContextID].nextLocalID, id);
     }
 
-    assert(&TLBContexts[tlbID].processor() == CurrentProcessor);
+    assert(TLBContexts[tlbID].processor().id == CurrentProcessor()->id);
 
     TLBContexts[tlbID].activatePagingContext(pagingContext);
     return tlbID;
+}
+
+Thread *CommonProcessor::activeThread() const {
+    assert(scheduler.lock.isLocked()
+           || (KernelInterruptsLock.isLocked() && CurrentProcessor() == this));
+    return _activeThread;
+}
+
+void CommonProcessor::activeThread(Thread *newActiveThread) {
+    assert(scheduler.lock.isLocked() && CurrentProcessor() == this);
+    _activeThread = newActiveThread;
+    if (newActiveThread != nullptr) {
+        userRegisterState = newActiveThread->kernelStack->userRegisterState();
+    } else {
+        userRegisterState = nullptr;
+    }
 }

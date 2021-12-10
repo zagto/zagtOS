@@ -35,14 +35,14 @@ void Scheduler::add(Thread *thread, bool online) {
     scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl(lock);
     if (online) {
-        assert(_activeThread != nullptr);
+        assert(processor->activeThread() != nullptr);
     }
 
     cout << "add thread " << thread << " to scheduler " << processor->id << endl;
 
     thread->currentProcessor(processor);
 
-    if (online && thread->currentPriority() > _activeThread->currentPriority()) {
+    if (online && thread->currentPriority() > processor->activeThread()->currentPriority()) {
         /* new thread has heigher proirity - switch */
         /*if (CurrentProcessor == processor) {
             _activeThread->setState(Thread::State::Running(processor));
@@ -63,11 +63,13 @@ void Scheduler::add(Thread *thread, bool online) {
 Status Scheduler::checkChanges() {
     lock.lock();
 
-    for (size_t prio = Thread::NUM_PRIORITIES-1; prio > _activeThread->currentPriority(); prio--) {
+    Thread *activeThread = processor->activeThread();
+
+    for (size_t prio = Thread::NUM_PRIORITIES-1; prio > activeThread->currentPriority(); prio--) {
         if (!threads[prio].empty()) {
-            _activeThread->setState(Thread::State::Running(processor));
-            threads[_activeThread->currentPriority()].append(_activeThread);
-            _activeThread = {};
+            activeThread->setState(Thread::State::Running(processor));
+            threads[activeThread->currentPriority()].append(activeThread);
+            processor->activeThread(nullptr);
 
             return Status::DiscardStateAndSchedule();
         }
@@ -87,7 +89,7 @@ void Scheduler::schedule(Thread *thread, bool online) {
 
 void Scheduler::removeOtherThread(Thread *thread) {
     assert(lock.isLocked());
-    assert(thread != _activeThread);
+    assert(thread != processor->activeThread());
 
     threads[thread->currentPriority()].remove(thread);
     thread->setState(Thread::State::Transition());
@@ -95,41 +97,39 @@ void Scheduler::removeOtherThread(Thread *thread) {
 }
 
 void Scheduler::removeActiveThread() {
-    assert(CurrentProcessor == processor);
-    assert(CurrentThread() == _activeThread);
+    assert(CurrentProcessor() == processor);
+    Thread *thread = CurrentThread();
+    assert(thread == processor->activeThread());
 
-    _activeThread->setState(Thread::State::Transition());
-    _activeThread->currentProcessor(nullptr);
-    _activeThread = nullptr;
-}
-
-Thread *Scheduler::activeThread() const {
-    return _activeThread;
+    thread->setState(Thread::State::Transition());
+    thread->currentProcessor(nullptr);
+    processor->activeThread(nullptr);
 }
 
 [[noreturn]]
 void Scheduler::scheduleNext() {
-    assert(!_activeThread);
+    assert(!processor->activeThread());
     assert(lock.isLocked());
-    assert(processor == CurrentProcessor);
+    assert(processor == CurrentProcessor());
 
     for (ssize_t prio = Thread::NUM_PRIORITIES - 1; prio >= 0; prio--) {
         if (!threads[prio].empty()) {
-            _activeThread = threads[prio].pop();
-            _activeThread->setState(Thread::State::Active(processor));
+            Thread *newActiveThread = threads[prio].pop();
+            processor->activeThread(newActiveThread);
+            newActiveThread->setState(Thread::State::Active(processor));
 
-            if (_activeThread == idleThread) {
+            if (newActiveThread == idleThread) {
                 cout << "activeThread on " << processor->id << " is our idle Thread" << endl;
             } else {
                 cout << "activeThread on " << processor->id << " is now ";
-                for (char c: _activeThread->process->logName) {
+                for (char c: newActiveThread->process->logName) {
                     cout << c;
                 }
-                cout <<":" << _activeThread->handle() << " (" << _activeThread << ")" << endl;
+                cout <<":" << newActiveThread->handle() << " (" << newActiveThread << ")" << endl;
             }
 
-            assert(_activeThread->currentProcessor() == CurrentProcessor);
-            _activeThread->kernelStack->switchToKernelEntry(_activeThread->kernelEntry, _activeThread->kernelEntryData);
+            assert(newActiveThread->currentProcessor() == processor);
+            newActiveThread->kernelStack->switchToKernelEntry(newActiveThread->kernelEntry, newActiveThread->kernelEntryData);
         }
     }
 

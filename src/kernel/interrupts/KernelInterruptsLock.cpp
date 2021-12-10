@@ -6,22 +6,23 @@ KernelInterruptsLockClass KernelInterruptsLock;
 static size_t initialSetupCounter = 1;
 
 void KernelInterruptsLockClass::lock() {
-    if (CurrentProcessor) [[likely]] {
+    if (ProcessorsInitialized) [[likely]] {
         /* initial setup should leave at exactly the same amount of lock/unlock */
         assert(initialSetupCounter == 1);
 
         basicDisableInterrupts();
-        CurrentProcessor->interruptsLockValue++;
+        CurrentProcessor()->interruptsLockValue++;
     } else {
         initialSetupCounter++;
     }
 }
 
 void KernelInterruptsLockClass::unlock() {
-    if (CurrentProcessor) [[likely]] {
-        assert(CurrentProcessor->interruptsLockValue > 0);
-        CurrentProcessor->interruptsLockValue--;
-        if (CurrentProcessor->interruptsLockValue == 0) {
+    if (ProcessorsInitialized) [[likely]] {
+        Processor *processor = CurrentProcessor();
+        assert(processor->interruptsLockValue > 0);
+        processor->interruptsLockValue--;
+        if (processor->interruptsLockValue == 0) {
             basicEnableInterrupts();
         }
     } else {
@@ -32,8 +33,8 @@ void KernelInterruptsLockClass::unlock() {
 }
 
 bool KernelInterruptsLockClass::isLocked() const {
-    if (CurrentProcessor) [[likely]] {
-        return CurrentProcessor->interruptsLockValue > 0;
+    if (ProcessorsInitialized) [[likely]] {
+        return CurrentProcessor()->interruptsLockValue > 0;
     } else {
         return true;
     }

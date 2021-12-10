@@ -16,17 +16,17 @@ InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
     switch (registerState->intNr) {
     default:
         cout << "x86 Exception occured In Kernel Mode:" << *registerState
-             << " on Processor " << CurrentProcessor->id << endl;
+             << " on Processor " << CurrentProcessor()->id << endl;
         Panic();
     }
 }
 
 void dealWithException(Status status) {
-    Thread *activeThread = CurrentProcessor->scheduler.activeThread();
+    Thread *activeThread = CurrentThread();
     if (status.type() == DiscardStateAndSchedule) {
         /* make sure status holds no dynamic allocations because destructor is never called */
         status = {};
-        CurrentProcessor->scheduler.scheduleNext();
+        CurrentProcessor()->scheduler.scheduleNext();
     } else if (status.type() == BadUserSpace) {
         Status status2 = activeThread->process->crash("BadUserSpace Exception");
         if (!status2) {
@@ -42,9 +42,9 @@ void dealWithException(Status status) {
         cout << "TODO: deal with OutOfMemory" << endl;
         Panic();
     } else if (status.type() == ThreadKilled) {
-        CurrentProcessor->scheduler.lock.lock();
-        CurrentProcessor->scheduler.removeActiveThread();
-        CurrentProcessor->scheduler.scheduleNext();
+        CurrentProcessor()->scheduler.lock.lock();
+        CurrentProcessor()->scheduler.removeActiveThread();
+        CurrentProcessor()->scheduler.scheduleNext();
         cout << "TODO: deal with ThreadKilled" << endl;
         Panic();
     } else {
@@ -102,24 +102,25 @@ Status handleUserException(RegisterState *registerState) {
 
 [[noreturn]] void _handleInterrupt(RegisterState* registerState) {
     bool fromUserSpace = registerState->cs == static_cast<uint64_t>(0x20|3);
+    Processor *processor = CurrentProcessor();
 
     /* fix CurrentProcessor->interruptsLockValue first! do not print anything before! */
     if (fromUserSpace) {
-        assert(CurrentProcessor->interruptsLockValue == 1);
+        assert(processor->interruptsLockValue == 1);
     } else {
         /* x86 Exceptions can always occur, but are fatal in kernel mode. For non-exception
          * interrupts we care about the KernelInterruptsLock beeing unlocked as expected, so we
          * can return cleanly. */
         if (!X86ExceptionRegion.contains(registerState->intNr)) {
-            assert(CurrentProcessor->interruptsLockValue == 0);
+            assert(processor->interruptsLockValue == 0);
             assert(registerState->interruptsFlagSet());
         }
         /* Interrupts are disabled in Interrupt context, make our variable reflect that */
-        CurrentProcessor->interruptsLockValue++;
+        processor->interruptsLockValue++;
     }
 
     if (registerState->intNr != StaticInterrupt::PAGE_FAULT) {
-        cout << "Interrupt " << registerState->intNr << " on CPU " << CurrentProcessor->id << endl;
+        cout << "Interrupt " << registerState->intNr << " on CPU " << processor->id << endl;
     }
     assert(registerState->fromSyscall == 0);
 
@@ -141,14 +142,14 @@ Status handleUserException(RegisterState *registerState) {
         //CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
     } else if (registerState->intNr == StaticInterrupt::APIC_SPURIOUS) {
         cout << "APIC Spurious IRQ" << endl;
-        CurrentProcessor->endOfInterrupt();
+        processor->endOfInterrupt();
     } else if (registerState->intNr == StaticInterrupt::IPI) {
-        CurrentProcessor->endOfInterrupt();
+        processor->endOfInterrupt();
 
-        uint32_t ipis = __atomic_exchange_n(&CurrentProcessor->ipiFlags, 0, __ATOMIC_SEQ_CST);
+        uint32_t ipis = __atomic_exchange_n(&processor->ipiFlags, 0, __ATOMIC_SEQ_CST);
 
         if (ipis & IPI::CheckScheduler) {
-            status = CurrentProcessor->scheduler.checkChanges();
+            status = processor->scheduler.checkChanges();
             if (status) {
                 cout << "Info: CheckProcessor IPI did not lead to change." << endl;
             }
@@ -158,12 +159,15 @@ Status handleUserException(RegisterState *registerState) {
         Panic();
     }
 
+    /* Page fault handling unlocks KernelInterruptsLock, so current Processor may have changed */
+    processor = CurrentProcessor();
+
     if (status) {
         /* Generic kernel work. This may be refactored to an own method */
         KernelPageAllocator.processInvalidateQueue();
         /* Important: The following has to happen after EOI of an InvalidateQueue IPI was sent,
          * otherwise we may lose requests */
-        CurrentProcessor->invalidateQueue.localProcessing();
+        CurrentProcessor()->invalidateQueue.localProcessing();
     }
 
     assert(KernelInterruptsLock.isLocked());
@@ -177,14 +181,14 @@ Status handleUserException(RegisterState *registerState) {
     }
 
     if (status) {
-        assert(CurrentProcessor->interruptsLockValue == 1);
+        assert(processor->interruptsLockValue == 1);
         if (fromUserSpace) {
-            CurrentProcessor->returnToUserMode();
+            processor->returnToUserMode();
         } else {
-            CurrentProcessor->interruptsLockValue--;
+            processor->interruptsLockValue--;
             /* We are returning from an interrupt, which means the interrupted code had interrupts
              * enabled. */
-            CurrentProcessor->returnInsideKernelMode(registerState);
+            processor->returnInsideKernelMode(registerState);
         }
     } else {
         dealWithException(status);

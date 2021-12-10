@@ -154,14 +154,16 @@ void InvalidateQueue::add(size_t frameIndex, bool freeFrame) {
     item->next = head;
     item->freeFrame = freeFrame;
 
-    CurrentProcessor->kernelInvalidateProcessedUntil = item;
+    CurrentProcessor()->kernelInvalidateProcessedUntil = item;
 }
 
 void InvalidateQueue::localProcessing() {
     KernelVirtualAddress address = head;
     KernelVirtualAddress oldHead = head;
 
-    while (!address.isNull() && address != CurrentProcessor->kernelInvalidateProcessedUntil) {
+    Processor *currentProcessor = CurrentProcessor();
+
+    while (!address.isNull() && address != currentProcessor->kernelInvalidateProcessedUntil) {
         Item *realItem = address.asPointer<Item>();
         realItem->referenceCount--;
 
@@ -169,7 +171,7 @@ void InvalidateQueue::localProcessing() {
         Item item = *realItem;
 
         while (!realItem->next.isNull()
-               && realItem->next != CurrentProcessor->kernelInvalidateProcessedUntil
+               && realItem->next != currentProcessor->kernelInvalidateProcessedUntil
                && realItem->next.asPointer<Item>()->referenceCount == 1) {
             /* Next item is going to be fully unmapped. This means we have to update the "next"
              * pointer. Do it now to avoid accessing this item after it has been invalidated */
@@ -189,7 +191,7 @@ void InvalidateQueue::localProcessing() {
         address = item.next;
     }
     if (!oldHead.isNull()) {
-        CurrentProcessor->kernelInvalidateProcessedUntil = oldHead;
+        currentProcessor->kernelInvalidateProcessedUntil = oldHead;
     }
 }
 

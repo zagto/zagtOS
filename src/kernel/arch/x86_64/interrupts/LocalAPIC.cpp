@@ -75,7 +75,7 @@ Status LocalAPIC::initialize(PhysicalAddress base) {
 
     assert(KernelInterruptsLock.isLocked());
 
-    cout << "Initializing local APIC on Processor" << CurrentProcessor->id << " APIC base " << base.value() << " mapped to " << map << endl;
+    cout << "Initializing local APIC on Processor" << CurrentProcessor()->id << " APIC base " << base.value() << " mapped to " << map << endl;
 
     /* initialization sequence from:
      * http://www.osdever.net/tutorials/view/advanced-programming-interrupt-controller */

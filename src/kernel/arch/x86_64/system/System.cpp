@@ -22,7 +22,7 @@ System::System() :
 void System::setupCurrentProcessor() {
     gdt.load();
     idt.load();
-    loadTaskStateSegment(CurrentProcessor->id);
+    loadTaskStateSegment(CurrentProcessor()->id);
     setupSyscalls();
 }
 

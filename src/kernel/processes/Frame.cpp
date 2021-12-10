@@ -112,14 +112,14 @@ PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace, UserVirtualAddr
                  * frame. */
                 bool isCurrentlyActive = false;
                 {
-                    Scheduler &scheduler = Processors[tlbContext.processorID].scheduler;
-                    scoped_lock sl(scheduler.lock);
-                    if (scheduler.activeThread() != nullptr && scheduler.activeThread()->process) {
-                        isCurrentlyActive = scheduler.activeThread()->process->addressSpace == addressSpace;
+                    Processor &processor = Processors[tlbContext.processorID];
+                    scoped_lock sl(processor.scheduler.lock);
+                    if (processor.activeThread() != nullptr && processor.activeThread()->process) {
+                        isCurrentlyActive = processor.activeThread()->process->addressSpace == addressSpace;
                     }
                 }
 
-                assert(isCurrentlyActive || tlbContext.processorID != CurrentProcessor->id);
+                assert(isCurrentlyActive || tlbContext.processorID != CurrentProcessor()->id);
 
                 __atomic_add_fetch(&referenceCount, 1, __ATOMIC_SEQ_CST);
                 PageOutContext pageOutAddition = tlbContext.requestInvalidate(

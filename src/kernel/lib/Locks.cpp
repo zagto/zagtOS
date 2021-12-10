@@ -3,7 +3,7 @@
 #include <interrupts/KernelInterruptsLock.hpp>
 
 void mutex::lock() {
-    if (CurrentProcessor) {
+    if (ProcessorsInitialized) {
         assert(!KernelInterruptsLock.isLocked());
     }
 
@@ -23,7 +23,7 @@ void mutex::lock() {
 }
 
 bool mutex::trylock() {
-    if (CurrentProcessor) {
+    if (ProcessorsInitialized) {
         assert(!KernelInterruptsLock.isLocked());
     }
 
@@ -55,7 +55,7 @@ void mutex::unlock() {
 }
 
 void SpinLock::lock() {
-    if (CurrentProcessor) {
+    if (ProcessorsInitialized) {
         assert(KernelInterruptsLock.isLocked());
     }
 
@@ -73,7 +73,7 @@ void SpinLock::lock() {
 }
 
 bool SpinLock::trylock() {
-    if (CurrentProcessor) {
+    if (ProcessorsInitialized) {
         assert(KernelInterruptsLock.isLocked());
     }
 
@@ -87,7 +87,7 @@ bool SpinLock::trylock() {
 }
 
 void SpinLock::unlock() {
-    if (CurrentProcessor) {
+    if (ProcessorsInitialized) {
         assert(KernelInterruptsLock.isLocked());
     }
 

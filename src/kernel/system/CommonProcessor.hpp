@@ -13,16 +13,23 @@ class PagingContext;
 class Processor;
 
 class CommonProcessor {
-public:
-    shared_ptr<KernelStack> kernelStack;
+protected:
+    /* self variable since the pointer to the current Processor may be saved in a register (gs on
+     * x86) that is not easily readable */
+    CommonProcessor *self;
 
-    size_t hardwareID;
+    /* activeThread is mostly saved here instead of the scheduler for easy access by ContextSwitch.
+       Please hold Scheduler->lock when reading this variable form remote processors. */
+    Thread *_activeThread{nullptr};
 
+    /* to quickly find the stack in ContextSwitch. Updated when setting activeThread. */
+    RegisterState *userRegisterState;
+
+    friend class Logger;
     static const size_t LOG_BUFFER_SIZE = 500;
     char logBuffer[LOG_BUFFER_SIZE];
     size_t logBufferIndex;
 
-protected:
     friend class TLBContext;
     friend class PageOutContext;
     SpinLock tlbContextsLock;
@@ -37,6 +44,10 @@ protected:
     uint32_t ipiFlags;
 
 public:
+    shared_ptr<KernelStack> kernelStack;
+
+    size_t hardwareID;
+
     InvalidateQueue invalidateQueue;
     const size_t id;
     Scheduler scheduler;
@@ -50,6 +61,9 @@ public:
     CommonProcessor(CommonProcessor &) = delete;
     CommonProcessor &operator=(CommonProcessor &) = delete;
     ~CommonProcessor();
+
+    Thread *activeThread() const;
+    void activeThread(Thread *);
 };
 
 extern Processor *Processors;

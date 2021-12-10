@@ -1,6 +1,7 @@
 #include <interrupts/GlobalDescriptorTable.hpp>
 #include <system/System.hpp>
 #include <interrupts/util.hpp>
+#include <system/Processor.hpp>
 
 
 GlobalDescriptorTable::GlobalDescriptorTable(Status &status) :
@@ -39,5 +40,8 @@ void GlobalDescriptorTable::resetTSS(size_t processorID) {
 }
 
 void GlobalDescriptorTable::load() {
+    /* GDT load resets GS Base, which is used for CurrentProcessor pointer */
+    Processor *backup = CurrentProcessor();
     loadGlobalDescriptorTable(&gdtr);
+    InitCurrentProcessorPointer(backup);
 }

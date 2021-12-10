@@ -148,8 +148,10 @@ Result<pair<Region, size_t>> ProcessAddressSpace::findFreeRegion(size_t length) 
 
 void ProcessAddressSpace::activate() {
     scoped_lock sl(tlbIDsLock);
-    TLBContextID &tlbID = inTLBContextOfProcessor[CurrentProcessor->id];
-    tlbID = CurrentProcessor->activatePagingContext(&pagingContext, tlbID);
+
+    Processor *processor = CurrentProcessor();
+    TLBContextID &tlbID = inTLBContextOfProcessor[processor->id];
+    tlbID = processor->activatePagingContext(&pagingContext, tlbID);
 }
 
 Result<UserVirtualAddress> ProcessAddressSpace::add(Region region,

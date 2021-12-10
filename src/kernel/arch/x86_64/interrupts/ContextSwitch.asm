@@ -21,6 +21,7 @@ section .text
 %define XSAVE_X87 (1<<0)
 
 %define FSBASE_MSR 0xC0000100
+%define GSBASE_MSR 0xC0000101
 %define KERNEL_GSBASE_MSR 0xC0000102
 
 InterruptServiceRoutines:
@@ -59,6 +60,46 @@ InterruptServiceRoutines:
         %assign i i+1
     %endrep
 
+; Beginning of the CommonProcessor class we use in syscallEntry
+struc CommonProcessor
+    .self: resq 1
+    .activeThread: resq 1
+    .userRegisterState: resq 1
+endstruc
+
+struc RegisterState
+    .fromSyscall resq 1
+    .dummy resq 1
+
+    .r15 resq 1
+    .r14 resq 1
+    .r13 resq 1
+    .r12 resq 1
+    .rbp resq 1
+    .rbx resq 1
+
+    .r11 resq 1
+    .r10 resq 1
+    .r9 resq 1
+    .r8 resq 1
+
+    .rdi resq 1
+    .rsi resq 1
+
+    .rdx resq 1
+    .rcx resq 1
+    .rax resq 1
+
+    .intNr resq 1
+    .errorCode resq 1
+
+    .rip resq 1
+    .cs resq 1
+    .rflags resq 1
+    .rsp resq 1
+    .ss resq 1
+endstruc
+
 syscallEntry:
     mov ax, 0x10
     mov ds, ax
@@ -66,31 +107,31 @@ syscallEntry:
     mov fs, ax
     mov gs, ax
 
-    ; get stack pointer for register save from kernel gsbase
+    ; get CurrentProcessor pointer for register save from kernel gsbase
     swapgs
-    mov [gs:0x20], r15
-    mov [gs:0x28], r14
-    mov [gs:0x30], r13
-    mov [gs:0x38], r12
-    mov [gs:0x40], rbp
-    mov [gs:0x48], rbx
+
+    ; get RegisterState pointer into rax
+    mov rax, [gs:CommonProcessor.userRegisterState]
+
+    mov [rax+RegisterState.r15], r15
+    mov [rax+RegisterState.r14], r14
+    mov [rax+RegisterState.r13], r13
+    mov [rax+RegisterState.r12], r12
+    mov [rax+RegisterState.rbp], rbp
+    mov [rax+RegisterState.rbx], rbx
     ; r11-errorCode no need to save
 
-    mov [gs:0xa8], rcx ; rip
-    mov qword [gs:0xb0], 0x20|3 ; cs
-    mov [gs:0xb8], r11 ; rflags
-    mov [gs:0xc0], rsp
-    mov qword [gs:0xc8], 0x18|3 ; ss
+    mov [rax+RegisterState.rip], rcx
+    mov qword [rax+RegisterState.cs], 0x20|3
+    mov [rax+RegisterState.rflags], r11
+    mov [rax+RegisterState.rsp], rsp
+    mov qword [rax+RegisterState.ss], 0x18|3
 
     ; fromSyscall = 1
-    mov qword [gs:0x10], 1
-
-    ; currentProcessor is the second field at the beginning of registerState
-    ; this pointer is put in r15 (as the CurrentProcessor variable)
-    mov r15, [gs:0x8]
+    mov qword [rax+RegisterState.fromSyscall], 1
 
     ; the kernel stack starts with the saved RegisterState
-    mov rsp, [gs:0x0]
+    mov rsp, rax
 
     ; syscall instruction overwrites rcx so this variable put into r10 by user space
     mov rcx, r10
@@ -122,37 +163,38 @@ commonISR:
     push r14
     push r15
 
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-
     ; dummy = 0
     push 0
     ; fromSyscall = 0
     push 0
 
-    ; make rsp point to the exact beginning of registerState structure, 2 fields before
-    sub rsp, 8*2
-    ; place a pointer to the saved register state in rdi
+    ; place a pointer to the saved RegisterState in rdi
     mov rdi, rsp
+
+    ; set all data segments except gs to avoid clearing GS_BASE on in-kernel interrupts
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
 
     ; switch to real stack if coming from user space interrupt
     ; check if the cs on stack is 0x20|3
-    cmp qword [rsp+(22*8)], 0x08
+    cmp qword [rdi+RegisterState.cs], 0x08
     je alreadyOnKernelStack
 
-    cmp qword [rsp+(22*8)], 0x20|3
+    cmp qword [rdi+RegisterState.cs], 0x20|3
     jne wrongCsOnEntry ; should never happen
 
-    ; rsp should now point to the "self" variable of the RegisterState structure
-    cmp rsp, [rsp]
+    mov gs, ax
+
+    ; CurrentProcessor pointer is in KERNEL_GS_BASE register while in user space and should be in
+    ; GS_BASE while in kernel space
+    swapgs
+
+    ; rsp/rdi should now point to the userRegisterState variable of the CommonProcessor structure
+    cmp rdi, [gs:CommonProcessor.userRegisterState]
     jne wrongRspOnEntry
 
-    ; currentProcessor is the second field at the beginning of registerState
-    ; this pointer is put in r15 (as the CurrentProcessor variable)
-    mov r15, [rdi+8]
 alreadyOnKernelStack:
     call handleInterrupt
     ; handler should never return here and call returnFromInterrupt instead
@@ -178,12 +220,13 @@ returnFromInterrupt:
 commonReturn:
     ; switch to real stack if coming from user space interrupt
     ; check if the cs on stack is 0x20|3
-    cmp qword [rsp+(22*8)], 0x08
+    cmp qword [rsp+RegisterState.cs], 0x08
     je inKernelReturn
-    cmp qword [rsp+(22*8)], 0x20|3
+    cmp qword [rsp+RegisterState.cs], 0x20|3
     jne wrongCsOnReturn ; should never happen
 
     ; to-user return:
+    swapgs
 
     mov ax, 0x18|3
     mov ds, ax
@@ -198,18 +241,7 @@ commonReturn:
     mov rcx, FSBASE_MSR
     wrmsr
 
-    ; save pointer to RegisterState end into kernel gsbase for use by syscall handler
-    mov rax, rsp
-    mov rdx, rax
-    shr rdx, 32
-    mov rcx, KERNEL_GSBASE_MSR
-    wrmsr
-
-
 inKernelReturn:
-    ; ignore currentProcessor, self
-    add rsp, 8*2
-
     ; if the fromSyscall field is set we can skip restoring caller-saved registers
     pop rax
 
@@ -270,6 +302,7 @@ fromSyscall:
     add rsp, 8 ; cs
     pop r11 ; rflags
     pop rsp
+
     o64 sysret
 
 

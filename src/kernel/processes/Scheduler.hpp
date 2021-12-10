@@ -14,7 +14,6 @@ private:
     static size_t nextProcessorID;
 
     Thread *idleThread;
-    Thread *_activeThread{nullptr};
     threadList::List<&Thread::ownerReceptor> threads[Thread::NUM_PRIORITIES];
     Processor *processor;
 
@@ -38,5 +37,4 @@ public:
     /* TODO: figure out if this is sufficient */
     void removeOtherThread(Thread *thread);
     void removeActiveThread();
-    Thread *activeThread() const;
 };

@@ -5,7 +5,7 @@ global loadTaskStateSegment
 global basicIdleProcessor
 global readCR2
 global loadGlobalDescriptorTable
-global setFSBase
+global CurrentProcessor
 
 section .text
 
@@ -52,5 +52,9 @@ setCS:
     ; file: essence/boot/x86/uefi_loader.s
     db 0x48, 0xcb
 
-%define FSBASE_MSR 0xC0000100
+; CurrentProcessor pointer is in gs, and the first field of the object is a self pointer for easy
+; access
+CurrentProcessor:
+    mov rax, [gs:0]
+    ret
 
