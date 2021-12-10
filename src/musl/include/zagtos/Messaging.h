@@ -8,9 +8,9 @@
 static const uint32_t INVALID_HANDLE = (uint32_t)-1;
 
 struct ZoMessageInfo {
-    uuid_t type;
     /* index into the ports array of a ReceiveMessage call */
     size_t portIndex;
+    _Alignas(16) uuid_t type;
     struct ZbonEncodedData data;
 };
 

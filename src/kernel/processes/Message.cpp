@@ -95,7 +95,7 @@ Status Message::prepareMemoryArea() {
     size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
 
     Result result = destinationProcess->addressSpace.addAnonymous(messageRegionSize,
-                                                                  Permissions::READ);
+                                                                  Permissions::READ_WRITE);
     if (!result) {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
         return result.status();
@@ -110,8 +110,8 @@ Status Message::prepareMemoryArea() {
 /* Writes the UserMessageInfo structure in the destination process. */
 Status Message::transferMessageInfo() {
     UserMessageInfo msgInfo = {
-        messageType,
         0, /* filled in later */
+        messageType,
         destinationAddress().value(),
         numBytes,
         numHandles,

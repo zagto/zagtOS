@@ -104,15 +104,18 @@ Result<size_t> ReceiveMessage(const shared_ptr<Process> &process,
         port->lock.lock();
     }
 
+    size_t resultIndex = 0;
+
     Result<unique_ptr<Message>> messageResult;
-    for (auto &port: ports) {
-        messageResult = port->getMessage();
+    for (size_t index = 0; index < ports.size(); index++) {
+        messageResult = ports[index]->getMessage();
         if (!messageResult) {
             /* error status */
             goto unlockAndReturn;
         }
         /* break if we found a message */
         if (*messageResult) {
+            resultIndex = index;
             break;
         }
     }
@@ -142,7 +145,17 @@ unlockAndReturn:
     }
 
     if (messageResult) {
-        return (*messageResult)->infoAddress.value();
+        cout << "ReceiveMessage resultIndex: " << resultIndex << endl;
+        /* Transfer the resultIndex variable into the message info */
+        Status status = process->addressSpace.copyTo((*messageResult)->infoAddress.value(),
+                                                     reinterpret_cast<uint8_t *>(&resultIndex),
+                                                     sizeof(size_t),
+                                                     true);
+        if (status) {
+            return (*messageResult)->infoAddress.value();
+        } else {
+            return status;
+        }
     } else {
         return messageResult.status();
     }

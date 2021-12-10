@@ -276,7 +276,8 @@ void ProgramBinary::load(PagingContext pagingContext,
     if (pagingContext == PagingContext::PROCESS) {
         PhysicalAddress physicalAddress = AllocatePhysicalFrame();
         struct UserMessageInfo {
-            uint8_t type[16];
+            size_t portIndex;
+            alignas(16) uint8_t type[16];
             size_t address;
             size_t length;
             size_t numHandles;
@@ -285,6 +286,7 @@ void ProgramBinary::load(PagingContext pagingContext,
         };
         UserMessageInfo *msgInfo = reinterpret_cast<UserMessageInfo *>(physicalAddress.value());
         *msgInfo = {
+            .portIndex = 0,
             .type = {0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
                      0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55}, /* MSG_BE_INIT */
             .address = runMessageAddress().value(),

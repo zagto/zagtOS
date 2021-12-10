@@ -4,6 +4,7 @@
 #include <array>
 #include <zagtos/ZBON.hpp>
 
+
 namespace zagtos {
     class UUID {
     public:
@@ -23,4 +24,6 @@ namespace zagtos {
 
         ZBON_ENCODING_FUNCTIONS(data);
     };
+
+    std::ostream &operator<<(std::ostream &stream, UUID uuid);
 }

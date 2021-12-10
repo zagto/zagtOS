@@ -118,19 +118,21 @@ void UnmapWhole(void *pointer) {
 }
 
 std::unique_ptr<MessageInfo> Port::receiveMessage() {
-    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(&_handle), 1);
+    /* will be overwritten by result index, so don't use the member variable directly */
+    size_t tempHandle = _handle;
+    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(&tempHandle), 1);
+    assert(reinterpret_cast<MessageInfo *>(result)->portIndex == 0);
     return std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result));
 }
 
-std::pair<std::unique_ptr<MessageInfo>, size_t>
+std::unique_ptr<MessageInfo>
 Port::receiveMessage(std::vector<std::reference_wrapper<Port>> ports) {
     std::vector<uint32_t> handles(ports.size());
     for (size_t index = 0; index < ports.size(); index++) {
         handles[index] = ports[index].get()._handle;
     }
     size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(handles.data()), handles.size());
-    return {std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result)), 42};
-
+    return std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result));
 }
 
 void RemotePort::sendMessage(UUID messageTypeID, zbon::EncodedData message) const {
@@ -150,7 +152,8 @@ const MessageInfo &receiveRunMessageInfo() {
 
 void receiveRunMessage(UUID type) {
     if (type != __run_message->type) {
-        std::cout << "invalid run message type" << std::endl;
+        std::cout << "invalid run message type wanted: " << type << " got "
+                  << __run_message->type << std::endl;
         exit(1);
     }
 }

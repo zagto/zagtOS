@@ -74,7 +74,7 @@ Status Port::addMessage(unique_ptr<Message> message) {
         Status status = waitingThread->process->addressSpace.copyTo(infoAddress,
                 reinterpret_cast<uint8_t *>(&waitingThreadIndex),
                 sizeof(size_t),
-                false);
+                true);
         if (!status) {
             return status;
         }
