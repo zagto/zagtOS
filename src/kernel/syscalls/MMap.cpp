@@ -12,10 +12,10 @@ struct MMapStruct {
     uint32_t handle;
     uint32_t protection;
 
-    Result<size_t> perform(const shared_ptr<Process> &process);
+    size_t perform(const shared_ptr<Process> &process);
 };
 
-Result<size_t> MMapStruct::perform(const shared_ptr<Process> &process) {
+size_t MMapStruct::perform(const shared_ptr<Process> &process) {
     result = 0;
 
     //cout << "MMAP addr " << startAddress << " length " << length << " flags " << flags << " offset " << offset << endl;
@@ -85,21 +85,17 @@ Result<size_t> MMapStruct::perform(const shared_ptr<Process> &process) {
     shared_ptr<MemoryArea> memoryArea;
 
     if ((flags & MAP_ANONYMOUS)) {
-        Result temp = make_shared<MemoryArea>(flags & MAP_SHARED,
-                                              Permissions::READ_WRITE_EXECUTE,
-                                              passedRegion.length);
-        if (!temp) {
-            return temp.status();
-        }
-        memoryArea = *temp;
+        memoryArea = make_shared<MemoryArea>(flags & MAP_SHARED,
+                                             Permissions::READ_WRITE_EXECUTE,
+                                             passedRegion.length);
     } else {
-        Result<shared_ptr<MemoryArea>> temp = process->handleManager.lookupMemoryArea(handle);
-        if (!temp) {
-            assert(temp.status() == Status::BadUserSpace());
+        try {
+            memoryArea = process->handleManager.lookupMemoryArea(handle);
+        } catch(BadUserSpace &e) {
             cout << "MMAP: passed handle " << handle << " is not a valid MemoryArea object" << endl;
             return EBADF;
         }
-        memoryArea = *temp;
+
         if (!memoryArea->allowesPermissions(permissions)) {
             cout << "MMAP: requested permissions not allowed on this MemoryArea object" << endl;
             return EACCESS;
@@ -112,52 +108,30 @@ Result<size_t> MMapStruct::perform(const shared_ptr<Process> &process) {
                     || passedRegion.length + offset < memoryArea->length) {
                 cout << "MMAP: requested range to big for this MemoryArea object" << endl;
                 return ENXIO;
-                return Status::OK();
             }
         }
 
     }
 
-    Result result = process->addressSpace.add(passedRegion,
-                                              offset,
-                                              memoryArea,
-                                              permissions,
-                                              flags & MAP_FIXED);
-
-    /* TODO: possibly return ENOMEM on full address space */
-    if (!result) {
-        return result.status();
-    }
-
-    this->result = result->value();
+    UserVirtualAddress result = process->addressSpace.add(passedRegion,
+                                                          offset,
+                                                          memoryArea,
+                                                          permissions,
+                                                          flags & MAP_FIXED);
+    this->result = result.value();
     return 0;
 }
 
-Result<size_t> MMap(const shared_ptr<Process> &process,
+size_t MMap(const shared_ptr<Process> &process,
                     size_t structAddress,
                     size_t,
                     size_t,
                     size_t,
                     size_t) {
-    Status status = Status::OK();
-    UserSpaceObject<MMapStruct, USOOperation::READ_AND_WRITE> uso(structAddress, status);
-    if (!status) {
-        if (status == Status::BadUserSpace()) {
-            cout << "SYS_MMAP: process passed non-accessible regions as parameters structure" << endl;
-        }
-        return status;
-    }
+    UserSpaceObject<MMapStruct, USOOperation::READ_AND_WRITE> uso(structAddress);
 
-    Result result = uso.object.perform(process);
-    if (!result) {
-        return result.status();
-    }
-
-    status = uso.writeOut();
-    if (status) {
-        return *result;
-    } else {
-        return status;
-    }
+    size_t result = uso.object.perform(process);
+    uso.writeOut();
+    return result;
 }
 

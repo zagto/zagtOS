@@ -4,12 +4,8 @@
 #include <system/Processor.hpp>
 
 
-GlobalDescriptorTable::GlobalDescriptorTable(Status &status) :
-    gdt(FIRST_TSS_ENTRY + 2 * CurrentSystem.numProcessors /* GDT size in uint64_ts */, status) {
-
-    if (!status) {
-        return;
-    }
+GlobalDescriptorTable::GlobalDescriptorTable() :
+    gdt(FIRST_TSS_ENTRY + 2 * CurrentSystem.numProcessors /* GDT size in uint64_ts */) {
 
     gdt[NULL_ENTRY] = 0;
     gdt[KERNEL_CODE_ENTRY] = FLAG_PRESENT | FLAG_SEGMENT | FLAG_WRITEABLE | FLAG_CODE | FLAG_LONGMODE;

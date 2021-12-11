@@ -10,7 +10,6 @@ extern "C" void _init();
 
 void KernelEntry2(void *handOver);
 
-
 static size_t secondaryProcessorsStartLock = 1;
 static size_t processorsStarted = 1;
 
@@ -25,12 +24,7 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
 
         cout << "Hello World. Log initialized." << endl;
 
-        Status status = CurrentSystem.initProcessorsAndTLB();
-        if (!status) {
-            cout << "Exception during boot processors initialization" << endl;
-            Panic();
-        }
-
+        CurrentSystem.initProcessorsAndTLB();
         cout << "Processors initialized." << endl;
 
         /* The first thing code on any Processor should do after this variable is set is calling

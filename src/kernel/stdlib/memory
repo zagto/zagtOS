@@ -4,7 +4,6 @@
 #include <common/utils.hpp>
 #include <mutex>
 #include <memory/DLMallocGlue.hpp>
-#include <lib/Status.hpp>
 #include <interrupts/KernelInterruptsLock.hpp>
 
 namespace std {
@@ -17,37 +16,37 @@ private:
     T *internalPointer;
 
 public:
-    unique_ptr():
+    unique_ptr() noexcept :
         internalPointer{nullptr} {}
-    unique_ptr(T *rawPointer):
+    unique_ptr(T *rawPointer) noexcept :
         internalPointer{rawPointer} {}
     unique_ptr(unique_ptr &other) = delete;
-    unique_ptr(unique_ptr &&other) {
+    unique_ptr(unique_ptr &&other) noexcept {
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
     }
     void operator=(unique_ptr &other) = delete;
-    void operator=(unique_ptr &&other) {
+    void operator=(unique_ptr &&other) noexcept {
         if (internalPointer) {
             delete internalPointer;
         }
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
     }
-    ~unique_ptr() {
+    ~unique_ptr() noexcept {
         if (internalPointer) {
             delete internalPointer;
         }
     }
 
-    operator bool() const {
+    operator bool() const noexcept {
         return internalPointer;
     }
-    T *operator->() {
+    T *operator->() noexcept {
         assert(*this);
         return internalPointer;
     }
-    const T *operator->() const {
+    const T *operator->() const noexcept {
         assert(*this);
         return internalPointer;
     }
@@ -67,9 +66,9 @@ protected:
         bool valid{true};
         T *const rawPointer;
 
-        InternalPointer(T *rawPointer, Status &):
+        InternalPointer(T *rawPointer) noexcept :
             rawPointer{rawPointer} {}
-        ~InternalPointer() {
+        ~InternalPointer() noexcept {
             if (rawPointer) {
                 delete rawPointer;
             }
@@ -78,7 +77,7 @@ protected:
 
     InternalPointer *internalPointer{nullptr};
 
-    void checkReferenceCounts(bool &shouldDelete) {
+    void checkReferenceCounts(bool &shouldDelete) noexcept {
         if (internalPointer->referenceCount == 0) {
             if (internalPointer->weakReferenceCount == 0) {
                 shouldDelete = true;
@@ -91,21 +90,12 @@ protected:
     }
 
 public:
-    shared_ptr() {}
-    explicit shared_ptr(T *rawPointer, Status &status) {
-        if (!status) {
-            return;
-        }
-        Result result = make_raw<InternalPointer>(rawPointer);
-        if (!result) {
-            status = result.status();
-            return;
-        }
-
-        internalPointer = *result;
+    shared_ptr() noexcept {}
+    explicit shared_ptr(T *rawPointer) {
+        internalPointer = new InternalPointer(rawPointer);
         assert(internalPointer);
     }
-    shared_ptr(const shared_ptr &other) {
+    shared_ptr(const shared_ptr &other) noexcept {
         if (other.internalPointer) {
             scoped_lock lg1(KernelInterruptsLock);
             scoped_lock lg(other.internalPointer->lock);
@@ -115,11 +105,11 @@ public:
             internalPointer = nullptr;
         }
     }
-    shared_ptr(shared_ptr &&other) {
+    shared_ptr(shared_ptr &&other) noexcept {
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
     }
-    void operator=(const shared_ptr &other) {
+    void operator=(const shared_ptr &other) noexcept {
         reset();
         if (other.internalPointer) {
             scoped_lock lg1(KernelInterruptsLock);
@@ -128,7 +118,7 @@ public:
             internalPointer->referenceCount++;
         }
     }
-    void operator=(shared_ptr &&other) {
+    void operator=(shared_ptr &&other) noexcept {
         reset();
         if (other.internalPointer) {
             scoped_lock lg1(KernelInterruptsLock);
@@ -138,22 +128,22 @@ public:
         }
     }
 
-    operator bool() const {
+    operator bool() const noexcept {
         return internalPointer && internalPointer->valid && internalPointer->rawPointer;
     }
-    T *operator->() const {
+    T *operator->() const noexcept {
         assert(*this);
         return internalPointer->rawPointer;
     }
-    T *get() const {
+    T *get() const noexcept {
         assert(internalPointer);
         return internalPointer->rawPointer;
     }
-    T& operator *() const {
+    T& operator *() const noexcept {
         assert(*this);
         return *internalPointer->rawPointer;
     }
-    void reset() {
+    void reset() noexcept {
         bool shouldDelete{false};
         if (internalPointer) {
             scoped_lock lg1(KernelInterruptsLock);
@@ -166,11 +156,11 @@ public:
             delete internalPointer;
         }
     }
-    void reset(T *newPointer) {
+    void reset(T *newPointer) noexcept {
         reset();
         internalPointer = new InternalPointer(newPointer);
     }
-    bool operator==(const shared_ptr &other) {
+    bool operator==(const shared_ptr &other) noexcept {
         return internalPointer == other.internalPointer;
     }
 };
@@ -180,15 +170,15 @@ private:
     typename shared_ptr<T>::InternalPointer *internalPointer{nullptr};
 
 public:
-    weak_ptr() {}
-    weak_ptr(const shared_ptr<T> &sharedPointer) {
+    weak_ptr() noexcept {}
+    weak_ptr(const shared_ptr<T> &sharedPointer) noexcept {
         assert(sharedPointer.internalPointer);
         scoped_lock lg1(KernelInterruptsLock);
         scoped_lock lg(sharedPointer.internalPointer->lock);
         internalPointer = sharedPointer.internalPointer;
         internalPointer->weakReferenceCount++;
     }
-    weak_ptr(const weak_ptr &other) {
+    weak_ptr(const weak_ptr &other) noexcept {
         if (other.internalPointer) {
             scoped_lock lg1(KernelInterruptsLock);
             scoped_lock lg(other.internalPointer->lock);
@@ -198,11 +188,11 @@ public:
             internalPointer = nullptr;
         }
     }
-    weak_ptr(T &&other) {
+    weak_ptr(T &&other) noexcept {
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
     }
-    void operator=(const weak_ptr &other) {
+    void operator=(const weak_ptr &other) noexcept {
         reset();
         if (other.internalPointer) {
             scoped_lock lg1(KernelInterruptsLock);
@@ -212,7 +202,7 @@ public:
         }
     }
 
-    void reset() {
+    void reset() noexcept {
         bool shouldDelete{false};
         if (internalPointer) {
             scoped_lock lg1(KernelInterruptsLock);
@@ -227,7 +217,7 @@ public:
             delete internalPointer;
         }
     }
-    shared_ptr<T> lock() {
+    shared_ptr<T> lock() noexcept {
         if (internalPointer) {
             shared_ptr<T> result;
             scoped_lock lg1(KernelInterruptsLock);
@@ -240,79 +230,17 @@ public:
         }
         return {};
     }
-    bool operator==(const weak_ptr &other) const {
+    bool operator==(const weak_ptr &other) const noexcept {
         return internalPointer == other.internalPointer;
-    }
-    /* non-standard */
-    bool empty() {
-        return internalPointer == nullptr;
     }
 };
 
 template <typename T, typename ...ArgumentTypes>
-Result<T *> make_raw(ArgumentTypes &&...args) {
-    Result<KernelVirtualAddress> address = DLMallocGlue.allocate(sizeof(T), alignof(T));
-    if (!address) {
-        return address.status();
-    }
-
-    Status status = Status::OK();
-    /* placement new to run constructor */
-    T *pointer = new (*address) T(args..., status);
-    if (!status) {
-        delete pointer;
-        return status;
-    }
-    return pointer;
-}
-
-template <typename T>
-Result<T *> make_raw_array_counter(size_t count) {
-    Result<KernelVirtualAddress> address = DLMallocGlue.allocate(sizeof(T) * count, alignof(T));
-    if (!address) {
-        return address.status();
-    }
-
-    for (size_t index = 0; index < count; index++) {
-        Status status = Status::OK();
-        /* placement new to run constructor */
-        new (*address + sizeof(T) * index) T(index, status);
-
-        if (!status) {
-            for (size_t deleteIndex = 0; deleteIndex <= index; deleteIndex++) {
-                /* run destructor for all the objects we already run the constructor */
-                address->asPointer<T>()[index].~T();
-            }
-            DLMallocGlue.free(*address);
-            return status;
-        }
-    }
-    return address->asPointer<T>();
+shared_ptr<T> make_shared(ArgumentTypes &&...args) {
+    return shared_ptr(new T(args...));
 }
 
 template <typename T, typename ...ArgumentTypes>
-Result<shared_ptr<T>> make_shared(ArgumentTypes &&...args) {
-    Result<T *> raw = make_raw<T>(args...);
-    if (!raw) {
-        return raw.status();
-    }
-
-    Status status = Status::OK();
-    shared_ptr<T> shared = shared_ptr(*raw, status);
-    if (!status) {
-        delete *raw;
-        return status;
-    }
-
-    return move(shared);
-}
-
-template <typename T, typename ...ArgumentTypes>
-Result<unique_ptr<T>> make_unique(ArgumentTypes &&...args) {
-    Result<T *> raw = make_raw<T>(args...);
-    if (raw) {
-        return move(unique_ptr(*raw));
-    } else {
-        return raw.status();
-    }
+unique_ptr<T> make_unique(ArgumentTypes &&...args) {
+    return unique_ptr(new T(args...));
 }

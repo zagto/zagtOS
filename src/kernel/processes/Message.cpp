@@ -1,6 +1,7 @@
 #include <vector>
 #include <processes/Message.hpp>
 #include <processes/Process.hpp>
+#include <lib/Exception.hpp>
 
 
 /* Transfers the message into the destination address space.
@@ -24,7 +25,7 @@
  *                  | simple data     | --     copy    -->  | simple data     |
  *                  +-----------------+                     +-----------------+
  */
-Status Message::transfer() {
+void Message::transfer() {
     /* a message should not be transferred more than once */
     assert(!transferred);
     /* destination process may be null at first, but must exist now (see setDestinationProcess)*/
@@ -32,26 +33,25 @@ Status Message::transfer() {
 
     /* TODO: find a way to deal with bad user space here. It currently simply kills the source thread */
 
-    Status status = prepareMemoryArea();
-    if (!status) {
-        return status;
-    }
+    prepareMemoryArea();
 
-    status = transferMessageInfo();
-    if (!status) {
-        goto fail;
-    }
-
-    status = transferData();
-    if (!status) {
-        goto fail;
-    }
-
-    /* handles transfer should happen last - if something after it would fail, we leak the handles
-     * in destination process */
-    status = transferHandles();
-    if (!status) {
-        goto fail;
+    try {
+        transferMessageInfo();
+        transferData();
+        /* handles transfer should happen last - if something after it would fail, we leak the handles
+         * in destination process */
+        transferHandles();
+    }  catch (...) {
+        /* In case of failure, do not leave a MappedArea in the destination Process behind. */
+        try {
+            destinationProcess->addressSpace.removeMapping(infoAddress.value());
+        } catch (BadUserSpace &e) {
+            /* removeMapping only fails if given an invalid startAddress. This means the process would
+             * have already unmapped the mapping by itself */
+            cout << "Message::transfer: stupid Process unmapped message mapping by itself before even "
+                 << "getting the address" << endl;
+        }
+        throw;
     }
 
     /* After transfer, multiple fields are no longer needed. Clearing them helps us with 2 things:
@@ -68,47 +68,32 @@ Status Message::transfer() {
     numHandles = 0;
 
     transferred = true;
-    return Status::OK();
-
-fail:
-    /* In case of failure, do not leave a MappedArea in the destination Process behind. */
-    Status unmapStatus = destinationProcess->addressSpace.removeMapping(infoAddress.value());
-    if (!unmapStatus) {
-        /* removeMapping only fails if given an invalid startAddress. This means the process would
-         * have already unmapped the mapping by itself */
-        assert(unmapStatus == Status::BadUserSpace());
-        cout << "Message::transfer: stupid Process unmapped message mapping by itself before even "
-             << "getting the address" << endl;
-    }
-    return status;
 }
 
 /* Adds a MappedArea to the destination Process where the message+info will be written to. */
-Status Message::prepareMemoryArea() {
+void Message::prepareMemoryArea() {
     if (numHandles * HANDLE_SIZE > numBytes) {
         cout << "Message transfer failed: Message too small to contain all handles" << endl;
-        return BadUserSpace;
+        throw BadUserSpace(sourceProcess->self.lock());
     }
 
     /* The message metadata needs to be passed along with the run message, so for our purposes the
      * required size is the combined size of both. */
     size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
 
-    Result result = destinationProcess->addressSpace.addAnonymous(messageRegionSize,
-                                                                  Permissions::READ_WRITE);
-    if (!result) {
+    try {
+        /* Holds the address of the message info (UserMessageInfo class) in the destination address
+         * space. */
+        infoAddress = destinationProcess->addressSpace.addAnonymous(messageRegionSize,
+                                                                    Permissions::READ_WRITE);
+    } catch (...) {
         cout << "TODO: decide what should happen here (huge message -> kill source process?)" << endl;
-        return result.status();
+        throw;
     }
-
-    /* Holds the address of the message info (UserMessageInfo class) in the destination address
-     * space. */
-    infoAddress = *result;
-    return Status::OK();
 }
 
 /* Writes the UserMessageInfo structure in the destination process. */
-Status Message::transferMessageInfo() {
+void Message::transferMessageInfo() {
     UserMessageInfo msgInfo = {
         0, /* filled in later */
         messageType,
@@ -126,87 +111,77 @@ Status Message::transferMessageInfo() {
 
 /* creates a handle on destination side for each resource that was sent with the message and writes
  * them into destination memory */
-Status Message::transferHandles() {
+void Message::transferHandles() {
     if (numHandles == 0) {
-        return Status::OK();
+        return;
     }
     /* The run message to the initial Process is sent by the kernel (i.e. sourceProcess is null),
      * but does not contain handles. */
     assert(sourceProcess);
 
-    Status status = Status::OK();
-    vector<uint32_t> handles(numHandles, status);
-    if (!status) {
-        return status;
-    }
-    status = sourceProcess->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(handles.data()),
-                                                  sourceAddress.value(),
-                                                  handlesSize());
-    if (!status) {
-        return status;
-    }
+    vector<uint32_t> handles(numHandles);
+    sourceProcess->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(handles.data()),
+                                         sourceAddress.value(),
+                                         handlesSize());
 
-    status = sourceProcess->handleManager.transferHandles(handles, destinationProcess->handleManager);
-    if (!status) {
-        cout << "Message transfer failed: some handles were invalid." << endl;
-        return status;
-    }
+    sourceProcess->handleManager.transferHandles(handles, destinationProcess->handleManager);
 
-    status = destinationProcess->addressSpace.copyTo(destinationAddress().value(),
-                                                     reinterpret_cast<uint8_t *>(handles.data()),
-                                                     handlesSize(),
-                                                     false);
-    if (!status) {
+    try {
+        destinationProcess->addressSpace.copyTo(destinationAddress().value(),
+                                                reinterpret_cast<uint8_t *>(handles.data()),
+                                                handlesSize(),
+                                                false);
+    } catch (...) {
         /* undo creating destination handles */
         for (uint32_t handle: handles) {
             shared_ptr<Thread> dummy;
-            Status removeSuccess = destinationProcess->handleManager.removeHandle(handle, dummy);
-            if (!removeSuccess || dummy) {
+            try {
+                destinationProcess->handleManager.removeHandle(handle, dummy);
+            } catch(BadUserSpace &e) {
+                /* removing handles should only fail if invalid handle numbers are passed */
                 cout << "transferHandles: destination process has messed with handles that were "
                      << "not even passed to it yet and deserves to crash." << endl;
-                /* removing handles should only fail if invalid handle numbers are passed */
-                assert(removeSuccess == Status::BadUserSpace());
             }
         }
+        throw;
     }
-    return status;
 }
 
 /* Copies directly copyable message data from source to destination Process.
  * Returns true on success, false if source area is not accessible (not mapped) */
-Status Message::transferData() {
+void Message::transferData() {
     if (simpleDataSize() == 0) {
-        return Status::OK();
+        return;
     }
     /* The run message to the initial Process is sent by the kernel (i.e. sourceProcess is null),
      * but does not contain data. */
     assert(sourceProcess);
 
     /* the directly copyable data is after the handles */
-    return destinationProcess->addressSpace.copyFromOhter(destinationAddress().value() + handlesSize(),
-                                                          sourceProcess->addressSpace,
-                                                          sourceAddress.value() + handlesSize(),
-                                                          simpleDataSize(),
-                                                          false);
+    destinationProcess->addressSpace.copyFromOhter(destinationAddress().value() + handlesSize(),
+                                                   sourceProcess->addressSpace,
+                                                   sourceAddress.value() + handlesSize(),
+                                                   simpleDataSize(),
+                                                   false);
 }
 
-size_t Message::handlesSize() const {
+size_t Message::handlesSize() const noexcept {
     return numHandles * HANDLE_SIZE;
 }
 
-size_t Message::simpleDataSize() const {
+size_t Message::simpleDataSize() const noexcept {
     return numBytes - handlesSize();
 }
 
 /* Returns the address of the message itself (not message info) in the destination address space. */
-UserVirtualAddress Message::destinationAddress() const {
+UserVirtualAddress Message::destinationAddress() const noexcept {
     /* Message follows directly after message info. */
     return infoAddress.value() + sizeof(UserMessageInfo);
 }
 
 /* Allow setting destination process later on because on SpawnProcess syscalls it does not exist at
  * first */
-void Message::setDestinationProcess(Process *const process) {
+void Message::setDestinationProcess(Process *const process) noexcept {
     assert(!transferred);
     destinationProcess = process;
 }

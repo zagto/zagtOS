@@ -19,7 +19,7 @@ private:
     uint16_t ioBase{0};
 
 public:
-    TaskStateSegment(Status &status);
+    TaskStateSegment();
     ~TaskStateSegment();
 
     void update(Thread *thread);

@@ -8,25 +8,15 @@
 /* TODO: figure out what memory ordering is actually needed instead of __ATOMIC_SEQ_CST
  * everywhere */
 
-Frame::Frame(frameManagement::ZoneID zoneID, Status &status) {
-    if (!status) {
-        return;
-    }
-
-    Result<PhysicalAddress> frameAddress = FrameManagement.get(zoneID);
-    if (!frameAddress) {
-        status = frameAddress.status();
-        return;
-    }
-
-    address = *frameAddress;
+Frame::Frame(frameManagement::ZoneID zoneID) {
+    address = FrameManagement.get(zoneID);
 }
 
-Frame::Frame(PhysicalAddress address, bool isForPhysicalAccess, Status &) :
+Frame::Frame(PhysicalAddress address, bool isForPhysicalAccess) noexcept :
     address{address},
     isForPhysicalAccess{isForPhysicalAccess} {}
 
-Frame::Frame(hos_v1::Frame &handOver, Status &):
+Frame::Frame(hos_v1::Frame &handOver) noexcept:
     address{handOver.address},
     copyOnWriteCount{handOver.copyOnWriteCount},
     referenceCount{handOver.copyOnWriteCount},
@@ -38,7 +28,7 @@ Frame::~Frame() {
     }
 }
 
-Result<Frame *> Frame::ensureNoCopyOnWrite() {
+Frame *Frame::ensureNoCopyOnWrite() {
     size_t cowCount = __atomic_load_n(&copyOnWriteCount, __ATOMIC_SEQ_CST);
 
     if (cowCount == 1) {
@@ -49,20 +39,18 @@ Result<Frame *> Frame::ensureNoCopyOnWrite() {
     assert(!isForPhysicalAccess);
 
     /* Copy-on-write should never be used on DMA frames, so we can aussme default zone */
-    Result<PhysicalAddress> newAddress = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
-    if (!newAddress) {
-        return newAddress.status();
-    }
-
-    Result<Frame *> result = make_raw<Frame>(*newAddress, false);
-    if (!result) {
-        FrameManagement.put(*newAddress);
-        return result.status();
+    PhysicalAddress newAddress = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
+    Frame *result;
+    try {
+       result = new Frame(newAddress, false);
+    }  catch (...) {
+        FrameManagement.put(newAddress);
+        throw;
     }
 
     if (__atomic_sub_fetch(&copyOnWriteCount, 1, __ATOMIC_SEQ_CST) == 0) {
         /* all other users also made a copy in the meantime, so our new copy is unnecessary now */
-        delete *result;
+        delete result;
         __atomic_store_n(&copyOnWriteCount, 1, __ATOMIC_SEQ_CST);
         return this;
     }
@@ -71,29 +59,31 @@ Result<Frame *> Frame::ensureNoCopyOnWrite() {
     return result;
 }
 
-void Frame::copyOnWriteDuplicate() {
+void Frame::copyOnWriteDuplicate() noexcept {
     assert(!isForPhysicalAccess);
     __atomic_add_fetch(&copyOnWriteCount, 1, __ATOMIC_SEQ_CST);
     __atomic_add_fetch(&referenceCount, 1, __ATOMIC_SEQ_CST);
 }
 
-bool Frame::isCopyOnWrite() const {
+bool Frame::isCopyOnWrite() const noexcept {
     return __atomic_load_n(&copyOnWriteCount, __ATOMIC_SEQ_CST) != 1;
 }
 
-Status Frame::pageIn(ProcessAddressSpace &addressSpace,
-                     UserVirtualAddress virtualAddress,
-                     Permissions mappingPermissions) {
+void Frame::pageIn(ProcessAddressSpace &addressSpace,
+                   UserVirtualAddress virtualAddress,
+                   Permissions mappingPermissions) {
     assert(addressSpace.lock.isLocked());
     assert(!isCopyOnWrite()
            || mappingPermissions == Permissions::READ ||
            mappingPermissions == Permissions::READ_EXECUTE);
 
     CacheType cacheType = isForPhysicalAccess ? CacheType::NONE : CacheType::NORMAL_WRITE_BACK;
-    return addressSpace.pagingContext.map(virtualAddress, address, mappingPermissions, cacheType);
+    addressSpace.pagingContext.map(virtualAddress, address, mappingPermissions, cacheType);
 }
 
-PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace, UserVirtualAddress address) {
+PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace,
+                              UserVirtualAddress address) noexcept {
+
     assert(addressSpace.lock.isLocked());
 
     addressSpace.pagingContext.unmap(address);
@@ -134,11 +124,11 @@ PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace, UserVirtualAddr
     return pageOutContext;
 }
 
-PhysicalAddress Frame::physicalAddress() const {
+PhysicalAddress Frame::physicalAddress() const noexcept {
     return address;
 }
 
-void Frame::decreaseMemoryAreaReference() {
+void Frame::decreaseMemoryAreaReference() noexcept {
     __atomic_sub_fetch(&copyOnWriteCount, 1, __ATOMIC_SEQ_CST);
     size_t newRefCount = __atomic_sub_fetch(&referenceCount, 1, __ATOMIC_SEQ_CST);
     if (newRefCount == 0) {
@@ -146,7 +136,7 @@ void Frame::decreaseMemoryAreaReference() {
     }
 }
 
-void Frame::decreaseInvalidateRequestReference() {
+void Frame::decreaseInvalidateRequestReference() noexcept {
     size_t newRefCount = __atomic_sub_fetch(&referenceCount, 1, __ATOMIC_SEQ_CST);
     if (newRefCount == 0) {
         delete this;
@@ -154,43 +144,41 @@ void Frame::decreaseInvalidateRequestReference() {
 }
 
 /* data access */
-Status Frame::copyFrom(uint8_t *destination, size_t offset, size_t length) {
+void Frame::copyFrom(uint8_t *destination, size_t offset, size_t length) noexcept {
     assert(offset + length <= PAGE_SIZE);
 
     uint8_t *directMapping = (address + offset).identityMapped().asPointer<uint8_t>();
     memcpy(destination, directMapping, length);
-    return Status::OK();
 }
 
-Status Frame::copyTo(size_t offset, const uint8_t *source, size_t length) {
+void Frame::copyTo(size_t offset, const uint8_t *source, size_t length) noexcept {
     assert(offset + length <= PAGE_SIZE);
 
     uint8_t *directMapping = (address + offset).identityMapped().asPointer<uint8_t>();
     memcpy(directMapping, source, length);
-    return Status::OK();
 }
 
-Status Frame::copyFromMemoryArea(size_t frameOffset,
-                                 MemoryArea &memoryArea,
-                                 size_t areaOffset,
-                                 size_t length) {
+void Frame::copyFromMemoryArea(size_t frameOffset,
+                               MemoryArea &memoryArea,
+                               size_t areaOffset,
+                               size_t length) {
     /* Danger Zone: be careful when introducing any locks here! The copyFrom call can actually
      * access this Frame again. */
     assert(frameOffset + length <= PAGE_SIZE);
 
     uint8_t *directMapping = (address + frameOffset).identityMapped().asPointer<uint8_t>();
-    return memoryArea._copyFrom(directMapping, areaOffset, length, {});
+    memoryArea._copyFrom(directMapping, areaOffset, length, {});
 }
 
-Result<uint32_t> Frame::atomicCopyFrom32(size_t offset) {
+uint32_t Frame::atomicCopyFrom32(size_t offset) noexcept {
     uint32_t *directMapping = (address + offset).identityMapped().asPointer<uint32_t>();
 
     return __atomic_load_n(directMapping, __ATOMIC_SEQ_CST);
 }
 
-Result<bool> Frame::atomicCompareExchange32(size_t offset,
-                                            uint32_t expectedValue,
-                                            uint32_t newValue) {
+bool Frame::atomicCompareExchange32(size_t offset,
+                                    uint32_t expectedValue,
+                                    uint32_t newValue) noexcept {
     uint32_t *directMapping = (address + offset).identityMapped().asPointer<uint32_t>();
 
     return __atomic_compare_exchange_n(directMapping,

@@ -25,11 +25,11 @@ private:
     void _localProcessing();
 
 public:
-    InvalidateQueue(CommonProcessor &processor);
+    InvalidateQueue(CommonProcessor &processor) noexcept;
 
     uint64_t add(TLBContextID tlbContextID,
                  Frame *frame,
-                 UserVirtualAddress address);
-    void ensureProcessedUntil(uint64_t timestamp);
-    void localProcessing();
+                 UserVirtualAddress address) noexcept;
+    void ensureProcessedUntil(uint64_t timestamp) noexcept;
+    void localProcessing() noexcept;
 };

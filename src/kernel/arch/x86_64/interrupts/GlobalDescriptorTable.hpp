@@ -32,7 +32,7 @@ private:
     vector<uint64_t> gdt;
 
 public:
-    GlobalDescriptorTable(Status &status);
+    GlobalDescriptorTable();
 
     void setupTSS(size_t processorID, TaskStateSegment *tss);
     void resetTSS(size_t processorID);

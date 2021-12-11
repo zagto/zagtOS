@@ -55,15 +55,15 @@ public:
     /* For KernelPageAllocator::invalidateQueue */
     KernelVirtualAddress kernelInvalidateProcessedUntil;
 
-    TLBContextID activatePagingContext(PagingContext *pagingContext, TLBContextID tryFirst);
+    TLBContextID activatePagingContext(PagingContext *pagingContext, TLBContextID tryFirst) noexcept;
 
-    CommonProcessor(size_t id, Status &status);
+    CommonProcessor();
     CommonProcessor(CommonProcessor &) = delete;
     CommonProcessor &operator=(CommonProcessor &) = delete;
     ~CommonProcessor();
 
-    Thread *activeThread() const;
-    void activeThread(Thread *);
+    Thread *activeThread() const noexcept;
+    void activeThread(Thread *) noexcept;
 };
 
 extern Processor *Processors;

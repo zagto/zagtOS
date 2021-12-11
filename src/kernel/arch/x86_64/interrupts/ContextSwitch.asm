@@ -10,6 +10,7 @@ global InKernelReturnEntry
 
 extern handleInterrupt
 extern Syscall
+extern SyscallScheduleNext
 extern kernelStackEnd
 extern InKernelReturnEntryRestoreInterruptsLock
 
@@ -100,11 +101,14 @@ struc RegisterState
     .ss resq 1
 endstruc
 
+%define ACTION_RETRY 1
+%define ACTION_CONTINUE 2
+%define ACTION_SCHEDULE 3
+
 syscallEntry:
     mov ax, 0x10
     mov ds, ax
     mov es, ax
-    mov fs, ax
     mov gs, ax
 
     ; get CurrentProcessor pointer for register save from kernel gsbase
@@ -113,12 +117,7 @@ syscallEntry:
     ; get RegisterState pointer into rax
     mov rax, [gs:CommonProcessor.userRegisterState]
 
-    mov [rax+RegisterState.r15], r15
-    mov [rax+RegisterState.r14], r14
-    mov [rax+RegisterState.r13], r13
-    mov [rax+RegisterState.r12], r12
-    mov [rax+RegisterState.rbp], rbp
-    mov [rax+RegisterState.rbx], rbx
+    ; r15-rbx are callee-saved, only need to backup when scheduling away
     ; r11-errorCode no need to save
 
     mov [rax+RegisterState.rip], rcx
@@ -137,9 +136,37 @@ syscallEntry:
     mov rcx, r10
 
     call Syscall
-    ; should never retrun
-loop0:
-    jmp loop0
+
+    cmp rax, ACTION_SCHEDULE
+    je scheduleAction
+
+    cmp rax, ACTION_CONTINUE
+    jne badAction
+
+    add rsp, 16*8 ;RegisterState.r10 ; continue with poping r10
+
+    swapgs
+
+    mov ax, 0x18|3
+    mov ds, ax
+    mov es, ax
+    mov gs, ax
+
+    jmp fromSyscallDirectly
+
+scheduleAction:
+    ; save callee-saved registers into our structure
+    mov [rsp+RegisterState.r15], r15
+    mov [rsp+RegisterState.r14], r14
+    mov [rsp+RegisterState.r13], r13
+    mov [rsp+RegisterState.r12], r12
+    mov [rsp+RegisterState.rbp], rbp
+    mov [rsp+RegisterState.rbx], rbx
+
+    call SyscallScheduleNext
+
+badAction:
+    jmp badAction
 
 commonISR:
     ; save general-purpose registers
@@ -175,7 +202,6 @@ commonISR:
     mov ax, 0x10
     mov ds, ax
     mov es, ax
-    mov fs, ax
 
     ; switch to real stack if coming from user space interrupt
     ; check if the cs on stack is 0x20|3
@@ -231,15 +257,7 @@ commonReturn:
     mov ax, 0x18|3
     mov ds, ax
     mov es, ax
-    mov fs, ax
     mov gs, ax
-
-    ; user fsbase
-    mov rax, rsi
-    mov rdx, rsi
-    shr rdx, 32
-    mov rcx, FSBASE_MSR
-    wrmsr
 
 inKernelReturn:
     ; if the fromSyscall field is set we can skip restoring caller-saved registers
@@ -288,6 +306,7 @@ fromSyscall:
 
     ; ignore r11-rcx
     add rsp, 8*8
+fromSyscallDirectly:
     xor r10, r10
     xor r10, r10
     xor r9, r9

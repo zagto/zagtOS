@@ -15,8 +15,6 @@ extern "C" {
 
 #define MFAIL reinterpret_cast<void *>(-1ull)
 
-static Status DLMallocStatus = Status::OK();
-
 
 namespace dlMallocGlue {
 
@@ -28,7 +26,6 @@ KernelVirtualAddress Glue::allocate(size_t length, size_t align) {
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(KernelPageAllocator.lock);
 
-    DLMallocStatus = Status::OK();
     void *rawAddress;
 
     if (align > 0) {
@@ -37,32 +34,25 @@ KernelVirtualAddress Glue::allocate(size_t length, size_t align) {
         rawAddress = dlmalloc(length);
     }
 
-    if (rawAddress == nullptr) {
-        assert(DLMallocStatus != Status::OK());
-        return KernelVirtualAddress(); // TODO
-    }
-    if (DLMallocStatus != Status::OK()) {
-        cout << "DLMallocStatus " << DLMallocStatus << " but allocation returned "
-             << rawAddress << endl;
-    }
+    /* The underlying FrameManagement should throw an exception */
+    assert(rawAddress != nullptr);
+
     return KernelVirtualAddress(rawAddress);
 }
 
-Result<KernelVirtualAddress> Glue::resize(KernelVirtualAddress address, size_t length) {
+KernelVirtualAddress Glue::resize(KernelVirtualAddress address, size_t length) {
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(KernelPageAllocator.lock);
-    DLMallocStatus = Status::OK();
 
     void *rawAddress = dlrealloc(address.asPointer<void>(), length);
 
-    if (rawAddress == nullptr) {
-        assert(DLMallocStatus != Status::OK());
-        return DLMallocStatus;
-    }
+    /* The underlying FrameManagement should throw an exception */
+    assert(rawAddress != nullptr);
+
     return KernelVirtualAddress(rawAddress);
 }
 
-void Glue::free(KernelVirtualAddress address) {
+void Glue::free(KernelVirtualAddress address) noexcept {
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(KernelPageAllocator.lock);
     dlfree(address.asPointer<void>());
@@ -81,12 +71,5 @@ extern "C" int KernelMUnmap(void *address, size_t length) {
 }
 
 extern "C" void *KernelMMap(size_t length) {
-    Result result = KernelPageAllocator.map(length, true);
-    if (result) {
-        DLMallocStatus = Status::OK();
-        return *result;
-    } else {
-        DLMallocStatus = result.status();
-        return MFAIL;
-    }
+    return KernelPageAllocator.map(length, true);
 }

@@ -6,25 +6,15 @@ extern "C" __attribute__((noreturn)) void switchStack(size_t newStackPointer,
                                                       void entry(void *),
                                                       void *arg);
 
-KernelStack::KernelStack(RegisterState _userRegisterState, Status &status) {
-    if (!status) {
-        return;
-    }
-
+KernelStack::KernelStack(RegisterState _userRegisterState) {
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock sl(KernelPageAllocator.lock);
 
-    Result<void *> dataAddress = KernelPageAllocator.map(SIZE, true);
-    if (!dataAddress) {
-        status = dataAddress.status();
-        return;
-    }
-
-    data = *dataAddress;
+    data = KernelPageAllocator.map(SIZE, true);
     *userRegisterState() = _userRegisterState;
 }
 
-KernelStack::~KernelStack() {
+KernelStack::~KernelStack() noexcept {
     if (data) {
         scoped_lock lg1(KernelInterruptsLock);
         scoped_lock sl(KernelPageAllocator.lock);
@@ -32,11 +22,11 @@ KernelStack::~KernelStack() {
     }
 }
 
-RegisterState *KernelStack::userRegisterState() {
+RegisterState *KernelStack::userRegisterState() noexcept {
     return reinterpret_cast<RegisterState *>(reinterpret_cast<size_t>(data) + USER_STATE_OFFSET);
 }
 
-[[noreturn]] void KernelStack::switchToKernelEntry(void kernelEntry(void *),void *argument) {
+[[noreturn]] void KernelStack::switchToKernelEntry(void kernelEntry(void *),void *argument) noexcept {
     /* On early inititalization, we need to switch to the initial KernelStack of each Processor.
      * in this case the following Assertion will fail. Note that activeThread being nullptr does
      * not nessesarily mean we are in early initializion. */

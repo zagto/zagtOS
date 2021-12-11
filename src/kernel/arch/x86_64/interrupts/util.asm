@@ -41,8 +41,10 @@ loadGlobalDescriptorTable:
     mov ds, ax
     mov ss, ax
     mov es, ax
-    mov fs, ax
     mov gs, ax
+
+    mov ax, 0x18|3
+    mov fs, ax
 
     ret
 

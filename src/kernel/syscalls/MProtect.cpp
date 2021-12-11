@@ -2,7 +2,7 @@
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/ErrorCodes.hpp>
 
-Result<size_t> MProtect(const shared_ptr<Process> &process,
+size_t MProtect(const shared_ptr<Process> &process,
                         size_t startAddress,
                         size_t length,
                         size_t protection,
@@ -32,7 +32,9 @@ Result<size_t> MProtect(const shared_ptr<Process> &process,
         cout << "MProtect: unsupported protection " << static_cast<uint64_t>(protection) << "\n";
         return EOPNOTSUPP;
     }
-    if (!process->addressSpace.changeRegionProtection(Region(startAddress, length), permissions)) {
+    try {
+        process->addressSpace.changeRegionProtection(Region(startAddress, length), permissions);
+    } catch(BadUserSpace &e) {
         cout << "MProtect at address " << startAddress << " length " << length
              << " which contains non-mapped pages" << endl;
         return ENOMEM;

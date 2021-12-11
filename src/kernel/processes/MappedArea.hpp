@@ -23,19 +23,17 @@ public:
                Region region,
                shared_ptr<MemoryArea> _memoryArea,
                size_t offset,
-               Permissions permissions,
-               Status &status);
+               Permissions permissions) ;
     MappedArea(ProcessAddressSpace &addressSpace,
                shared_ptr<MemoryArea> _memoryArea,
-               const hos_v1::MappedArea &handOver,
-               Status &status);
+               const hos_v1::MappedArea &handOver);
     ~MappedArea();
-    hos_v1::MappedArea handOver();
+    hos_v1::MappedArea handOver() noexcept;
 
-    Status ensurePagedIn(UserVirtualAddress address);
-    Result<pair<unique_ptr<MappedArea>, unique_ptr<MappedArea>>> split(size_t splitOffset);
+    void ensurePagedIn(UserVirtualAddress address);
+    pair<unique_ptr<MappedArea>, unique_ptr<MappedArea>> split(size_t splitOffset);
 
-    static inline bool compare(MappedArea *a, MappedArea *b) {
+    static inline bool compare(MappedArea *a, MappedArea *b) noexcept {
         return a->region.start < b->region.start;
     }
 };

@@ -22,55 +22,57 @@ private:
 
     /* The frames vector may contain null pointers for lazy initialization. This method ensures
      * a frame actually exists */
-    Status ensureFramePresent(size_t frameIndex, bool requireNoCopyOnWrite);
+    void ensureFramePresent(size_t frameIndex, bool requireNoCopyOnWrite);
+
+    /* for destruction-like scenarios */
+    void discardFrames() noexcept;
 
 protected:
     friend class Frame;
-    Status _copyFrom(uint8_t *destination,
-                     size_t offset,
-                     size_t accessLength,
-                     optional<scoped_lock<mutex> *> relaxLock);
+    void _copyFrom(uint8_t *destination,
+                   size_t offset,
+                   size_t accessLength,
+                   optional<scoped_lock<mutex> *> relaxLock);
 
 public:
     const bool isShared;
     const size_t length;
 
     /* Anonymous */
-    MemoryArea(bool shared, Permissions permissions, size_t length, Status &status);
+    MemoryArea(bool shared, Permissions permissions, size_t length);
     /* DMA */
     MemoryArea(frameManagement::ZoneID zoneID,
                size_t length,
-               vector<size_t> &deviceAddresses,
-               Status &status);
+               vector<size_t> &deviceAddresses);
     /* Physical */
-    MemoryArea(PhysicalAddress physicalStart, size_t length, Status &status);
+    MemoryArea(PhysicalAddress physicalStart, size_t length);
     /* HandOver */
-    MemoryArea(const hos_v1::MemoryArea &handOver, vector<Frame *> &allFrames, Status &status);
+    MemoryArea(const hos_v1::MemoryArea &handOver, vector<Frame *> &allFrames);
     /* Shallow Copy */
-    MemoryArea(MemoryArea &other, size_t offset, size_t length, Status &status);
+    MemoryArea(MemoryArea &other, size_t offset, size_t length);
     MemoryArea(MemoryArea &) = delete;
     MemoryArea operator=(MemoryArea &) = delete;
     ~MemoryArea();
 
-    Status pageIn(ProcessAddressSpace &addressSpace,
-                  UserVirtualAddress address,
-                  Permissions mappingPermissions,
-                  size_t offset);
+    void pageIn(ProcessAddressSpace &addressSpace,
+                UserVirtualAddress address,
+                Permissions mappingPermissions,
+                size_t offset);
     PageOutContext pageOut(ProcessAddressSpace &addressSpace,
                            UserVirtualAddress address,
-                           size_t offset);
-    bool allowesPermissions(Permissions toTest) const;
-    Result<uint64_t> getFutexID(size_t offset);
+                           size_t offset) noexcept;
+    bool allowesPermissions(Permissions toTest) const noexcept;
+    uint64_t getFutexID(size_t offset);
 
     /* data access */
-    Status copyFrom(uint8_t *destination, size_t offset, size_t accessLength);
-    Status copyTo(size_t offset, const uint8_t *source, size_t accessLength);
-    Status copyFromOther(size_t destinationOffset,
-                         MemoryArea &sourceArea,
-                         size_t sourceOffset,
-                         size_t accessLength);
-    Result<uint32_t> atomicCopyFrom32(size_t offset);
-    Result<bool> atomicCompareExchange32(size_t offset,
-                                         uint32_t expectedValue,
-                                         uint32_t newValue);
+    void copyFrom(uint8_t *destination, size_t offset, size_t accessLength);
+    void copyTo(size_t offset, const uint8_t *source, size_t accessLength);
+    void copyFromOther(size_t destinationOffset,
+                       MemoryArea &sourceArea,
+                       size_t sourceOffset,
+                       size_t accessLength);
+    uint32_t atomicCopyFrom32(size_t offset);
+    bool atomicCompareExchange32(size_t offset,
+                                 uint32_t expectedValue,
+                                 uint32_t newValue);
 };

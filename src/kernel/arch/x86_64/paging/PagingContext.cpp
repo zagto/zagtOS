@@ -6,7 +6,7 @@
 #include <memory/KernelPageAllocator.hpp>
 
 
-Result<PageTableEntry *> PagingContext::walkEntries(VirtualAddress address,
+PageTableEntry *PagingContext::walkEntries(VirtualAddress address,
                                                     MissingStrategy missingStrategy) {
     assert(!address.isInRegion(IdentityMapping));
 
@@ -21,12 +21,9 @@ Result<PageTableEntry *> PagingContext::walkEntries(VirtualAddress address,
                 cout << "Unexpected non-present page table entry." << endl;
                 Panic();
             case MissingStrategy::CREATE: {
-                Result<PhysicalAddress> addr = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
-                if (!addr) {
-                    return addr.status();
-                }
+                PhysicalAddress addr = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
 
-                *entry = PageTableEntry(*addr,
+                *entry = PageTableEntry(addr,
                                         Permissions::READ_WRITE_EXECUTE,
                                         true,
                                         CacheType::NORMAL_WRITE_BACK);
@@ -41,14 +38,8 @@ Result<PageTableEntry *> PagingContext::walkEntries(VirtualAddress address,
 }
 
 
-PagingContext::PagingContext(Status &status) {
-    Result<PhysicalAddress> result = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
-    if (!result) {
-        status = result.status();
-        return;
-    }
-
-    masterPageTableAddress = *result;
+PagingContext::PagingContext() {
+    masterPageTableAddress = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
     masterPageTable = masterPageTableAddress.identityMapped().asPointer<PageTable>();
 
     for (size_t index = KERNEL_ENTRIES_OFFSET;
@@ -59,79 +50,78 @@ PagingContext::PagingContext(Status &status) {
 }
 
 
-PagingContext::PagingContext(PhysicalAddress masterPageTableAddress, Status &) :
+PagingContext::PagingContext(PhysicalAddress masterPageTableAddress) :
         masterPageTableAddress{masterPageTableAddress},
         masterPageTable{masterPageTableAddress.identityMapped().asPointer<PageTable>()} {
 }
 
-PagingContext::~PagingContext() {
+PagingContext::~PagingContext() noexcept {
     completelyUnmapUserRegion();
 }
 
 void PagingContext::map(KernelVirtualAddress from,
-                          PhysicalAddress to,
-                          Permissions permissions,
-                          CacheType cacheType) {
+                        PhysicalAddress to,
+                        Permissions permissions,
+                        CacheType cacheType) {
     assert(KernelPageAllocator.lock.isLocked());
 
-    Result<PageTableEntry *>entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(from,
-                                                                                      MissingStrategy::CREATE);
-    assert(!(*entry)->present());
+    PageTableEntry *entry = CurrentSystem.kernelOnlyPagingContext.walkEntries(
+                from,
+                MissingStrategy::CREATE);
 
-    **entry = PageTableEntry(to, permissions, false, cacheType);
+    assert(!entry->present());
+
+    *entry = PageTableEntry(to, permissions, false, cacheType);
 }
 
-void PagingContext::_unmap(VirtualAddress address, bool freeFrame) {
-    Result<PageTableEntry *>entry = walkEntries(address, MissingStrategy::NONE);
+void PagingContext::_unmap(VirtualAddress address, bool freeFrame) noexcept {
     /* Exceptions should only happen with CREATE MissingStategy */
-    assert(static_cast<bool>(entry));
-    assert((*entry)->present());
+    PageTableEntry *entry = walkEntries(address, MissingStrategy::NONE);
+    assert(entry->present());
 
     if (freeFrame) {
-        FrameManagement.put((*entry)->addressValue());
+        FrameManagement.put(entry->addressValue());
     }
 
-    **entry = PageTableEntry();
+    *entry = PageTableEntry();
 }
 
-void PagingContext::unmap(UserVirtualAddress address) {
+void PagingContext::unmap(UserVirtualAddress address) noexcept {
     _unmap(address, false);
 }
 
 
-void PagingContext::unmap(KernelVirtualAddress address, bool freeFrame) {
+void PagingContext::unmap(KernelVirtualAddress address, bool freeFrame) noexcept {
     assert(KernelPageAllocator.lock.isLocked());
     CurrentSystem.kernelOnlyPagingContext._unmap(address, freeFrame);
 }
 
-void PagingContext::unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames) {
+void PagingContext::unmapRange(KernelVirtualAddress address,
+                               size_t numPages,
+                               bool freeFrames) noexcept {
     assert(KernelPageAllocator.lock.isLocked());
     for (size_t index = 0; index < numPages; index++) {
         CurrentSystem.kernelOnlyPagingContext._unmap(address + index * PAGE_SIZE, freeFrames);
     }
 }
 
-Status PagingContext::map(UserVirtualAddress from,
-                          PhysicalAddress to,
-                          Permissions permissions,
-                          CacheType cacheType) {
-    Result<PageTableEntry *> entry = walkEntries(from, MissingStrategy::CREATE);
-    if (!entry) {
-        return entry.status();
-    }
-    assert(!(*entry)->present());
+void PagingContext::map(UserVirtualAddress from,
+                        PhysicalAddress to,
+                        Permissions permissions,
+                        CacheType cacheType) {
+    PageTableEntry *entry = walkEntries(from, MissingStrategy::CREATE);
+    assert(!entry->present());
 
-    **entry = PageTableEntry(to, permissions, true, cacheType);
-    return Status::OK();
+    *entry = PageTableEntry(to, permissions, true, cacheType);
 }
 
 extern "C" void basicSwitchMasterPageTable(PhysicalAddress address);
 
-void PagingContext::activate() {
+void PagingContext::activate() noexcept {
     basicSwitchMasterPageTable(masterPageTableAddress);
 }
 
-void PagingContext::completelyUnmapUserRegion() {
+void PagingContext::completelyUnmapUserRegion() noexcept {
     /* this may be different on future supported platforms */
     static_assert(LoaderRegion.start == UserSpaceRegion.start
                   && LoaderRegion.length == UserSpaceRegion.length);
@@ -145,6 +135,6 @@ void PagingContext::completelyUnmapUserRegion() {
     }
 }
 
-void PagingContext::completelyUnmapLoaderRegion() {
+void PagingContext::completelyUnmapLoaderRegion() noexcept {
     completelyUnmapUserRegion();
 }

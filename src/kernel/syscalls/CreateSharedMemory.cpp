@@ -1,6 +1,6 @@
 #include <syscalls/CreateSharedMemory.hpp>
 
-Result<size_t> CreateSharedMemory(const shared_ptr<Process> &process,
+size_t CreateSharedMemory(const shared_ptr<Process> &process,
                                   size_t type,
                                   size_t offset,
                                   size_t length,
@@ -9,7 +9,7 @@ Result<size_t> CreateSharedMemory(const shared_ptr<Process> &process,
     length = align(length, PAGE_SIZE, AlignDirection::UP);
 
     /* TODO: maybe don't hardcode permissions */
-    Result<shared_ptr<MemoryArea>> memoryArea;
+    shared_ptr<MemoryArea> memoryArea;
     switch (type) {
     case 0:
         /* Standard */
@@ -42,37 +42,24 @@ Result<size_t> CreateSharedMemory(const shared_ptr<Process> &process,
             if (zoneID < 0) {
                 cout << "SYS_CREATE_SHARED_MEMORY: requested device address ceiling impossible"
                      << "on this architecture." << endl;
-                return Status::BadUserSpace();
+                throw BadUserSpace(process);
             }
         }
 
         vector<size_t> deviceAddresses;
         memoryArea = make_shared<MemoryArea>(zoneID, length, deviceAddresses);
         if (memoryArea) {
-            Status status
-                = process->addressSpace.copyTo(deviceAddressesPointer,
-                                               reinterpret_cast<uint8_t *>(deviceAddresses.data()),
-                                               numPages * sizeof(size_t),
-                                               true);
-            if (!status) {
-                return status;
-            }
+            process->addressSpace.copyTo(deviceAddressesPointer,
+                                         reinterpret_cast<uint8_t *>(deviceAddresses.data()),
+                                         numPages * sizeof(size_t),
+                                         true);
         }
         break;
     }
     default:
         cout << "SYS_CREATE_SHARED_MEMORY: got invalid type parameter " << type << endl;
-        return Status::BadUserSpace();
+        throw BadUserSpace(process);
     }
 
-    if (!memoryArea) {
-        return memoryArea.status();
-    }
-
-    Result<uint32_t> handle = process->handleManager.addMemoryArea(*memoryArea);
-    if (handle) {
-        return *handle;
-    } else {
-        return handle.status();
-    }
+    return process->handleManager.addMemoryArea(memoryArea);
 }

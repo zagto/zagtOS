@@ -14,14 +14,19 @@
 
 class Process {
 private:
-    Status accessUserSpace(uint8_t *buffer,
-                           size_t start,
-                           size_t length,
-                           PagingContext::AccessOperation accOp,
-                           bool requireWritePermissions);
+    void accessUserSpace(uint8_t *buffer,
+                         size_t start,
+                         size_t length,
+                         PagingContext::AccessOperation accOp,
+                         bool requireWritePermissions);
 
 public:
+    /* should be first member for ProcessAddressSpace::process hack to work */
     ProcessAddressSpace addressSpace;
+
+    /* our alternative to enable_shared_from_this - which we don't have in kernel */
+    weak_ptr<Process> self;
+
     HandleManager handleManager;
     vector<uint8_t> logName;
     FutexManager futexManager;
@@ -37,25 +42,22 @@ public:
     Process(const hos_v1::Process &handOver,
             const vector<shared_ptr<Thread>> &allThreads,
             const vector<shared_ptr<Port>> &allPorts,
-            const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
-            Status &status);
+            const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
     Process(Process &sourceProcess,
             vector<SpawnProcessSection> &sections,
             optional<SpawnProcessSection> &TLSSection,
             UserVirtualAddress entryAddress,
             Thread::Priority initialPrioriy,
             Message &runMessage,
-            vector<uint8_t> &logName,
-            Status &status);
+            vector<uint8_t> &logName);
+    Process(const Process &) = delete;
+    Process &operator=(const Process &) = delete;
     ~Process();
-    void activate();
-    void freeFrame(UserVirtualAddress address);
 
-    bool canAccessPhysicalMemory() const;
+    bool canAccessPhysicalMemory() const noexcept;
 
-    size_t runMessageAddress();
-    Status crash(const char *message);
-    Status exit();
+    void crash(const char *message);
+    void exit();
 };
 
 shared_ptr<Process> CurrentProcess();

@@ -1,6 +1,5 @@
 #pragma once
 #include <paging/PageTable.hpp>
-#include <lib/Status.hpp>
 
 class PagingContext {
 public:
@@ -16,8 +15,8 @@ private:
     PhysicalAddress masterPageTableAddress;
     PageTable *masterPageTable;
 
-    Result<PageTableEntry *> walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
-    void _unmap(VirtualAddress address, bool freeFrame);
+    PageTableEntry *walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
+    void _unmap(VirtualAddress address, bool freeFrame) noexcept;
 
 public:
     enum class AccessOperation {
@@ -27,30 +26,27 @@ public:
     static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
     static const size_t NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
 
-    PagingContext(Status &status);
-    PagingContext(PhysicalAddress masterPageTableAddress, Status &);
+    PagingContext();
+    PagingContext(PhysicalAddress masterPageTableAddress);
     PagingContext(PagingContext &other) = delete;
     PagingContext operator=(PagingContext &other) = delete;
-    ~PagingContext();
+    ~PagingContext() noexcept;
 
     static void map(KernelVirtualAddress from,
                     PhysicalAddress to,
                     Permissions permissions,
                     CacheType cacheType);
-    static void invalidateLocally(KernelVirtualAddress address);
-    static void unmap(KernelVirtualAddress address, bool freeFrame);
-    static void unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames);
+    static void unmap(KernelVirtualAddress address, bool freeFrame) noexcept;
+    static void unmapRange(KernelVirtualAddress address, size_t numPages, bool freeFrames) noexcept;
 
-    Status map(UserVirtualAddress from,
-               PhysicalAddress to,
-               Permissions permissions,
-               CacheType cacheType);
-    Result<PhysicalAddress> resolve(UserVirtualAddress address);
-    void unmap(UserVirtualAddress address);
+    void map(UserVirtualAddress from,
+             PhysicalAddress to,
+             Permissions permissions,
+             CacheType cacheType);
+    void unmap(UserVirtualAddress address) noexcept;
 
-    bool isActive();
-    void activate();
+    void activate() noexcept;
 
-    void completelyUnmapLoaderRegion();
-    void completelyUnmapUserRegion();
+    void completelyUnmapLoaderRegion() noexcept;
+    void completelyUnmapUserRegion() noexcept;
 };

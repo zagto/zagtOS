@@ -21,39 +21,8 @@ InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
     }
 }
 
-void dealWithException(Status status) {
-    Thread *activeThread = CurrentThread();
-    if (status.type() == DiscardStateAndSchedule) {
-        /* make sure status holds no dynamic allocations because destructor is never called */
-        status = {};
-        CurrentProcessor()->scheduler.scheduleNext();
-    } else if (status.type() == BadUserSpace) {
-        Status status2 = activeThread->process->crash("BadUserSpace Exception");
-        if (!status2) {
-            assert(status2.type() == ThreadKilled);
-            /* make sure status holds no dynamic allocations because destructor is never called */
-            status = {};
-            dealWithException(move(status2));
-        }
-    } else if (status.type() == OutOfKernelHeap) {
-        cout << "TODO: deal with OutOfKernelHeap" << endl;
-        Panic();
-    } else if (status.type() == OutOfMemory) {
-        cout << "TODO: deal with OutOfMemory" << endl;
-        Panic();
-    } else if (status.type() == ThreadKilled) {
-        CurrentProcessor()->scheduler.lock.lock();
-        CurrentProcessor()->scheduler.removeActiveThread();
-        CurrentProcessor()->scheduler.scheduleNext();
-        cout << "TODO: deal with ThreadKilled" << endl;
-        Panic();
-    } else {
-        cout << "Unknown Exception: " << status << endl;
-        Panic();
-    }
-}
-
-Status handleUserException(RegisterState *registerState) {
+void handleUserException(RegisterState *registerState) {
+    assert(CurrentThread());
     assert(CurrentThread()->kernelStack->userRegisterState() == registerState);
 
     if (registerState->intNr == StaticInterrupt::PAGE_FAULT) [[likely]] {
@@ -89,18 +58,33 @@ Status handleUserException(RegisterState *registerState) {
 
         /* Page fault handling works with address spaces, which uses mutexes */
         KernelInterruptsLock.unlock();
-        Status status = CurrentProcess()->addressSpace.handlePageFault(cr2, requiredPermissions);
+        try {
+            CurrentProcess()->addressSpace.handlePageFault(cr2, requiredPermissions);
+        } catch (BadUserSpace &e) {
+            /* try to core dump in case of BadUserSpace */
+            try {
+                CurrentProcess()->addressSpace.coreDump(CurrentThread());
+            }  catch (Exception &e) {
+                cout << "CoreDump failed: " << e.description() << endl;
+            }
+            KernelInterruptsLock.lock();
+            throw;
+        } catch (...) {
+            KernelInterruptsLock.lock();
+            throw;
+        }
         KernelInterruptsLock.lock();
-
-        return status;
     } else {
         cout << "Unhandled x86 Exception " << registerState->intNr << " in user space" << endl;
-        return Status::BadUserSpace();
+        throw BadUserSpace(CurrentProcess());
     }
 }
 
 
 [[noreturn]] void _handleInterrupt(RegisterState* registerState) {
+    /* noreturn function. Do not use RAII in the main function scope. It will not be properly
+     * destructed at the returnToUserMode/returnInsideKernelMode/scheduleNext call. */
+
     bool fromUserSpace = registerState->cs == static_cast<uint64_t>(0x20|3);
     Processor *processor = CurrentProcessor();
 
@@ -115,6 +99,7 @@ Status handleUserException(RegisterState *registerState) {
             assert(processor->interruptsLockValue == 0);
             assert(registerState->interruptsFlagSet());
         }
+
         /* Interrupts are disabled in Interrupt context, make our variable reflect that */
         processor->interruptsLockValue++;
     }
@@ -125,50 +110,53 @@ Status handleUserException(RegisterState *registerState) {
     assert(registerState->fromSyscall == 0);
 
     Thread *thread = CurrentThread();
-    assert(thread);
+    assert(thread || (X86ExceptionRegion.contains(registerState->intNr) && !fromUserSpace));
 
-    Status status = Status::OK();
+    Exception::Action action;
+    do {
+        action = Exception::Action::CONTINUE;
+        try {
+            if (X86ExceptionRegion.contains(registerState->intNr)) {
+                /* x86 Exception */
+                if (fromUserSpace) {
+                    handleUserException(registerState);
+                } else {
+                    handleKernelException(registerState);
+                }
+            } else if (registerState->intNr == StaticInterrupt::PIC1_SPURIOUS
+                       || registerState->intNr == StaticInterrupt::PIC2_SPURIOUS) {
+                cout << "Legacy Spurious IRQ!" << endl;
+                //CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
+            } else if (registerState->intNr == StaticInterrupt::APIC_SPURIOUS) {
+                cout << "APIC Spurious IRQ" << endl;
+                processor->endOfInterrupt();
+            } else if (registerState->intNr == StaticInterrupt::IPI) {
+                processor->endOfInterrupt();
 
-    if (X86ExceptionRegion.contains(registerState->intNr)) {
-        /* x86 Exception */
-        if (fromUserSpace) {
-            status = handleUserException(registerState);
-        } else {
-            handleKernelException(registerState);
-        }
-    } else if (registerState->intNr == StaticInterrupt::PIC1_SPURIOUS
-               || registerState->intNr == StaticInterrupt::PIC2_SPURIOUS) {
-        cout << "Legacy Spurious IRQ!" << endl;
-        //CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
-    } else if (registerState->intNr == StaticInterrupt::APIC_SPURIOUS) {
-        cout << "APIC Spurious IRQ" << endl;
-        processor->endOfInterrupt();
-    } else if (registerState->intNr == StaticInterrupt::IPI) {
-        processor->endOfInterrupt();
+                uint32_t ipis = __atomic_exchange_n(&processor->ipiFlags, 0, __ATOMIC_SEQ_CST);
 
-        uint32_t ipis = __atomic_exchange_n(&processor->ipiFlags, 0, __ATOMIC_SEQ_CST);
-
-        if (ipis & IPI::CheckScheduler) {
-            status = processor->scheduler.checkChanges();
-            if (status) {
-                cout << "Info: CheckProcessor IPI did not lead to change." << endl;
+                if (ipis & IPI::CheckScheduler) {
+                    processor->scheduler.checkChanges();
+                }
+            } else {
+                cout << "Unknown Interrupt " << registerState->intNr << endl;
+                Panic();
             }
+        } catch (Exception &e) {
+            action = e.handle();
         }
-    } else {
-        cout << "Unknown Interrupt " << registerState->intNr << endl;
-        Panic();
-    }
+    } while (action == Exception::Action::RETRY);
 
     /* Page fault handling unlocks KernelInterruptsLock, so current Processor may have changed */
     processor = CurrentProcessor();
 
-    if (status) {
-        /* Generic kernel work. This may be refactored to an own method */
-        KernelPageAllocator.processInvalidateQueue();
-        /* Important: The following has to happen after EOI of an InvalidateQueue IPI was sent,
-         * otherwise we may lose requests */
-        CurrentProcessor()->invalidateQueue.localProcessing();
-    }
+    /* Generic kernel work. This may be refactored to an own method. Notice that we may be running
+     * with activeThread==nullptr in case of the SCHEDULE action. Should not cause problems with
+     * the current kernel work. */
+    KernelPageAllocator.processInvalidateQueue();
+    /* Important: The following has to happen after EOI of an InvalidateQueue IPI was sent,
+     * otherwise we may lose requests */
+    CurrentProcessor()->invalidateQueue.localProcessing();
 
     assert(KernelInterruptsLock.isLocked());
 
@@ -180,7 +168,7 @@ Status handleUserException(RegisterState *registerState) {
         thread->setKernelEntry(InKernelReturnEntry, registerState);
     }
 
-    if (status) {
+    if (action == Exception::Action::CONTINUE) {
         assert(processor->interruptsLockValue == 1);
         if (fromUserSpace) {
             processor->returnToUserMode();
@@ -190,14 +178,15 @@ Status handleUserException(RegisterState *registerState) {
              * enabled. */
             processor->returnInsideKernelMode(registerState);
         }
-    } else {
-        dealWithException(status);
-        cout << "TODO: may there be ways to continue here in the future" << endl;
-        Panic();
+    } else if (action == Exception::Action::SCHEDULE) {
+        processor->scheduler.scheduleNext();
     }
+    cout << "_handleInterrupt: should not reach here. " << endl;
+    Panic();
 }
 
 /* called from interrupt service routine */
-extern "C" __attribute__((noreturn)) void handleInterrupt(RegisterState* registerState) {
+extern "C" [[noreturn]] void handleInterrupt(RegisterState* registerState) {
     _handleInterrupt(registerState);
 }
+

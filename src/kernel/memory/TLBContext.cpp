@@ -7,9 +7,13 @@
 
 extern "C" void basicSwitchToTLBContext(size_t localID);
 
-TLBContext::TLBContext(TLBContextID id, Status &):
-        processorID{static_cast<uint16_t>(id / CurrentSystem.tlbContextsPerProcessor)},
-        localID{static_cast<uint16_t>(id % CurrentSystem.tlbContextsPerProcessor)} {
+static size_t nextInstanceID = 0;
+
+TLBContext::TLBContext():
+        processorID{static_cast<uint16_t>(nextInstanceID / CurrentSystem.tlbContextsPerProcessor)},
+        localID{static_cast<uint16_t>(nextInstanceID % CurrentSystem.tlbContextsPerProcessor)} {
+
+    nextInstanceID++;
 
     size_t tcpp = CurrentSystem.tlbContextsPerProcessor;
 
@@ -19,20 +23,20 @@ TLBContext::TLBContext(TLBContextID id, Status &):
     activePagingContext = &CurrentSystem.kernelOnlyPagingContext;
 }
 
-Processor &TLBContext::processor() const {
+Processor &TLBContext::processor() const noexcept {
     return Processors[processorID];
 }
 
-TLBContextID TLBContext::localIDToGlobal(uint16_t localID, uint16_t processorID) {
+TLBContextID TLBContext::localIDToGlobal(uint16_t localID, uint16_t processorID) noexcept {
     return static_cast<TLBContextID>(processorID) * CurrentSystem.tlbContextsPerProcessor
             + localID;
 }
 
-TLBContextID TLBContext::id() const {
+TLBContextID TLBContext::id() const noexcept {
     return localIDToGlobal(localID, processorID);
 }
 
-void TLBContext::activate() {
+void TLBContext::activate() noexcept {
     /* TODO: current PCID/ASID setting goes here */
 
     TLBContextID oldID = processor().activeTLBContextID;
@@ -56,7 +60,7 @@ void TLBContext::activate() {
     processor().activeTLBContextID = id();
 }
 
-void TLBContext::activatePagingContext(PagingContext *pagingContext) {
+void TLBContext::activatePagingContext(PagingContext *pagingContext) noexcept {
     assert(processor().tlbContextsLock.isLocked());
 
     if (processor().activeTLBContextID != id()) {
@@ -71,7 +75,7 @@ void TLBContext::activatePagingContext(PagingContext *pagingContext) {
 
 }
 
-void TLBContext::remove(PagingContext *pagingContext) {
+void TLBContext::remove(PagingContext *pagingContext) noexcept {
     scoped_lock sl(processor().tlbContextsLock);
     if (activePagingContext == pagingContext) {
         activePagingContext = nullptr;
@@ -95,20 +99,20 @@ void TLBContext::remove(PagingContext *pagingContext) {
     }
 }
 
-bool TLBContext::potentiallyHolds(PagingContext *pagingContext) {
+bool TLBContext::potentiallyHolds(PagingContext *pagingContext) noexcept {
     scoped_lock sl(processor().tlbContextsLock);
     return activePagingContext == pagingContext;
 }
 
 extern "C" void basicInvalidateTLBContext(size_t localTLBContextID, UserVirtualAddress address);
 
-void TLBContext::localInvalidate(UserVirtualAddress address) {
+void TLBContext::localInvalidate(UserVirtualAddress address) noexcept {
     basicInvalidateTLBContext(localID, address);
 }
 
 PageOutContext TLBContext::requestInvalidate(Frame *frame,
                                              ProcessAddressSpace *addressSpace,
-                                             UserVirtualAddress address) {
+                                             UserVirtualAddress address) noexcept {
     assert(KernelInterruptsLock.isLocked());
 
     if (processorID == CurrentProcessor()->id) {

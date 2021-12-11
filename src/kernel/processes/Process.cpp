@@ -10,22 +10,14 @@
 
 
 Process::Process(const hos_v1::Process &handOver,
-        const vector<shared_ptr<Thread>> &allThreads,
-        const vector<shared_ptr<Port>> &allPorts,
-        const vector<shared_ptr<MemoryArea> > &allMemoryAreas,
-        Status &status) :
-    addressSpace(handOver, allMemoryAreas, status),
-    handleManager(handOver, allThreads, allPorts, allMemoryAreas, status),
-    futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads, status)
-{
-    if (!status) {
-        return;
-    }
+                 const vector<shared_ptr<Thread>> &allThreads,
+                 const vector<shared_ptr<Port>> &allPorts,
+                 const vector<shared_ptr<MemoryArea> > &allMemoryAreas) :
+        addressSpace(handOver, allMemoryAreas),
+        handleManager(*this, handOver, allThreads, allPorts, allMemoryAreas),
+        futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads) {
 
-    status = logName.resize(handOver.numLogNameChars);
-    if (!status) {
-        return;
-    }
+    logName.resize(handOver.numLogNameChars);
     memcpy(logName.data(), handOver.logName, handOver.numLogNameChars);
 }
 
@@ -36,36 +28,21 @@ Process::Process(Process &sourceProcess,
                  UserVirtualAddress entryAddress,
                  Thread::Priority initialPrioriy,
                  Message &runMessage,
-                 vector<uint8_t> &logName,
-                 Status &status):
-        addressSpace(status),
-        logName{move(logName)},
-        futexManager(status) {
-    if (!status) {
-        cout << "Process constructor cancelled: " << status << endl;
-        return;
-    }
+                 vector<uint8_t> &logName):
+        handleManager(*this),
+        logName{move(logName)} {
 
     for (const auto &section: sections) {
-        Result result = addressSpace.addAnonymous(section.region(),
-                                                  section.permissions(),
-                                                  true,
-                                                  false);
-        if (!result) {
-            status = result.status();
-            cout << "Could not add section to address space of new Process: " << status << endl;
-            return;
-        }
+        addressSpace.addAnonymous(section.region(),
+                                  section.permissions(),
+                                  true,
+                                  false);
 
-        status = addressSpace.copyFromOhter(section.address,
-                                            sourceProcess.addressSpace,
-                                            section.dataAddress,
-                                            section.dataSize,
-                                            false);
-        if (!status) {
-            cout << "Could not load section of new Process: " << status << endl;
-            return;
-        }
+        addressSpace.copyFromOhter(section.address,
+                                   sourceProcess.addressSpace,
+                                   section.dataAddress,
+                                   section.dataSize,
+                                   false);
     }
 
     UserVirtualAddress masterTLSBase{0};
@@ -75,62 +52,36 @@ Process::Process(Process &sourceProcess,
         masterTLSBase = TLSSection->address;
     }
 
-    Result tlsAddress = addressSpace.addAnonymous(TLSSize + hos_v1::THREAD_STRUCT_AREA_SIZE,
-                                                  Permissions::READ_WRITE);
-    if (!tlsAddress) {
-        status = tlsAddress.status();
-        cout << "Could not add TLS to address space of new Process: " << status << endl;
-        return;
-    }
+    UserVirtualAddress tlsAddress = addressSpace.addAnonymous(
+                TLSSize + hos_v1::THREAD_STRUCT_AREA_SIZE,
+                Permissions::READ_WRITE);
 
-    UserVirtualAddress tlsBase = *tlsAddress + hos_v1::THREAD_STRUCT_AREA_SIZE;
+    UserVirtualAddress tlsBase = tlsAddress + hos_v1::THREAD_STRUCT_AREA_SIZE;
     if (TLSSection) {
-        status = addressSpace.copyFromOhter(tlsAddress->value(),
-                                            sourceProcess.addressSpace,
-                                            TLSSection->dataAddress,
-                                            TLSSection->dataSize,
-                                            false);
-        if (!status) {
-            cout << "Could not load TLS segment for new Process: " << status << endl;
-            return;
-        }
+        addressSpace.copyFromOhter(tlsAddress.value(),
+                                   sourceProcess.addressSpace,
+                                   TLSSection->dataAddress,
+                                   TLSSection->dataSize,
+                                   false);
     }
 
     runMessage.setDestinationProcess(this);
-    status = runMessage.transfer();
-    if (!status) {
-        cout << "Could not transfer run message for new Process: " << status << endl;
-        return;
-    }
+    runMessage.transfer();
 
-    shared_ptr<Process> sharedProcess = shared_ptr<Process>(this, status);
-    if (!status) {
-        cout << "Could not create shared_ptr for new Process: " << status << endl;
-        return;
-    }
+    shared_ptr<Process> sharedProcess = shared_ptr<Process>(this);
+    self = sharedProcess;
 
-    Result mainThread = make_shared<Thread>(sharedProcess,
-                                            entryAddress,
-                                            initialPrioriy,
-                                            /* ensure valid UserVirtualAddress */
-                                            UserSpaceRegion.end() - 1,
-                                            runMessage.infoAddress,
-                                            tlsBase,
-                                            masterTLSBase,
-                                            TLSSize);
-    if (!mainThread) {
-        cout << "Could not create main thread for new Process: " << status << endl;
-        status = mainThread.status();
-        return;
-    }
-
-    Result handle = handleManager.addThread(*mainThread);
-    if (handle) {
-        Scheduler::schedule(mainThread->get(), true);
-    } else {
-        status = handle.status();
-        cout << "Could not add Thread to HandleManager of new Process: " << status << endl;
-    }
+    auto mainThread = make_shared<Thread>(sharedProcess,
+                                          entryAddress,
+                                          initialPrioriy,
+                                          /* ensure valid UserVirtualAddress */
+                                          UserSpaceRegion.end() - 1,
+                                          runMessage.infoAddress,
+                                          tlsBase,
+                                          masterTLSBase,
+                                          TLSSize);
+    handleManager.addThread(mainThread);
+    Scheduler::schedule(mainThread.get(), true);
 }
 
 Process::~Process() {
@@ -141,26 +92,26 @@ Process::~Process() {
     cout << "..." << endl;
 
     cout << "TODO: actually unmap stuff" << endl;
-    Panic();
+    Panic();    
 
     cout << "Process terminated" << endl;
 }
 
-bool Process::canAccessPhysicalMemory() const {
+bool Process::canAccessPhysicalMemory() const noexcept {
     /* TODO: introduce process flags */
     return true;
 }
 
 /* will return ThreadKilled when the current Thread is killed, and OK otherwise */
-Status Process::crash(const char *message) {
+void Process::crash(const char *message) {
     assert(KernelInterruptsLock.isLocked());
     cout << "Terminating process for reason: " << message << endl;
 
-    return exit();
+    exit();
 }
 
 /* will return ThreadKilled when the current Thread is killed, and OK otherwise */
-Status Process::exit() {
+void Process::exit() {
     scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl1(allThreadsLock);
 
@@ -171,9 +122,9 @@ Status Process::exit() {
     }
 
     if (CurrentThread()->process.get() == this) {
-        return Status::ThreadKilled();
+        throw ThreadKilled();
     } else {
-        return Status::OK();
+        return;
     }
 }
 

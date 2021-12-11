@@ -13,15 +13,15 @@ private:
     LocalAPIC localAPIC;
 
 public:
-    Processor(size_t id, Status &status);
+    Processor();
 
-    void localInitialization();
+    void localInitialization() noexcept;
 
-    void sendIPI(IPI ipi);
-    void endOfInterrupt();
+    void sendIPI(IPI ipi) noexcept;
+    void endOfInterrupt() noexcept;
 
-    [[noreturn]] void returnToUserMode();
-    [[noreturn]] void returnInsideKernelMode(RegisterState *state);
+    [[noreturn]] void returnToUserMode() noexcept;
+    [[noreturn]] void returnInsideKernelMode(RegisterState *state) noexcept;
 };
 
 extern "C" Processor *CurrentProcessor();

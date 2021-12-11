@@ -4,7 +4,7 @@
 #include <system/Processor.hpp>
 #include <processes/Frame.hpp>
 
-InvalidateQueue::InvalidateQueue(CommonProcessor &processor):
+InvalidateQueue::InvalidateQueue(CommonProcessor &processor) noexcept:
     processor{processor} {}
 
 void InvalidateQueue::_localProcessing() {
@@ -46,12 +46,11 @@ void InvalidateQueue::_localProcessing() {
 
 uint64_t InvalidateQueue::add(TLBContextID tlbContextID,
                               Frame *frame,
-                              UserVirtualAddress address) {
+                              UserVirtualAddress address) noexcept {
 
     assert(tlbContextID != TLB_CONTEXT_ID_NONE);
 
     while (true) {
-        Status status;
         bool gotExtraItem = false;
         size_t processUntilTimestamp = 0;
         {
@@ -60,16 +59,14 @@ uint64_t InvalidateQueue::add(TLBContextID tlbContextID,
             uint64_t timestamp = CurrentSystem.getNextTLBTimetamp();
             Item newItem{tlbContextID, frame, address, timestamp};
 
-            status = items.push_back(newItem);
-
-            if (status) {
+            try {
+                items.push_back(newItem);
                 return timestamp;
+            } catch (...) {
+                /* If it's impossible to add an item to the queue because of the memory situation, we have
+                 * to force processing right now. This item which can't be added to the queue is what the
+                 * extraItem parameter in the processing functions is for. */
             }
-
-            /* If it's impossible to add an item to the queue because of the memory situation, we have
-             * to force processing right now. This item which can't be added to the queue is what the
-             * extraItem parameter in the processing functions is for. */
-            assert(status == Status::OutOfKernelHeap() || status == Status::OutOfMemory());
 
             /* There is an extraItem variable for OOM cases. But only one add()-call can use it
              * at a time, so use it if it is free, otherwise wait until the other extraItem is
@@ -81,22 +78,20 @@ uint64_t InvalidateQueue::add(TLBContextID tlbContextID,
             processUntilTimestamp = extraItem->timestamp;
         } /* enf of lock scope */
 
-        if (!status) {
-            ensureProcessedUntil(processUntilTimestamp);
+        ensureProcessedUntil(processUntilTimestamp);
 
-            /* If we got to set the extraItem, our extraItem got processed now and we can return.
-             * otherwise at least processing cleared the extraItem variable. */
-            if (gotExtraItem) {
-                cout << "Forced processing of InvalidateQueue because of low memory situation." << endl;
-                return processUntilTimestamp;
-            } else {
-                cout << "Forced processing of InvalidateQueue to clear extraItem variable." << endl;
-            }
+        /* If we got to set the extraItem, our extraItem got processed now and we can return.
+         * otherwise at least processing cleared the extraItem variable. */
+        if (gotExtraItem) {
+            cout << "Forced processing of InvalidateQueue because of low memory situation." << endl;
+            return processUntilTimestamp;
+        } else {
+            cout << "Forced processing of InvalidateQueue to clear extraItem variable." << endl;
         }
     }
 }
 
-void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp) {
+void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp) noexcept {
     uint64_t procesedTimestampLocal;
     __atomic_load(&processedUntilTimestamp, &procesedTimestampLocal, __ATOMIC_SEQ_CST);
     if (procesedTimestampLocal >= timestamp) {
@@ -118,7 +113,7 @@ void InvalidateQueue::ensureProcessedUntil(uint64_t timestamp) {
     }
 }
 
-void InvalidateQueue::localProcessing() {
+void InvalidateQueue::localProcessing() noexcept {
     assert(CurrentProcessor()->id == processor.id);
 
     scoped_lock sl(lock);

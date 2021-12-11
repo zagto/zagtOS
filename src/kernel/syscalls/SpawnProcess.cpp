@@ -4,21 +4,17 @@
 #include <syscalls/ErrorCodes.hpp>
 #include <syscalls/UserSpaceObject.hpp>
 
-Result<size_t> SpawnProcess(const shared_ptr<Process> &process,
+size_t SpawnProcess(const shared_ptr<Process> &process,
                             uint64_t structAddress,
                             uint64_t,
                             uint64_t,
                             uint64_t,
                             uint64_t) {
-    Status status;
-    UserSpaceObject<SpawnProcessStruct, USOOperation::READ> uso(structAddress, status);
-    if (!status) {
-        return status;
-    }
+    UserSpaceObject<SpawnProcessStruct, USOOperation::READ> uso(structAddress);
     return uso.object.perform(process);
 }
 
-Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
+size_t SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
     /* TODO: permissions checking */
 
     /* make some returns in the error handlers return EINVAL to user space.
@@ -29,7 +25,7 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
 
     if (priority >= Thread::NUM_PRIORITIES) {
         cout << "SYS_SPAWN_PROCESS: invalid priority\n";
-        return Status::BadUserSpace();
+        throw BadUserSpace(process);
     }
 
     if (numSections < 1) {
@@ -37,34 +33,15 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
         return EINVAL;
     }
 
-    Status status = Status::OK();
-    vector<SpawnProcessSection> sections(numSections, status);
-    if (!status) {
-        return status;
-    }
-    status = process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&sections[0]),
-                                            sectionsAddress,
-                                            numSections * sizeof(SpawnProcessSection));
-    if (!status) {
-        if (status == Status::BadUserSpace()) {
-            cout << "SYS_SPAWN_PROCESS: invalid sections info buffer\n";
-        }
-        return status;
-    }
+    vector<SpawnProcessSection> sections(numSections);
+    process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&sections[0]),
+                                   sectionsAddress,
+                                   numSections * sizeof(SpawnProcessSection));
 
-    vector<uint8_t> logNameBuffer(logNameSize, status);
-    if (!status) {
-        return status;
-    }
-    status = process->addressSpace.copyFrom(logNameBuffer.data(),
-                                            logNameAddress,
-                                            logNameSize);
-    if (!status) {
-        if (status == Status::BadUserSpace()) {
-            cout << "SYS_SPAWN_PROCESS: invalid log name buffer\n";
-        }
-        return status;
-    }
+    vector<uint8_t> logNameBuffer(logNameSize);
+    process->addressSpace.copyFrom(logNameBuffer.data(),
+                                   logNameAddress,
+                                   logNameSize);
 
     for (size_t index = 0; index < numSections; index++) {
         SpawnProcessSection section = sections[index];
@@ -108,15 +85,9 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
     optional<SpawnProcessSection> TLSSection;
     if (TLSSectionAddress != 0) {
         SpawnProcessSection section;
-        status = process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&section),
-                                                TLSSectionAddress,
-                                                sizeof(SpawnProcessSection));
-        if (!status) {
-            if (status == Status::BadUserSpace()) {
-                cout << "SYS_SPAWN_PROCESS: invalid TLS sections info buffer\n";
-            }
-            return status;
-        }
+        process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&section),
+                                       TLSSectionAddress,
+                                       sizeof(SpawnProcessSection));
 
         if (section.sizeInMemory % PAGE_SIZE != 0
                 || section.dataSize % PAGE_SIZE != 0) {
@@ -137,25 +108,16 @@ Result<size_t> SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
                        messageAddress,
                        messageType,
                        messageSize,
-                       numMessageHandles,
-                       status);
-    if (!status) {
-        return status;
-    }
+                       numMessageHandles);
 
-    Result newProcess = make_raw<Process>(*process,
-                        sections,
-                        TLSSection,
-                        entryAddress,
-                        static_cast<Thread::Priority>(priority),
-                        runMessage,
-                        logNameBuffer);
-    if (newProcess) {
-        return 0;
-    } else {
-        cout << "SYS_SPAWN_PROCESS: Process creation failed: " << status << endl;
-        return newProcess.status();
-    }
+    new Process(*process,
+                sections,
+                TLSSection,
+                entryAddress,
+                static_cast<Thread::Priority>(priority),
+                runMessage,
+                logNameBuffer);
+    return 0;
 }
 
 Permissions SpawnProcessSection::permissions() const {

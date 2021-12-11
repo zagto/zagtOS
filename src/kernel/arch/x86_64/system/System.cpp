@@ -9,12 +9,8 @@ hos_v1::System *_HandOverSystem;
 
 System::System() :
         CommonSystem(*_HandOverSystem),
-        gdt(handOverStatus),
+        gdt(),
         ACPIRoot{_HandOverSystem->firmwareRoot} {
-    if (!handOverStatus) {
-        cout << "Exception during System initialization" << endl;
-        Panic();
-    }
     /* TODO: support for Intel PCIDs could be added here */
     tlbContextsPerProcessor = 1;
 }

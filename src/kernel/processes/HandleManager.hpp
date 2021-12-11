@@ -25,56 +25,58 @@ struct Element {
         weak_ptr<Port> remotePort;
         shared_ptr<Thread> thread;
         shared_ptr<MemoryArea> memoryArea;
-        HandleData() {}
+        HandleData() noexcept {}
     } data;
 
-    Element() {}
-    Element(uint32_t next);
-    Element(shared_ptr<Port> &port);
-    Element(weak_ptr<Port> &port);
-    Element(shared_ptr<Thread> &thread);
-    Element(shared_ptr<MemoryArea> &memoryArea);
+    Element() noexcept {}
+    Element(uint32_t next) noexcept;
+    Element(shared_ptr<Port> &port) noexcept;
+    Element(weak_ptr<Port> &port) noexcept;
+    Element(shared_ptr<Thread> &thread) noexcept;
+    Element(shared_ptr<MemoryArea> &memoryArea) noexcept;
     Element(const Element &) = delete;
-    Element(const Element &&other);
+    Element(const Element &&other) noexcept;
     ~Element();
     void operator=(const Element &) = delete;
-    void operator=(const Element &&other);
-    void destructData();
+    void operator=(const Element &&other) noexcept;
+    void destructData() noexcept;
 };
 
 class HandleManager {
 private:
+    Process &process;
     vector<Element> elements;
     uint32_t nextFreeNumber{NUMBER_END};
     mutex lock;
 
-    Result<uint32_t> grabFreeNumber();
-    bool handleValidFor(uint32_t number, Type type);
-    bool handleValid(uint32_t number);
-    Result<uint32_t> _addRemotePort(weak_ptr<Port> &port);
-    Result<uint32_t> _addMemoryArea(shared_ptr<MemoryArea> &memoryArea);
-    Status _removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
+    uint32_t grabFreeNumber();
+    bool handleValidFor(uint32_t number, Type type) noexcept;
+    bool handleValid(uint32_t number) noexcept;
+    uint32_t _addRemotePort(weak_ptr<Port> &port);
+    uint32_t _addMemoryArea(shared_ptr<MemoryArea> &memoryArea);
+    void _removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
 
 public:
-    HandleManager() {}
-    HandleManager(const hos_v1::Process &handOver,
+    HandleManager(Process &process) noexcept :
+        process{process} {}
+    HandleManager(Process &process,
+                  const hos_v1::Process &handOver,
                   const vector<shared_ptr<Thread>> &allThreads,
                   const vector<shared_ptr<Port>> &allPorts,
-                  const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
-                  Status &status);
+                  const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
     HandleManager(HandleManager &) = delete;
 
-    Result<uint32_t> addPort(shared_ptr<Port> &port);
-    Result<uint32_t> addThread(shared_ptr<Thread> &thread);
-    Result<uint32_t> addMemoryArea(shared_ptr<MemoryArea> &sharedMemory);
-    Result<shared_ptr<Port>> lookupPort(uint32_t number);
-    Result<weak_ptr<Port>> lookupRemotePort(uint32_t number);
-    Result<shared_ptr<Thread>> lookupThread(uint32_t number);
-    Result<shared_ptr<MemoryArea>> lookupMemoryArea(uint32_t number);
-    Status removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
-    Status transferHandles(vector<uint32_t> &handleValues, HandleManager &destination);
-    uint32_t numFreeHandles();
-    void insertAllProcessPointersAfterKernelHandover(const shared_ptr<Process> &process);
+    uint32_t addPort(shared_ptr<Port> &port);
+    uint32_t addThread(shared_ptr<Thread> &thread);
+    uint32_t addMemoryArea(shared_ptr<MemoryArea> &sharedMemory);
+    shared_ptr<Port> lookupPort(uint32_t number);
+    weak_ptr<Port> lookupRemotePort(uint32_t number);
+    shared_ptr<Thread> lookupThread(uint32_t number);
+    shared_ptr<MemoryArea> lookupMemoryArea(uint32_t number);
+    void removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
+    void transferHandles(vector<uint32_t> &handleValues, HandleManager &destination);
+    uint32_t numFreeHandles() noexcept;
+    void insertAllProcessPointersAfterKernelHandover(const shared_ptr<Process> &process) noexcept;
 };
 
 }

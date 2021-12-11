@@ -25,35 +25,35 @@ public:
         size_t relatedObject;
         size_t relatedObject2;
 
-        State(uint32_t kind, size_t _relatedObject = 0, size_t _relatedObject2 = 0):
+        State(uint32_t kind, size_t _relatedObject = 0, size_t _relatedObject2 = 0) noexcept :
             _kind{kind},
             relatedObject{_relatedObject},
             relatedObject2{_relatedObject2} {}
 
     public:
-        static State Active(Processor *processor) {
+        static State Active(Processor *processor) noexcept {
             return State(Thread::ACTIVE, reinterpret_cast<size_t>(processor));
         }
-        static State Running(Processor *processor) {
+        static State Running(Processor *processor) noexcept {
             return State(Thread::RUNNING, reinterpret_cast<size_t>(processor));
         }
-        static State WaitMessage() {
+        static State WaitMessage() noexcept {
             return State(Thread::MESSAGE);
         }
-        static State Futex(FutexManager *manager, uint64_t futexID) {
+        static State Futex(FutexManager *manager, uint64_t futexID) noexcept {
             return State(Thread::FUTEX, reinterpret_cast<size_t>(manager), futexID);
         }
-        static State Transition() {
+        static State Transition() noexcept {
             return State(Thread::TRANSITION);
         }
-        static State Terminated() {
+        static State Terminated() noexcept {
             return State(Thread::TERMINATED);
         }
 
-        uint32_t kind() const {
+        uint32_t kind() const noexcept {
             return _kind;
         }
-        Processor *currentProcessor() {
+        Processor *currentProcessor() noexcept {
             assert(_kind == ACTIVE || _kind == RUNNING);
             return reinterpret_cast<Processor *>(relatedObject);
         }
@@ -105,26 +105,23 @@ public:
            UserVirtualAddress runMessageAddress,
            UserVirtualAddress tlsBase,
            UserVirtualAddress masterTLSBase,
-           size_t tlsSize,
-           Status &);
+           size_t tlsSize);
     /* shorter constructor for non-first threads, which don't want to know info about master TLS */
     Thread(shared_ptr<Process> process,
            UserVirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,
-           UserVirtualAddress tlsBase,
-           Status &status);
+           UserVirtualAddress tlsBase);
     /* for kernel-only threads: */
     Thread(void (*entry)(void *),
-           Priority priority,
-           Status &status);
+           Priority priority);
     /* constructor used during kernel handover. process and handle fields need to be inserted
      * later. */
-    Thread(const hos_v1::Thread &handOver, Status &);
+    Thread(const hos_v1::Thread &handOver);
 
     ~Thread();
 
-    UserVirtualAddress threadLocalStorage() {
+    UserVirtualAddress threadLocalStorage() noexcept {
         // having a TLS is optional, otherwise tlsBase is null
         if (tlsBase.value()) {
             return UserVirtualAddress(tlsBase.value() - hos_v1::THREAD_STRUCT_AREA_SIZE);
@@ -133,20 +130,20 @@ public:
         }
     }
 
-    Priority ownPriority() const;
-    Priority currentPriority() const;
-    void setCurrentPriority(Priority newValue);
-    State state();
-    void setState(State newValue);
-    Processor *currentProcessor() const;
-    void currentProcessor(Processor *processor);
-    void setHandle(uint32_t handle);
-    uint32_t handle() const;
-    void setKernelEntry(void (*entry)(void *), void *data = nullptr);
+    Priority ownPriority() const noexcept;
+    Priority currentPriority() const noexcept;
+    void setCurrentPriority(Priority newValue) noexcept;
+    State state() noexcept;
+    void setState(State newValue) noexcept;
+    Processor *currentProcessor() const noexcept;
+    void currentProcessor(Processor *processor) noexcept;
+    void setHandle(uint32_t handle) noexcept;
+    uint32_t handle() const noexcept;
+    void setKernelEntry(void (*entry)(void *), void *data = nullptr) noexcept;
 
     /* danger zone - only call this while holding no locks on potential owners. This is for
      * scenarios, like exit, kill ... and puts the thread in EXIT state. */
-    void terminate();
+    void terminate() noexcept;
 };
 
-Thread *CurrentThread();
+Thread *CurrentThread() noexcept;

@@ -4,63 +4,51 @@
 #include <memory>
 
 /* Anonymous */
-MemoryArea::MemoryArea(bool shared, Permissions permissions, size_t length, Status &status) :
-    frames(length / PAGE_SIZE, nullptr, status),
-    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
+MemoryArea::MemoryArea(bool shared, Permissions permissions, size_t length) :
+    frames(length / PAGE_SIZE, nullptr),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE),
     source{Source::ANONYMOUS},
     permissions{permissions},
     isShared{shared},
     length{length} {
 
     assert(length % PAGE_SIZE == 0);
-    if (!status) {
-        return;
-    }
 }
 
 /* DMA */
 MemoryArea::MemoryArea(frameManagement::ZoneID zoneID,
                        size_t length,
-                       vector<size_t> &deviceAddresses,
-                       Status &status) :
-    frames(length / PAGE_SIZE, nullptr, status),
-    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
+                       vector<size_t> &deviceAddresses) :
+    frames(length / PAGE_SIZE, nullptr),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE),
     source{Source::DMA},
     permissions{Permissions::READ_WRITE},
     isShared{true},
     length{length} {
 
     assert(length % PAGE_SIZE == 0);
-    if (!status) {
-        return;
-    }
 
-    deviceAddresses = vector<size_t>(frames.size(), PhysicalAddress::Null, status);
-    if (!status) {
-        return;
-    }
+    deviceAddresses = vector<size_t>(frames.size(), PhysicalAddress::Null);
 
-    for (Frame *&frame : frames) {
-        Result result = make_raw<Frame>(zoneID);
-        if (!result) {
-            status = result.status();
-            return;
+    try {
+        for (Frame *&frame : frames) {
+            frame = new Frame(zoneID);
         }
-        frame = *result;
-    }
 
-    for (size_t frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
-        /* TODO: IO-MMU support */
-        deviceAddresses[frameIndex] = frames[frameIndex]->physicalAddress().value();
+        for (size_t frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
+            /* TODO: IO-MMU support */
+            deviceAddresses[frameIndex] = frames[frameIndex]->physicalAddress().value();
+        }
+    } catch(...) {
+        discardFrames();
     }
 }
 
 /* Physical */
 MemoryArea::MemoryArea(PhysicalAddress physicalStart,
-                       size_t length,
-                       Status &status) :
-    frames(length / PAGE_SIZE, nullptr, status),
-    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
+                       size_t length) :
+    frames(length / PAGE_SIZE, nullptr),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE),
     source{Source::PHYSICAL},
     permissions{Permissions::READ_WRITE},
     physicalStart{physicalStart},
@@ -72,18 +60,13 @@ MemoryArea::MemoryArea(PhysicalAddress physicalStart,
 }
 
 MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver,
-                       vector<Frame *> &allFrames,
-                       Status &status) :
-    frames(handOver.length / PAGE_SIZE, nullptr, status),
-    futexIDs(handOver.length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
+                       vector<Frame *> &allFrames) :
+    frames(handOver.length / PAGE_SIZE, nullptr),
+    futexIDs(handOver.length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE),
     source{handOver.source},
     permissions{handOver.permissions},
     isShared{handOver.isShared},
     length{handOver.length} {
-
-    if (!status) {
-        return;
-    }
 
     for (size_t frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
         frames[frameIndex] = allFrames[handOver.frameIDs[frameIndex]];
@@ -91,9 +74,9 @@ MemoryArea::MemoryArea(const hos_v1::MemoryArea &handOver,
     }
 }
 
-MemoryArea::MemoryArea(MemoryArea &other, size_t offset, size_t length, Status &status):
-    frames(length / PAGE_SIZE, nullptr, status),
-    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE, status),
+MemoryArea::MemoryArea(MemoryArea &other, size_t offset, size_t length):
+    frames(length / PAGE_SIZE, nullptr),
+    futexIDs(length / PAGE_SIZE, hos_v1::FUTEX_FRAME_ID_NONE),
     source{other.source},
     permissions{other.permissions},
     isShared{other.isShared},
@@ -103,10 +86,6 @@ MemoryArea::MemoryArea(MemoryArea &other, size_t offset, size_t length, Status &
     assert(offset + length <= other.length);
     assert(offset % PAGE_SIZE == 0);
     assert(length % PAGE_SIZE == 0);
-
-    if (!status) {
-        return;
-    }
 
     scoped_lock sl(other.lock);
 
@@ -120,6 +99,10 @@ MemoryArea::MemoryArea(MemoryArea &other, size_t offset, size_t length, Status &
 }
 
 MemoryArea::~MemoryArea() {
+    discardFrames();
+}
+
+void MemoryArea::discardFrames() noexcept {
     for (Frame *&frame : frames) {
         if (frame != nullptr) {
             frame->decreaseMemoryAreaReference();
@@ -128,44 +111,31 @@ MemoryArea::~MemoryArea() {
     }
 }
 
-Status MemoryArea::ensureFramePresent(size_t frameIndex, bool requireNoCopyOnWrite) {
+void MemoryArea::ensureFramePresent(size_t frameIndex, bool requireNoCopyOnWrite) {
     assert(lock.isLocked());
 
     if (frames[frameIndex] == nullptr) {
-        Result<Frame *> result;
         switch (source) {
         case Source::ANONYMOUS:
-            result = make_raw<Frame>(frameManagement::DEFAULT_ZONE_ID);
+            frames[frameIndex] = new Frame(frameManagement::DEFAULT_ZONE_ID);
             break;
         case Source::PHYSICAL:
-            result = make_raw<Frame>(physicalStart + (frameIndex * PAGE_SIZE), true);
+            frames[frameIndex] = new Frame(physicalStart + (frameIndex * PAGE_SIZE), true);
             break;
         case Source::DMA:
             cout << "DMA type MemoryAreas cannot be lazy initialized." << endl;
             Panic();
         }
-
-        if (!result) {
-            return result.status();
-        }
-        frames[frameIndex] = *result;
     }
 
     if (requireNoCopyOnWrite && frames[frameIndex]->isCopyOnWrite()) {
         /* There should never be copy-on-write in shared memory */
         assert(!isShared);
-        Result<Frame *> result = frames[frameIndex]->ensureNoCopyOnWrite();
-        if (!result) {
-            return result.status();
-        }
-
-        frames[frameIndex] = *result;
+        frames[frameIndex] = frames[frameIndex]->ensureNoCopyOnWrite();
     }
-
-    return Status::OK();
 }
 
-Status MemoryArea::pageIn(ProcessAddressSpace &addressSpace,
+void MemoryArea::pageIn(ProcessAddressSpace &addressSpace,
                           UserVirtualAddress address,
                           Permissions mappingPermissions,
                           size_t offset) {
@@ -181,22 +151,14 @@ Status MemoryArea::pageIn(ProcessAddressSpace &addressSpace,
      * things a lot easier to implement and also saves us from an extra TLB shootdown if the frame
      * is written later */
     bool requireNoCopyOnWrite = allowesPermissions(Permissions::READ_WRITE);
-    Status status = ensureFramePresent(frameIndex, requireNoCopyOnWrite);
-    if (!status) {
-        return status;
-    }
 
-    status = frames[frameIndex]->pageIn(addressSpace, address, mappingPermissions);
-    if (!status) {
-        return status;
-    }
-
-    return Status::OK();
+    ensureFramePresent(frameIndex, requireNoCopyOnWrite);
+    frames[frameIndex]->pageIn(addressSpace, address, mappingPermissions);
 }
 
 PageOutContext MemoryArea::pageOut(ProcessAddressSpace &addressSpace,
                                    UserVirtualAddress address,
-                                   size_t offset) {
+                                   size_t offset) noexcept {
     assert(address.isPageAligned());
     assert(offset % PAGE_SIZE == 0);
     assert(offset < length);
@@ -210,7 +172,7 @@ PageOutContext MemoryArea::pageOut(ProcessAddressSpace &addressSpace,
 }
 
 
-bool MemoryArea::allowesPermissions(Permissions toTest) const {
+bool MemoryArea::allowesPermissions(Permissions toTest) const noexcept {
     assert(permissions != Permissions::INVALID);
 
     if (toTest == Permissions::INVALID) {
@@ -220,7 +182,7 @@ bool MemoryArea::allowesPermissions(Permissions toTest) const {
     return permissions >= toTest;
 }
 
-Result<uint64_t> MemoryArea::getFutexID(size_t offset) {
+uint64_t MemoryArea::getFutexID(size_t offset) {
     assert(allowesPermissions(Permissions::READ_WRITE));
     assert(offset < length);
 
@@ -228,10 +190,7 @@ Result<uint64_t> MemoryArea::getFutexID(size_t offset) {
 
     scoped_lock sl(lock);
 
-    Status status = ensureFramePresent(offset / PAGE_SIZE, true);
-    if (!status) {
-        return status;
-    }
+    ensureFramePresent(offset / PAGE_SIZE, true);
 
     FutexFrameID &futexFrameID = futexIDs[frameIndex];
     if (futexFrameID == hos_v1::FUTEX_FRAME_ID_NONE) {
@@ -240,7 +199,7 @@ Result<uint64_t> MemoryArea::getFutexID(size_t offset) {
     return (futexFrameID << PAGE_SHIFT) | offset % PAGE_SIZE;
 }
 
-Status MemoryArea::_copyFrom(uint8_t *destination,
+void MemoryArea::_copyFrom(uint8_t *destination,
                              size_t offset,
                              size_t accessLength,
                              optional<scoped_lock<mutex> *> relaxLock) {
@@ -255,18 +214,11 @@ Status MemoryArea::_copyFrom(uint8_t *destination,
     while (destPosition < accessLength) {
         size_t partLength = min(PAGE_SIZE - offsetInFrame, accessLength - destPosition);
 
-        Status status = ensureFramePresent(offset / PAGE_SIZE, false);
-        if (!status) {
-            return status;
-        }
+        ensureFramePresent(offset / PAGE_SIZE, false);
 
-        status = frames[frameIndex]->copyFrom(destination + destPosition,
-                                              offsetInFrame,
-                                              partLength);
-        if (!status) {
-            return status;
-        }
-
+        frames[frameIndex]->copyFrom(destination + destPosition,
+                                     offsetInFrame,
+                                     partLength);
         destPosition += partLength;
         frameIndex++;
         offsetInFrame = 0;
@@ -275,16 +227,15 @@ Status MemoryArea::_copyFrom(uint8_t *destination,
             (*relaxLock)->checkWaiters();
         }
     }
-    return Status::OK();
 }
 
-Status MemoryArea::copyFrom(uint8_t *destination, size_t offset, size_t accessLength) {
+void MemoryArea::copyFrom(uint8_t *destination, size_t offset, size_t accessLength) {
     scoped_lock sl(lock);
-    return _copyFrom(destination, offset, accessLength, &sl);
+    _copyFrom(destination, offset, accessLength, &sl);
 }
 
 
-Status MemoryArea::copyTo(size_t offset, const uint8_t *source, size_t accessLength) {
+void MemoryArea::copyTo(size_t offset, const uint8_t *source, size_t accessLength) {
     assert(allowesPermissions(Permissions::READ_WRITE));
     assert(offset < length);
     assert(offset + accessLength <= length);
@@ -299,18 +250,11 @@ Status MemoryArea::copyTo(size_t offset, const uint8_t *source, size_t accessLen
     while (sourcePosition < accessLength) {
         size_t partLength = min(PAGE_SIZE - offsetInFrame, accessLength - sourcePosition);
 
-        Status status = ensureFramePresent(offset / PAGE_SIZE, true);
-        if (!status) {
-            return status;
-        }
+        ensureFramePresent(offset / PAGE_SIZE, true);
 
-        status = frames[frameIndex]->copyTo(offsetInFrame,
-                                            source + sourcePosition,
-                                            partLength);
-
-        if (!status) {
-            return status;
-        }
+        frames[frameIndex]->copyTo(offsetInFrame,
+                            source + sourcePosition,
+                            partLength);
 
         sourcePosition += partLength;
         frameIndex++;
@@ -318,13 +262,12 @@ Status MemoryArea::copyTo(size_t offset, const uint8_t *source, size_t accessLen
 
         sl.checkWaiters();
     }
-    return Status::OK();
 }
 
-Status MemoryArea::copyFromOther(size_t destinationOffset,
-                                 MemoryArea &sourceArea,
-                                 size_t sourceOffset,
-                                 size_t accessLength) {
+void MemoryArea::copyFromOther(size_t destinationOffset,
+                               MemoryArea &sourceArea,
+                               size_t sourceOffset,
+                               size_t accessLength) {
     assert(allowesPermissions(Permissions::READ_WRITE));
     assert(sourceOffset < sourceArea.length);
     assert(destinationOffset < length);
@@ -341,45 +284,31 @@ Status MemoryArea::copyFromOther(size_t destinationOffset,
     while (position < accessLength) {
         size_t partLength = min(PAGE_SIZE - offsetInFrame, accessLength - position);
 
-        Status status = ensureFramePresent(frameIndex, true);
-        if (!status) {
-            cout << "MemoryArea::copyFromOther: Unable to make required Frame present: "
-                 << status << endl;
-            return status;
-        }
+        ensureFramePresent(frameIndex, true);
 
-        status = frames[frameIndex]->copyFromMemoryArea(offsetInFrame,
-                                                        sourceArea,
-                                                        sourceOffset + position,
-                                                        partLength);
-        if (!status) {
-            return status;
-        }
-
+        frames[frameIndex]->copyFromMemoryArea(offsetInFrame,
+                                               sourceArea,
+                                               sourceOffset + position,
+                                               partLength);
         position += partLength;
         frameIndex++;
         offsetInFrame = 0;
 
         sl.checkWaiters();
     }
-    return Status::OK();
 }
 
-Result<uint32_t> MemoryArea::atomicCopyFrom32(size_t offset) {
+uint32_t MemoryArea::atomicCopyFrom32(size_t offset) {
     assert(offset < length);
     size_t frameIndex = offset / PAGE_SIZE;
 
     scoped_lock sl(lock);
 
-    Status status = ensureFramePresent(frameIndex, false);
-    if (!status) {
-        return status;
-    }
-
+    ensureFramePresent(frameIndex, false);
     return frames[frameIndex]->atomicCopyFrom32(offset % PAGE_SIZE);
 }
 
-Result<bool> MemoryArea::atomicCompareExchange32(size_t offset,
+bool MemoryArea::atomicCompareExchange32(size_t offset,
                                                  uint32_t expectedValue,
                                                  uint32_t newValue) {
     assert(allowesPermissions(Permissions::READ_WRITE));
@@ -388,10 +317,6 @@ Result<bool> MemoryArea::atomicCompareExchange32(size_t offset,
 
     scoped_lock sl(lock);
 
-    Status status = ensureFramePresent(frameIndex, true);
-    if (!status) {
-        return status;
-    }
-
+    ensureFramePresent(frameIndex, true);
     return frames[frameIndex]->atomicCompareExchange32(offset % PAGE_SIZE, expectedValue, newValue);
 }

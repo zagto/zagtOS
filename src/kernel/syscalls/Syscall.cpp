@@ -21,7 +21,7 @@
 #include <system/Processor.hpp>
 #include <interrupts/Interrupts.hpp> // dealWithException
 
-typedef Result<size_t> SyscallFunction(const shared_ptr<Process> &, size_t, size_t, size_t, size_t, size_t);
+typedef size_t SyscallFunction(const shared_ptr<Process> &, size_t, size_t, size_t, size_t, size_t);
 
 static SyscallFunction *syscallFunctions[] = {
     /* 0 */
@@ -88,54 +88,71 @@ static SyscallFunction *syscallFunctions[] = {
     &SpawnProcess,
 };
 
-extern "C" [[noreturn]]
-size_t Syscall(size_t syscallNr,
+extern "C"
+Exception::Action Syscall(size_t syscallNr,
                size_t arg0,
                size_t arg1,
                size_t arg2,
                size_t arg3,
                size_t arg4) {
+    Exception::Action action;
+
+    /* scope to avoid leaking anything when calling noreturn function returnToUserMode() */
     {
         const shared_ptr<Process> process = CurrentProcess();
         Thread *thread = CurrentThread();
         assert(CurrentThread()->kernelStack->userRegisterState()->fromSyscall == 1);
-        Result<size_t> result;
+
+        size_t result = -1ul;
         do {
-            if (syscallNr >= sizeof(syscallFunctions) || syscallFunctions[syscallNr] == nullptr) {
-                cout << "invalid syscall number: " << syscallNr << endl;
-                result = Status::BadUserSpace();
-            } else {
-                KernelInterruptsLock.unlock();
-                /* KernelInterruptsLock can be locked recusively */
-                assert(!KernelInterruptsLock.isLocked());
-
-                result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
-
-                /* When returning DiscardStateAndSchedule, functions need to leave
-                 * kernelInterruptsLock and Scheduler::lock locked. */
-                if (result.status() == Status::DiscardStateAndSchedule()) {
-                    assert(KernelInterruptsLock.isLocked());
-                    assert(CurrentProcessor()->scheduler.lock.isLocked());
-
-                    thread->setKernelEntry(UserReturnEntry);
+            action = Exception::Action::CONTINUE;
+            try {
+                if (syscallNr >= sizeof(syscallFunctions) || syscallFunctions[syscallNr] == nullptr) {
+                    cout << "invalid syscall number: " << syscallNr << endl;
+                    throw BadUserSpace(process);
                 } else {
-                    if (result.status() == Status::BadUserSpace()) {
-                        Status coreDumpStatus = process->addressSpace.coreDump(thread);
-                        if (!coreDumpStatus) {
-                            cout << "CoreDump failed: " << coreDumpStatus << endl;
-                        }
-                    }
+                    KernelInterruptsLock.unlock();
+
+                    /* KernelInterruptsLock could be locked recusively */
                     assert(!KernelInterruptsLock.isLocked());
+
+                    try {
+                        result = syscallFunctions[syscallNr](process, arg0, arg1, arg2, arg3, arg4);
+                    } catch (BadUserSpace &e) {
+                        /* try to core dump in case of BadUserSpace */
+                        try {
+                            process->addressSpace.coreDump(thread);
+                        }  catch (Exception &e) {
+                            cout << "CoreDump failed: " << e.description() << endl;
+                        }
+                        KernelInterruptsLock.lock();
+                        throw;
+                    } catch (...) {
+                        KernelInterruptsLock.lock();
+                        throw;
+                    }
+
                     KernelInterruptsLock.lock();
                 }
+            } catch (Exception &e) {
+                action = e.handle();
             }
+        } while(action == Exception::Action::RETRY);
 
-            if (result) {
-                thread->kernelStack->userRegisterState()->setSyscallResult(*result);
-            } else {
-                dealWithException(result.status());
-            }
-        } while(!result);
+        if (action == Exception::Action::CONTINUE) {
+            thread->kernelStack->userRegisterState()->setSyscallResult(result);
+        }
     }
-    CurrentProcessor()->returnToUserMode();
+
+    assert((action == Exception::Action::CONTINUE && CurrentThread())
+           || (action == Exception::Action::SCHEDULE && !CurrentThread()));
+
+    return action;
 }
+
+/* Separate function that is called after a syscall leads to a SCHEDULE action. This is needed
+ * because assembly code needs to save callee-saved registers inbetween */
+extern "C" [[noreturn]] void SyscallScheduleNext() {
+    CurrentProcessor()->scheduler.scheduleNext();
+}
+

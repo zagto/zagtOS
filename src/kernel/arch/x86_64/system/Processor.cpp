@@ -3,24 +3,18 @@
 #include <common/ModelSpecificRegister.hpp>
 #include <processes/Process.hpp>
 
-Processor::Processor(size_t id, Status &status):
-        CommonProcessor(id, status),
-        tss(status),
-        localAPIC(status) {
-
-    if (!status) {
-        return;
-    }
-
+Processor::Processor():
+        CommonProcessor(),
+        tss(),
+        localAPIC() {
     CurrentSystem.gdt.setupTSS(id, &tss);
 }
 
-void Processor::localInitialization() {
-    Status status = localAPIC.initialize(readModelSpecificRegister(MSR::IA32_APIC_BASE) & 0xfffff000);
-    assert(static_cast<bool>(status));
+void Processor::localInitialization() noexcept {
+    localAPIC.initialize(readModelSpecificRegister(MSR::IA32_APIC_BASE) & 0xfffff000);
 }
 
-[[noreturn]] void Processor::returnToUserMode() {
+[[noreturn]] void Processor::returnToUserMode() noexcept {
     assert(this == CurrentProcessor());
     Thread *thread = activeThread();
 
@@ -36,21 +30,22 @@ void Processor::localInitialization() {
 
     CurrentSystem.gdt.resetTSS(id);
     tss.update(thread);
-    returnFromInterrupt(thread->kernelStack->userRegisterState(), thread->threadLocalStorage());
+    writeModelSpecificRegister(MSR::FSBASE, thread->threadLocalStorage().value());
+    returnFromInterrupt(thread->kernelStack->userRegisterState());
 }
 
-[[noreturn]] void Processor::returnInsideKernelMode(RegisterState *state) {
-    returnFromInterrupt(state, {});
+[[noreturn]] void Processor::returnInsideKernelMode(RegisterState *state) noexcept {
+    returnFromInterrupt(state);
 }
 
-void Processor::sendIPI(IPI ipi) {
+void Processor::sendIPI(IPI ipi) noexcept {
     cout << "sending IPI " << static_cast<uint32_t>(ipi) << " from " <<  CurrentProcessor()->hardwareID << " to " << hardwareID << endl;
 
     __atomic_or_fetch(&ipiFlags, ipi, __ATOMIC_SEQ_CST);
     CurrentProcessor()->localAPIC.sendIPI(hardwareID);
 }
 
-void Processor::endOfInterrupt() {
+void Processor::endOfInterrupt() noexcept {
     assert(KernelInterruptsLock.isLocked());
     assert(CurrentProcessor() == this);
 

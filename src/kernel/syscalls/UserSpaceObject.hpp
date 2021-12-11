@@ -10,37 +10,24 @@ enum class USOOperation {
 template <typename T, USOOperation op> class UserSpaceObject {
 private:
     size_t address;
-    bool valid;
 
 public:
     T object;
 
-    UserSpaceObject(size_t address, Status &status) :
+    UserSpaceObject(size_t address) :
             address{address} {
         if (op != USOOperation::WRITE) {
-            status = CurrentProcess()->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&object),
-                                                             address,
-                                                             sizeof(T));
-            valid = static_cast<bool>(status);
-        } else {
-            valid = true;
+            CurrentProcess()->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&object),
+                                                    address,
+                                                    sizeof(T));
         }
     }
 
-    /* constructor for write-only USOs which does not require status checking */
-    UserSpaceObject(size_t address) :
-        address{address},
-        valid{true} {
-
-        static_assert(op == USOOperation::WRITE, "readable USOs require status-checking on constructor");
-    }
-
-    Status writeOut() {
+    void writeOut() {
         static_assert(op != USOOperation::READ, "read-only USOs cannot be written out");
-        assert(valid);
-        return CurrentProcess()->addressSpace.copyTo(address,
-                                                     reinterpret_cast<uint8_t *>(&object),
-                                                     sizeof(T),
-                                                     true);
+        CurrentProcess()->addressSpace.copyTo(address,
+                                              reinterpret_cast<uint8_t *>(&object),
+                                              sizeof(T),
+                                              true);
     }
 };

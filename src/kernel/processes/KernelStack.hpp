@@ -2,7 +2,6 @@
 
 #include <common/common.hpp>
 #include <interrupts/RegisterState.hpp>
-#include <lib/Status.hpp>
 #include <system/System.hpp>
 
 class KernelStack {
@@ -25,9 +24,11 @@ public:
      * Processor. This lock prevents using it on anohter Processor in such a case. */
     SpinLock lock;
 
-    KernelStack(RegisterState userRegisterState, Status &status);
-    ~KernelStack();
+    KernelStack(RegisterState userRegisterState);
+    ~KernelStack() noexcept;
+    KernelStack(KernelStack &) = delete;
+    KernelStack &operator=(KernelStack &) = delete;
 
-    RegisterState *userRegisterState();
-    [[noreturn]] void switchToKernelEntry(void kernelEntry(void *), void *argument);
+    RegisterState *userRegisterState() noexcept;
+    [[noreturn]] void switchToKernelEntry(void kernelEntry(void *), void *argument) noexcept;
 };

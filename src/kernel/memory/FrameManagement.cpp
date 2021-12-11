@@ -1,17 +1,18 @@
 #include <memory/FrameManagement.hpp>
 #include <paging/PagingContext.hpp>
 #include <system/System.hpp>
+#include <lib/Exception.hpp>
 
 namespace frameManagement {
 
-Management::Management() {
+Management::Management() noexcept {
     for (size_t stackIndex = 0; stackIndex < NUM_ZONES; stackIndex++) {
         usedFrameStack[stackIndex] = _HandOverSystem->usedFrameStack[stackIndex];
         freshFrameStack[stackIndex] = _HandOverSystem->freshFrameStack[stackIndex];
     }
 }
 
-Result<PhysicalAddress> Management::get(ZoneID zoneID) {
+PhysicalAddress Management::get(ZoneID zoneID) {
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(lock);
     assert(zoneID < NUM_ZONES);
@@ -24,10 +25,10 @@ Result<PhysicalAddress> Management::get(ZoneID zoneID) {
             return freshFrameStack[stackIndex].pop();
         }
     }
-    return Status::OutOfMemory();
+    throw OutOfMemory();
 }
 
-void Management::put(PhysicalAddress frame) {
+void Management::put(PhysicalAddress frame) noexcept {
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(lock);
     for (size_t stackIndex = 0; stackIndex < NUM_ZONES; stackIndex++) {
@@ -40,7 +41,7 @@ void Management::put(PhysicalAddress frame) {
     Panic();
 }
 
-void Management::recycleFrame(ZoneID zoneID) {
+void Management::recycleFrame(ZoneID zoneID) noexcept {
     assert(lock.isLocked());
     PhysicalAddress frame = usedFrameStack[zoneID].pop();
     memset(frame.identityMapped().asPointer<uint8_t>(), 0, PAGE_SIZE);

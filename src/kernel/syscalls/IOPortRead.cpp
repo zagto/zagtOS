@@ -1,7 +1,7 @@
 #include <syscalls/IOPortRead.hpp>
 #include <portio.hpp>
 
-Result<size_t> IOPortRead(const shared_ptr<Process> &process,
+size_t IOPortRead(const shared_ptr<Process> &process,
                           size_t port,
                           size_t size,
                           size_t,
@@ -10,6 +10,6 @@ Result<size_t> IOPortRead(const shared_ptr<Process> &process,
     if (process->canAccessPhysicalMemory()) {
         return portio::read(static_cast<uint16_t>(port), size);
     } else {
-        return Status::BadUserSpace();
+        throw BadUserSpace(process);
     }
 }

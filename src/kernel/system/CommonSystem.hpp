@@ -7,17 +7,12 @@
 #include <time/Time.hpp>
 #include <paging/PagingContext.hpp>
 #include <processes/FutexManager.hpp>
-#include <lib/Status.hpp>
 
 
 class CommonSystem {
 private:
     FutexFrameID nextFutexFrameID;
     uint64_t nextTLBTimestamp{1};
-
-protected:
-    /* only used during initial handover state deserialization */
-    Status handOverStatus{Status::OK()};
 
 public:
     Time time;
@@ -31,7 +26,7 @@ public:
 
     CommonSystem(const hos_v1::System &handOver);
 
-    Status initProcessorsAndTLB();
-    FutexFrameID getNewFutexFrameID();
-    uint64_t getNextTLBTimetamp();
+    void initProcessorsAndTLB();
+    FutexFrameID getNewFutexFrameID() noexcept;
+    uint64_t getNextTLBTimetamp() noexcept;
 };

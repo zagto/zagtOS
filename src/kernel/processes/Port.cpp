@@ -5,27 +5,17 @@
 #include <processes/Scheduler.hpp>
 #include <processes/Process.hpp>
 
-Port::Port(const shared_ptr<Process> process, Status &) :
+Port::Port(const shared_ptr<Process> process) noexcept :
     process{process} {}
 
 Port::Port(const hos_v1::Port &handOver,
-           const vector<shared_ptr<Thread>> &allThreads,
-           Status &status) {
-    status = Status::OK();
+           const vector<shared_ptr<Thread>> &allThreads) {
     if (handOver.threadWaits) {
         waitingThread = allThreads[handOver.waitingThreadID].get();
     }
     for (size_t index = 0; index < handOver.numMessages; index++) {
         auto msg = make_unique<Message>(handOver.messages[index]);
-        if (!msg) {
-            status = msg.status();
-            messages.clear();
-            return;
-        }
-        status = messages.push_back(move(*msg));
-        if (!status) {
-            return;
-        }
+        messages.push_back(move(msg));
     }
 }
 
@@ -37,13 +27,13 @@ Port::~Port() {
     }
 }
 
-Result<unique_ptr<Message>> Port::getMessage() {
+unique_ptr<Message> Port::getMessage() {
     assert(lock.isLocked());
 
     /* only one thread can wait on a port at a given time  */
     if (waitingThread != nullptr) {
         cout << "Tried to get message from Port while another Thread is already waiting" << endl;
-        return Status::BadUserSpace();
+        throw BadUserSpace(process);
     }
 
     if (messages.empty()) {
@@ -55,36 +45,33 @@ Result<unique_ptr<Message>> Port::getMessage() {
     return move(msg);
 }
 
-void Port::setWaitingThread(Thread *thread, size_t index) {
+void Port::setWaitingThread(Thread *thread, size_t index) noexcept {
     assert(lock.isLocked());
-    /* only one thread can wait on a port at a given time */
+    /* only one thread can wait on a port at a given time, TODO: change this */
     assert(waitingThread == nullptr);
 
     waitingThread = thread;
     waitingThreadIndex = index;
 }
 
-Status Port::addMessage(unique_ptr<Message> message) {
+void Port::addMessage(unique_ptr<Message> message) {
     assert(lock.isLocked());
 
     if (waitingThread) {
         size_t infoAddress = message->infoAddress.value();
 
         /* Transfer the waitingThreadIndex variable into the message info */
-        Status status = waitingThread->process->addressSpace.copyTo(infoAddress,
-                reinterpret_cast<uint8_t *>(&waitingThreadIndex),
-                sizeof(size_t),
-                true);
-        if (!status) {
-            return status;
-        }
+        waitingThread->process->addressSpace.copyTo(
+                    infoAddress,
+                    reinterpret_cast<uint8_t *>(&waitingThreadIndex),
+                    sizeof(size_t),
+                    true);
 
         waitingThread->kernelStack->userRegisterState()->setSyscallResult(infoAddress);
         waitingThread->setState(Thread::State::Transition());
         Thread *tmp = waitingThread;
         waitingThread = nullptr;
         Scheduler::schedule(tmp, true);
-        return Status::OK();
     } else {
         return messages.push_back(move(message));
     }

@@ -8,17 +8,14 @@ MappedArea::MappedArea(ProcessAddressSpace &addressSpace,
                        Region region,
                        shared_ptr<MemoryArea> _memoryArea,
                        size_t offset,
-                       Permissions permissions,
-                       Status &status) :
+                       Permissions permissions) :
         addressSpace{addressSpace},
-        isPagedIn(region.length / PAGE_SIZE, false, status),
+        isPagedIn(region.length / PAGE_SIZE, false),
         memoryArea{move(_memoryArea)},
         offset{offset},
         region{region},
         permissions{permissions} {
-    if (!status) {
-        return;
-    }
+
     assert(UserVirtualAddress::checkInRegion(region.start));
     assert(UserVirtualAddress::checkInRegion(region.end() - 1));
     assert(region.isPageAligned());
@@ -28,19 +25,13 @@ MappedArea::MappedArea(ProcessAddressSpace &addressSpace,
 
 MappedArea::MappedArea(ProcessAddressSpace &addressSpace,
                        shared_ptr<MemoryArea> _memoryArea,
-                       const hos_v1::MappedArea &handOver,
-                       Status &status) :
+                       const hos_v1::MappedArea &handOver) :
         addressSpace{addressSpace},
-        isPagedIn(handOver.length / PAGE_SIZE, false, status),
+        isPagedIn(handOver.length / PAGE_SIZE, false),
         memoryArea{move(_memoryArea)},
         offset{handOver.offset},
         region(handOver.start, handOver.length),
-        permissions{handOver.permissions} {
-
-    if (!status) {
-        return;
-    }
-}
+        permissions{handOver.permissions} {}
 
 
 MappedArea::~MappedArea() {
@@ -73,30 +64,25 @@ PageOutContext MappedArea::pageOutRegion(Region removeRegion) {
     return context;
 }
 
-Status MappedArea::ensurePagedIn(UserVirtualAddress address) {
+void MappedArea::ensurePagedIn(UserVirtualAddress address) {
     assert(address.isInRegion(region));
 
     size_t pageIndex = (address.value() - region.start) / PAGE_SIZE;
 
     if (!isPagedIn[pageIndex]) {
-        Status status = memoryArea->pageIn(addressSpace,
-                                           address,
-                                           permissions,
-                                           offset + pageIndex * PAGE_SIZE);
-        if (!status) {
-            return status;
-        }
+        memoryArea->pageIn(addressSpace,
+                           address,
+                           permissions,
+                           offset + pageIndex * PAGE_SIZE);
         isPagedIn[pageIndex] = true;
     }
-    return Status::OK();
 }
 
-Result<pair<unique_ptr<MappedArea>, unique_ptr<MappedArea>>>
-MappedArea::split(size_t splitOffset) {
+pair<unique_ptr<MappedArea>, unique_ptr<MappedArea>> MappedArea::split(size_t splitOffset) {
     assert(splitOffset % PAGE_SIZE == 0);
     assert(splitOffset < region.length);
 
-    Result<unique_ptr<MappedArea>> first, second;
+    unique_ptr<MappedArea> first, second;
 
     if (memoryArea->isShared) {
         /* shared MemoryAreas can't be split. Simply create two MappedAreas that reference the
@@ -107,55 +93,33 @@ MappedArea::split(size_t splitOffset) {
                                         memoryArea,
                                         offset,
                                         permissions);
-        if (!first) {
-            return first.status();
-        }
-
         second = make_unique<MappedArea>(addressSpace,
                                          Region(region.start + splitOffset,
                                                 region.length - splitOffset),
                                          memoryArea,
                                          offset + splitOffset,
                                          permissions);
-
-        if (!second) {
-            return second.status();
-        }
     } else {
         /* Non-shared MemoryArea - split it! */
-        Result memArea1 = make_shared<MemoryArea>(*memoryArea,
-                                                  offset,
-                                                  splitOffset);
-        if (!memArea1) {
-            return memArea1.status();
-        }
 
-        Result memArea2 = make_shared<MemoryArea>(*memoryArea,
-                                                  offset + splitOffset,
-                                                  region.length - splitOffset);
-        if (!memArea2) {
-            return memArea1.status();
-        }
+        auto memArea1 = make_shared<MemoryArea>(*memoryArea,
+                                                offset,
+                                                splitOffset);
+        auto memArea2 = make_shared<MemoryArea>(*memoryArea,
+                                                offset + splitOffset,
+                                                region.length - splitOffset);
 
         first = make_unique<MappedArea>(addressSpace,
                                         Region(region.start, splitOffset),
-                                        *memArea1,
+                                        memArea1,
                                         0,
                                         permissions);
-        if (!first) {
-            return first.status();
-        }
-
         second = make_unique<MappedArea>(addressSpace,
                                          Region(region.start + splitOffset,
                                                 region.length - splitOffset),
-                                         *memArea2,
+                                         memArea2,
                                          0,
                                          permissions);
-
-        if (!second) {
-            return second.status();
-        }
     }
 
     /* make this MappedArea invalid so it can not be accidently be used */
@@ -164,5 +128,5 @@ MappedArea::split(size_t splitOffset) {
     region = {static_cast<size_t>(-1), 1};
     isPagedIn = vector<bool>();
 
-    return make_pair(move(*first), move(*second));
+    return make_pair(move(first), move(second));
 }

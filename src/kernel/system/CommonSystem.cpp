@@ -6,33 +6,20 @@
 CommonSystem::CommonSystem(const hos_v1::System &handOver):
     nextFutexFrameID{handOver.nextFutexFrameID},
     time{handOver.timerFrequency},
-    kernelOnlyPagingContext(handOver.handOverPagingContext, handOverStatus),
-    futexManager(handOverStatus),
+    kernelOnlyPagingContext(handOver.handOverPagingContext),
     numProcessors{handOver.numProcessors} {}
 
-Status CommonSystem::initProcessorsAndTLB() {
+void CommonSystem::initProcessorsAndTLB() {
     cout << "Initializing TLBContext and Processor structures..." << endl;
 
-    Result<TLBContext *> tlbContexts
-            = make_raw_array_counter<TLBContext>(numProcessors * tlbContextsPerProcessor);
-    if (!tlbContexts) {
-        return tlbContexts.status();
-    }
-    TLBContexts = *tlbContexts;
-
+    TLBContexts = new TLBContext[numProcessors * tlbContextsPerProcessor];
     cout << "TLBContext objects created at " << TLBContexts << endl;
 
-    Result<Processor *> processors = make_raw_array_counter<Processor>(numProcessors);
-    if (!processors) {
-        return processors.status();
-    }
-    Processors = *processors;
+    Processors = new Processor[numProcessors];
     cout << "Processor objects created at " << Processors << endl;
-
-    return Status::OK();
 }
 
-FutexFrameID CommonSystem::getNewFutexFrameID() {
+FutexFrameID CommonSystem::getNewFutexFrameID() noexcept {
     FutexFrameID result = __atomic_fetch_add(&nextFutexFrameID, 1, __ATOMIC_SEQ_CST);
 
     /* These IDs are combined with the low bits of the address to create the individual Futex IDs
@@ -42,6 +29,6 @@ FutexFrameID CommonSystem::getNewFutexFrameID() {
     return result;
 }
 
-uint64_t CommonSystem::getNextTLBTimetamp() {
+uint64_t CommonSystem::getNextTLBTimetamp() noexcept {
     return __atomic_fetch_add(&nextTLBTimestamp, 1, __ATOMIC_SEQ_CST);
 }

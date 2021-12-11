@@ -1,5 +1,4 @@
-#ifndef APICTIMER_HPP
-#define APICTIMER_HPP
+#pragma once
 
 #include <common/common.hpp>
 
@@ -10,12 +9,10 @@ private:
     LocalAPIC *apic;
 
 public:
-    APICTimer(LocalAPIC *apic) :
+    APICTimer(LocalAPIC *apic) noexcept :
         apic{apic} {}
 
-    void startCounting(uint32_t initialCount);
-    uint32_t readValue();
-    void delayMilliseconds(uint32_t ms);
+    void startCounting(uint32_t initialCount) noexcept;
+    uint32_t readValue() noexcept;
+    void delayMilliseconds(uint32_t ms) noexcept;
 };
-
-#endif // APICTIMER_HPP

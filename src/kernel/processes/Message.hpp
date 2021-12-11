@@ -20,13 +20,13 @@ private:
     size_t numHandles{0};
     bool transferred{false};
 
-    Status prepareMemoryArea();
-    Status transferMessageInfo();
-    Status transferHandles();
-    Status transferData();
-    UserVirtualAddress destinationAddress() const;
-    size_t handlesSize() const;
-    size_t simpleDataSize() const;
+    void prepareMemoryArea();
+    void transferMessageInfo();
+    void transferHandles();
+    void transferData();
+    UserVirtualAddress destinationAddress() const noexcept;
+    size_t handlesSize() const noexcept;
+    size_t simpleDataSize() const noexcept;
 
 public:
     static constexpr size_t HANDLE_SIZE{4};
@@ -38,25 +38,18 @@ public:
             UserVirtualAddress sourceAddress,
             UUID messageType,
             size_t numBytes,
-            size_t numHandles,
-            Status &status) :
+            size_t numHandles) noexcept :
         sourceProcess{sourceProcess},
         destinationProcess{destinationProcess},
         sourceAddress{sourceAddress},
         messageType{messageType},
         numBytes{numBytes},
-        numHandles{numHandles} {
-
-        status = Status::OK();
-    }
-    Message(const hos_v1::Message &handOver, Status status) :
-        infoAddress{handOver.infoAddress} {
-
-        status = Status::OK();
-    }
+        numHandles{numHandles} {}
+    Message(const hos_v1::Message &handOver) noexcept :
+        infoAddress{handOver.infoAddress} {}
 
     void transfer();
-    void setDestinationProcess(Process *process);
+    void setDestinationProcess(Process *process) noexcept;
 };
 
 /* when changing this struct also change it in loader/ProgramBinary.hpp */

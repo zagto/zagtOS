@@ -5,11 +5,12 @@
 #include <memory/PageOutContext.hpp>
 #include <paging/PagingContext.hpp>
 #include <system/Processor.hpp>
+#include <lib/Exception.hpp>
 
 
 namespace kernelPageAllocator {
 
-void Allocator::unmap(void *_address, size_t length, bool freeFrames) {
+void Allocator::unmap(void *_address, size_t length, bool freeFrames) noexcept {
     assert(lock.isLocked());
     size_t address = KernelVirtualAddress(_address).value();
     Region region(address, length);
@@ -47,31 +48,31 @@ void Allocator::unmap(void *_address, size_t length, bool freeFrames) {
 }
 
 /* TODO: optimze, or change to something better than bitmap */
-bool Allocator::getFrame(size_t frame) const {
+bool Allocator::getFrame(size_t frame) const noexcept {
     return bitmap[frame / FRAMES_PER_GROUP] & (1ul << (frame % FRAMES_PER_GROUP));
 }
 
-void Allocator::setFrame(size_t frame) {
+void Allocator::setFrame(size_t frame) noexcept {
     assert(getFrame(frame) == 0);
     bitmap[frame / FRAMES_PER_GROUP] ^= (1ul << (frame % FRAMES_PER_GROUP));
 }
 
-void Allocator::unsetFrame(size_t frame) {
+void Allocator::unsetFrame(size_t frame) noexcept {
     assert(getFrame(frame) == 1);
     bitmap[frame / FRAMES_PER_GROUP] ^= (1ul << (frame % FRAMES_PER_GROUP));
 }
 
-Result <void *> Allocator::map(size_t length,
-                               bool findNewFrames,
-                               const PhysicalAddress *frames,
-                               CacheType cacheType) {
+void *Allocator::map(size_t length,
+                     bool findNewFrames,
+                     const PhysicalAddress *frames,
+                     CacheType cacheType) {
     assert(lock.isLocked());
     assert(length > 0);
     assert(length % PAGE_SIZE == 0);
     assert(findNewFrames == (frames == nullptr));
     if (length > KernelHeapRegion.length) {
         cout << "Kernel MMap attempt larger than kernel heap" << endl;
-        return Status::OutOfKernelHeap();
+        throw OutOfKernelHeap();
     }
 
     size_t numFrames = length / PAGE_SIZE;
@@ -96,20 +97,28 @@ Result <void *> Allocator::map(size_t length,
             for (size_t frameIndex = 0; frameIndex < numFrames; frameIndex++) {
                 PhysicalAddress physicalAddress;
                 if (findNewFrames) {
-                    Result allocResult = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
-                    if (!allocResult) {
+                    try {
+                        physicalAddress = FrameManagement.get(frameManagement::DEFAULT_ZONE_ID);
+                    }  catch (...) {
                         /* allocatePhysicalFrame can fail with OutOfMemory */
                         PagingContext::unmapRange(startAddress, numFrames, true);
-                        return allocResult.status();
+                        throw;
                     }
-                    physicalAddress = *allocResult;
                 } else {
                     physicalAddress = frames[frameIndex];
                 }
-                PagingContext::map(startAddress + frameIndex * PAGE_SIZE,
-                                   physicalAddress,
-                                   Permissions::READ_WRITE,
-                                   cacheType);
+
+                try {
+                    PagingContext::map(startAddress + frameIndex * PAGE_SIZE,
+                                       physicalAddress,
+                                       Permissions::READ_WRITE,
+                                       cacheType);
+                } catch (...) {
+                    if (findNewFrames) {
+                        FrameManagement.put(physicalAddress);
+                    }
+                    throw;
+                }
             }
 
             do {
@@ -126,7 +135,7 @@ Result <void *> Allocator::map(size_t length,
             numFree = 0;
         }
     }
-    return Status::OutOfKernelHeap();
+    throw OutOfKernelHeap();
 }
 
 extern "C" void basicInvalidate(KernelVirtualAddress address);
@@ -136,7 +145,7 @@ void Allocator::processInvalidateQueue() {
     invalidateQueue.localProcessing();
 }
 
-void InvalidateQueue::add(size_t frameIndex, bool freeFrame) {
+void InvalidateQueue::add(size_t frameIndex, bool freeFrame) noexcept {
     KernelVirtualAddress address = KernelHeapRegion.start + frameIndex * PAGE_SIZE;
     basicInvalidate(address);
 
@@ -157,7 +166,7 @@ void InvalidateQueue::add(size_t frameIndex, bool freeFrame) {
     CurrentProcessor()->kernelInvalidateProcessedUntil = item;
 }
 
-void InvalidateQueue::localProcessing() {
+void InvalidateQueue::localProcessing() noexcept {
     KernelVirtualAddress address = head;
     KernelVirtualAddress oldHead = head;
 

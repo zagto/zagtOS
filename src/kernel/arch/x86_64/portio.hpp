@@ -1,9 +1,6 @@
 #pragma once
 
 #include <common/common.hpp>
-#ifndef ZAGTOS_LOADER
-#include <lib/Status.hpp>
-#endif
 
 namespace portio {
 
@@ -15,8 +12,8 @@ extern "C" uint32_t InD(uint16_t port);
 extern "C" void OutD(uint16_t port, uint32_t data);
 
 #ifndef ZAGTOS_LOADER
-Result<size_t> read(uint16_t port, size_t size);
-Status write(uint16_t port, size_t size, size_t data);
+size_t read(uint16_t port, size_t size);
+void write(uint16_t port, size_t size, size_t data);
 #endif
 
 inline void waitIO() {

@@ -66,17 +66,13 @@ uint8_t digitToChar(uint8_t digit) {
 }
 
 
-Status writeDump(vector<uint8_t> &dumpFile, void *data, size_t length) {
+void writeDump(vector<uint8_t> &dumpFile, void *data, size_t length) {
     size_t offset = dumpFile.size();
-    Status status = dumpFile.resize(offset + length);
-    if (!status) {
-        return status;
-    }
+    dumpFile.resize(offset + length);
     memcpy(&dumpFile[offset], data, length);
-    return Status::OK();
 }
 
-Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
+void ProcessAddressSpace::coreDump(Thread *crashedThread) {
     cout << "Sending Core Dump to Serial Port..." << endl;
     vector<uint8_t> dumpFile;
 
@@ -112,10 +108,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
         .shnum = 0,
         .shstrndx = 0,
     };
-    Status status = writeDump(dumpFile, &fileHeader, sizeof(FileHeader));
-    if (!status) {
-        return status;
-    }
+    writeDump(dumpFile, &fileHeader, sizeof(FileHeader));
 
     size_t dataOffset = sizeof(FileHeader) + numProgramHeaders * sizeof(ProgramHeader);
     for (size_t index = 0; index < numProgramHeaders - 1; index++) {
@@ -132,10 +125,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
             .memsz = length,
             .align = 1
         };
-        status = writeDump(dumpFile, &programHeader, sizeof(ProgramHeader));
-        if (!status) {
-            return status;
-        }
+        writeDump(dumpFile, &programHeader, sizeof(ProgramHeader));
         dataOffset += length;
     }
 
@@ -149,10 +139,7 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
         .memsz = 0,
         .align = 4
     };
-    status = writeDump(dumpFile, &noteProgramHeader, sizeof(ProgramHeader));
-    if (!status) {
-        return status;
-    }
+    writeDump(dumpFile, &noteProgramHeader, sizeof(ProgramHeader));
 
     for (size_t index = 0; index < numProgramHeaders - 1; index++) {
         size_t startAddress = mappedAreas[index]->region.start;
@@ -160,15 +147,17 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
 
         for (size_t address = startAddress; address < startAddress + length; address += PAGE_SIZE) {
             static uint8_t page[PAGE_SIZE];
-
-            if (mappedAreas[index]->permissions == Permissions::INVALID
-                    || !copyFromLocked(page, address, PAGE_SIZE)) {
-                memset(page, 0, PAGE_SIZE);
+            memset(page, 0, PAGE_SIZE);
+            if (mappedAreas[index]->permissions != Permissions::INVALID) {
+                try {
+                    copyFromLocked(page, address, PAGE_SIZE);
+                } catch(BadUserSpace &e) {
+                    /* if it's not there just leave it zero */
+                } catch(...) {
+                    throw;
+                }
             }
-            status = writeDump(dumpFile, page, PAGE_SIZE);
-            if (!status) {
-                return status;
-            }
+            writeDump(dumpFile, page, PAGE_SIZE);
         }
     }
 
@@ -208,18 +197,9 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     prRegs[25] = 0x18|3;
     prRegs[26] = 0x18|3;
 
-    status = writeDump(dumpFile, &noteHeader, 12);
-    if (!status) {
-        return status;
-    }
-    status = writeDump(dumpFile, noteHeader.name, 8);
-    if (!status) {
-        return status;
-    }
-    status = writeDump(dumpFile, &prStatus, sizeof(PRStatus));
-    if (!status) {
-        return status;
-    }
+    writeDump(dumpFile, &noteHeader, 12);
+    writeDump(dumpFile, noteHeader.name, 8);
+    writeDump(dumpFile, &prStatus, sizeof(PRStatus));
 
     assert(dumpFile.size() == dataOffset + 12 + 8 + sizeof(PRStatus));
 
@@ -227,5 +207,4 @@ Status ProcessAddressSpace::coreDump(Thread *crashedThread) {
     cout.sendCoreDump(logName.size(), logName.data(), dumpFile.size(), dumpFile.data());
 
     cout << "End core dump" << endl;
-    return Status::OK();
 }

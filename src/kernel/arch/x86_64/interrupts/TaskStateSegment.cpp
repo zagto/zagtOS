@@ -5,24 +5,12 @@
 #include <system/Processor.hpp>
 #include <memory/DLMallocGlue.hpp>
 
-TaskStateSegment::TaskStateSegment(Status &status) {
-    if (!status) {
-        return;
-    }
+TaskStateSegment::TaskStateSegment() {
+    KernelVirtualAddress NMIStack = DLMallocGlue.allocate(IST_STACK_QWORDS * 8, 16);
+    IST1 = NMIStack.asPointer<uint64_t>() + IST_STACK_QWORDS;
 
-    Result NMIStack = DLMallocGlue.allocate(IST_STACK_QWORDS * 8, 16);
-    if (!NMIStack) {
-        status = NMIStack.status();
-        return;
-    }
-    IST1 = NMIStack->asPointer<uint64_t>() + IST_STACK_QWORDS;
-
-    Result MCEStack = DLMallocGlue.allocate(IST_STACK_QWORDS * 8, 16);
-    if (!MCEStack) {
-        status = MCEStack.status();
-        return;
-    }
-    IST2 = MCEStack->asPointer<uint64_t>() + IST_STACK_QWORDS;
+    KernelVirtualAddress MCEStack = DLMallocGlue.allocate(IST_STACK_QWORDS * 8, 16);
+    IST2 = MCEStack.asPointer<uint64_t>() + IST_STACK_QWORDS;
 }
 
 

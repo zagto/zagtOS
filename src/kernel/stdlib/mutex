@@ -64,14 +64,35 @@ public:
     }
     scoped_lock(const scoped_lock &other) = delete;
     void operator=(scoped_lock &) =delete;
+    scoped_lock(scoped_lock &&other) noexcept {
+        first = other.first;
+        second = other.second;
+        other.first = nullptr;
+        other.second = nullptr;
+    }
+    scoped_lock &operator=(scoped_lock &&other) noexcept {
+        ~scoped_lock();
+        new (this) scoped_lock(other);
+        return *this;
+    }
     ~scoped_lock() {
         if (second) {
             second->unlock();
         }
-        first->unlock();
+        if (first) {
+            first->unlock();
+        }
     }
 
     void checkWaiters() {
         // TODO: make this an actual mutex
+    }
+
+    /* Do not unlock this lock on destrucion of the scoped_lock. It has to be unlocked manually
+     * later. */
+    void stick() {
+        assert(first);
+        first = nullptr;
+        second = nullptr;
     }
 };

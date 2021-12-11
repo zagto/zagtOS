@@ -3,36 +3,32 @@
 #include <system/System.hpp>
 #include <system/Processor.hpp>
 
-void LocalAPIC::writeRegister(Register reg, uint32_t value) {
+void LocalAPIC::writeRegister(Register reg, uint32_t value) noexcept {
     *reinterpret_cast<volatile uint32_t *>(map + static_cast<size_t>(reg)) = value;
 }
 
-uint32_t LocalAPIC::readRegister(Register reg) {
+uint32_t LocalAPIC::readRegister(Register reg) noexcept {
     return *reinterpret_cast<volatile uint32_t *>(map + static_cast<size_t>(reg));
 }
 
-Status LocalAPIC::setupMap(PhysicalAddress base) {
+void LocalAPIC::setupMap(PhysicalAddress base) {
     assert(base.value() / PAGE_SIZE
            == (base.value() + static_cast<size_t>(Register::END) - 1) / PAGE_SIZE);
     PhysicalAddress physicalFrame = align(base.value(), PAGE_SIZE, AlignDirection::DOWN);
     scoped_lock sl(KernelPageAllocator.lock);
-    Result<void *> virtualPage = KernelPageAllocator.map(PAGE_SIZE,
-                                                         false,
-                                                         &physicalFrame,
-                                                         CacheType::NONE);
-    if (!virtualPage) {
-        return virtualPage.status();
-    }
+    void *virtualPage = KernelPageAllocator.map(PAGE_SIZE,
+                                                false,
+                                                &physicalFrame,
+                                                CacheType::NONE);
 
-    map = static_cast<uint8_t *>(*virtualPage) + base.value() % PAGE_SIZE;
-    return Status::OK();
+    map = static_cast<uint8_t *>(virtualPage) + base.value() % PAGE_SIZE;
 }
 
 void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
                                               Level level,
                                               TriggerMode triggerMode,
                                               uint32_t destination,
-                                              uint8_t vector) {
+                                              uint8_t vector) noexcept {
     while (readRegister(Register::INTERRUPT_COMMAND_LOW) & (1u<<12)) {
         /* wait for Delivery status bit to clear */
     }
@@ -51,7 +47,7 @@ void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
 
 }
 
-void LocalAPIC::sendIPI(uint32_t apicID) {
+void LocalAPIC::sendIPI(uint32_t apicID) noexcept {
     wirteInterruptControlRegister(DeliveryMode::FIXED,
                                   Level::ASSERT,
                                   TriggerMode::EDGE,
@@ -59,19 +55,16 @@ void LocalAPIC::sendIPI(uint32_t apicID) {
                                   static_cast<uint32_t>(StaticInterrupt::IPI));
 }
 
-void LocalAPIC::endOfInterrupt() {
+void LocalAPIC::endOfInterrupt() noexcept {
     writeRegister(Register::END_OF_INTERRUPT, 0);
 }
 
-LocalAPIC::LocalAPIC(Status &) :
+LocalAPIC::LocalAPIC() noexcept :
         timer(this) {
 }
 
-Status LocalAPIC::initialize(PhysicalAddress base) {
-    Status status = setupMap(base);
-    if (!status) {
-        return status;
-    }
+void LocalAPIC::initialize(PhysicalAddress base) {
+    setupMap(base);
 
     assert(KernelInterruptsLock.isLocked());
 
@@ -94,9 +87,6 @@ Status LocalAPIC::initialize(PhysicalAddress base) {
 
     writeRegister(Register::LVT_REGULAR_INTTERRUPTS, 0x08040);
     writeRegister(Register::LVT_NON_MASKABLE_INTERRUPTS, 0x0040c);
-
-
-    return Status::OK();
 }
 
 LocalAPIC::~LocalAPIC() {

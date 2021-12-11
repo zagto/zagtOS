@@ -1,7 +1,6 @@
 #pragma once
 
 #include <common/common.hpp>
-#include <lib/Status.hpp>
 #include <mutex>
 #include <paging/PagingContext.hpp>
 
@@ -20,8 +19,8 @@ private:
     KernelVirtualAddress head;
 
 public:
-    void add(size_t frameIndex, bool freeFrame);
-    void localProcessing();
+    void add(size_t frameIndex, bool freeFrame) noexcept;
+    void localProcessing() noexcept;
 };
 
 class Allocator {
@@ -39,18 +38,18 @@ private:
     static_assert(KernelHeapRegion.length % PAGE_SIZE == 0);
     static_assert(TOTAL_NUM_HEAP_FRAMES % FRAMES_PER_GROUP == 0);
 
-    bool getFrame(size_t frame) const;
-    void setFrame(size_t frame);
+    bool getFrame(size_t frame) const noexcept;
+    void setFrame(size_t frame) noexcept;
 
     friend class InvalidateQueue;
-    void unsetFrame(size_t frame);
+    void unsetFrame(size_t frame) noexcept;
 
 public:
-    void unmap(void *_address, size_t length, bool freeFrames);
-    Result<void *> map(size_t length,
-                       bool findNewFrames,
-                       const PhysicalAddress *frames = nullptr,
-                       CacheType cacheType = CacheType::NORMAL_WRITE_BACK);
+    void unmap(void *_address, size_t length, bool freeFrames) noexcept;
+    void *map(size_t length,
+              bool findNewFrames,
+              const PhysicalAddress *frames = nullptr,
+              CacheType cacheType = CacheType::NORMAL_WRITE_BACK);
     void processInvalidateQueue();
 
     SpinLock lock;

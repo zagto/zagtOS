@@ -2,7 +2,7 @@
 #include <syscalls/UserSpaceObject.hpp>
 #include <system/System.hpp>
 
-Result<size_t> GetTime(const shared_ptr<Process> &,
+size_t GetTime(const shared_ptr<Process> &,
                        size_t clockID,
                        size_t resultAddress,
                        size_t,
@@ -31,12 +31,8 @@ Result<size_t> GetTime(const shared_ptr<Process> &,
         }
     }
 
-    Status status = result.writeOut();
-    if (status) {
-        return 0;
-    } else {
-        return status;
-    }
+    result.writeOut();
+    return 0;
 }
 
 

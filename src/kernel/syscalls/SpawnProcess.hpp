@@ -38,10 +38,10 @@ private:
     size_t logNameSize;
 public:
 
-    Result<size_t> perform(const shared_ptr<Process> &process);
+    size_t perform(const shared_ptr<Process> &process);
 };
 
-Result<size_t> SpawnProcess(const shared_ptr<Process> &process,
+size_t SpawnProcess(const shared_ptr<Process> &process,
                             uint64_t structAddress,
                             uint64_t,
                             uint64_t,

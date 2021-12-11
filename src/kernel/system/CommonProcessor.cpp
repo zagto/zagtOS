@@ -5,25 +5,19 @@
 #include <memory>
 #include <interrupts/KernelInterruptsLock.hpp>
 
-CommonProcessor::CommonProcessor(size_t id, Status &status) :
+
+static size_t nextProcessorID = 0;
+
+CommonProcessor::CommonProcessor() :
         self{this},
         logBufferIndex{0},
         activeTLBContextID{CurrentSystem.tlbContextsPerProcessor * id},
         invalidateQueue{*this},
-        id{id},
-        scheduler(this, status) {
-    if (!status) {
-        return;
-    }
+        id{nextProcessorID++},
+        scheduler(this) {
 
     cout << "initializing Processor " << id << " at " << this << endl;
-
-    Result kernelStack = make_shared<KernelStack>(RegisterState());
-    if (kernelStack) {
-        this->kernelStack = *kernelStack;
-    } else {
-        status = kernelStack.status();
-    }
+    kernelStack = make_shared<KernelStack>(RegisterState());
 }
 
 CommonProcessor::~CommonProcessor() {
@@ -32,7 +26,7 @@ CommonProcessor::~CommonProcessor() {
 }
 
 TLBContextID CommonProcessor::activatePagingContext(PagingContext *pagingContext,
-                                                    TLBContextID tryFirst) {
+                                                    TLBContextID tryFirst) noexcept {
     assert(KernelInterruptsLock.isLocked());
     scoped_lock sl(tlbContextsLock);
 
@@ -51,13 +45,13 @@ TLBContextID CommonProcessor::activatePagingContext(PagingContext *pagingContext
     return tlbID;
 }
 
-Thread *CommonProcessor::activeThread() const {
+Thread *CommonProcessor::activeThread() const noexcept {
     assert(scheduler.lock.isLocked()
            || (KernelInterruptsLock.isLocked() && CurrentProcessor() == this));
     return _activeThread;
 }
 
-void CommonProcessor::activeThread(Thread *newActiveThread) {
+void CommonProcessor::activeThread(Thread *newActiveThread) noexcept {
     assert(scheduler.lock.isLocked() && CurrentProcessor() == this);
     _activeThread = newActiveThread;
     if (newActiveThread != nullptr) {

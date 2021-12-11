@@ -3,30 +3,20 @@
 #include <memory/TLBContext.hpp>
 #include <syscalls/ErrorCodes.hpp>
 #include <system/Processor.hpp>
+#include <processes/Process.hpp>
 
-ProcessAddressSpace::ProcessAddressSpace(Status &status):
-    pagingContext(status),
-    inTLBContextOfProcessor(CurrentSystem.numProcessors, TLB_CONTEXT_ID_NONE, status) {}
+ProcessAddressSpace::ProcessAddressSpace():
+    inTLBContextOfProcessor(CurrentSystem.numProcessors, TLB_CONTEXT_ID_NONE) {}
 
 ProcessAddressSpace::ProcessAddressSpace(const hos_v1::Process &handOver,
-                                         const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
-                                         Status &status):
-    pagingContext(status),
-    inTLBContextOfProcessor(CurrentSystem.numProcessors, TLB_CONTEXT_ID_NONE, status),
-    mappedAreas(handOver.numMappedAreas, status) {
-    if (!status) {
-        return;
-    }
+                                         const vector<shared_ptr<MemoryArea>> &allMemoryAreas):
+    inTLBContextOfProcessor(CurrentSystem.numProcessors, TLB_CONTEXT_ID_NONE),
+    mappedAreas(handOver.numMappedAreas) {
 
     for (size_t index = 0; index < handOver.numMappedAreas; index++) {
-        Result result = make_unique<MappedArea>(*this,
+        mappedAreas[index] = make_unique<MappedArea>(*this,
                                                 allMemoryAreas[handOver.mappedAreas[index].memoryAreaID],
                                                 handOver.mappedAreas[index]);
-        if (!result) {
-            cout << "TODO: failure during handover" << endl;
-            Panic();
-        }
-        mappedAreas[index] = move(*result);
         assert(mappedAreas[index]->region.isPageAligned());
         if (index > 0) {
             assert(mappedAreas[index]->region.start >= mappedAreas[index - 1]->region.end());
@@ -47,11 +37,11 @@ ProcessAddressSpace::~ProcessAddressSpace() {
     }
 }
 
-bool ProcessAddressSpace::operator==(const ProcessAddressSpace &other) const {
+bool ProcessAddressSpace::operator==(const ProcessAddressSpace &other) const noexcept {
     return this == &other;
 }
 
-pair<size_t, bool> ProcessAddressSpace::findIndexFor(size_t userAddress) {
+pair<size_t, bool> ProcessAddressSpace::findIndexFor(size_t userAddress) noexcept {
     static_assert (UserSpaceRegion.start == 0);
     if (!UserVirtualAddress::checkInRegion(userAddress)) {
         return {mappedAreas.size(), false};
@@ -91,7 +81,7 @@ pair<size_t, bool> ProcessAddressSpace::findIndexFor(size_t userAddress) {
 }
 
 optional<pair<shared_ptr<MemoryArea>, Region>>
-ProcessAddressSpace::findMemoryArea(size_t userAddress, bool requireWritePermissions) {
+ProcessAddressSpace::findMemoryArea(size_t userAddress, bool requireWritePermissions) noexcept {
     assert(lock.isLocked());
 
     if (!UserVirtualAddress::checkInRegion(userAddress)) {
@@ -116,34 +106,34 @@ ProcessAddressSpace::findMemoryArea(size_t userAddress, bool requireWritePermiss
     return {{mappedArea->memoryArea, maxRegionInside}};
 }
 
-Result<pair<Region, size_t>> ProcessAddressSpace::findFreeRegion(size_t length) const {
+pair<Region, size_t> ProcessAddressSpace::findFreeRegion(size_t length) const {
     /* TODO: Address space layout randomization could happen here */
     assert(lock.isLocked());
 
     if (mappedAreas.size() == 0) {
         if (length < UserSpaceRegion.length - PAGE_SIZE) {
-            return {{Region(PAGE_SIZE, length), 0}};
+            return {Region(PAGE_SIZE, length), 0};
         } else {
             cout << "findFreeRegion: Process exhausted address space" << endl;
-            return Status::BadUserSpace();
+            throw BadUserSpace(process());
         }
     }
 
     if (mappedAreas[0]->region.start > PAGE_SIZE
             && length < mappedAreas[0]->region.start - PAGE_SIZE) {
-        return {{Region(PAGE_SIZE, length), 0}};
+        return {Region(PAGE_SIZE, length), 0};
     }
 
     for (size_t index = 1; index < mappedAreas.size(); index++) {
         if (mappedAreas[index]->region.start - mappedAreas[index - 1]->region.end() >= length) {
-            return {{Region(mappedAreas[index - 1]->region.end(), length), index}};
+            return {Region(mappedAreas[index - 1]->region.end(), length), index};
         }
     }
 
     /* TODO: check end (normally stack is here */
 
     cout << "findFreeRegion: Process exhausted address space" << endl;
-    return Status::BadUserSpace();
+    throw BadUserSpace(process());
 }
 
 void ProcessAddressSpace::activate() {
@@ -154,17 +144,17 @@ void ProcessAddressSpace::activate() {
     tlbID = processor->activatePagingContext(&pagingContext, tlbID);
 }
 
-Result<UserVirtualAddress> ProcessAddressSpace::add(Region region,
-                                                    size_t offset,
-                                                    shared_ptr<MemoryArea> memoryArea,
-                                                    Permissions permissions,
-                                                    bool overwriteExisiting) {
+UserVirtualAddress ProcessAddressSpace::add(Region region,
+                                            size_t offset,
+                                            shared_ptr<MemoryArea> memoryArea,
+                                            Permissions permissions,
+                                            bool overwriteExisiting) {
     scoped_lock sl(lock);
 
     if (!UserSpaceRegion.contains(region)) {
         cout << "Attempt to add region to ProcessAddressSpace that overlaps is not in "
              << "UserSpaceRegion" << endl;
-        return Status::BadUserSpace();
+        throw BadUserSpace(process());
     }
 
     assert(offset + region.length <= memoryArea->length);
@@ -175,117 +165,78 @@ Result<UserVirtualAddress> ProcessAddressSpace::add(Region region,
             || (index < mappedAreas.size() && mappedAreas[index]->region.overlaps(region))) {
 
         if (overwriteExisiting) {
-            Status status = _removeRegion(region);
-            if (!status) {
-                return status;
-            }
+            _removeRegion(region);
         } else {
-            Result result = findFreeRegion(region.length);
-            if (!result) {
-                return result.status();
-            }
-            region = result->first;
-            index = result->second;
+            auto result = findFreeRegion(region.length);
+            region = result.first;
+            index = result.second;
         }
     }
 
-    Result ma = make_unique<MappedArea>(*this, region, move(memoryArea), offset, permissions);
-    if (!ma) {
-        return ma.status();
-    }
+    auto ma = make_unique<MappedArea>(*this, region, move(memoryArea), offset, permissions);
 
-    Status status = mappedAreas.insert(move(*ma), index);
-    if (status) {
-        return UserVirtualAddress(region.start);
-    } else {
-        return status;
-    }
+    mappedAreas.insert(move(ma), index);
+    return UserVirtualAddress(region.start);
 }
 
-Result<UserVirtualAddress> ProcessAddressSpace::addAnonymous(Region region,
+UserVirtualAddress ProcessAddressSpace::addAnonymous(Region region,
                                                              Permissions permissions,
                                                              bool overwriteExisiting,
                                                              bool shared) {
-    Result memoryArea = make_shared<MemoryArea>(shared,
-                                                Permissions::READ_WRITE_EXECUTE,
-                                                region.length);
-    if (!memoryArea) {
-        return memoryArea.status();
-    }
-
-    return add(region, 0, *memoryArea, permissions, overwriteExisiting);
+    auto memoryArea = make_shared<MemoryArea>(shared,
+                                              Permissions::READ_WRITE_EXECUTE,
+                                              region.length);
+    return add(region, 0, memoryArea, permissions, overwriteExisiting);
 }
 
-Result<UserVirtualAddress> ProcessAddressSpace::addAnonymous(size_t length, Permissions permissions) {
+UserVirtualAddress ProcessAddressSpace::addAnonymous(size_t length, Permissions permissions) {
     scoped_lock sl(lock);
 
     length = align(length, PAGE_SIZE, AlignDirection::UP);
 
-    Result result = findFreeRegion(length);
-    if (!result) {
-        return result.status();
-    }
-    auto [region, index] = *result;
+    auto [region, index] = findFreeRegion(length);
+    auto memoryArea = make_shared<MemoryArea>(false,
+                                              Permissions::READ_WRITE_EXECUTE,
+                                              region.length);
+    auto mappedArea = make_unique<MappedArea>(*this, region, memoryArea, 0, permissions);
+    mappedAreas.insert(move(mappedArea), index);
 
-    Result memoryArea = make_shared<MemoryArea>(false,
-                                                Permissions::READ_WRITE_EXECUTE,
-                                                region.length);
-    if (!memoryArea) {
-        return memoryArea.status();
-    }
-
-    Result ma = make_unique<MappedArea>(*this, region, *memoryArea, 0, permissions);
-    if (!ma) {
-        return ma.status();
-    }
-
-    Status status = mappedAreas.insert(move(*ma), index);
-    if (!status) {
-        return status;
-    }
-    return {region.start};
+    return region.start;
 }
 
-Status ProcessAddressSpace::ensureSplitAt(size_t address) {
+void ProcessAddressSpace::ensureSplitAt(size_t address) {
     auto [index, inUse] = findIndexFor(address);
 
     if (inUse && mappedAreas[index]->region.start != address) {
         /* area needs to be split */
 
         /* resize the vector first, since it would be hard to recover from an exeption later */
-        Status status = mappedAreas.insert(nullptr, index + 1);
-        if (!status) {
-            return status;
-        }
+        mappedAreas.insert(nullptr, index + 1);
 
-        Result result = mappedAreas[index]->split(address - mappedAreas[index]->region.start);
-        if (!result) {
+        pair<unique_ptr<MappedArea>, unique_ptr<MappedArea>> splitResult;
+        try {
+            splitResult = mappedAreas[index]->split(address - mappedAreas[index]->region.start);
+        } catch (...) {
             /* erase the already reserved vector space for the second element */
             mappedAreas.erase(mappedAreas.begin() + index + 1);
-            return result.status();
+            throw;
         }
-        mappedAreas[index] = move(result->first);
-        mappedAreas[index + 1] = move(result->second);
+
+        mappedAreas[index] = move(splitResult.first);
+        mappedAreas[index + 1] = move(splitResult.second);
     }
-    return Status::OK();
 }
 
-Status ProcessAddressSpace::ensureRegionIndependent(Region region) {
-    Status status = ensureSplitAt(region.start);
-    if (!status) {
-        return status;
-    }
-    return ensureSplitAt(region.end());
+void ProcessAddressSpace::ensureRegionIndependent(Region region) {
+    ensureSplitAt(region.start);
+    ensureSplitAt(region.end());
 }
 
 
-Status ProcessAddressSpace::_removeRegion(Region region) {
+void ProcessAddressSpace::_removeRegion(Region region) {
     assert(lock.isLocked());
 
-    Status status = ensureRegionIndependent(region);
-    if (!status) {
-        return status;
-    }
+    ensureRegionIndependent(region);
 
     auto [startIndex, mapped] = findIndexFor(region.start);
     auto startIterator = mappedAreas.begin() + startIndex;
@@ -295,21 +246,17 @@ Status ProcessAddressSpace::_removeRegion(Region region) {
     }
 
     mappedAreas.erase(startIterator, endIterator);
-    return Status::OK();
 }
 
-Status ProcessAddressSpace::removeRegion(Region region) {
+void ProcessAddressSpace::removeRegion(Region region) {
     scoped_lock sl(lock);
-    return _removeRegion(region);
+    _removeRegion(region);
 }
 
-Result<size_t> ProcessAddressSpace::changeRegionProtection(Region region, Permissions permissions) {
+size_t ProcessAddressSpace::changeRegionProtection(Region region, Permissions permissions) {
     scoped_lock sl(lock);
 
-    Status status = ensureRegionIndependent(region);
-    if (!status) {
-        return status;
-    }
+    ensureRegionIndependent(region);
 
     auto [startIndex, mapped] = findIndexFor(region.start);
     auto startIterator = mappedAreas.begin() + startIndex;
@@ -341,27 +288,26 @@ Result<size_t> ProcessAddressSpace::changeRegionProtection(Region region, Permis
 }
 
 /* This function may only fail if given an invalid startAddress. */
-Status ProcessAddressSpace::removeMapping(size_t startAddress) {
+void ProcessAddressSpace::removeMapping(size_t startAddress) {
     scoped_lock sl(lock);
 
     auto [index, mapped] = findIndexFor(startAddress);
     if (!mapped || mappedAreas[index]->region.start != startAddress) {
         cout << "removeMapping: give address " << startAddress << " is not the start of a mapping"
-            << endl;
-        return Status::BadUserSpace();
+             << endl;
+        throw BadUserSpace(process());
     }
     mappedAreas.erase(mappedAreas.begin() + index);
-    return Status::OK();
 }
 
-Status ProcessAddressSpace::handlePageFault(size_t address, Permissions requiredPermissions) {
+void ProcessAddressSpace::handlePageFault(size_t address, Permissions requiredPermissions) {
     scoped_lock sl(lock);
 
     auto [index, mapped] = findIndexFor(address);
     if (!mapped) {
         cout << "Process tried to access address " << address << " which it has not mapped "
-            << endl;
-        return Status::BadUserSpace();
+             << endl;
+        throw BadUserSpace(process());
     }
 
     unique_ptr<MappedArea> &mappedArea = mappedAreas[index];
@@ -369,86 +315,79 @@ Status ProcessAddressSpace::handlePageFault(size_t address, Permissions required
     if (mappedArea->permissions == Permissions::INVALID) {
         cout << "Process tried to access address " << address
              << " which is explicitly access-disabled." << endl;
-        return Status::BadUserSpace();
+        throw BadUserSpace(process());
     }
 
     if (requiredPermissions > mappedArea->permissions) {
         cout << "Process tried to access address " << address << " using permissions "
-            << requiredPermissions << " which is mapped with " << mappedArea->permissions << endl;
+             << requiredPermissions << " which is mapped with " << mappedArea->permissions << endl;
+        throw BadUserSpace(process());
     }
 
-    return mappedArea->ensurePagedIn(align(address, PAGE_SIZE, AlignDirection::DOWN));
+    mappedArea->ensurePagedIn(align(address, PAGE_SIZE, AlignDirection::DOWN));
 }
 
-Result<uint64_t> ProcessAddressSpace::getFutexID(size_t address) {
+uint64_t ProcessAddressSpace::getFutexID(size_t address) {
     scoped_lock sl(lock);
 
     optional result = findMemoryArea(address, true);
     if (!result) {
-        return Status::BadUserSpace();
+        throw BadUserSpace(process());
     }
 
     auto [memoryArea, maxRegionInside] = *result;
     return memoryArea->getFutexID(maxRegionInside.start);
 }
 
-Status ProcessAddressSpace::copyFromLocked(uint8_t *destination, size_t address, size_t length) {
+void ProcessAddressSpace::copyFromLocked(uint8_t *destination, size_t address, size_t length) {
     assert(lock.isLocked());
 
     while (length > 0) {
         optional result = findMemoryArea(address, false);
         if (!result) {
             cout << "copyFrom: could not find memory area for " << address << endl;
-            return Status::BadUserSpace();
+            throw BadUserSpace(process());
         }
 
         auto [memoryArea, maxRegionInside] = *result;
         size_t accessLength = min(length, maxRegionInside.length);
-        Status status = memoryArea->copyFrom(destination, maxRegionInside.start, accessLength);
-        if (!status) {
-            return status;
-        }
+        memoryArea->copyFrom(destination, maxRegionInside.start, accessLength);
 
         destination += accessLength;
         address += accessLength;
         length -= accessLength;
     }
-    return Status::OK();
 }
 
-Status ProcessAddressSpace::copyFrom(uint8_t *destination, size_t address, size_t length) {
+void ProcessAddressSpace::copyFrom(uint8_t *destination, size_t address, size_t length) {
     scoped_lock sl(lock);
-    return copyFromLocked(destination, address, length);
+    copyFromLocked(destination, address, length);
 }
 
 
-Status ProcessAddressSpace::copyTo(size_t address,
-                                   const uint8_t *source,
-                                   size_t length,
-                                   bool requireWritePermissions) {
+void ProcessAddressSpace::copyTo(size_t address,
+                                 const uint8_t *source,
+                                 size_t length,
+                                 bool requireWritePermissions) {
     scoped_lock sl(lock);
 
     while (length > 0) {
         optional result = findMemoryArea(address, requireWritePermissions);
         if (!result) {
-            return Status::BadUserSpace();
+            throw BadUserSpace(process());
         }
 
         auto [memoryArea, maxRegionInside] = *result;
         size_t accessLength = min(length, maxRegionInside.length);
-        Status status = memoryArea->copyTo(maxRegionInside.start, source, accessLength);
-        if (!status) {
-            return status;
-        }
+        memoryArea->copyTo(maxRegionInside.start, source, accessLength);
 
         source += accessLength;
         address += accessLength;
         length -= accessLength;
     }
-    return Status::OK();
 }
 
-Status ProcessAddressSpace::copyFromOhter(size_t destinationAddress,
+void ProcessAddressSpace::copyFromOhter(size_t destinationAddress,
                                           ProcessAddressSpace &sourceSpace,
                                           size_t sourceAddress,
                                           size_t length,
@@ -459,41 +398,36 @@ Status ProcessAddressSpace::copyFromOhter(size_t destinationAddress,
         optional sourceResult = sourceSpace.findMemoryArea(sourceAddress, false);
         if (!sourceResult) {
             cout << "copyFromUser: Unable to find corresponding MemoryArea in source" << endl;
-            return Status::BadUserSpace();
+            throw BadUserSpace(sourceSpace.process());
         }
         auto [sourceArea, sourceMaxRegion] = *sourceResult;
 
         optional result = findMemoryArea(destinationAddress, requireWriteAccessToDestination);
         if (!result) {
             cout << "copyFromUser: Unable to find corresponding MemoryArea in destination" << endl;
-            return Status::BadUserSpace();
+            throw BadUserSpace(process());
         }
         auto [destinationArea, destinationMaxRegion] = *result;
 
         size_t accessLength = min(length,
                                   min(sourceMaxRegion.length, destinationMaxRegion.length));
-        Status status = destinationArea->copyFromOther(destinationMaxRegion.start,
-                                                       *sourceArea,
-                                                       sourceMaxRegion.start,
-                                                       accessLength);
-        if (!status) {
-            return status;
-        }
-
+        destinationArea->copyFromOther(destinationMaxRegion.start,
+                                       *sourceArea,
+                                       sourceMaxRegion.start,
+                                       accessLength);
         sourceAddress += accessLength;
         destinationAddress += accessLength;
         length -= accessLength;
     }
-    return Status::OK();
 }
 
 
-Result<uint32_t> ProcessAddressSpace::atomicCopyFrom32(size_t address) {
+uint32_t ProcessAddressSpace::atomicCopyFrom32(size_t address) {
     scoped_lock sl(lock);
 
     optional result = findMemoryArea(address, true);
     if (!result) {
-        return Status::BadUserSpace();
+        throw BadUserSpace(process());
     }
 
     auto [memoryArea, maxRegionInside] = *result;
@@ -502,16 +436,24 @@ Result<uint32_t> ProcessAddressSpace::atomicCopyFrom32(size_t address) {
 
 /* PhysicalAddress returned for Futex manager use only. May have changed already since
  * ProcessAddressSpace is unlocked! */
-Result<bool> ProcessAddressSpace::atomicCompareExchange32(size_t address,
+bool ProcessAddressSpace::atomicCompareExchange32(size_t address,
                                                               uint32_t expectedValue,
                                                               uint32_t newValue) {
     scoped_lock sl(lock);
 
     optional result = findMemoryArea(address, true);
     if (!result) {
-        return Status::BadUserSpace();
+        throw BadUserSpace(process());
     }
 
     auto [memoryArea, maxRegionInside] = *result;
     return memoryArea->atomicCompareExchange32(maxRegionInside.start, expectedValue, newValue);
+}
+
+shared_ptr<Process> ProcessAddressSpace::process() const noexcept {
+    /* hack relies on addressSpace being the first member of Process */
+    Process *raw = reinterpret_cast<Process *>(const_cast<ProcessAddressSpace *>(this));
+    auto result = raw->self.lock();
+    assert(raw == result.get());
+    return result;
 }

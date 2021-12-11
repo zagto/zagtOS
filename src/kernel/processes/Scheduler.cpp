@@ -4,21 +4,12 @@
 #include <processes/Process.hpp>
 #include <processes/KernelThreadEntry.hpp>
 #include <system/Processor.hpp>
+#include <lib/Exception.hpp>
 
 
-Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
+Scheduler::Scheduler(CommonProcessor *_processor)
 {
-    if (!status) {
-        return;
-    }
-
-    Result result = make_raw<Thread>(IdleThreadEntry,
-                                     Thread::Priority::IDLE);
-    if (!result) {
-        status = result.status();
-        return;
-    }
-    idleThread = *result;
+    idleThread = new Thread(IdleThreadEntry, Thread::Priority::IDLE);
     threads[Thread::Priority::IDLE].append(idleThread);
 
     cout << "created idle thread at " << idleThread << " to scheduler " << _processor->id << endl;
@@ -28,7 +19,7 @@ Scheduler::Scheduler(CommonProcessor *_processor, Status &status)
     idleThread->currentProcessor(processor);
 }
 
-void Scheduler::add(Thread *thread, bool online) {
+void Scheduler::add(Thread *thread, bool online) noexcept {
     // TODO: ensure current processor
     assert(thread->currentProcessor() == nullptr);
 
@@ -60,8 +51,10 @@ void Scheduler::add(Thread *thread, bool online) {
     }
 }
 
-Status Scheduler::checkChanges() {
-    lock.lock();
+void Scheduler::checkChanges() {
+    /* should already be locked here - but hold it a second time for DiscardStateAndSchedule */
+    scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl2(lock);
 
     Thread *activeThread = processor->activeThread();
 
@@ -71,23 +64,20 @@ Status Scheduler::checkChanges() {
             threads[activeThread->currentPriority()].append(activeThread);
             processor->activeThread(nullptr);
 
-            return Status::DiscardStateAndSchedule();
+            throw DiscardStateAndSchedule(activeThread, move(sl), move(sl2));
         }
     }
-
-    lock.unlock();
-    return Status::OK();
 }
 
 size_t Scheduler::nextProcessorID{0};
 
-void Scheduler::schedule(Thread *thread, bool online) {
+void Scheduler::schedule(Thread *thread, bool online) noexcept {
     // TODO
     size_t processorID = __atomic_fetch_add(&nextProcessorID, 1, __ATOMIC_RELAXED) % CurrentSystem.numProcessors;
     Processors[processorID].scheduler.add(thread, online);
 }
 
-void Scheduler::removeOtherThread(Thread *thread) {
+void Scheduler::removeOtherThread(Thread *thread) noexcept {
     assert(lock.isLocked());
     assert(thread != processor->activeThread());
 
@@ -107,7 +97,7 @@ void Scheduler::removeActiveThread() {
 }
 
 [[noreturn]]
-void Scheduler::scheduleNext() {
+void Scheduler::scheduleNext() noexcept {
     assert(!processor->activeThread());
     assert(lock.isLocked());
     assert(processor == CurrentProcessor());
@@ -125,7 +115,7 @@ void Scheduler::scheduleNext() {
                 for (char c: newActiveThread->process->logName) {
                     cout << c;
                 }
-                cout <<":" << newActiveThread->handle() << " (" << newActiveThread << ")" << endl;
+                cout <<": " << newActiveThread->handle() << " (" << newActiveThread << ")" << endl;
             }
 
             assert(newActiveThread->currentProcessor() == processor);

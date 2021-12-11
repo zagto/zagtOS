@@ -3,7 +3,7 @@
 #include <common/common.hpp>
 #include <processes/Process.hpp>
 
-Result<size_t> SendMessage(const shared_ptr<Process> &process,
+size_t SendMessage(const shared_ptr<Process> &process,
            uint64_t handle,
            uint64_t messageTypeAddress,
            uint64_t messageAddress,

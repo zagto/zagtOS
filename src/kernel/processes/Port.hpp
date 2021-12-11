@@ -22,12 +22,12 @@ public:
     /* should be seen as const besides during handover */
     shared_ptr<Process> process;
 
-    Port(const shared_ptr<Process> process, Status &);
-    Port(const hos_v1::Port &handOver, const vector<shared_ptr<Thread>> &allThreads, Status &status);
+    Port(const shared_ptr<Process> process) noexcept;
+    Port(const hos_v1::Port &handOver, const vector<shared_ptr<Thread>> &allThreads);
     Port(Port &) = delete;
     ~Port();
 
-    Result<unique_ptr<Message>> getMessage();
-    void setWaitingThread(Thread *thread, size_t index);
-    Status addMessage(unique_ptr<Message> message);
+    unique_ptr<Message> getMessage();
+    void setWaitingThread(Thread *thread, size_t index) noexcept;
+    void addMessage(unique_ptr<Message> message);
 };

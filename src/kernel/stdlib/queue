@@ -9,7 +9,7 @@ private:
     size_t firstIndex{0};
 
 public:
-    queue() {};
+    queue() noexcept {};
     queue(queue &other) = delete;
     queue(queue &&other) :
         buffer{move(other.buffer)},
@@ -26,21 +26,21 @@ public:
         other.firstIndex = 0;
     }
 
-    Status push_back(T &&newElement) {
-        return buffer.push_back(move(newElement));
+    void push_back(T &&newElement) {
+        buffer.push_back(move(newElement));
     }
-    Status push_back(const T& newElement) {
-        return buffer.push_back(newElement);
+    void push_back(const T& newElement) {
+        buffer.push_back(newElement);
     }
-    bool empty() const {
+    bool empty() const noexcept {
         assert(firstIndex <= buffer.size());
         return firstIndex == buffer.size();
     }
-    T& top() {
+    T& top() noexcept {
         assert(!empty());
         return buffer[firstIndex];
     }
-    void pop() {
+    void pop() noexcept {
         buffer[firstIndex] = T();
         firstIndex++;
 
@@ -54,14 +54,14 @@ public:
             firstIndex = 0;
         }
     }
-    size_t size() {
+    size_t size() noexcept {
         return buffer.size() - firstIndex;
     }
     /* non-standard */
-    void remove(const T &element) {
+    void remove(const T &element) noexcept {
         buffer.remove(element);
     }
-    void clear() {
+    void clear() noexcept {
         buffer.clear();
         firstIndex = 0;
     }

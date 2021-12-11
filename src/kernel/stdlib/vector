@@ -3,7 +3,7 @@
 #include <common/common.hpp>
 #include <memory/FrameManagement.hpp>
 #include <log/Logger.hpp>
-#include <lib/Status.hpp>
+#include <lib/Exception.hpp>
 #include <memory/DLMallocGlue.hpp>
 #include <memory>
 
@@ -44,80 +44,75 @@ protected:
     size_t numElements{0};
     size_t numAllocated{0};
 
-    Status changeAllocatedSize(size_t newNumAllocated) {
+    void changeAllocatedSize(size_t newNumAllocated) {
         /* TODO: make sure making it smaller never goes OOM */
         if (newNumAllocated == numAllocated) {
-            return Status::OK();
+            return;
         }
 
-        Result newData = DLMallocGlue.allocate(newNumAllocated * sizeof(ElementType),
-                                               sizeof(ElementType));
-        if (!newData) {
-            return newData.status();
-        }
+        KernelVirtualAddress newData = DLMallocGlue.allocate(newNumAllocated * sizeof(ElementType),
+                                                             sizeof(ElementType));
 
         for (size_t index = 0; index < numElements; index++) {
-            new(&newData->asPointer<ElementType>()[index]) ElementType(move(_data[index]));
+            /* we assume moving never throws */
+            new(newData.asPointer<ElementType>() + index) ElementType(move(_data[index]));
             _data[index].~ElementType();
         }
         if (_data != nullptr) {
             DLMallocGlue.free(_data);
         }
-        _data = newData->asPointer<ElementType>();
+        _data = newData.asPointer<ElementType>();
         numAllocated = newNumAllocated;
-
-        return Status::OK();
     }
 
-    Status adjustAllocatedSize(size_t newNumElements) {
-        Status status = Status::OK();
+    void adjustAllocatedSize(size_t newNumElements) {
         if (newNumElements >= numAllocated) {
-            status = changeAllocatedSize((newNumElements + 1) * 3 / 2);
+            changeAllocatedSize((newNumElements + 1) * 3 / 2);
         }
         if (newNumElements < numAllocated >> 1) {
-            status = changeAllocatedSize(newNumElements);
-        }
-        if (!status) {
-            return status;
+            changeAllocatedSize(newNumElements);
         }
         numElements = newNumElements;
-        return Status::OK();
     }
 
 public:
-    vector() {}
-    vector(size_t numElements, Status &status) {
-        if (!status) {
-            return;
-        }
-        Result result = DLMallocGlue.allocate(numElements * sizeof(ElementType),
-                                               sizeof(ElementType));
-        if (!result) {
-            status = result.status();
-            return;
-        }
-
-        _data = result->asPointer<ElementType>();
-        for (size_t index = 0; index < numElements; index++) {
-            new(&_data[index]) ElementType;
+    vector() noexcept {}
+    vector(size_t numElements) {
+        KernelVirtualAddress result = DLMallocGlue.allocate(numElements * sizeof(ElementType),
+                                                            sizeof(ElementType));
+        _data = result.asPointer<ElementType>();
+        size_t index = 0;
+        try {
+            for (index = 0; index < numElements; index++) {
+                new(&_data[index]) ElementType;
+            }
+        } catch (...) {
+            /* The default constructor of ElementType may throw */
+            while (index > 0) {
+                _data[index].~ElementType();
+                index--;
+            }
+            DLMallocGlue.free(_data);
         }
         this->numElements = numElements;
         this->numAllocated = numElements;
     }
-    vector(size_t numElements, ElementType initialize, Status &status) {
-        if (!status) {
-            return;
-        }
-        Result result = DLMallocGlue.allocate(numElements * sizeof(ElementType),
-                                               sizeof(ElementType));
-        if (!result) {
-            status = result.status();
-            return;
-        }
-
-        _data = result->asPointer<ElementType>();
-        for (size_t index = 0; index < numElements; index++) {
-            new(&_data[index]) ElementType(initialize);
+    vector(size_t numElements, ElementType initialize) {
+        KernelVirtualAddress result = DLMallocGlue.allocate(numElements * sizeof(ElementType),
+                                                            sizeof(ElementType));
+        _data = result.asPointer<ElementType>();
+        size_t index = 0;
+        try {
+            for (index = 0; index < numElements; index++) {
+                new(&_data[index]) ElementType(initialize);
+            }
+        } catch (...) {
+            /* The copy constructor of ElementType may throw */
+            while (index > 0) {
+                _data[index].~ElementType();
+                index--;
+            }
+            DLMallocGlue.free(_data);
         }
         this->numElements = numElements;
         this->numAllocated = numElements;
@@ -125,7 +120,7 @@ public:
 
     /* There is currently no reason to copy vectors in kernel. Implement this if neeeded */
     vector(vector &other) = delete;
-    vector(vector &&other) {
+    vector(vector &&other) noexcept {
         _data = other._data;
         numElements = other.numElements;
         numAllocated = other.numAllocated;
@@ -134,10 +129,8 @@ public:
         other.numAllocated = 0;
     }
     void operator=(vector &other) = delete;
-    void operator=(vector &&other) {
-        if (_data) {
-            DLMallocGlue.free(_data);
-        }
+    void operator=(vector &&other) noexcept {
+        clear();
         _data = other._data;
         numElements = other.numElements;
         numAllocated = other.numAllocated;
@@ -149,44 +142,40 @@ public:
         clear();
     }
 
-    ElementType &operator[](size_t index) {
+    ElementType &operator[](size_t index) noexcept {
         assert(index < numElements);
         return _data[index];
     }
 
-    const ElementType &operator[](size_t index) const {
+    const ElementType &operator[](size_t index) const noexcept {
         assert(index < numElements);
         return _data[index];
     }
 
-    size_t size() const {
+    size_t size() const noexcept {
         return numElements;
     }
 
-    Status push_back(ElementType &&element) {
-        Status status = adjustAllocatedSize(numElements + 1);
-        if (!status) {
-            return status;
-        }
+    void push_back(ElementType &&element) {
+        adjustAllocatedSize(numElements + 1);
+        /* assume move constructor does not throw */
         new (&_data[numElements - 1]) ElementType(move(element));
-        return Status::OK();
     }
-    Status push_back(const ElementType &element) {
-        Status status = adjustAllocatedSize(numElements + 1);
-        if (!status) {
-            return status;
+    void push_back(const ElementType &element) {
+        adjustAllocatedSize(numElements + 1);
+        try {
+            new (&_data[numElements - 1]) ElementType(element);
+        } catch (...) {
+            /* make vector smaller again in case of copy constructor failure */
+            numElements--;
+            throw;
         }
-        new (&_data[numElements - 1]) ElementType(element);
-        return Status::OK();
     }
 
-    Status insert(ElementType element, size_t index) {
+    void insert(ElementType element, size_t index) {
         assert(index <= numElements);
 
-        Status status = adjustAllocatedSize(numElements + 1);
-        if (!status) {
-            return status;
-        }
+        adjustAllocatedSize(numElements + 1);
 
         for (size_t moveIndex = numElements - 1; moveIndex > index; moveIndex--) {
             new (&_data[moveIndex]) ElementType(move(_data[moveIndex - 1]));
@@ -194,10 +183,9 @@ public:
         }
 
         new (&_data[index]) ElementType(move(element));
-        return Status::OK();
     }
 
-    Iterator erase(Iterator first, Iterator last) {
+    Iterator erase(Iterator first, Iterator last) noexcept {
         size_t numRemove = last.position - first.position;
 
         numElements -= numRemove;
@@ -208,20 +196,22 @@ public:
             new(&_data[moveIndex]) ElementType(move(_data[moveIndex + numRemove]));
             _data[moveIndex + numRemove].~ElementType();
         }
-        /* ignore status of adjustAllocatedSize - even if it failed we have removed the element */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-        Status ignored = adjustAllocatedSize(numElements);
-#pragma GCC diagnostic pop
+
+        try {
+            adjustAllocatedSize(numElements);
+        } catch (...) {
+            /* ignore exceptions of adjustAllocatedSize - even if it failed we have removed the
+             * element */
+        }
 
         return Iterator(*this, first.position);
     }
 
-    Iterator erase(Iterator where) {
+    Iterator erase(Iterator where) noexcept {
         return erase(where, where + 1);
     }
 
-    void remove(const ElementType &element) {
+    void remove(const ElementType &element) noexcept {
         size_t index;
         for (index = 0; index < numElements; index++) {
             if (_data[index] == element) {
@@ -237,35 +227,49 @@ public:
         erase(begin() + index);
     }
 
-    Status resize(size_t newSize) {
-        while (newSize < numElements) {
-            numElements--;
-            _data[numElements].~ElementType();
+    void resize(size_t newSize) {
+        if (newSize <= numElements) {
+            while (newSize < numElements) {
+                numElements--;
+                _data[numElements].~ElementType();
+            }
+
+            try {
+                adjustAllocatedSize(numElements);
+            } catch (...) {
+                /* ignore exceptions of adjustAllocatedSize - even if it failed we have removed the
+                 * elements */
+            }
+        } else {
+            /* newSize is bigger */
+            size_t oldSize = numElements;
+            size_t filledSize = numElements;
+            adjustAllocatedSize(newSize);
+            try {
+                while (filledSize < numElements) {
+                    new (&_data[filledSize]) ElementType;
+                    filledSize++;
+                }
+            } catch (...) {
+                while (filledSize > oldSize) {
+                    filledSize--;
+                    _data[filledSize].~ElementType();
+                }
+                numElements = oldSize;
+                throw;
+            }
         }
-        size_t filledSize = numElements;
-        Status status = adjustAllocatedSize(newSize);
-        while (filledSize < numElements) {
-            new (&_data[filledSize]) ElementType;
-            filledSize++;
-        }
-        if (newSize == numElements) {
-            /* ignore status of adjustAllocatedSize for shrinks - even if it failed to shrink the
-             * allocated memory we have removed the element */
-            return Status::OK();
-        }
-        return status;
     }
 
     /* version of size that only allows shrinking or leaving the size the same and always
      * succeeds */
-    void shrinkTo(size_t newSize) {
+    void shrinkTo(size_t newSize) noexcept {
         assert(newSize <= numElements);
-        Status success = resize(newSize);
-        assert(static_cast<bool>(success));
+        resize(newSize);
     }
 
 
-    void clear() {
+    void clear() noexcept {
         for (size_t index = 0; index < numElements; index++) {
             _data[index].~ElementType();
         }
@@ -274,21 +278,21 @@ public:
         }
     }
 
-    ElementType *data() const {
+    ElementType *data() const noexcept {
         return _data;
     }
 
-    Iterator begin() {
+    Iterator begin() noexcept {
         return Iterator(*this, 0);
     }
 
-    Iterator end() {
+    Iterator end() noexcept {
         return Iterator(*this, numElements);
     }
 };
 
 template<typename ElementType> size_t distance(typename vector<ElementType>::Iterator first,
-                                             typename vector<ElementType>::Iterator last) {
+                                             typename vector<ElementType>::Iterator last) noexcept {
     assert(last.position >= first.position);
     return last.position - first.position;
 }

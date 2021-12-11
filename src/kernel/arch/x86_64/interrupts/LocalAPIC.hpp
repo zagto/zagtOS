@@ -1,7 +1,6 @@
 #pragma once
 
 #include <common/common.hpp>
-#include <lib/Status.hpp>
 #include <time/APICTimer.hpp>
 
 class LocalAPIC {
@@ -18,12 +17,12 @@ private:
 
     uint8_t *map;
 
-    Status setupMap(PhysicalAddress base);
+    void setupMap(PhysicalAddress base);
     void wirteInterruptControlRegister(DeliveryMode deliveryMode,
                                        Level level,
                                        TriggerMode triggerMode,
                                        uint32_t destination,
-                                       uint8_t vector);
+                                       uint8_t vector) noexcept;
 
 protected:
     friend class APICTimer;
@@ -47,16 +46,16 @@ protected:
         END = 0x3f0
     };
 
-    void writeRegister(Register reg, uint32_t value);
-    uint32_t readRegister(Register reg);
+    void writeRegister(Register reg, uint32_t value) noexcept;
+    uint32_t readRegister(Register reg) noexcept;
 
 public:
     APICTimer timer;
 
-    LocalAPIC(Status &);
+    LocalAPIC() noexcept;
     ~LocalAPIC();
 
-    Status initialize(PhysicalAddress base);
-    void sendIPI(uint32_t apicID);
-    void endOfInterrupt();
+    void initialize(PhysicalAddress base);
+    void sendIPI(uint32_t apicID) noexcept;
+    void endOfInterrupt() noexcept;
 };

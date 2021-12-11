@@ -1,7 +1,7 @@
 #include <syscalls/Log.hpp>
 #include <processes/Process.hpp>
 
-Result<size_t> Log(const shared_ptr<Process> &process,
+size_t Log(const shared_ptr<Process> &process,
                    size_t _address,
                    size_t _length,
                    size_t,
@@ -22,16 +22,8 @@ Result<size_t> Log(const shared_ptr<Process> &process,
         return 0;
     }
 
-    Status status = Status::OK();
-    vector<uint8_t> buffer(length, status);
-    if (!status) {
-        return status;
-    }
-    status = process->addressSpace.copyFrom(&buffer[0], address, length);
-    if (!status) {
-        cout << "SYS_LOG: invalid buffer\n";
-        return status;
-    }
+    vector<uint8_t> buffer(length);
+    process->addressSpace.copyFrom(&buffer[0], address, length);
     /* do not print program name for small invisible stuff */
     if (!(length == 0 || (length == 1 && buffer[0] <= ' '))) {
         cout.setProgramNameColor();

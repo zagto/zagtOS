@@ -11,32 +11,26 @@
 
 void hos_v1::System::decodeProcesses() {
     /* TODO: deal with OOM */
-    Status status = Status::OK();
-    vector<shared_ptr<::Thread>> allThreads(numThreads, status);
-    assert(static_cast<bool>(status));
-    vector<shared_ptr<::Port>> allPorts(numPorts, status);
-    assert(static_cast<bool>(status));
-    vector<shared_ptr<::MemoryArea>> allMemoryAreas(numMemoryAreas, status);
-    assert(static_cast<bool>(status));
-    vector<shared_ptr<::Process>> allProcesses(numProcesses, status);
-    assert(static_cast<bool>(status));
-    vector<::Frame *> allFrames(numFrames, nullptr, status);
-    assert(static_cast<bool>(status));
+    vector<shared_ptr<::Thread>> allThreads(numThreads);
+    vector<shared_ptr<::Port>> allPorts(numPorts);
+    vector<shared_ptr<::MemoryArea>> allMemoryAreas(numMemoryAreas);
+    vector<shared_ptr<::Process>> allProcesses(numProcesses);
+    vector<::Frame *> allFrames(numFrames, nullptr);
 
     for (size_t index = 0; index < numThreads; index++) {
-        allThreads[index] = *make_shared<::Thread>(threads[index]);
+        allThreads[index] = make_shared<::Thread>(threads[index]);
     }
     for (size_t index = 0; index < numPorts; index++) {
-        allPorts[index] = *make_shared<::Port>(ports[index], allThreads);
+        allPorts[index] = make_shared<::Port>(ports[index], allThreads);
     }
     for (size_t index = 0; index < numFrames; index++) {
-        allFrames[index] = *make_raw<::Frame>(frames[index]);
+        allFrames[index] = new ::Frame(frames[index]);
     }
     for (size_t index = 0; index < numMemoryAreas; index++) {
-        allMemoryAreas[index] = *make_shared<::MemoryArea>(memoryAreas[index], allFrames);
+        allMemoryAreas[index] = make_shared<::MemoryArea>(memoryAreas[index], allFrames);
     }
     for (size_t index = 0; index < numProcesses; index++) {
-        allProcesses[index] = *make_shared<::Process>(processes[index],
+        allProcesses[index] = make_shared<::Process>(processes[index],
                                                      allThreads,
                                                      allPorts,
                                                      allMemoryAreas);
@@ -46,6 +40,7 @@ void hos_v1::System::decodeProcesses() {
      * ports */
     for (const shared_ptr<::Process> &process : allProcesses) {
         process->handleManager.insertAllProcessPointersAfterKernelHandover(process);
+        process->self = process;
     }
 
     /* TODO: Sanity check that all our elements are now referenced somewhere */

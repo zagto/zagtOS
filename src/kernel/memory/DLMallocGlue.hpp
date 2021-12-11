@@ -3,7 +3,6 @@
 #include <common/utils.hpp>
 
 #ifdef __cplusplus
-#include <lib/Status.hpp>
 
 namespace dlMallocGlue {
 
@@ -13,8 +12,8 @@ private:
 public:
     Glue();
     KernelVirtualAddress allocate(size_t length, size_t align);
-    Result<KernelVirtualAddress> resize(KernelVirtualAddress address, size_t length);
-    void free(KernelVirtualAddress address);
+    KernelVirtualAddress resize(KernelVirtualAddress address, size_t length);
+    void free(KernelVirtualAddress address) noexcept;
 };
 
 extern Glue DLMallocGlue;

@@ -20,7 +20,7 @@ static constexpr uint32_t FUTEX_HANDLE_MASK = 0x4fffffff;
 static constexpr uint32_t FUTEX_WAITERS_BIT = 0x80000000;
 
 
-Result<size_t> Futex(const shared_ptr<Process> &process,
+size_t Futex(const shared_ptr<Process> &process,
                      size_t address,
                      size_t operation,
                      size_t passedValue,
@@ -38,44 +38,30 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
 
     if (operation == FUTEX_WAIT || operation == FUTEX_LOCK_PI) {
         if (timeoutOrValue2 != 0) {
-            Status status = Status::OK();
-            UserSpaceObject<timespec, USOOperation::READ> timeoutUSO(timeoutOrValue2, status);
-            if (!status) {
-                if (status == Status::BadUserSpace()) {
-                    cout << "Futex: invalid pointer to timeout: " << timeoutOrValue2 << endl;
-                }
-                return status;
-            }
+            UserSpaceObject<timespec, USOOperation::READ> timeoutUSO(timeoutOrValue2);
         }
     }
 
     if (timeout.tv_sec != 0 || timeout.tv_nsec != 0) {
-        cout << "TODO: handle timeout" << endl;
-        return Status::BadUserSpace();
+        cout << "Futex: TODO: handle timeout" << endl;
+        Panic();
     }
 
     // TODO: actually do the priority thing
 
-    Result futexIdResult = process->addressSpace.getFutexID(address);
-    if (!futexIdResult) {
-        return futexIdResult.status();
-    }
-    size_t futexID = *futexIdResult;
+    size_t futexID = process->addressSpace.getFutexID(address);
 
     switch (operation) {
     case FUTEX_WAIT: {
         /* read value back - otherwise a wake may have occured inbetween and we wait forever */
-        Result<uint32_t> directValue = process->addressSpace.atomicCopyFrom32(address);
-        if (!directValue) {
-            return directValue.status();
-        }
-        if (*directValue != passedValue) {
+        uint32_t directValue = process->addressSpace.atomicCopyFrom32(address);
+        if (directValue != passedValue) {
             return EAGAIN;
         }
-        Status status = manager.wait(futexID);
+        manager.wait(futexID);
         /* Wait will return DiscardStateAndSchedule on success */
-        assert(!status);
-        return status;
+        cout << "Futex: should not reach here" << endl;
+        Panic();
     }
     case FUTEX_WAKE: {
         size_t numWoken = manager.wake(futexID, passedValue);
@@ -83,47 +69,34 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
     }
     case FUTEX_LOCK_PI:
         while (true) {
-            Result<uint32_t> copyResult = process->addressSpace.atomicCopyFrom32(address);
-            if (!copyResult) {
-                return copyResult.status();
-            }
+            uint32_t copyResult = process->addressSpace.atomicCopyFrom32(address);
 
-            if (*copyResult == 0) {
-                Result<bool> exchangeResult = process->addressSpace.atomicCompareExchange32(
+            if (copyResult == 0) {
+                bool exchangeResult = process->addressSpace.atomicCompareExchange32(
                             address, 0, CurrentThread()->handle());
-                if (!exchangeResult) {
-                    return exchangeResult.status();
-                }
-
-                if (*exchangeResult) {
+                if (exchangeResult) {
                     return 0;
                 }
             } else {
-                Result<bool> exchangeResult = process->addressSpace.atomicCompareExchange32(
-                             address, *copyResult, *copyResult | FUTEX_WAITERS_BIT);
-                if (!exchangeResult) {
-                    return exchangeResult.status();
-                }
+                bool exchangeResult = process->addressSpace.atomicCompareExchange32(
+                             address, copyResult, copyResult | FUTEX_WAITERS_BIT);
 
-                if (*exchangeResult) {
-                    Status status = manager.wait(futexID);
-                    /* Wait will return DiscardStateAndSchedule on success */
-                    assert(!status);
-
-                    /* we leave the FUTEX_WAITERS_BIT set here. This is safe as even if the
+                if (exchangeResult) {
+                    manager.wait(futexID);
+                    /* Wait will return DiscardStateAndSchedule on success.
+                     *
+                     * we leave the FUTEX_WAITERS_BIT set here. This is safe as even if the
                      * futex is unlocked before we retry, the unlocking thread will do a
                      * syscall unnecessarily but not causing any problems. */
-                    return status;
+                    cout << "Futex: should not reach here" << endl;
+                    Panic();
                 }
             }
         }
     case FUTEX_UNLOCK_PI: {
-        Result<uint32_t> copyResult = process->addressSpace.atomicCopyFrom32(address);
-        if (!copyResult) {
-            return copyResult.status();
-        }
+        uint32_t copyResult = process->addressSpace.atomicCopyFrom32(address);
 
-        if ((*copyResult & FUTEX_HANDLE_MASK) != CurrentThread()->handle()) {
+        if ((copyResult & FUTEX_HANDLE_MASK) != CurrentThread()->handle()) {
             cout << "Attempt to unlock Priority-inheritance futex from wrong thread" << endl;
             return EPERM;
         }
@@ -132,6 +105,6 @@ Result<size_t> Futex(const shared_ptr<Process> &process,
     }
     default:
         cout << "Futex: unsupported operation " << operation << endl;
-        return Status::BadUserSpace();
+        throw BadUserSpace(process);
     }
 }

@@ -12,8 +12,7 @@ Thread::Thread(shared_ptr<Process> process,
        UserVirtualAddress runMessageAddress,
        UserVirtualAddress tlsBase,
        UserVirtualAddress masterTLSBase,
-       size_t tlsSize,
-       Status &status) :
+       size_t tlsSize) :
     _ownPriority{priority},
     _currentPriority{priority},
     _state {State::Transition()},
@@ -26,10 +25,6 @@ Thread::Thread(shared_ptr<Process> process,
         process->allThreads.append(this);
     }
 
-    if (!status) {
-        return;
-    }
-
     RegisterState userRegisterState(entry,
                                     stackPointer,
                                     runMessageAddress,
@@ -37,12 +32,7 @@ Thread::Thread(shared_ptr<Process> process,
                                     masterTLSBase,
                                     tlsSize);
 
-    Result result = make_shared<KernelStack>(userRegisterState);
-    if (!result) {
-        status = result.status();
-        return;
-    }
-    kernelStack = *result;
+    kernelStack = make_shared<KernelStack>(userRegisterState);
     kernelEntry = UserReturnEntry;
 }
 
@@ -51,27 +41,17 @@ Thread::Thread(shared_ptr<Process> process,
        UserVirtualAddress entry,
        Priority priority,
        UserVirtualAddress stackPointer,
-       UserVirtualAddress tlsBase,
-       Status &status) :
-    Thread(process, entry, priority, stackPointer, stackPointer, tlsBase, 0, 0, status) {}
+       UserVirtualAddress tlsBase) :
+    Thread(process, entry, priority, stackPointer, stackPointer, tlsBase, 0, 0) {}
 
-Thread::Thread(const hos_v1::Thread &handOver, Status &status) :
+Thread::Thread(const hos_v1::Thread &handOver) :
     _ownPriority{handOver.ownPriority},
     _currentPriority{handOver.currentPriority},
     _state{State::Transition()},
     tlsBase{handOver.TLSBase} {
 
-    if (!status) {
-        return;
-    }
-
     RegisterState userRegisterState(handOver.registerState);
-    Result result = make_shared<KernelStack>(userRegisterState);
-    if (!result) {
-        status = result.status();
-        return;
-    }
-    kernelStack = *result;
+    kernelStack = make_shared<KernelStack>(userRegisterState);
     kernelEntry = UserReturnEntry;
 
     cout << "thread handover cs: " << kernelStack->userRegisterState()->cs << endl;
@@ -79,23 +59,13 @@ Thread::Thread(const hos_v1::Thread &handOver, Status &status) :
 
 /* for kernel-only threads: */
 Thread::Thread(void (*entry)(void *),
-               Priority priority,
-               Status &status):
+               Priority priority):
     _ownPriority{priority},
     _currentPriority{priority},
     _state {State::Transition()},
     kernelEntry{entry} {
 
-    if (!status) {
-        return;
-    }
-
-    Result result = make_shared<KernelStack>(RegisterState());
-    if (!result) {
-        status = result.status();
-        return;
-    }
-    kernelStack = *result;
+    kernelStack = make_shared<KernelStack>(RegisterState());
 }
 
 Thread::~Thread() {
@@ -110,26 +80,26 @@ Thread::~Thread() {
     }
 }
 
-Thread::Priority Thread::ownPriority() const {
+Thread::Priority Thread::ownPriority() const noexcept {
     return _ownPriority;
 }
 
-Thread::Priority Thread::currentPriority() const {
+Thread::Priority Thread::currentPriority() const noexcept {
 
     return _currentPriority;
 }
 
-void Thread::setCurrentPriority(Thread::Priority newValue) {
+void Thread::setCurrentPriority(Thread::Priority newValue) noexcept {
     _currentPriority = newValue;
 }
 
-Thread::State Thread::state() {
+Thread::State Thread::state() noexcept {
     scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl(stateLock);
     return _state;
 }
 
-void Thread::setState(Thread::State newValue) {
+void Thread::setState(Thread::State newValue) noexcept {
     scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl(stateLock);
     if (!(((newValue.kind() == Thread::TRANSITION) != (_state.kind() == Thread::TRANSITION))
@@ -142,12 +112,12 @@ void Thread::setState(Thread::State newValue) {
     _state = newValue;
 }
 
-uint32_t Thread::handle() const {
+uint32_t Thread::handle() const noexcept {
     assert(_handle != INVALID_HANDLE);
     return _handle;
 }
 
-void Thread::setHandle(uint32_t handle) {
+void Thread::setHandle(uint32_t handle) noexcept {
     /* setHandle should only happen once, directly after thread creation */
     assert(_handle == INVALID_HANDLE);
     assert(handle != INVALID_HANDLE);
@@ -156,20 +126,20 @@ void Thread::setHandle(uint32_t handle) {
     kernelStack->userRegisterState()->setThreadHandle(handle);
 }
 
-Processor *Thread::currentProcessor() const {
+Processor *Thread::currentProcessor() const noexcept {
     return _currentProcessor;
 }
 
-void Thread::currentProcessor(Processor *processor) {
+void Thread::currentProcessor(Processor *processor) noexcept {
     _currentProcessor = processor;
 }
 
-void Thread::setKernelEntry(void (*entry)(void *), void *data) {
+void Thread::setKernelEntry(void (*entry)(void *), void *data) noexcept {
     kernelEntry = entry;
     kernelEntryData = data;
 }
 
-void Thread::terminate() {
+void Thread::terminate() noexcept {
     assert(KernelInterruptsLock.isLocked());
 
     cout << "Thread::terminate" << endl;
@@ -205,7 +175,7 @@ void Thread::terminate() {
     }
 }
 
-Thread *CurrentThread() {
+Thread *CurrentThread() noexcept {
     scoped_lock sl(KernelInterruptsLock);
     return CurrentProcessor()->activeThread();
 }

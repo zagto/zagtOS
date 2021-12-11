@@ -21,31 +21,35 @@ struct Futex {
         id{0} {}
 
     /* can return OK or ThreadKilled */
-    Status destroy() {
-        Status status = Status::OK();
+    void destroy() {
+        static const char *crashMessage = "Waiting on futex in memory region that"
+                                          " no longer exists";
+
+        bool killCurrentProcess = false;
 
         while (!threads.empty()) {
             Thread *thread = threads.top();
             threads.pop();
 
-            Status crashStatus = thread->process->crash("Waiting on futex in memory region that"
-                                                        " no longer exists");
-            if (!crashStatus) {
-                assert(crashStatus == Status::ThreadKilled());
-                status = crashStatus;
+            if (thread->process == CurrentProcess()) {
+                killCurrentProcess = true;
+            } else {
+                thread->process->crash(crashMessage);
             }
         }
-        *this = {};
-        return status;
+
+        if (killCurrentProcess) {
+            CurrentProcess()->crash(crashMessage);
+        }
     }
 };
 
 
-constexpr size_t FutexManager::numAllocated() {
+constexpr size_t FutexManager::numAllocated() noexcept {
     return 1u << numBits;
 }
 
-constexpr uint32_t FutexManager::getHash(uint64_t id) {
+constexpr uint32_t FutexManager::getHash(uint64_t id) noexcept {
     /* Lower bits of id is the offset into the frame. Hash all IDs in same frame to same hash so we
      * can find them to enusre there is no futex left on a specific frame */
     id >>= PAGE_SHIFT;
@@ -54,11 +58,11 @@ constexpr uint32_t FutexManager::getHash(uint64_t id) {
     return static_cast<uint32_t>(id) * 2654435761u;
 }
 
-constexpr uint32_t FutexManager::reduceHash(uint32_t hash) {
+constexpr uint32_t FutexManager::reduceHash(uint32_t hash) noexcept {
     return hash & ((1u << numBits) - 1);
 }
 
-void FutexManager::moveData(vector<Futex> &newData) {
+void FutexManager::moveData(vector<Futex> &newData) noexcept {
     for (Futex &old: data) {
        if (old.active) {
             uint32_t newIndex = reduceHash(old.hash);
@@ -71,36 +75,33 @@ void FutexManager::moveData(vector<Futex> &newData) {
     data = move(newData);
 }
 
-Status FutexManager::grow() {
+void FutexManager::grow() {
     if (!(numElements >= numAllocated() / 2)) {
-        return Status::OK();
+        return;
     }
-    Status status;
-    vector<Futex> newData(numAllocated() * 2, status);
-    if (!status) {
-        return status;
-    }
-
+    vector<Futex> newData(numAllocated() * 2);
     numBits++;
     moveData(newData);
-    return Status::OK();
 }
 
-void FutexManager::shrink() {
+void FutexManager::shrink() noexcept {
     if (!(numElements < (numAllocated() / 4) && numBits > MIN_BITS)) {
         return;
     }
-    Status status;
-    vector<Futex> newData(numAllocated() / 2, status);
-    /* in case of problems, just skip the shrinking - we need to be able to remove
-     * futexes under all circumstances */
-    if (status) {
-        numBits--;
-        moveData(newData);
+    vector<Futex> newData;
+    try {
+        newData = vector<Futex>(numAllocated() / 2);
+    }  catch (...) {
+        /* in case of problems, just skip the shrinking - we need to be able to remove
+         * futexes under all circumstances */
+        return;
     }
+
+    numBits--;
+    moveData(newData);
 }
 
-size_t FutexManager::indexForNew(size_t address) {
+size_t FutexManager::indexForNew(size_t address) noexcept {
     size_t index = reduceHash(getHash(address));
     while (data[index].active) {
         index = (index + 1) % numAllocated();
@@ -108,7 +109,7 @@ size_t FutexManager::indexForNew(size_t address) {
     return index;
 }
 
-void FutexManager::removeElement(size_t index) {
+void FutexManager::removeElement(size_t index) noexcept {
     assert(data[index].active);
     index = (index + 1) % numAllocated();
 
@@ -122,28 +123,20 @@ void FutexManager::removeElement(size_t index) {
     }
 }
 
-FutexManager::FutexManager(Status &status):
-    data(1ul << MIN_BITS, status),
+FutexManager::FutexManager():
+    data(1ul << MIN_BITS),
     numBits{MIN_BITS},
     numElements{0} {}
 
 
 FutexManager::FutexManager(hos_v1::Futex *futexes,
                            size_t numFutexes,
-                           const vector<shared_ptr<Thread>> &allThreads,
-                           Status &status) {
-    if (!status) {
-        return;
-    }
-
+                           const vector<shared_ptr<Thread>> &allThreads) {
     numBits = MIN_BITS;
     while (numFutexes >= numAllocated() / 2) {
         numBits++;
     }
-    status = data.resize(numAllocated());
-    if (!status) {
-        return;
-    }
+    data.resize(numAllocated());
 
     for (size_t sourceIndex = 0; sourceIndex < numFutexes; sourceIndex++) {
         const hos_v1::Futex &handOver = futexes[sourceIndex];
@@ -161,10 +154,7 @@ FutexManager::FutexManager(hos_v1::Futex *futexes,
         for (size_t index = 0; index < handOver.numWaitingThreads; index++) {
             size_t threadIndex = handOver.waitingThreadIDs[index];
 
-            status = element.threads.push_back(allThreads[threadIndex].get());
-            if (!status) {
-                return;
-            }
+            element.threads.push_back(allThreads[threadIndex].get());
         }
 
         element.active = true;
@@ -189,17 +179,20 @@ FutexManager::~FutexManager() {
 
     for (Futex &element: data) {
         if (element.active) {
-            Status status = element.destroy();
-            if (!status) {
-                assert(status == Status::ThreadKilled());
+            try {
+                element.destroy();
+            } catch (ThreadKilled &e) {
                 /* Ignoring this is fine. The Process already knows it's beeing destroyed if the
                  * FutexManager is beeing destroyed. */
+            } catch (...) {
+                cout << "Should never go here" << endl;
+                Panic();
             }
         }
     }
 }
 
-Status FutexManager::wait(uint64_t id) {
+void FutexManager::wait(uint64_t id) {
     assert(lock.isLocked());
 
     Thread *thread = CurrentThread();
@@ -213,37 +206,28 @@ Status FutexManager::wait(uint64_t id) {
     while (data[index].active) {
         if (data[index].id == id) {
             /* found - add thread to queue */
-            Status status = data[index].threads.push_back(thread);
-            if (!status) {
-                return status;
-            }
+            data[index].threads.push_back(thread);
 
             /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
              * method leaves, but once the thread state is discarded. */
-            KernelInterruptsLock.lock();
+            scoped_lock sl(KernelInterruptsLock);
             Scheduler &scheduler = CurrentProcessor()->scheduler;
-            scheduler.lock.lock();
+            scoped_lock sl2(scheduler.lock);
 
             scheduler.removeActiveThread();
             thread->setState(Thread::State::Futex(this, id));
-            return Status::DiscardStateAndSchedule();
+            throw DiscardStateAndSchedule(thread, move(sl), move(sl2));
         }
         index = (index + 1) % numAllocated();
     }
 
     /* nobody waits on this address yet - create new data element */
-    Status status = grow();
-    if (!status) {
-        return status;
-    }
+    grow();
 
     Futex &element = data[index];
     assert(element.threads.empty());
 
-    status = element.threads.push_back(thread);
-    if (!status) {
-        return status;
-    }
+    element.threads.push_back(thread);
 
     element.active = true;
     element.id = id;
@@ -252,17 +236,17 @@ Status FutexManager::wait(uint64_t id) {
 
     /* Danger Zone: Asymmetric lock/unlock: These two locks will not be unlocked once this
      * method leaves, but once the thread state is discarded. */
-    KernelInterruptsLock.lock();
+    scoped_lock sl(KernelInterruptsLock);
     Scheduler &scheduler = CurrentProcessor()->scheduler;
-    scheduler.lock.lock();
+    scoped_lock sl2(scheduler.lock);
 
     scheduler.removeActiveThread();
     thread->setState(Thread::State::Futex(this, id));
 
-    return Status::DiscardStateAndSchedule();
+    throw DiscardStateAndSchedule(thread, move(sl), move(sl2));
 }
 
-size_t FutexManager::wake(uint64_t id, size_t numWake) {
+size_t FutexManager::wake(uint64_t id, size_t numWake) noexcept {
     assert(lock.isLocked());
 
     size_t index = reduceHash(getHash(id));

@@ -3,7 +3,6 @@
 #include <setup/HandOverState.hpp>
 #include <mutex>
 #include <optional>
-#include <lib/Status.hpp>
 
 namespace frameManagement {
 
@@ -18,13 +17,12 @@ private:
     FrameStack usedFrameStack[NUM_ZONES];
     FrameStack freshFrameStack[NUM_ZONES];
 
-    void recycleFrame(ZoneID zoneID);
+    void recycleFrame(ZoneID zoneID) noexcept;
 
 public:
-    Management();
-    Result<PhysicalAddress> get(ZoneID zoneID);
-    void put(PhysicalAddress frame);
-    optional<ZoneID> zoneForAddressCeiling(KernelVirtualAddress ceiling);
+    Management() noexcept;
+    PhysicalAddress get(ZoneID zoneID);
+    void put(PhysicalAddress frame) noexcept;
 };
 
 extern Management FrameManagement;
