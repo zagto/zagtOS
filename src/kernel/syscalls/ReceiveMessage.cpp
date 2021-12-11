@@ -3,8 +3,8 @@
 #include <system/Processor.hpp>
 
 
-void mergeSort(vector<shared_ptr<Port>> &container) {
-    vector<shared_ptr<Port>> scratch(container.size());
+void mergeSort(vector<size_t> &container, vector<shared_ptr<Port>> &ports) {
+    vector<size_t> scratch(container.size());
 
     size_t partSize = 2;
     while (partSize / 2 < container.size()) {
@@ -19,12 +19,12 @@ void mergeSort(vector<shared_ptr<Port>> &container) {
                 size_t rightEnd = min(leftPos + partSize, container.size());
 
                 while (leftPos < leftEnd && rightPos < rightEnd) {
-                    if (container[leftPos].get() <= container[rightPos].get()) {
-                        scratch[outPos] = move(container[leftPos]);
+                    if (ports[container[leftPos]].get() <= ports[container[rightPos]].get()) {
+                        scratch[outPos] = container[leftPos];
                         outPos++;
                         leftPos++;
                     } else {
-                        scratch[outPos] = move(container[rightPos]);
+                        scratch[outPos] = container[rightPos];
                         outPos++;
                         rightPos++;
                     }
@@ -65,11 +65,16 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
     for (size_t index = 0; index < count; index++) {
         ports[index] = process->handleManager.lookupPort(portHandles[index]);
     }
-    mergeSort(ports);
+
+    vector<size_t> lockOrder(count);
+    for (size_t i = 0; i < count; i++) {
+        lockOrder[i] = i;
+    }
+    mergeSort(lockOrder, ports);
 
     /* Danger: non-RAII locking. This is assuming the ports are sorted to not mess up lock order */
-    for (auto &port: ports) {
-        port->lock.lock();
+    for (auto portIndex: lockOrder) {
+        ports[portIndex]->lock.lock();
     }
 
     size_t resultIndex = 0;
@@ -79,7 +84,6 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
             messageResult = ports[index]->getMessage();
             /* break if we found a message */
             if (messageResult) {
-                /* TODO: the indices do not correspond to the order by user space! change !!! */
                 resultIndex = index;
                 break;
             }
