@@ -50,7 +50,7 @@ PageOutContext MappedArea::pageOutRegion(Region removeRegion) {
     assert(region.contains(removeRegion));
     assert(removeRegion.isPageAligned());
 
-    PageOutContext context;
+    PageOutContext context(&addressSpace);
 
     size_t offsetInThis = (removeRegion.start - region.start);
     size_t offsetInMemArea = offsetInThis + offset;

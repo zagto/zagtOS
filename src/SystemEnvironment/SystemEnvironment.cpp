@@ -144,6 +144,11 @@ int main() {
                                 std::ref(PCIController),
                                 std::move(std::get<1>(msg)),
                                 std::ref(PCI));
+            } else if (std::get<0>(msg) == hal::CONTROLLER_TYPE_PS2) {
+                new std::thread(ControllerServer,
+                                std::ref(PS2Controller),
+                                std::move(std::get<1>(msg)),
+                                std::ref(PS2));
             } else {
                 std::cout << "Received MSG_START_CONTROLLER message for unsupported controller "
                           << "type." << std::endl;

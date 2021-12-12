@@ -91,7 +91,7 @@ PageOutContext Frame::pageOut(ProcessAddressSpace &addressSpace,
     scoped_lock sl1(KernelInterruptsLock);
     scoped_lock sl2(addressSpace.tlbIDsLock);
 
-    PageOutContext pageOutContext;
+    PageOutContext pageOutContext(&addressSpace);
     for (TLBContextID tlbID: addressSpace.inTLBContextOfProcessor) {
         if (tlbID != TLB_CONTEXT_ID_NONE) {
             TLBContext &tlbContext = TLBContexts[tlbID];

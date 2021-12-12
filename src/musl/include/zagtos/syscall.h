@@ -41,11 +41,14 @@ static const uint32_t SYS_LOG = 1,
                       SYS_CLOCK_GETTIME = 30,
                       SYS_CLOCK_NANOSLEEP = 31,
 
-                      SYS_REGISTER_INTERRUPT = 40,
-                      SYS_UNREGISTER_INTERRUPT = 41,
                       SYS_GET_ACPI_ROOT = 42,
                       SYS_IO_PORT_READ = 43,
                       SYS_IO_PORT_WRITE = 44,
+                      SYS_CREATE_INTERRUPT = 45,
+                      SYS_SUBSCRIBE_INTERRUPT = 46,
+                      SYS_UNSUBSCRIBE_INTERRUPT = 47,
+                      SYS_PROCESSED_INTERRUPT = 48,
+                      SYS_WAIT_INTERRUPT = 49,
 
                       SYS_SPAWN_PROCESS = 50;
 

@@ -9,23 +9,25 @@ void PlatformInterrupt::initialize(size_t processorID, size_t vectorNumber) noex
 }
 
 void PlatformInterrupt::subscribe(ProcessInterrupt &interrupt) {
-    scoped_lock sl(lock);
+    scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl2(lock);
 
-    if (interrupt.subscribedThread != nullptr) {
+    if (interrupt.subscribed) {
         cout << "Tried to subscribe to interrupt that is already subscribed" << endl;
         throw BadUserSpace(CurrentProcess());
     }
 
-    interrupt.subscribedThread = CurrentThread();
+    interrupt.subscribed = true;
     interrupt.processedOccurence = occurence;
     totalSubscribers++;
 }
 
 void PlatformInterrupt::unsubscribe(ProcessInterrupt &interrupt) {
-    scoped_lock sl(lock);
+    scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl2(lock);
 
-    if (interrupt.subscribedThread != CurrentThread()) {
-        cout << "Tried to subscribe Thread from interrupt that was not subscribed" << endl;
+    if (!interrupt.subscribed) {
+        cout << "Tried to unsubscribe Thread from interrupt that was not subscribed" << endl;
         throw BadUserSpace(CurrentProcess());
     }
 
@@ -35,14 +37,15 @@ void PlatformInterrupt::unsubscribe(ProcessInterrupt &interrupt) {
     } else {
         assert(interrupt.processedOccurence == occurence);
     }
-    interrupt.subscribedThread = nullptr;
+    interrupt.subscribed = false;
     interrupt.processedOccurence = 0;
 }
 
 void PlatformInterrupt::processed(ProcessInterrupt &interrupt) {
-    scoped_lock sl(lock);
+    scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl2(lock);
 
-    if (interrupt.subscribedThread != CurrentThread()) {
+    if (!interrupt.subscribed) {
         cout << "Thread sent interrupt processed but was not subscribed" << endl;
         throw BadUserSpace(CurrentProcess());
     }
@@ -61,9 +64,10 @@ void PlatformInterrupt::processed(ProcessInterrupt &interrupt) {
 }
 
 void PlatformInterrupt::wait(ProcessInterrupt &interrupt) {
-    scoped_lock sl(lock);
+    scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl2(lock);
 
-    if (interrupt.subscribedThread != CurrentThread()) {
+    if (!interrupt.subscribed) {
         cout << "Thread tried to wait for interrupt but was not subscribed" << endl;
         throw BadUserSpace(CurrentProcess());
     }
@@ -81,18 +85,18 @@ void PlatformInterrupt::wait(ProcessInterrupt &interrupt) {
 
     /* Asymmetric lock/unlock: These two locks will not be unlocked once this
      * method leaves, but once the thread state is discarded. */
-    scoped_lock sl2(KernelInterruptsLock);
     Scheduler &scheduler = CurrentProcessor()->scheduler;
     scoped_lock sl3(scheduler.lock);
 
     scheduler.removeActiveThread();
     thread->setState(Thread::State::Interrupt(processorID, vectorNumber));
 
-    throw DiscardStateAndSchedule(thread, move(sl2), move(sl3));
+    throw DiscardStateAndSchedule(thread, move(sl), move(sl3));
 }
 
 void PlatformInterrupt::occur() noexcept {
-    scoped_lock sl(lock);
+    scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl2(lock);
 
     if (processingSubscribers != 0) {
         cout << "Interrupt " << vectorNumber << " on Processor " << processorID
@@ -120,7 +124,7 @@ ProcessInterrupt::ProcessInterrupt() noexcept :
 ProcessInterrupt::~ProcessInterrupt() {
     scoped_lock sl(platformInterrupt.lock);
 
-    if (subscribedThread) {
+    if (subscribed) {
         platformInterrupt.unsubscribe(*this);
     }
 }

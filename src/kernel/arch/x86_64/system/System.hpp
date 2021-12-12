@@ -17,7 +17,7 @@ private:
     friend __attribute__((noreturn)) void _handleInterrupt(RegisterState *registerState);
 
     struct LegacyIRQSetup {
-        uint32_t gsi;
+        uint32_t gsi{0};
         apic::Polarity polarity;
         apic::TriggerMode triggerMode;
     };
@@ -26,11 +26,11 @@ private:
     InterruptDescriptorTable idt;
     LegacyPIC legacyPIC;
     vector<apic::IOAPIC> ioApics;
-    uint32_t irqToGSI[0xff];
+    LegacyIRQSetup legacyIRQs[0xff];
 
     void setupSyscalls() noexcept;
     void detectIOAPICs();
-    void detectIRQRedirection() noexcept;
+    void detectIRQSourceOverride() noexcept;
 
 public:
     PhysicalAddress ACPIRoot;

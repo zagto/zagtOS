@@ -26,7 +26,7 @@ void System::setupCurrentProcessor() noexcept {
 
 void System::lateInitialization() {
     detectIOAPICs();
-    detectIRQRedirection();
+    detectIRQSourceOverride();
 }
 
 void System::setupSyscalls() noexcept {
@@ -50,13 +50,33 @@ void System::detectIOAPICs() {
     }
 }
 
-void System::detectIRQRedirection() noexcept {
-    /* if there are no redirection entries, an 1-1 mapping from IRQ to GSI is assumed */
-    for (size_t index = 0; index < 0xff; index++) {
-        irqToGSI[index] = index;
+void System::detectIRQSourceOverride() noexcept {
+    /* defaults */
+    for (uint32_t index = 0; index < 0xff; index++) {
+        legacyIRQs[index] = {
+            .gsi = index,
+            .polarity = apic::Polarity::ACRIVE_HIGH,
+            .triggerMode = apic::TriggerMode::EDGE,
+        };
     }
 
     const MADTTable *madt = findMADT(ACPIRoot);
-    SubtableWrapper<IOAPICSubtable> subtables(madt);
+    SubtableWrapper<IOAPICSourceOverride> subtables(madt);
+
+    for (size_t index = 0; index < subtables.count(); index++) {
+        IOAPICSourceOverride subtable = subtables[index];
+        legacyIRQs[subtable.irqSource] = {
+            .gsi = subtable.gsi,
+            .polarity = (subtable.flags & ACPI_MADT_FLAG_ACTIVE_LOW)
+                ? apic::Polarity::ACTIVE_LOW
+                : apic::Polarity::ACRIVE_HIGH,
+            .triggerMode = (subtable.flags & ACPI_MADT_FLAG_LEVEL_TRIGGERED)
+                ? apic::TriggerMode::LEVEL
+                : apic::TriggerMode::EDGE,
+        };
+
+        cout << "IOAPIC Souce override IRQ " << (uint32_t)subtable.irqSource << " GSI " << subtable.gsi << endl;
+    }
+
 }
 

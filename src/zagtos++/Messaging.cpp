@@ -29,6 +29,13 @@ HandleObject::HandleObject(HandleObject &&other) {
     other._handle = INVALID_HANDLE;
 }
 
+HandleObject &HandleObject::operator=(HandleObject &&other) {
+    this->~HandleObject();
+    _handle = other._handle;
+    other._handle = INVALID_HANDLE;
+    return *this;
+}
+
 HandleObject::~HandleObject() {
     if (_handle != INVALID_HANDLE) {
         zagtos_syscall1(SYS_DELETE_HANDLE, _handle);

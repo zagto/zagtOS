@@ -118,7 +118,7 @@ PageOutContext TLBContext::requestInvalidate(Frame *frame,
     if (processorID == CurrentProcessor()->id) {
         localInvalidate(address);
         frame->decreaseInvalidateRequestReference();
-        return {};
+        return PageOutContext(addressSpace); /* empty PageOutContext */
     } else {
         uint64_t timestamp = processor().invalidateQueue.add(id(), frame, address);
         return PageOutContext(addressSpace, {processor()}, timestamp);

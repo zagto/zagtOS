@@ -94,6 +94,9 @@ public:
 
 static constexpr uint32_t ACPI_MADT_ENABLED = 1;
 
+static constexpr uint32_t ACPI_MADT_FLAG_ACTIVE_LOW = 0x2;
+static constexpr uint32_t ACPI_MADT_FLAG_LEVEL_TRIGGERED = 0x8;
+
 struct LocalAPICSubtable : MADTSubtableHeader {
     uint8_t processorID;
     uint8_t id;
@@ -118,13 +121,13 @@ struct IOAPICSubtable : MADTSubtableHeader {
 };
 
 struct IOAPICSourceOverride : MADTSubtableHeader {
-    uint8_t id;
-    uint8_t reserved;
-    uint32_t address;
-    uint32_t gsiBase;
+    uint8_t busSource;
+    uint8_t irqSource;
+    uint32_t gsi;
+    uint16_t flags;
 
     /* for SubtableWrapper */
-    static const uint8_t SUBTABLE_TYPE_ID = 1;
+    static const uint8_t SUBTABLE_TYPE_ID = 2;
     using HeaderClass = MADTSubtableHeader;
     using TableClass = MADTTable;
 };

@@ -9,7 +9,6 @@ extern "C" {
 }
 
 using namespace zagtos;
-using namespace zagtos::ioApic;
 
 
 void initIoApic(zagtos::RemotePort &) {

@@ -2,8 +2,8 @@
 #include <system/Processor.hpp>
 #include <processes/Process.hpp>
 
-PageOutContext::PageOutContext():
-    addressSpace{nullptr},
+PageOutContext::PageOutContext(ProcessAddressSpace *addressSpace):
+    addressSpace{addressSpace},
     timestamp{0} {}
 
 PageOutContext::PageOutContext(ProcessAddressSpace *addressSpace, CPUMask mask, uint64_t timestamp):

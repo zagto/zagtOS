@@ -1,4 +1,4 @@
- #ifndef __ZAGTOS_ZBON_H
+#ifndef __ZAGTOS_ZBON_H
 #define __ZAGTOS_ZBON_H
 
 #include <stdint.h>

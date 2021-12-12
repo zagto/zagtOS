@@ -12,7 +12,7 @@ private:
     uint64_t timestamp;
 
 public:
-    PageOutContext();
+    PageOutContext(ProcessAddressSpace *addressSpace);
     PageOutContext(ProcessAddressSpace *addressSpace, CPUMask mask, uint64_t timestamp);
     PageOutContext &operator |=(const PageOutContext &other);
 

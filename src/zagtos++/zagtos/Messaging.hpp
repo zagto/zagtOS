@@ -24,6 +24,7 @@ namespace zagtos {
         HandleObject(HandleObject &) = delete;
         ~HandleObject();
         HandleObject(HandleObject &&other);
+        HandleObject &operator=(HandleObject &&other);
 
         static constexpr zbon::Type ZBONType() {
             return zbon::Type::HANDLE;

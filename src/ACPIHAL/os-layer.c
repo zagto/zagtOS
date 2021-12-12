@@ -14,7 +14,6 @@
 #include <zagtos/acpi.h>
 #include <zagtos/PortIO.h>
 #include <zagtos/Messaging.h>
-#include <zagtos/interrupt.h>
 #include <acpi.h>
 
 
@@ -285,10 +284,10 @@ ACPI_STATUS AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 *Value, UINT3
     size_t offset = ((size_t)Address) % PAGE_SIZE;
     int handle = ZoCreatePhysicalSharedMemory(Address - offset, (Width / 8) + offset);
 
-    void *pointer = mmap(NULL, 0, PROT_READ, MAP_SHARED|MAP_WHOLE, handle, 0);
+    char *pointer = mmap(NULL, 0, PROT_READ, MAP_SHARED|MAP_WHOLE, handle, 0);
     assert(pointer != NULL);
 
-    memcpy(Value, pointer, Width / 8);
+    memcpy(Value, pointer + offset, Width / 8);
     ZoUnmapWhole(pointer);
 
     return AE_OK;
@@ -300,10 +299,10 @@ ACPI_STATUS AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 Value, UINT3
     size_t offset = ((size_t)Address) % PAGE_SIZE;
     int handle = ZoCreatePhysicalSharedMemory(Address - offset, (Width / 8) + offset);
 
-    void *pointer = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_WHOLE, handle, 0);
+    char *pointer = mmap(NULL, 0, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_WHOLE, handle, 0);
     assert(pointer != NULL);
 
-    memcpy(pointer, &Value, Width / 8);
+    memcpy(pointer + offset, &Value, Width / 8);
     ZoUnmapWhole(pointer);
 
     return AE_OK;
@@ -347,71 +346,13 @@ ACPI_STATUS AcpiOsWritePciConfiguration(ACPI_PCI_ID *PciId,
 
 
 /*
- * Interrupt Handling
- */
-struct handler {
-    uint32_t interrupt;
-    ACPI_OSD_HANDLER callback;
-    void *data;
-};
-
-static struct handler *handlers = NULL;
-static size_t numHandlers = 0;
-static pthread_mutex_t handlersMutex = PTHREAD_MUTEX_INITIALIZER;
-
-size_t findHandler(uint32_t interrupt) {
-    for (size_t i = 0; i < numHandlers; i++) {
-        if (handlers[i].interrupt == interrupt) {
-            return i;
-        }
-    }
-    printf("ACPI: tried to find non existing interrupt handler for %i\n", interrupt);
-    exit(1);
-}
-
-UINT32 AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, ACPI_OSD_HANDLER ServiceRoutine, void *Context)
-{
-    pthread_mutex_lock(&handlersMutex);
-
-    numHandlers++;
-    if (handlers) {
-        handlers = realloc(handlers, numHandlers * sizeof(struct handler));
-    } else {
-        handlers = malloc(sizeof(struct handler *));
-    }
-    struct handler *h = &handlers[numHandlers - 1];
-
-    h->interrupt = InterruptNumber;
-    h->callback = ServiceRoutine;
-    h->data = Context;
-
-    zagtos_register_interrupt(InterruptNumber);
-    pthread_mutex_unlock(&handlersMutex);
-    return AE_OK;
-}
-
-ACPI_STATUS AcpiOsRemoveInterruptHandler(UINT32 InterruptNumber, ACPI_OSD_HANDLER Handler) {
-    pthread_mutex_lock(&handlersMutex);
-
-    zagtos_unregister_interrupt(InterruptNumber);
-
-    size_t index = findHandler(InterruptNumber);
-    numHandlers--;
-
-    handlers[index] = handlers[numHandlers];
-    handlers = realloc(handlers, numHandlers * sizeof(struct handler));
-
-    pthread_mutex_unlock(&handlersMutex);
-    return AE_OK;
-}
-
-
-/*
  * Formatted Output
  */
 void ACPI_INTERNAL_VAR_XFACE AcpiOsPrintf(const char *format, ...) {
     va_list args;
+    va_start(args, format);
     vprintf(format, args);
+    va_end(args);
 }
 
 void AcpiOsVprintf(const char *format, va_list args) {

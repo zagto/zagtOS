@@ -31,7 +31,7 @@ public:
 class ProcessInterrupt {
 private:
     friend class PlatformInterrupt;
-    Thread *subscribedThread{nullptr};
+    bool subscribed{false};
     //bool waiting{false};
     uint64_t processedOccurence{0};
 
