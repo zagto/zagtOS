@@ -31,6 +31,11 @@ struct MADTSubtableHeader {
     uint8_t length;
 };
 
+struct MADTTable : TableHeader {
+    uint32_t localAPICAddress;
+    uint32_t flags;
+};
+
 /* Convinent and simple but slow interface to find subtables. Good enough for kernel/loader
  * initialization. Works without heap allocations. */
 template <typename T>
@@ -41,8 +46,9 @@ private:
 
     void scan(size_t limit, size_t &index, const uint8_t *&pointer) const noexcept {
         index = 0;
-        pointer = reinterpret_cast<const uint8_t *>(table) + sizeof(typename T::TableClass);
-        const uint8_t *end = pointer + table->length;
+        pointer = reinterpret_cast<const uint8_t *>(table) + sizeof(MADTTable);
+        const uint8_t *end = reinterpret_cast<const uint8_t *>(table) + table->length;
+
         while (pointer < end) {
             typename T::HeaderClass header;
             memcpy(&header, pointer, sizeof(typename T::HeaderClass));
@@ -86,11 +92,6 @@ public:
     }
 };
 
-struct MADTTable : TableHeader {
-    uint32_t localAPICAddress;
-    uint32_t flags;
-};
-
 static constexpr uint32_t ACPI_MADT_ENABLED = 1;
 
 struct LocalAPICSubtable : MADTSubtableHeader {
@@ -103,5 +104,30 @@ struct LocalAPICSubtable : MADTSubtableHeader {
     using HeaderClass = MADTSubtableHeader;
     using TableClass = MADTTable;
 };
+
+struct IOAPICSubtable : MADTSubtableHeader {
+    uint8_t id;
+    uint8_t reserved;
+    uint32_t address;
+    uint32_t gsiBase;
+
+    /* for SubtableWrapper */
+    static const uint8_t SUBTABLE_TYPE_ID = 1;
+    using HeaderClass = MADTSubtableHeader;
+    using TableClass = MADTTable;
+};
+
+struct IOAPICSourceOverride : MADTSubtableHeader {
+    uint8_t id;
+    uint8_t reserved;
+    uint32_t address;
+    uint32_t gsiBase;
+
+    /* for SubtableWrapper */
+    static const uint8_t SUBTABLE_TYPE_ID = 1;
+    using HeaderClass = MADTSubtableHeader;
+    using TableClass = MADTTable;
+};
+
 
 const MADTTable *findMADT(PhysicalAddress root) noexcept;

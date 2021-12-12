@@ -16,20 +16,31 @@ private:
     friend class Processor;
     friend __attribute__((noreturn)) void _handleInterrupt(RegisterState *registerState);
 
+    struct LegacyIRQSetup {
+        uint32_t gsi;
+        apic::Polarity polarity;
+        apic::TriggerMode triggerMode;
+    };
+
     GlobalDescriptorTable gdt;
     InterruptDescriptorTable idt;
     LegacyPIC legacyPIC;
     vector<apic::IOAPIC> ioApics;
+    uint32_t irqToGSI[0xff];
 
     void setupSyscalls() noexcept;
-    void detectIoApics() noexcept;
+    void detectIOAPICs();
+    void detectIRQRedirection() noexcept;
 
 public:
     PhysicalAddress ACPIRoot;
 
+    /* Called directly at the beginning, before Processors management is set up */
     System();
-
+    /* Called once on each Processor once there it is on a good stack */
     void setupCurrentProcessor() noexcept;
+    /* Called afterwards */
+    void lateInitialization();
 };
 
 extern System CurrentSystem;

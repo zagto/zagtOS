@@ -8,14 +8,6 @@ namespace apic {
 
 class IOAPIC {
 private:
-    volatile uint32_t *map;
-
-    uint32_t readRegister(uint32_t offset) noexcept;
-    void writeRegister(uint32_t offset) noexcept;
-
-    SpinLock lock;
-    size_t _numEntries;
-
     /* actual offsets in the memory map */
     static constexpr uint32_t IOREGSEL = 0x0;
     static constexpr uint32_t IOWIN = 0x1;
@@ -24,9 +16,21 @@ private:
     static constexpr uint32_t REG_IOAPICVER = 0x1;
     static constexpr uint32_t REG_FIRST_ENTRY = 0x10;
 
+    volatile uint32_t *map;
+
+    SpinLock lock;
+    size_t _numEntries;
+    /* offset into the Global System Interrupts space, i.e. the number of a legacy x86 IRQ after
+     * redirection (https://wiki.osdev.org/MADT#Entry_Type_2_:_IO.2FAPIC_Interrupt_Source_Override) */
+    uint32_t gsiBase;
+
+    uint32_t readRegister(uint32_t offset) noexcept;
+    void writeRegister(uint32_t offset) noexcept;
 
 public:
-    IOAPIC(PhysicalAddress physicalAddress);
+    IOAPIC(PhysicalAddress physicalAddress, uint32_t gsiBase);
+    IOAPIC(IOAPIC &&other) noexcept;
+    ~IOAPIC() noexcept;
 
     size_t numEntries() noexcept;
     void writeEntry(size_t entry,
@@ -39,4 +43,3 @@ public:
 };
 
 }
-
