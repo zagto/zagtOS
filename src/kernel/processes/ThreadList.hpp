@@ -70,7 +70,7 @@ namespace threadList {
             assert(receptor.next == nullptr);
 
             if (tail) {
-                receptor.next = thread;
+                (tail->*ReceptorMember).next = thread;
                 receptor.previous = tail;
                 tail = thread;
             } else {
