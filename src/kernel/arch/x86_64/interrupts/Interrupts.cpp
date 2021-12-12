@@ -12,7 +12,7 @@
 InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
 
 
-[[noreturn]] void handleKernelException(RegisterState *registerState) {
+[[noreturn]] void handleKernelException(RegisterState *registerState) noexcept {
     switch (registerState->intNr) {
     default:
         cout << "x86 Exception occured In Kernel Mode:" << *registerState
@@ -165,6 +165,12 @@ void handleUserException(RegisterState *registerState) {
     if (fromUserSpace) {
         thread->setKernelEntry(UserReturnEntry);
     } else {
+        /* The only exception that should currently occur in in-kernel interrupts is
+         * DiscardStateAndSchedule. In this case we can pass the currently interrupted register
+         * state to InKernelReturnEntry to restore it.
+         * Throwing the ThreadKilled/BadUserSpace exception here would be fatal, as these don't
+         * leave the Thread in the Scheduler. The data on it's stack (including held locks,
+         * references to heap objects) will be lost */
         thread->setKernelEntry(InKernelReturnEntry, registerState);
     }
 
