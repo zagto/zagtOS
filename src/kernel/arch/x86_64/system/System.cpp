@@ -13,18 +13,24 @@ System::System() :
         ACPIRoot{_HandOverSystem->firmwareRoot} {
     /* TODO: support for Intel PCIDs could be added here */
     tlbContextsPerProcessor = 1;
+
+    detectIoApics();
 }
 
-void System::setupCurrentProcessor() {
+void System::setupCurrentProcessor() noexcept {
     gdt.load();
     idt.load();
     loadTaskStateSegment(CurrentProcessor()->id);
     setupSyscalls();
 }
 
-void System::setupSyscalls() {
+void System::setupSyscalls() noexcept {
     cout << "registering syscall entry " << reinterpret_cast<uint64_t>(&syscallEntry) << endl;
     writeModelSpecificRegister(MSR::LSTAR, reinterpret_cast<uint64_t>(&syscallEntry));
     writeModelSpecificRegister(MSR::STAR, (static_cast<uint64_t>(0x08) << 32) | (static_cast<uint64_t>(0x10) << 48));
     writeModelSpecificRegister(MSR::SFMASK, RegisterState::FLAG_INTERRUPTS | RegisterState::FLAG_USER_IOPL);
+}
+
+void System::detectIoApics() noexcept  {
+
 }

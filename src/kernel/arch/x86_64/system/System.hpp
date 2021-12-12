@@ -2,7 +2,8 @@
 
 #include <common/common.hpp>
 #include <system/CommonSystem.hpp>
-#include <interrupts/LegacyPIC.hpp>
+#include <interrupts/LegacyPic.hpp>
+#include <interrupts/IOAPIC.hpp>
 #include <interrupts/GlobalDescriptorTable.hpp>
 #include <interrupts/InterruptDescriptorTable.hpp>
 
@@ -18,15 +19,17 @@ private:
     GlobalDescriptorTable gdt;
     InterruptDescriptorTable idt;
     LegacyPIC legacyPIC;
+    vector<apic::IOAPIC> ioApics;
 
-    void setupSyscalls();
+    void setupSyscalls() noexcept;
+    void detectIoApics() noexcept;
 
 public:
     PhysicalAddress ACPIRoot;
 
     System();
 
-    void setupCurrentProcessor();
+    void setupCurrentProcessor() noexcept;
 };
 
 extern System CurrentSystem;

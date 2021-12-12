@@ -10,7 +10,7 @@ enum IPI {
 class Processor : public CommonProcessor {
 private:
     TaskStateSegment tss;
-    LocalAPIC localAPIC;
+    apic::LocalAPIC localAPIC;
 
 public:
     Processor();

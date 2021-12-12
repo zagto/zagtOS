@@ -16,6 +16,11 @@
 #include <syscalls/GetFirmwareRoot.hpp>
 #include <syscalls/IOPortRead.hpp>
 #include <syscalls/IOPortWrite.hpp>
+#include <syscalls/CreateInterrupt.hpp>
+#include <syscalls/SubscribeInterrupt.hpp>
+#include <syscalls/UnsubscribeInterrupt.hpp>
+#include <syscalls/ProcessedInterrupt.hpp>
+#include <syscalls/WaitInterrupt.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <system/System.hpp>
 #include <system/Processor.hpp>
@@ -78,11 +83,11 @@ static SyscallFunction *syscallFunctions[] = {
     &GetFirmwareRoot,
     &IOPortRead,
     &IOPortWrite,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
+    &CreateInterrupt,
+    &SubscribeInterrupt,
+    &UnsubscribeInterrupt,
+    &ProcessedInterrupt,
+    &WaitInterrupt,
 
     /* 50 */
     &SpawnProcess,

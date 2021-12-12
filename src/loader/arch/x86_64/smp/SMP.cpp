@@ -4,6 +4,7 @@
 #include <Firmware.hpp>
 #include <memory/PhysicalMemory.hpp> // SecondaryProcessorEntry
 #include <exit.hpp>
+#include <ACPI.hpp>
 
 static size_t startingID = 0;
 static size_t startingHardwareID = 0;
@@ -57,97 +58,13 @@ void releaseSecondaryProcessorsToKernel() {
     __atomic_store_n(&releaseToKernel, true, __ATOMIC_SEQ_CST);
 }
 
-struct RSDPTable {
-    char signature[8];
-    uint8_t checksum;
-    char oemID[6];
-    uint8_t revision;
-    uint32_t rsdtAddress;
-    /* ACPI 2.0+ only: */
-    uint32_t length;
-    uint64_t xsdtAddress;
-};
-
-struct TableHeader {
-    char signature[4];
-    uint32_t length;
-    uint8_t revision;
-    uint8_t checksum;
-    char oemID[6];
-    char oemTableID[8];
-    uint32_t oemRevision;
-    char aslCompilderID[4];
-    uint32_t alsCompilerRevision;
-};
-
-struct MADTTable : TableHeader {
-    uint32_t localAPICAddress;
-    uint32_t flags;
-};
-
-struct MADTSubtableHeader {
-    uint8_t type;
-    uint8_t length;
-};
-
-struct LocalAPICSubtable : MADTSubtableHeader {
-    uint8_t processorID;
-    uint8_t id;
-    uint32_t flags;
-};
-
-
-static const MADTTable *findMADT(const TableHeader *rsdt) {
-    size_t pointerSize;
-    if (memcmp(rsdt->signature, "RSDT", 4) == 0) {
-        pointerSize = 4;
-    } else if (memcmp(rsdt->signature, "XSDT", 4) == 0) {
-        pointerSize = 8;
-    } else {
-        cout << "Could not detect RSDT-like table type" << endl;
-        Panic();
-    }
-
-    const uint8_t *pointerPointer = reinterpret_cast<const uint8_t *>(rsdt + 1);
-    const TableHeader *pointer;
-
-    while (pointerPointer < reinterpret_cast<const uint8_t *>(rsdt) + rsdt->length) {
-        /* assumes litte-endian */
-        memcpy(&pointer, pointerPointer, pointerSize);
-
-        if (memcmp(pointer->signature, "APIC", 4) == 0) {
-            return static_cast<const MADTTable *>(pointer);
-        }
-
-        pointerPointer += pointerSize;
-    }
-
-    cout << "Could not find MADT table." << endl;
-    Panic();
-}
-
-static const MADTTable *findMADT() {
-
-    const RSDPTable *rsdp = reinterpret_cast<const RSDPTable *>(GetFirmwareRoot().value());
-    if (rsdp->revision == 0) {
-        cout << "Found ACPI Version 1.0." << endl;
-        return findMADT(reinterpret_cast<const TableHeader *>(rsdp->rsdtAddress));
-    } else {
-        cout << "Found ACPI Version 2.0+." << endl;
-        return findMADT(reinterpret_cast<const TableHeader *>(rsdp->xsdtAddress));
-    }
-}
-
-static size_t findProcessors() {
+/*static size_t findProcessors() {
     cout << "Detecting Processors using ACPI..." << endl;
 
-    const MADTTable *madt = findMADT();
+    const MADTTable *madt = findMADT(GetFirmwareRoot());
     const uint8_t *pointer = reinterpret_cast<const uint8_t *>(madt + 1);
     bool foundBootProcessor = false;
     size_t numProcessors = 0;
-
-    static const uint32_t ACPI_MADT_ENABLED = 1;
-    static const uint8_t ACPI_MADT_TYPE_LOCAL_APIC = 0;
 
     LocalAPIC localAPIC(madt->localAPICAddress);
     cout << "Local APIC is at " << static_cast<size_t>(madt->localAPICAddress) << endl;
@@ -157,13 +74,11 @@ static size_t findProcessors() {
         memcpy(&subTableHeader, pointer, sizeof(MADTSubtableHeader));
 
         switch (subTableHeader.type) {
-        case ACPI_MADT_TYPE_LOCAL_APIC: {
+        case 0: {
             LocalAPICSubtable lapic;
             memcpy(&lapic, pointer, sizeof(LocalAPICSubtable));
 
             if (lapic.flags & ACPI_MADT_ENABLED) {
-                /* The first of these entries is the processor this code is running on, don't try
-                 * start it */
                 if (foundBootProcessor) {
                     cout << "Found secondary processor - ACPI Processor ID: "
                          << static_cast<size_t>(lapic.processorID) << ", our Processor ID: "
@@ -186,7 +101,49 @@ static size_t findProcessors() {
         pointer += subTableHeader.length;
     }
     return numProcessors;
+}*/
+
+static size_t findProcessors() {
+    cout << "Detecting Processors using ACPI..." << endl;
+
+    const MADTTable *madt = findMADT(GetFirmwareRoot());
+
+    bool foundBootProcessor = false;
+    size_t numProcessors = 0;
+
+    LocalAPIC localAPIC(madt->localAPICAddress);
+    cout << "Local APIC is at " << static_cast<size_t>(madt->localAPICAddress) << endl;
+
+    SubtableWrapper<LocalAPICSubtable> subtables(madt);
+
+    for (size_t index = 0; index < subtables.count(); index++) {
+        LocalAPICSubtable lapic = subtables[index];
+
+        if (lapic.flags & ACPI_MADT_ENABLED) {
+            /* The first of these entries is the processor this code is running on, don't try
+             * start it */
+            if (foundBootProcessor) {
+                cout << "Found secondary processor - ACPI Processor ID: "
+                     << static_cast<size_t>(lapic.processorID) << ", our Processor ID: "
+                     << static_cast<size_t>(numProcessors) << ", APIC ID: "
+                     << static_cast<size_t>(lapic.id) << endl;
+
+                wakeSecondaryProcessor(localAPIC, lapic.id, numProcessors);
+            } else {
+                cout << "Found boot processor - ACPI Processor ID: "
+                     << static_cast<size_t>(lapic.processorID) << ", APIC ID: "
+                     << static_cast<size_t>(lapic.id) << endl;
+                foundBootProcessor = true;
+                BootProcessorHardwareID = lapic.id;
+            }
+            numProcessors++;
+        }
+    }
+
+    return numProcessors;
 }
+
+
 
 void setupSecondaryProcessorEntry(PageTable *masterPageTable) {
     size_t length = secondaryProcessorEntryCodeLength();

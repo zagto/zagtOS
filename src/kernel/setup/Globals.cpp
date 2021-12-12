@@ -3,6 +3,7 @@
 #include <memory/DLMallocGlue.hpp>
 #include <memory/CPUMask.hpp>
 #include <memory/TLBContext.hpp>
+#include <processes/InterruptManager.hpp>
 
 Processor *Processors;
 TLBContext *TLBContexts;
@@ -14,3 +15,4 @@ frameManagement::Management frameManagement::FrameManagement;
 kernelPageAllocator::Allocator kernelPageAllocator::KernelPageAllocator;
 dlMallocGlue::Glue dlMallocGlue::DLMallocGlue;
 System CurrentSystem;
+interruptManager::InterruptManagerClass interruptManager::InterruptManager;

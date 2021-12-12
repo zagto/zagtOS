@@ -3,6 +3,8 @@
 #include <system/System.hpp>
 #include <system/Processor.hpp>
 
+namespace apic {
+
 void LocalAPIC::writeRegister(Register reg, uint32_t value) noexcept {
     *reinterpret_cast<volatile uint32_t *>(map + static_cast<size_t>(reg)) = value;
 }
@@ -91,4 +93,6 @@ void LocalAPIC::initialize(PhysicalAddress base) {
 
 LocalAPIC::~LocalAPIC() {
     Panic();
+}
+
 }

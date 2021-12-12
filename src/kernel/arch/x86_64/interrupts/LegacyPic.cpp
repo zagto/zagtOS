@@ -1,4 +1,4 @@
-#include <interrupts/LegacyPIC.hpp>
+#include <interrupts/LegacyPic.hpp>
 #include <portio.hpp>
 
 using namespace portio;

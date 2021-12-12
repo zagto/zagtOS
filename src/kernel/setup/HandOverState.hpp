@@ -28,7 +28,7 @@ enum FirmwareType : uint32_t {
 };
 
 enum class HandleType : uint32_t {
-    INVALID, FREE, PORT, REMOTE_PORT, THREAD, MEMORY_AREA
+    INVALID, FREE, PORT, REMOTE_PORT, THREAD, MEMORY_AREA, INTERRUPT
 };
 
 /* TODO: other architectures */

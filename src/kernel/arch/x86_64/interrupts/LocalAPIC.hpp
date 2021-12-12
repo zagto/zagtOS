@@ -3,24 +3,18 @@
 #include <common/common.hpp>
 #include <time/APICTimer.hpp>
 
+#include <interrupts/APICEnum.hpp>
+
+namespace apic {
+
 class LocalAPIC {
 private:
-    enum class DeliveryMode : uint32_t {
-        FIXED, LOWEST_PRIORITY, SMI, RESERVED1, NMI, INIT, STARTUP, RESERVED2
-    };
-    enum class TriggerMode : uint32_t {
-        EDGE, LEVEL
-    };
-    enum class Level : uint32_t {
-        DEASSERT, ASSERT
-    };
-
     uint8_t *map;
 
     void setupMap(PhysicalAddress base);
-    void wirteInterruptControlRegister(DeliveryMode deliveryMode,
-                                       Level level,
-                                       TriggerMode triggerMode,
+    void wirteInterruptControlRegister(apic::DeliveryMode deliveryMode,
+                                       apic::Level level,
+                                       apic::TriggerMode triggerMode,
                                        uint32_t destination,
                                        uint8_t vector) noexcept;
 
@@ -59,3 +53,5 @@ public:
     void sendIPI(uint32_t apicID) noexcept;
     void endOfInterrupt() noexcept;
 };
+
+}

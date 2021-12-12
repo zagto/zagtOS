@@ -6,6 +6,8 @@ namespace handleManager {
 
 // TODO: naming different things differntly
 
+/* Reimplement this whole thing based on inheritance */
+
 Element::Element(uint32_t next) noexcept {
     type = Type::FREE;
     data.nextFreeNumber = next;
@@ -31,6 +33,11 @@ Element::Element(shared_ptr<MemoryArea> &memoryArea) noexcept {
     new (&data.memoryArea) shared_ptr<MemoryArea>(memoryArea);
 }
 
+Element::Element(shared_ptr<ProcessInterrupt> &interrupt) noexcept {
+    type = Type::INTERRUPT;
+    new (&data.interrupt) shared_ptr<ProcessInterrupt>(interrupt);
+}
+
 Element::Element(const Element &&other) noexcept {
     type = other.type;
     switch (type) {
@@ -50,6 +57,9 @@ Element::Element(const Element &&other) noexcept {
         break;
     case Type::MEMORY_AREA:
         new (&data.memoryArea) shared_ptr<MemoryArea>(move(other.data.memoryArea));
+        break;
+    case Type::INTERRUPT:
+        new (&data.interrupt) shared_ptr<ProcessInterrupt>(move(other.data.interrupt));
         break;
     }
 }
@@ -79,6 +89,9 @@ void Element::destructData() noexcept {
         break;
     case Type::MEMORY_AREA:
         data.memoryArea.~shared_ptr();
+        break;
+    case Type::INTERRUPT:
+        data.interrupt.~shared_ptr();
         break;
     }
     type = Type::INVALID;
@@ -197,6 +210,11 @@ uint32_t HandleManager::addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
     return _addMemoryArea(memoryArea);
 }
 
+uint32_t HandleManager::addInterrupt(shared_ptr<ProcessInterrupt> &interrupt) {
+    scoped_lock sl(lock);
+    return _addInterrupt(interrupt);
+}
+
 
 /* unlike the above, this is for internal use and expects the lock to be already hold. Nobody else
  * should create their own remote ports as they wouldn't be remote. */
@@ -215,6 +233,15 @@ uint32_t HandleManager::_addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
     elements[handle] = Element(memoryArea);
     return handle;
 }
+
+uint32_t HandleManager::_addInterrupt(shared_ptr<ProcessInterrupt> &interrupt) {
+    assert(lock.isLocked());
+
+    uint32_t handle = grabFreeNumber();
+    elements[handle] = Element(interrupt);
+    return handle;
+}
+
 
 /* try to resolve a handle to the corresponding pointer
  * returns no value if given handle is bogus
@@ -254,6 +281,15 @@ shared_ptr<MemoryArea> HandleManager::lookupMemoryArea(uint32_t number) {
         throw BadUserSpace(process.self.lock());
     }
     return elements[number].data.memoryArea;
+}
+
+shared_ptr<ProcessInterrupt> HandleManager::lookupInterrupt(uint32_t number) {
+    scoped_lock sl(lock);
+    if (!handleValidFor(number, Type::INTERRUPT)) {
+        cout << "lookupThread: invalid MemoryArea handle " << number << endl;
+        throw BadUserSpace(process.self.lock());
+    }
+    return elements[number].data.interrupt;
 }
 
 
@@ -318,6 +354,11 @@ void HandleManager::transferHandles(vector<uint32_t> &handleValues,
             case Type::MEMORY_AREA: {
                 shared_ptr<MemoryArea> memoryArea(elements[sourceHanlde].data.memoryArea);
                 result = destination._addMemoryArea(memoryArea);
+                break;
+            }
+            case Type::INTERRUPT: {
+                shared_ptr<ProcessInterrupt> interrupt(elements[sourceHanlde].data.interrupt);
+                result = destination._addInterrupt(interrupt);
                 break;
             }
             default:

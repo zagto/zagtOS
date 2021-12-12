@@ -2,6 +2,7 @@
 #include <system/System.hpp>
 #include <time/APICTimer.hpp>
 
+namespace apic {
 
 void APICTimer::startCounting(uint32_t initialCount) noexcept {
     apic->writeRegister(LocalAPIC::Register::DIVIDE_CONFIGURATION, 0);
@@ -21,4 +22,6 @@ void APICTimer::delayMilliseconds(uint32_t ms) noexcept {
 
     startCounting(static_cast<uint32_t>((freq * static_cast<uint64_t>(ms)) / 1000ul));
     while (readValue() > 0) {}
+}
+
 }

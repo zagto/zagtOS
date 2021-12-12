@@ -17,7 +17,7 @@ class Thread {
 public:
     using Priority = hos_v1::ThreadPriority;
     enum {
-        ACTIVE, RUNNING, MESSAGE, FUTEX, TRANSITION, TERMINATED
+        ACTIVE, RUNNING, MESSAGE, FUTEX, INTERRUPT, TRANSITION, TERMINATED
     };
     class State {
     private:
@@ -42,6 +42,9 @@ public:
         }
         static State Futex(FutexManager *manager, uint64_t futexID) noexcept {
             return State(Thread::FUTEX, reinterpret_cast<size_t>(manager), futexID);
+        }
+        static State Interrupt(uint64_t processorID, uint64_t vectorNumber) noexcept {
+            return State(Thread::INTERRUPT, processorID, vectorNumber);
         }
         static State Transition() noexcept {
             return State(Thread::TRANSITION);
@@ -83,11 +86,13 @@ protected:
     /* State */
     friend class Scheduler;
     friend class Process;
+    friend class PlatformInterrupt;
     template <threadList::Receptor Thread::*>
     friend class threadList::List;
 
     threadList::Receptor ownerReceptor;
     threadList::Receptor processReceptor;
+    threadList::Receptor interruptReceptor;
 
     void (*kernelEntry)(void *){nullptr};
     void *kernelEntryData;

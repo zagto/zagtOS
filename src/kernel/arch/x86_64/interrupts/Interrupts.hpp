@@ -18,7 +18,8 @@ static inline bool operator==(uint64_t a, StaticInterrupt b) {
     return a == static_cast<uint64_t>(b);
 }
 
-static Region X86ExceptionRegion{0x00, 0x20};
+static constexpr Region X86ExceptionRegion{0x00, 0x20};
+static constexpr Region DynamicInterruptRegion{0x32, 0xFE + 1 - 0x32};
 
 extern "C" void basicEnableInterrupts();
 extern "C" void basicDisableInterrupts();
