@@ -1,9 +1,8 @@
 #include <vector>
 #include <iostream>
 #include <stdexcept>
-#include <zagtos/PCI.hpp>
-#include <zagtos/HAL.hpp>
-#include <zagtos/Controller.hpp>
+#include <zagtos/protocols/Pci.hpp>
+#include <zagtos/protocols/Hal.hpp>
 #include <PCI.hpp>
 extern "C" {
     #include <acpi.h>
@@ -76,7 +75,7 @@ void initPCIForOS(zagtos::RemotePort &envPort) {
         return;
     }
 
-    auto msg = zbon::encode(std::make_tuple(CONTROLLER_TYPE_PCI, segmentGroups));
-    envPort.sendMessage(zagtos::MSG_FOUND_CONTROLLER, std::move(msg));
+    auto msg = zbon::encode(std::make_tuple(zagtos::hal::CONTROLLER_TYPE_PCI, segmentGroups));
+    envPort.sendMessage(zagtos::hal::MSG_FOUND_CONTROLLER, std::move(msg));
 }
 

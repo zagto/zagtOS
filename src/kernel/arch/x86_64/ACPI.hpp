@@ -98,6 +98,7 @@ struct LocalAPICSubtable : MADTSubtableHeader {
     uint8_t id;
     uint32_t flags;
 
+    /* for SubtableWrapper */
     static const uint8_t SUBTABLE_TYPE_ID = 0;
     using HeaderClass = MADTSubtableHeader;
     using TableClass = MADTTable;

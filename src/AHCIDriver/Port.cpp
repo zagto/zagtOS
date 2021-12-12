@@ -54,6 +54,11 @@ void Port::executeCommand(Command &command) {
 }
 
 void Port::detectDevice() {
+    //
+    regs.IS.DHRS(0);
+    regs.IS.UFS(0);
+    regs.IS.PCS(0);
+
     static const uint32_t DET_PRESENT = 3, IPM_ACTIVE = 1, SIG_SATA = 0x00000101;
     if (regs.SSTS.DET() == DET_PRESENT && regs.SSTS.IPM() == IPM_ACTIVE && regs.SIG() == SIG_SATA) {
         if (!devicePresent) {

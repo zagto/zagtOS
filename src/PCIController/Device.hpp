@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zagtos/PCI.hpp>
+#include <zagtos/protocols/Pci.hpp>
 #include "ConfigSpace.hpp"
 
 class Device {
@@ -18,8 +18,7 @@ private:
 
     zagtos::pci::Device info;
     ConfigSpace *configSpace;
-    zagtos::Port driverPort;
-
+    zagtos::Port _driverPort;
 
     MSICapability *MSI = nullptr;
     MSIXCapability *MSIX = nullptr;
@@ -39,4 +38,5 @@ public:
 
     uint64_t combinedID() const;
     zbon::EncodedData driverRunMessage();
+    zagtos::Port &driverPort();
 };

@@ -53,5 +53,6 @@ clean:
 	rm -f $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(TARGET)
 
 install:
-	cp $(CXX_HEADERS) "$(SYSROOT)/include/zagtos/"
+	#cp $(CXX_HEADERS) "$(SYSROOT)/include/zagtos/"
+	cp -r zagtos/* "$(SYSROOT)/include/zagtos/"
 	cp $(TARGET) "$(SYSROOT)/lib/"

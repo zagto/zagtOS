@@ -1,8 +1,9 @@
 #include <iostream>
 #include <zagtos/syscall.h>
 #include <zagtos/Messaging.hpp>
-#include <zagtos/HAL.hpp>
+#include <zagtos/protocols/Hal.hpp>
 #include <PCI.hpp>
+#include <IOAPIC.hpp>
 extern "C" {
     #include <acpi.h>
 }
@@ -11,7 +12,8 @@ extern "C" {
 int main() {
     std::cout << "Hello from ACPI" << std::endl;
 
-    zagtos::RemotePort envPort = zagtos::decodeRunMessage<zagtos::RemotePort>(zagtos::MSG_START_HAL);
+    zagtos::RemotePort envPort = zagtos::decodeRunMessage<zagtos::RemotePort>(
+                zagtos::hal::MSG_START);
 
     std::cout << "Decoded handle" << std::endl;
 
@@ -48,11 +50,12 @@ int main() {
     }
     std::cout << "ACPI Objects initialized" << std::endl;*/
 
+    initIoApic(envPort);
     initPCIForOS(envPort);
 
     std::cout << "ACPI HAL initialized" << std::endl;
 
-    envPort.sendMessage(zagtos::MSG_START_HAL_RESULT, zbon::encode(true));
+    envPort.sendMessage(zagtos::hal::MSG_START_RESULT, zbon::encode(true));
     std::cout << "ACPI HAL EXIT" << std::endl;
 
 }

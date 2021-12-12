@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zagtos/PCI.hpp>
+#include <zagtos/protocols/Pci.hpp>
 #include "ConfigSpace.hpp"
 #include "Device.hpp"
 

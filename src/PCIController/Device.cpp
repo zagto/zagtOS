@@ -71,12 +71,14 @@ void Device::detectCapablities() {
                 std::cout << "MSI capability found twice!" << std::endl;
             }
             MSI = reinterpret_cast<MSICapability *>(cap);
+            info.supportedCapabilities.push_back(zagtos::pci::Capability::MSI);
             break;
         case CAPABILITY_MSIX:
             if (MSIX != nullptr) {
                 std::cout << "MSI-X capability found twice!" << std::endl;
             }
             MSIX = reinterpret_cast<MSIXCapability *>(cap);
+            info.supportedCapabilities.push_back(zagtos::pci::Capability::MSI_X);
             break;
         }
 
@@ -112,5 +114,9 @@ uint64_t Device::combinedID() const {
 }
 
 zbon::EncodedData Device::driverRunMessage() {
-    return zbon::encodeObject(driverPort, info);
+    return zbon::encodeObject(_driverPort, info);
+}
+
+zagtos::Port &Device::driverPort() {
+    return driverPort();
 }

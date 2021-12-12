@@ -3,10 +3,11 @@
 #include <iostream>
 #include <memory>
 #include <ctime>
+#include <algorithm>
 #include <sys/mman.h>
-#include <zagtos/Controller.hpp>
+#include <zagtos/protocols/Controller.hpp>
 #include <zagtos/Messaging.hpp>
-#include <zagtos/PCI.hpp>
+#include <zagtos/protocols/Pci.hpp>
 #include <zagtos/Register.hpp>
 #include "Registers.hpp"
 #include "Controller.hpp"
@@ -15,7 +16,8 @@ using namespace zagtos;
 
 
 int main() {
-    auto [controllerPort, dev] = decodeRunMessage<std::tuple<RemotePort, pci::Device>>(MSG_START_PCI_DRIVER);
+    auto [controllerPort, dev] =
+            decodeRunMessage<std::tuple<RemotePort, pci::Device>>(pci::MSG_START_PCI_DRIVER);
     std::cout << "Hello from AHCI" << std::endl;
 
     if (!dev.BAR[5]) {
@@ -26,6 +28,9 @@ int main() {
     assert(abar != nullptr);
 
     std::cout << "Mapped ABAR" << std::endl;
+
+    zagtos::Port irqSetupPort;
+    controllerPort.sendMessage(pci::MSG_ALLOCATE_MSI_IRQ, zbon::encode(irqSetupPort));
 
     Controller controller(*abar);
 

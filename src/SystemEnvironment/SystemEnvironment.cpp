@@ -4,14 +4,16 @@
 #include <vector>
 #include <zagtos/ZBON.hpp>
 #include <zagtos/Messaging.hpp>
-#include <zagtos/HAL.hpp>
+#include <zagtos/protocols/Hal.hpp>
+#include <zagtos/protocols/Pci.hpp>
+#include <zagtos/protocols/Controller.hpp>
 #include <zagtos/ExternalBinary.hpp>
 #include <zagtos/EnvironmentSpawn.hpp>
-#include <zagtos/Controller.hpp>
 
 EXTERNAL_BINARY(ACPIHAL)
 EXTERNAL_BINARY(PCIController)
 EXTERNAL_BINARY(AHCIDriver)
+EXTERNAL_BINARY(PS2Controller)
 
 using namespace zagtos;
 
@@ -59,24 +61,24 @@ struct ControllerType {
 };
 
 static Driver dACHIDriver{{{0x0106'0000'0000'0000, 0xffff'0000'0000'0000}}, AHCIDriver};
-static ControllerType PCI{CONTROLLER_TYPE_PCI, MSG_START_PCI_DRIVER, {dACHIDriver}};
+static ControllerType PCI{hal::CONTROLLER_TYPE_PCI, pci::MSG_START_PCI_DRIVER, {dACHIDriver}};
+static ControllerType PS2{hal::CONTROLLER_TYPE_PS2, pci::MSG_START_PCI_DRIVER, {}};
 
 
 void ControllerServer(const ExternalBinary &program,
                       zbon::EncodedData startMessage,
                       const ControllerType &controllerType) {
-    std::cout << "SPAWNING PCI..." << std::endl;
     Port port;
     environmentSpawn(program,
                      Priority::BACKGROUND,
-                     MSG_START_CONTROLLER,
+                     controller::MSG_START,
                      zbon::encodeObject(port, std::move(startMessage)));
 
     while (true) {
         std::unique_ptr<MessageInfo> msgInfo = port.receiveMessage();
-        if (msgInfo->type == MSG_START_CONTROLLER_DONE) {
+        if (msgInfo->type == controller::MSG_START_DONE) {
             std::cerr << "got MSG_START_CONTROLLER_DONE, TODO: what is next?" << std::endl;
-        } else if (msgInfo->type == MSG_FOUND_DEVICE) {
+        } else if (msgInfo->type == controller::MSG_FOUND_DEVICE) {
             std::tuple<uint64_t, zbon::EncodedData> msg;
             try {
                 zbon::decode(msgInfo->data, msg);
@@ -110,11 +112,11 @@ int main() {
     std::cout << "Starting HAL..." << std::endl;
 
     Port halServerPort;
-    environmentSpawn(ACPIHAL, Priority::BACKGROUND, MSG_START_HAL, zbon::encode(halServerPort));
+    environmentSpawn(ACPIHAL, Priority::BACKGROUND, hal::MSG_START, zbon::encode(halServerPort));
 
     while (true) {
         std::unique_ptr<MessageInfo> msgInfo = halServerPort.receiveMessage();
-        if (msgInfo->type == MSG_START_HAL_RESULT) {
+        if (msgInfo->type == hal::MSG_START_RESULT) {
             bool result;
             try {
                 zbon::decode(msgInfo->data, result);
@@ -128,7 +130,7 @@ int main() {
             } else {
                 std::cout << "HAL startup failed." << std::endl;
             }
-        } else if (msgInfo->type == MSG_FOUND_CONTROLLER) {
+        } else if (msgInfo->type == hal::MSG_FOUND_CONTROLLER) {
             std::tuple<UUID, zbon::EncodedData> msg;
             try {
                 zbon::decode(msgInfo->data, msg);
@@ -137,7 +139,7 @@ int main() {
                 continue;
             }
 
-            if (std::get<0>(msg) == CONTROLLER_TYPE_PCI) {
+            if (std::get<0>(msg) == hal::CONTROLLER_TYPE_PCI) {
                 new std::thread(ControllerServer,
                                 std::ref(PCIController),
                                 std::move(std::get<1>(msg)),

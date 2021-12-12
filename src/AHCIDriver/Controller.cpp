@@ -53,6 +53,8 @@ Controller::Controller(ABAR &abar) :
         }
     }
 
+    /* Setup interrupts */
+
     regs.IS(0);
     for (Port &port: ports) {
         port.enableInterrupts();
@@ -62,4 +64,6 @@ Controller::Controller(ABAR &abar) :
     for (Port &port: ports) {
         port.detectDevice();
     }
+    //
+    regs.IS(0);
 }
