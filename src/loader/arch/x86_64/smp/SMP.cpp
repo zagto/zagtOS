@@ -58,51 +58,6 @@ void releaseSecondaryProcessorsToKernel() {
     __atomic_store_n(&releaseToKernel, true, __ATOMIC_SEQ_CST);
 }
 
-/*static size_t findProcessors() {
-    cout << "Detecting Processors using ACPI..." << endl;
-
-    const MADTTable *madt = findMADT(GetFirmwareRoot());
-    const uint8_t *pointer = reinterpret_cast<const uint8_t *>(madt + 1);
-    bool foundBootProcessor = false;
-    size_t numProcessors = 0;
-
-    LocalAPIC localAPIC(madt->localAPICAddress);
-    cout << "Local APIC is at " << static_cast<size_t>(madt->localAPICAddress) << endl;
-
-    while (pointer < (uint8_t *)madt + madt->length) {
-        MADTSubtableHeader subTableHeader;
-        memcpy(&subTableHeader, pointer, sizeof(MADTSubtableHeader));
-
-        switch (subTableHeader.type) {
-        case 0: {
-            LocalAPICSubtable lapic;
-            memcpy(&lapic, pointer, sizeof(LocalAPICSubtable));
-
-            if (lapic.flags & ACPI_MADT_ENABLED) {
-                if (foundBootProcessor) {
-                    cout << "Found secondary processor - ACPI Processor ID: "
-                         << static_cast<size_t>(lapic.processorID) << ", our Processor ID: "
-                         << static_cast<size_t>(numProcessors) << ", APIC ID: "
-                         << static_cast<size_t>(lapic.id) << endl;
-
-                    wakeSecondaryProcessor(localAPIC, lapic.id, numProcessors);
-                } else {
-                    cout << "Found boot processor - ACPI Processor ID: "
-                         << static_cast<size_t>(lapic.processorID) << ", APIC ID: "
-                         << static_cast<size_t>(lapic.id) << endl;
-                    foundBootProcessor = true;
-                    BootProcessorHardwareID = lapic.id;
-                }
-                numProcessors++;
-            }
-            break;
-        }
-        }
-        pointer += subTableHeader.length;
-    }
-    return numProcessors;
-}*/
-
 static size_t findProcessors() {
     cout << "Detecting Processors using ACPI..." << endl;
 
