@@ -43,8 +43,8 @@ public:
         static State Futex(FutexManager *manager, uint64_t futexID) noexcept {
             return State(Thread::FUTEX, reinterpret_cast<size_t>(manager), futexID);
         }
-        static State Interrupt(uint64_t processorID, uint64_t vectorNumber) noexcept {
-            return State(Thread::INTERRUPT, processorID, vectorNumber);
+        static State Interrupt(BoundInterrupt *interrupt) noexcept {
+            return State(Thread::INTERRUPT, reinterpret_cast<size_t>(interrupt));
         }
         static State Transition() noexcept {
             return State(Thread::TRANSITION);
@@ -86,7 +86,7 @@ protected:
     /* State */
     friend class Scheduler;
     friend class Process;
-    friend class PlatformInterrupt;
+    friend class BoundInterrupt;
     template <threadList::Receptor Thread::*>
     friend class threadList::List;
 

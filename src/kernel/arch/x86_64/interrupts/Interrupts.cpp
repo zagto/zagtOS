@@ -9,9 +9,6 @@
 #include <processes/KernelThreadEntry.hpp>
 
 
-InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
-
-
 [[noreturn]] void handleKernelException(RegisterState *registerState) noexcept {
     switch (registerState->intNr) {
     default:
@@ -129,6 +126,9 @@ void handleUserException(RegisterState *registerState) {
                 //CurrentSystem.legacyPIC.handleSpuriousIRQ(registerState->intNr);
             } else if (registerState->intNr == StaticInterrupt::APIC_SPURIOUS) {
                 cout << "APIC Spurious IRQ" << endl;
+                /* Dispensing the spurious-interrupt vector does not affect the ISR, so the
+                 * handler for this vector should return without an EOI.
+                 *  - Intel Manual Vol.1 10.9 Spurious Interrupt */
                 processor->endOfInterrupt();
             } else if (registerState->intNr == StaticInterrupt::IPI) {
                 processor->endOfInterrupt();

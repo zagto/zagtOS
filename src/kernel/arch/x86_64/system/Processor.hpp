@@ -1,6 +1,7 @@
 #pragma once
 
 #include <system/CommonProcessor.hpp>
+#include <interrupts/LocalAPIC.hpp>
 
 enum IPI {
     CheckScheduler = 1u << 0,

@@ -63,7 +63,8 @@ public:
                             scoped_lock<SpinLock> schedulerLock) noexcept :
         thread{thread},
         kernelInterruptsLock(move(kernelInterruptsLock)),
-        schedulerLock(move(schedulerLock)) {}
+        schedulerLock(move(schedulerLock)) {
+    }
 
     Action handle() noexcept override;
     virtual const char *description() noexcept override;

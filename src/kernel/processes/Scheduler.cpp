@@ -110,6 +110,8 @@ void Scheduler::scheduleNext() noexcept {
 
             if (newActiveThread == idleThread) {
                 cout << "activeThread on " << processor->id << " is our idle Thread" << endl;
+                assert(threads[prio].empty());
+                assert(prio == 0);
             } else {
                 cout << "activeThread on " << processor->id << " is now ";
                 for (char c: newActiveThread->process->logName) {

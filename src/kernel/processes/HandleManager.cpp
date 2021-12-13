@@ -33,9 +33,9 @@ Element::Element(shared_ptr<MemoryArea> &memoryArea) noexcept {
     new (&data.memoryArea) shared_ptr<MemoryArea>(memoryArea);
 }
 
-Element::Element(shared_ptr<ProcessInterrupt> &interrupt) noexcept {
+Element::Element(shared_ptr<BoundInterrupt> &interrupt) noexcept {
     type = Type::INTERRUPT;
-    new (&data.interrupt) shared_ptr<ProcessInterrupt>(interrupt);
+    new (&data.interrupt) shared_ptr<BoundInterrupt>(interrupt);
 }
 
 Element::Element(const Element &&other) noexcept {
@@ -59,7 +59,7 @@ Element::Element(const Element &&other) noexcept {
         new (&data.memoryArea) shared_ptr<MemoryArea>(move(other.data.memoryArea));
         break;
     case Type::INTERRUPT:
-        new (&data.interrupt) shared_ptr<ProcessInterrupt>(move(other.data.interrupt));
+        new (&data.interrupt) shared_ptr<BoundInterrupt>(move(other.data.interrupt));
         break;
     }
 }
@@ -210,7 +210,7 @@ uint32_t HandleManager::addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
     return _addMemoryArea(memoryArea);
 }
 
-uint32_t HandleManager::addInterrupt(shared_ptr<ProcessInterrupt> &interrupt) {
+uint32_t HandleManager::addInterrupt(shared_ptr<BoundInterrupt> &interrupt) {
     scoped_lock sl(lock);
     return _addInterrupt(interrupt);
 }
@@ -234,7 +234,7 @@ uint32_t HandleManager::_addMemoryArea(shared_ptr<MemoryArea> &memoryArea) {
     return handle;
 }
 
-uint32_t HandleManager::_addInterrupt(shared_ptr<ProcessInterrupt> &interrupt) {
+uint32_t HandleManager::_addInterrupt(shared_ptr<BoundInterrupt> &interrupt) {
     assert(lock.isLocked());
 
     uint32_t handle = grabFreeNumber();
@@ -283,7 +283,7 @@ shared_ptr<MemoryArea> HandleManager::lookupMemoryArea(uint32_t number) {
     return elements[number].data.memoryArea;
 }
 
-shared_ptr<ProcessInterrupt> HandleManager::lookupInterrupt(uint32_t number) {
+shared_ptr<BoundInterrupt> HandleManager::lookupInterrupt(uint32_t number) {
     scoped_lock sl(lock);
     if (!handleValidFor(number, Type::INTERRUPT)) {
         cout << "lookupThread: invalid MemoryArea handle " << number << endl;
@@ -357,7 +357,7 @@ void HandleManager::transferHandles(vector<uint32_t> &handleValues,
                 break;
             }
             case Type::INTERRUPT: {
-                shared_ptr<ProcessInterrupt> interrupt(elements[sourceHanlde].data.interrupt);
+                shared_ptr<BoundInterrupt> interrupt(elements[sourceHanlde].data.interrupt);
                 result = destination._addInterrupt(interrupt);
                 break;
             }

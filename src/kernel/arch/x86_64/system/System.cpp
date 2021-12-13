@@ -3,6 +3,7 @@
 #include <interrupts/util.hpp>
 #include <common/ModelSpecificRegister.hpp>
 #include <system/Processor.hpp>
+#include <processes/Process.hpp>
 #include <ACPI.hpp>
 
 
@@ -55,8 +56,8 @@ void System::detectIRQSourceOverride() noexcept {
     for (uint32_t index = 0; index < 0xff; index++) {
         legacyIRQs[index] = {
             .gsi = index,
-            .polarity = apic::Polarity::ACRIVE_HIGH,
-            .triggerMode = apic::TriggerMode::EDGE,
+            .polarity = Polarity::ACRIVE_HIGH,
+            .triggerMode = TriggerMode::EDGE,
         };
     }
 
@@ -68,11 +69,11 @@ void System::detectIRQSourceOverride() noexcept {
         legacyIRQs[subtable.irqSource] = {
             .gsi = subtable.gsi,
             .polarity = (subtable.flags & ACPI_MADT_FLAG_ACTIVE_LOW)
-                ? apic::Polarity::ACTIVE_LOW
-                : apic::Polarity::ACRIVE_HIGH,
+                ? Polarity::ACTIVE_LOW
+                : Polarity::ACRIVE_HIGH,
             .triggerMode = (subtable.flags & ACPI_MADT_FLAG_LEVEL_TRIGGERED)
-                ? apic::TriggerMode::LEVEL
-                : apic::TriggerMode::EDGE,
+                ? TriggerMode::LEVEL
+                : TriggerMode::EDGE,
         };
 
         cout << "IOAPIC Souce override IRQ " << (uint32_t)subtable.irqSource << " GSI " << subtable.gsi << endl;
@@ -80,3 +81,32 @@ void System::detectIRQSourceOverride() noexcept {
 
 }
 
+apic::IOAPIC &System::IOAPICForGSI(uint32_t gsi) {
+    for (size_t index = 0; index < ioApics.size(); index++) {
+        if (ioApics[index].isForGSI(gsi)) {
+            return ioApics[index];
+        }
+    }
+    cout << "Tried to setup a GSI that cannout be handled by out local APICs" << endl;
+    /* TODO: a way for user space to recover from here may be useful */
+    throw BadUserSpace(CurrentProcess());
+}
+
+void System::bindInterrutpt(BoundInterrupt &boundInterrupt) {
+    if (boundInterrupt.type == InterruptType::X86_GSI) {
+        IOAPICForGSI(boundInterrupt.typeData).bindInterrutpt(boundInterrupt);
+    }
+}
+
+void System::unbindInterrupt(BoundInterrupt &boundInterrupt) {
+    if (boundInterrupt.type == InterruptType::X86_GSI) {
+        IOAPICForGSI(boundInterrupt.typeData).unbindInterrutpt(boundInterrupt);
+    }
+}
+
+void System::interruptFullyProcessed(BoundInterrupt &boundInterrupt) {
+    if (boundInterrupt.type == InterruptType::X86_GSI
+            && boundInterrupt.triggerMode == TriggerMode::LEVEL) {
+        IOAPICForGSI(boundInterrupt.typeData).endOfLevelInterrupt();
+    }
+}

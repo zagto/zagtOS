@@ -7,7 +7,7 @@ size_t UnsubscribeInterrupt(const shared_ptr<Process> &process,
                                     size_t,
                                     size_t) {
     auto interrupt = process->handleManager.lookupInterrupt(handle);
-    interrupt->platformInterrupt.unsubscribe(*interrupt);
+    interrupt->unsubscribe();
     return 0;
 }
 

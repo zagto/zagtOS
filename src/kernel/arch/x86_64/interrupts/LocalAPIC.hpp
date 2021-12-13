@@ -4,6 +4,7 @@
 #include <time/APICTimer.hpp>
 
 #include <interrupts/APICEnum.hpp>
+#include <interrupts/Interrupts.hpp>
 
 namespace apic {
 
@@ -14,7 +15,7 @@ private:
     void setupMap(PhysicalAddress base);
     void wirteInterruptControlRegister(apic::DeliveryMode deliveryMode,
                                        apic::Level level,
-                                       apic::TriggerMode triggerMode,
+                                       TriggerMode triggerMode,
                                        uint32_t destination,
                                        uint8_t vector) noexcept;
 

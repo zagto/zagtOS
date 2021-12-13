@@ -11,6 +11,8 @@
 
 static constexpr size_t MAX_NUM_PROCESSORS = 256;
 
+class PlatformInterrupt;
+
 class System : public CommonSystem {
 private:
     friend class Processor;
@@ -18,8 +20,8 @@ private:
 
     struct LegacyIRQSetup {
         uint32_t gsi{0};
-        apic::Polarity polarity;
-        apic::TriggerMode triggerMode;
+        Polarity polarity;
+        TriggerMode triggerMode;
     };
 
     GlobalDescriptorTable gdt;
@@ -31,6 +33,7 @@ private:
     void setupSyscalls() noexcept;
     void detectIOAPICs();
     void detectIRQSourceOverride() noexcept;
+    apic::IOAPIC &IOAPICForGSI(uint32_t gsi);
 
 public:
     PhysicalAddress ACPIRoot;
@@ -41,6 +44,10 @@ public:
     void setupCurrentProcessor() noexcept;
     /* Called afterwards */
     void lateInitialization();
+
+    void bindInterrutpt(BoundInterrupt &boundInterrupt);
+    void unbindInterrupt(BoundInterrupt &boundInterrupt);
+    void interruptFullyProcessed(BoundInterrupt &boundInterrupt);
 };
 
 extern System CurrentSystem;

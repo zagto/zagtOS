@@ -7,7 +7,7 @@ size_t SubscribeInterrupt(const shared_ptr<Process> &process,
                                   size_t,
                                   size_t) {
     auto interrupt = process->handleManager.lookupInterrupt(handle);
-    interrupt->platformInterrupt.subscribe(*interrupt);
+    interrupt->subscribe();
     return 0;
 }
 

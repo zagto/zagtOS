@@ -1,0 +1,23 @@
+#pragma once
+
+template<class InputIt, class UnaryPredicate>
+InputIt find_if(InputIt first, InputIt last, UnaryPredicate predicate) {
+    while (first != last) {
+        if (predicate(*first)) {
+            break;
+        }
+        first++;
+    }
+    return first;
+}
+
+template<class InputIt, class T>
+InputIt find_if(InputIt first, InputIt last, T &value) {
+    while (first != last) {
+        if (*first == value) {
+            break;
+        }
+        first++;
+    }
+    return first;
+}

@@ -3,6 +3,8 @@
 #include <interrupts/util.hpp>
 
 
+InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;
+
 InterruptDescriptorTable::InterruptDescriptorTable() {
     for (size_t index = 0; index < NUM_INTERRUPT_SERIVICE_ROUTINES; index++) {
         uint8_t ISTEntry = 0;

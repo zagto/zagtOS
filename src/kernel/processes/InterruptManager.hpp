@@ -5,61 +5,77 @@
 #include <processes/Thread.hpp>
 #include <vector>
 
-class ProcessInterrupt;
 
-class PlatformInterrupt {
-private:
+struct ProcessorInterrupt {
     size_t processorID{-1ul};
     size_t vectorNumber{-1ul};
-
-    uint64_t occurence;
-    threadList::List<&Thread::interruptReceptor> waitingThreads;
-    size_t totalSubscribers{0};
-    size_t processingSubscribers{0};
-
-public:
-    SpinLock lock;
-    void initialize(size_t processorID, size_t vectorNumber) noexcept;
-    void subscribe(ProcessInterrupt &interrupt);
-    void unsubscribe(ProcessInterrupt &interrupt);
-    void removeWaiting(ProcessInterrupt &interrupt) noexcept;
-    void processed(ProcessInterrupt &interrupt);
-    void wait(ProcessInterrupt &interrupt);
-    void occur() noexcept;
-};
-
-class ProcessInterrupt {
-private:
-    friend class PlatformInterrupt;
-    bool subscribed{false};
-    //bool waiting{false};
-    uint64_t processedOccurence{0};
-
-public:
-    PlatformInterrupt &platformInterrupt;
-
-    ProcessInterrupt() noexcept;
-    ~ProcessInterrupt();
-    ProcessInterrupt(ProcessInterrupt &) = delete;
-    ProcessInterrupt operator=(ProcessInterrupt &) = delete;
 };
 
 namespace interruptManager {
-    class InterruptManagerClass {
-    private:
-        /* uppercase Vector - interrupt vector
-         * lowercase vector - dynamic array data structure */
-        vector<vector<PlatformInterrupt>> platformInterrupts;
-        static constexpr size_t vectorOffset = DynamicInterruptRegion.start;
+class Manager;
+}
 
-    public:
-        InterruptManagerClass();
+class BoundInterrupt {
+private:
+    friend class System;
+    friend class apic::IOAPIC;
+    friend class interruptManager::Manager;
 
-        PlatformInterrupt &getAny() noexcept;
-        void occur(size_t processorID, size_t vectorNumber) noexcept;
+    struct Subscription {
+        shared_ptr<Process> process;
+        uint64_t processedOccurence{0};
     };
 
-    extern InterruptManagerClass InterruptManager;
+    SpinLock lock;
+    ProcessorInterrupt processorInterrupt;
+
+    InterruptType type;
+    size_t typeData;
+    TriggerMode triggerMode;
+    Polarity polarity;
+
+    uint64_t occurence{0};
+    size_t processingSubscribers{0};
+    threadList::List<&Thread::interruptReceptor> waitingThreads;
+    vector<Subscription> subscriptions;
+
+    vector<Subscription>::Iterator findSubscription(shared_ptr<Process> process);
+    void unsubscribe(vector<Subscription>::Iterator subscription) noexcept;
+
+public:
+    BoundInterrupt(InterruptType type, size_t typeData, TriggerMode triggerMode, Polarity polarity);
+    ~BoundInterrupt() noexcept;
+    BoundInterrupt(BoundInterrupt &) = delete;
+
+    void subscribe();
+    void unsubscribe();
+    void removeWaiting() noexcept;
+    void processed();
+    void wait();
+    void occur() noexcept;
+    void checkFullyProcessed() noexcept;
+};
+
+namespace interruptManager {
+
+class Manager {
+    private:
+        static constexpr size_t vectorOffset = DynamicInterruptRegion.start;        
+
+        SpinLock lock;
+        vector<vector<BoundInterrupt *>> allInterrupts;
+
+        PlatformInterrupt findFree() noexcept;
+
+    public:
+        Manager();
+
+        void bind(BoundInterrupt *binding);
+        void unbind(BoundInterrupt *binding) noexcept;
+        void occur(ProcessorInterrupt processorInterrupt) noexcept;
+    };
+
+    extern Manager InterruptManager;
 }
 
 using interruptManager::InterruptManager;

@@ -18,3 +18,5 @@ public:
 
     void load();
 };
+
+extern InterruptDescriptorTable INTERRUPT_DESCRIPTOR_TABLE;

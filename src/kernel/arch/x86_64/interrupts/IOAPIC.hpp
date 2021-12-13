@@ -3,6 +3,9 @@
 #include <common/common.hpp>
 #include <mutex>
 #include <interrupts/APICEnum.hpp>
+#include <interrupts/Interrupts.hpp>
+
+class BoundInterrupt;
 
 namespace apic {
 
@@ -10,7 +13,7 @@ class IOAPIC {
 private:
     /* actual offsets in the memory map */
     static constexpr uint32_t IOREGSEL = 0x0;
-    static constexpr uint32_t IOWIN = 0x1;
+    static constexpr uint32_t IOWIN = 0x4;
 
     /* values for IOREGSEL to access APIC registers in IOWIN */
     static constexpr uint32_t REG_IOAPICVER = 0x1;
@@ -25,7 +28,7 @@ private:
     uint32_t gsiBase;
 
     uint32_t readRegister(uint32_t offset) noexcept;
-    void writeRegister(uint32_t offset) noexcept;
+    void writeRegister(uint32_t offset, uint32_t value) noexcept;
 
 public:
     IOAPIC(PhysicalAddress physicalAddress, uint32_t gsiBase);
@@ -33,13 +36,10 @@ public:
     ~IOAPIC() noexcept;
 
     size_t numEntries() noexcept;
-    void writeEntry(size_t entry,
-                    uint8_t vector,
-                    DeliveryMode deliveryMode,
-                    Polarity polarity,
-                    TriggerMode triggerMode,
-                    bool enabled,
-                    size_t destinationID);
+    void bindInterrutpt(BoundInterrupt &boundInterrupt) noexcept;
+    void unbindInterrutpt(BoundInterrupt &boundInterrupt) noexcept;
+    void endOfLevelInterrupt() noexcept;
+    bool isForGSI(uint32_t gsi) noexcept;
 };
 
 }

@@ -15,4 +15,4 @@ frameManagement::Management frameManagement::FrameManagement;
 kernelPageAllocator::Allocator kernelPageAllocator::KernelPageAllocator;
 dlMallocGlue::Glue dlMallocGlue::DLMallocGlue;
 System CurrentSystem;
-interruptManager::InterruptManagerClass interruptManager::InterruptManager;
+interruptManager::Manager interruptManager::InterruptManager;

@@ -2,83 +2,162 @@
 #include <processes/Process.hpp>
 #include <system/Processor.hpp>
 #include <processes/Scheduler.hpp>
+#include <syscalls/WaitInterrupt.hpp>
+#include <algorithm>
 
-void PlatformInterrupt::initialize(size_t processorID, size_t vectorNumber) noexcept {
-    this->processorID = processorID;
-    this->vectorNumber = vectorNumber;
+BoundInterrupt::BoundInterrupt(InterruptType type,
+                               size_t typeData,
+                               TriggerMode triggerMode,
+                               Polarity polarity) :
+    type{type},
+    typeData{typeData},
+    triggerMode{triggerMode},
+    polarity{polarity} {
+
+    scoped_lock sl(KernelInterruptsLock);
+    /* don't lock ourselves here - nothing is really happening with the data at this point and
+     * our lock before InterruptManager would violate the lock order. */
+
+    /* assigns the ProcessorInterrupt */
+    InterruptManager.bind(this);
+
+    /* sets up interrupt routing in the hardware */
+    try {
+        CurrentSystem.bindInterrutpt(*this);
+    } catch (...) {
+        /* we don't want to leak a bound InterruptManager entry */
+        InterruptManager.unbind(this);
+        throw;
+    }
 }
 
-void PlatformInterrupt::subscribe(ProcessInterrupt &interrupt) {
+BoundInterrupt::~BoundInterrupt() noexcept {
+    scoped_lock sl(KernelInterruptsLock);
+    InterruptManager.unbind(this);
+    CurrentSystem.unbindInterrupt(*this);
+
+    scoped_lock sl2(lock);
+
+    while (subscriptions.size() != 0) {
+        unsubscribe(subscriptions.begin() + (subscriptions.size() - 1));
+    }
+    assert(processingSubscribers == 0);
+    assert(waitingThreads.empty());
+
+}
+
+vector<BoundInterrupt::Subscription>::Iterator
+BoundInterrupt::findSubscription(shared_ptr<Process> process) {
+    return find_if(subscriptions.begin(),
+                   subscriptions.end(),
+                   [&process](Subscription &sub) {
+
+                return sub.process == process;
+        });
+}
+
+void BoundInterrupt::subscribe() {
     scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl2(lock);
 
-    if (interrupt.subscribed) {
-        cout << "Tried to subscribe to interrupt that is already subscribed" << endl;
+    shared_ptr<Process> process = CurrentProcess();
+
+    auto findResult = findSubscription(process);
+    if (findResult != subscriptions.end()) {
+        cout << "BoundInterrupt::subscribe: Process is already subscribed" << endl;
+        throw BadUserSpace(process);
+    }
+
+    subscriptions.push_back({process, occurence});
+}
+
+void BoundInterrupt::unsubscribe(vector<Subscription>::Iterator subscription) noexcept {
+    assert(lock.isLocked());
+
+    assert(subscription->processedOccurence <= occurence);
+    assert(processingSubscribers >= occurence - subscription->processedOccurence);
+    processingSubscribers -= occurence - subscription->processedOccurence;
+
+    /* If another thread from the current Process is currently, waiting, cacncel that */
+    for (auto thread: waitingThreads) {
+        if (thread->process == subscription->process) {
+            waitingThreads.remove(thread);
+
+            assert(thread->state().kind() == Thread::INTERRUPT);
+            thread->setState(Thread::State::Transition());
+            thread->kernelStack->userRegisterState()->setSyscallResult(WAIT_INTERRUPT_CANCELED);
+            Scheduler::schedule(thread, true);
+            break;
+        }
+    }
+
+    subscriptions.erase(subscription);
+
+    /* the unsubscribed Process might be the last one not having fully processed */
+    checkFullyProcessed();
+}
+
+void BoundInterrupt::unsubscribe() {
+    scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl2(lock);
+
+    auto subscription = findSubscription(CurrentProcess());
+    if (subscription == subscriptions.end()) {
+        cout << "Unsubscribe from interrupt that was not subscribed" << endl;
         throw BadUserSpace(CurrentProcess());
     }
 
-    interrupt.subscribed = true;
-    interrupt.processedOccurence = occurence;
-    totalSubscribers++;
+    unsubscribe(subscription);
 }
 
-void PlatformInterrupt::unsubscribe(ProcessInterrupt &interrupt) {
+
+void BoundInterrupt::processed() {
     scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl2(lock);
 
-    if (!interrupt.subscribed) {
-        cout << "Tried to unsubscribe Thread from interrupt that was not subscribed" << endl;
-        throw BadUserSpace(CurrentProcess());
-    }
-
-    totalSubscribers--;
-    if (interrupt.processedOccurence == occurence - 1) {
-        processingSubscribers--;
-    } else {
-        assert(interrupt.processedOccurence == occurence);
-    }
-    interrupt.subscribed = false;
-    interrupt.processedOccurence = 0;
-}
-
-void PlatformInterrupt::processed(ProcessInterrupt &interrupt) {
-    scoped_lock sl(KernelInterruptsLock);
-    scoped_lock sl2(lock);
-
-    if (!interrupt.subscribed) {
+    auto process = CurrentProcess();
+    auto subscription = findSubscription(process);
+    if (subscription == subscriptions.end()) {
         cout << "Thread sent interrupt processed but was not subscribed" << endl;
         throw BadUserSpace(CurrentProcess());
     }
 
-    if (interrupt.processedOccurence == occurence) {
+    if (subscription->processedOccurence == occurence) {
         cout << "Thread sent interrupt processed for occurence it already processed" << endl;
         throw BadUserSpace(CurrentProcess());
     }
-    assert(interrupt.processedOccurence == occurence - 1);
-    interrupt.processedOccurence = occurence;
+    assert(subscription->processedOccurence < occurence);
+    subscription->processedOccurence++;
+    assert(processingSubscribers > 0);
     processingSubscribers--;
 
+    checkFullyProcessed();
+}
+
+void BoundInterrupt::checkFullyProcessed() noexcept {
     if (processingSubscribers == 0) {
-        // something needs to happen here
+        CurrentSystem.interruptFullyProcessed(*this);
     }
 }
 
-void PlatformInterrupt::wait(ProcessInterrupt &interrupt) {
+void BoundInterrupt::wait() {
     scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl2(lock);
 
-    if (!interrupt.subscribed) {
-        cout << "Thread tried to wait for interrupt but was not subscribed" << endl;
-        throw BadUserSpace(CurrentProcess());
+    auto process = CurrentProcess();
+    auto subscription = findSubscription(process);
+    if (subscription == subscriptions.end()) {
+        cout << "Thread sent interrupt processed but was not subscribed" << endl;
+        throw BadUserSpace(process);
     }
 
-    if (interrupt.processedOccurence == occurence - 1) {
+    if (subscription->processedOccurence < occurence) {
         /* there is already a new occurence not processed by this Thread */
         return;
     }
 
     /* the Thread should have processed all occurences so far - make it wait */
-    assert(interrupt.processedOccurence == occurence);
+    assert(subscription->processedOccurence == occurence);
 
     Thread *thread = CurrentThread();
     waitingThreads.append(thread);
@@ -89,73 +168,88 @@ void PlatformInterrupt::wait(ProcessInterrupt &interrupt) {
     scoped_lock sl3(scheduler.lock);
 
     scheduler.removeActiveThread();
-    thread->setState(Thread::State::Interrupt(processorID, vectorNumber));
+    thread->setState(Thread::State::Interrupt(this));
 
     throw DiscardStateAndSchedule(thread, move(sl), move(sl3));
 }
 
-void PlatformInterrupt::occur() noexcept {
+void BoundInterrupt::occur() noexcept {
     scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl2(lock);
 
-    if (processingSubscribers != 0) {
-        cout << "Interrupt " << vectorNumber << " on Processor " << processorID
-             << " occured before the last occurence was fully processed." << endl;
-        Panic();
-    }
+    /* each subscriber now has to process once more */
+    processingSubscribers += subscriptions.size();
 
-    size_t numWoken = 0;
     while (!waitingThreads.empty()) {
         Thread *thread = waitingThreads.pop();
 
         assert(thread->state().kind() == Thread::INTERRUPT);
         thread->setState(Thread::State::Transition());
-
+        thread->kernelStack->userRegisterState()->setSyscallResult(WAIT_INTERRUPT_SUCCESS);
         Scheduler::schedule(thread, true);
-        numWoken++;
-    }
-
-    processingSubscribers = totalSubscribers;
-}
-
-ProcessInterrupt::ProcessInterrupt() noexcept :
-    platformInterrupt{InterruptManager.getAny()} {}
-
-ProcessInterrupt::~ProcessInterrupt() {
-    scoped_lock sl(platformInterrupt.lock);
-
-    if (subscribed) {
-        platformInterrupt.unsubscribe(*this);
     }
 }
+
 
 namespace interruptManager {
 
-InterruptManagerClass::InterruptManagerClass() {
+Manager::Manager() {
     size_t numProcessors = _HandOverSystem->numProcessors;
     size_t vectorsPerProcessor = DynamicInterruptRegion.length;
 
-    platformInterrupts = move(vector<vector<PlatformInterrupt>>(numProcessors));
+    allInterrupts.resize(numProcessors);
 
     for (size_t processorID = 0; processorID < numProcessors; processorID++) {
-        platformInterrupts[processorID] = move(vector<PlatformInterrupt>(vectorsPerProcessor));
+        allInterrupts[processorID] = vector<BoundInterrupt *>(vectorsPerProcessor, nullptr);
+    }
+}
 
+void Manager::bind(BoundInterrupt *binding) {
+    scoped_lock sl(lock);
+
+    for (size_t processorID = 0; processorID < allInterrupts.size(); processorID++) {
         for (size_t vectorNumber = DynamicInterruptRegion.start;
              vectorNumber < DynamicInterruptRegion.end();
              vectorNumber++) {
 
-            platformInterrupts[processorID][vectorNumber - vectorOffset].initialize(
-                        processorID, vectorNumber);
+            BoundInterrupt *&item = allInterrupts[processorID][vectorNumber - vectorOffset];
+            if (item == nullptr) {
+                /* found a free place */
+                binding->processorInterrupt = {processorID, vectorNumber};
+                item = binding;
+                return;
+            }
         }
     }
+
+    cout << "TODO: what happens if we run out of interrupt vectors" << endl;
+    Panic();
 }
 
-PlatformInterrupt &InterruptManagerClass::getAny() noexcept {
-    return platformInterrupts[0][0]; // TODO
+void Manager::unbind(BoundInterrupt *binding) noexcept {
+    scoped_lock sl(lock);
+
+    BoundInterrupt *&bound = allInterrupts
+           [binding->processorInterrupt.processorID][binding->processorInterrupt.vectorNumber - vectorOffset];
+    assert(bound != nullptr);
+    assert(bound == binding);
+
+    bound = nullptr;
 }
 
-void InterruptManagerClass::occur(size_t processorID, size_t vectorNumber) noexcept {
-    platformInterrupts[processorID][vectorNumber - vectorOffset].occur();
+void Manager::occur(ProcessorInterrupt processorInterrupt) noexcept {
+    BoundInterrupt *boundInterrupt;
+
+    scoped_lock sl(lock);
+    boundInterrupt = allInterrupts
+           [processorInterrupt.processorID][processorInterrupt.vectorNumber - vectorOffset];
+    if (boundInterrupt == nullptr) {
+        cout << "Warning: non-bound interrupt Processor " << processorInterrupt.processorID
+             << " vector " << processorInterrupt.vectorNumber << " occured" << endl;
+        return;
+    }
+
+    boundInterrupt->occur();
 }
 
 

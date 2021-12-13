@@ -26,7 +26,7 @@ struct Element {
         weak_ptr<Port> remotePort;
         shared_ptr<Thread> thread;
         shared_ptr<MemoryArea> memoryArea;
-        shared_ptr<ProcessInterrupt> interrupt;
+        shared_ptr<BoundInterrupt> interrupt;
         HandleData() noexcept {}
     } data;
 
@@ -36,7 +36,7 @@ struct Element {
     Element(weak_ptr<Port> &port) noexcept;
     Element(shared_ptr<Thread> &thread) noexcept;
     Element(shared_ptr<MemoryArea> &memoryArea) noexcept;
-    Element(shared_ptr<ProcessInterrupt> &interrupt) noexcept;
+    Element(shared_ptr<BoundInterrupt> &interrupt) noexcept;
     Element(const Element &) = delete;
     Element(const Element &&other) noexcept;
     ~Element();
@@ -57,7 +57,7 @@ private:
     bool handleValid(uint32_t number) noexcept;
     uint32_t _addRemotePort(weak_ptr<Port> &port);
     uint32_t _addMemoryArea(shared_ptr<MemoryArea> &memoryArea);
-    uint32_t _addInterrupt(shared_ptr<ProcessInterrupt> &interrupt);
+    uint32_t _addInterrupt(shared_ptr<BoundInterrupt> &interrupt);
     void _removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
 
 public:
@@ -73,12 +73,12 @@ public:
     uint32_t addPort(shared_ptr<Port> &port);
     uint32_t addThread(shared_ptr<Thread> &thread);
     uint32_t addMemoryArea(shared_ptr<MemoryArea> &sharedMemory);
-    uint32_t addInterrupt(shared_ptr<ProcessInterrupt> &interrupt);
+    uint32_t addInterrupt(shared_ptr<BoundInterrupt> &interrupt);
     shared_ptr<Port> lookupPort(uint32_t number);
     weak_ptr<Port> lookupRemotePort(uint32_t number);
     shared_ptr<Thread> lookupThread(uint32_t number);
     shared_ptr<MemoryArea> lookupMemoryArea(uint32_t number);
-    shared_ptr<ProcessInterrupt> lookupInterrupt(uint32_t number);
+    shared_ptr<BoundInterrupt> lookupInterrupt(uint32_t number);
     void removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
     void transferHandles(vector<uint32_t> &handleValues, HandleManager &destination);
     uint32_t numFreeHandles() noexcept;
