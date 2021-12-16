@@ -26,9 +26,18 @@ static constexpr size_t USER_STACK_SIZE = 2 * 1024 * 1024;
 static constexpr size_t USER_STACK_BORDER = 0x1000 * 10;
 
 static constexpr size_t USER_STACK_START = 0x0000800000000000 - USER_STACK_SIZE;
+
+static constexpr size_t TLS_INFO_ADDRESS = 0x7FFFFFDF5800;
+static constexpr size_t PTHREAD_SELF_SIZE = 0x800;
 #else
 #error "Please add page definition for arch"
 #endif
+
+struct TLSInfo {
+    uint64_t masterTLSStart;
+    uint64_t masterTLSLength;
+    uint64_t threadTLSPointer;
+};
 
 int main(int argc, char **argv) {
     if (!(argc == 3 || (argc == 4 && strcmp(argv[3], "--no-add-stack") == 0))) {
@@ -73,8 +82,6 @@ int main(int argc, char **argv) {
     std::vector<zagtos::ProgramSection> sections;
     sections.reserve(numSections + 2);
 
-    std::optional<zagtos::ProgramSection> TLSSection;
-
     if (addStack) {
         zagtos::ProgramSection stackSection = {
             .address = USER_STACK_START,
@@ -91,6 +98,9 @@ int main(int argc, char **argv) {
         sections.push_back(stackSection);
         sections.push_back(borderSection);
     }
+
+    bool tlsFound = false;
+    size_t tlsPointer = 0;
 
     for (const auto &header: programHeaders) {
         if (!(header.p_type == PT_LOAD || header.p_type == PT_TLS)) {
@@ -110,23 +120,43 @@ int main(int argc, char **argv) {
             .flags = header.p_flags,
             .data = std::vector<uint8_t>(offsetBefore + header.p_filesz + offsetAfter, 0)
         };
-        /* for TLS, the address is not where it should be loaded, but the master TLS address, which
-         * may be unaligned */
-        if (header.p_type == PT_TLS) {
-            section.address = header.p_vaddr;
-        }
 
         inFile.seekg(header.p_offset);
         inFile.read(reinterpret_cast<char *>(section.data.data() + offsetBefore), header.p_filesz);
 
         if (header.p_type == PT_TLS) {
-            if (TLSSection) {
+            /* page aligned area the thread copies the master TLS contents to, plus a page
+             * containing addresses for this */
+
+            /* Thread TLS needs to be at different position from master TLS */
+            section.address = TLS_INFO_ADDRESS - PTHREAD_SELF_SIZE - section.sizeInMemory;
+
+            tlsPointer = section.address + offsetBefore + header.p_memsz;
+            assert(tlsPointer % 8 == 0); // TODO: what if misaligned?
+            TLSInfo info = {
+                .masterTLSStart = header.p_vaddr,
+                .masterTLSLength = header.p_memsz,
+                .threadTLSPointer = tlsPointer,
+            };
+            section.data.resize(section.sizeInMemory + PAGE_SIZE);
+            memcpy(section.data.data() + section.sizeInMemory + PTHREAD_SELF_SIZE,
+                   reinterpret_cast<uint8_t *>(&info),
+                   sizeof(TLSInfo));
+            /* additional room for pthread_self and TLS info */
+            section.sizeInMemory += PAGE_SIZE;
+
+            section.flags = PF_R | PF_W;
+
+            if (tlsFound) {
                 throw std::runtime_error("input file has more than one TLS section");
             }
-            TLSSection = std::move(section);
-        } else {
-            sections.push_back(std::move(section));
+            tlsFound = true;
         }
+
+        std::cerr << "resulting address "<<section.address<<", size "<<section.data.size()<<", sizeInMemory "<<section.sizeInMemory<<std::endl;
+
+
+        sections.push_back(std::move(section));
     }
     inFile.close();
 
@@ -134,7 +164,7 @@ int main(int argc, char **argv) {
 
     zagtos::ProgramBinary binary = {
         .entryAddress = FileHeader.e_entry,
-        .TLSSection = std::move(TLSSection),
+        .tlsPointer = tlsPointer,
         .sections = std::move(sections),
     };
     zbon::EncodedData output = zbon::encode(binary);

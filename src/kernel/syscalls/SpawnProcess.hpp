@@ -26,7 +26,7 @@ private:
     size_t entryAddress;
     size_t numSections;
     size_t sectionsAddress;
-    size_t TLSSectionAddress;
+    size_t tlsPointer;
     size_t priority;
 
     UUID messageType;

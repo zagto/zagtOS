@@ -14,11 +14,10 @@ struct ProgramSection {
 };
 
 struct ProgramBinary {
-    size_t entryAddress;
-    std::optional<zagtos::ProgramSection> TLSSection;
+    uint64_t entryAddress;
     std::vector<zagtos::ProgramSection> sections;
 
-    ZBON_ENCODING_FUNCTIONS(entryAddress, TLSSection, sections);
+    ZBON_ENCODING_FUNCTIONS(entryAddress, sections);
 };
 
 }

@@ -24,8 +24,8 @@ Process::Process(const hos_v1::Process &handOver,
 
 Process::Process(Process &sourceProcess,
                  vector<SpawnProcessSection> &sections,
-                 optional<SpawnProcessSection> &TLSSection,
                  UserVirtualAddress entryAddress,
+                 size_t tlsPointer,
                  Thread::Priority initialPrioriy,
                  Message &runMessage,
                  vector<uint8_t> &logName):
@@ -45,26 +45,6 @@ Process::Process(Process &sourceProcess,
                                    false);
     }
 
-    UserVirtualAddress masterTLSBase{0};
-    size_t TLSSize{0};
-    if (TLSSection) {
-        TLSSize = TLSSection->sizeInMemory;
-        masterTLSBase = TLSSection->address;
-    }
-
-    UserVirtualAddress tlsAddress = addressSpace.addAnonymous(
-                TLSSize + hos_v1::THREAD_STRUCT_AREA_SIZE,
-                Permissions::READ_WRITE);
-
-    UserVirtualAddress tlsBase = tlsAddress + hos_v1::THREAD_STRUCT_AREA_SIZE;
-    if (TLSSection) {
-        addressSpace.copyFromOhter(tlsAddress.value(),
-                                   sourceProcess.addressSpace,
-                                   TLSSection->dataAddress,
-                                   TLSSection->dataSize,
-                                   false);
-    }
-
     runMessage.setDestinationProcess(this);
     runMessage.transfer();
 
@@ -76,10 +56,8 @@ Process::Process(Process &sourceProcess,
                                           initialPrioriy,
                                           /* ensure valid UserVirtualAddress */
                                           UserSpaceRegion.end() - 1,
-                                          runMessage.infoAddress,
-                                          tlsBase,
-                                          masterTLSBase,
-                                          TLSSize);
+                                          runMessage.infoAddress.value(),
+                                          tlsPointer);
     handleManager.addThread(mainThread);
     Scheduler::schedule(mainThread.get(), true);
 }

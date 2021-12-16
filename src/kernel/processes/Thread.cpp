@@ -9,15 +9,13 @@ Thread::Thread(shared_ptr<Process> process,
        UserVirtualAddress entry,
        Priority priority,
        UserVirtualAddress stackPointer,
-       UserVirtualAddress runMessageAddress,
-       UserVirtualAddress tlsBase,
-       UserVirtualAddress masterTLSBase,
-       size_t tlsSize) :
+       size_t entryArgument,
+       size_t tlsPointer) :
     _ownPriority{priority},
     _currentPriority{priority},
     _state {State::Transition()},
     process{process},
-    tlsBase{tlsBase} {
+    tlsPointer{tlsPointer} {
 
     {
         scoped_lock sl1(KernelInterruptsLock);
@@ -27,28 +25,19 @@ Thread::Thread(shared_ptr<Process> process,
 
     RegisterState userRegisterState(entry,
                                     stackPointer,
-                                    runMessageAddress,
-                                    tlsBase,
-                                    masterTLSBase,
-                                    tlsSize);
+                                    entryArgument);
 
     kernelStack = make_shared<KernelStack>(userRegisterState);
     kernelEntry = UserReturnEntry;
-}
 
-/* shorter constructor for non-first threads, which don't want to know info about master TLS */
-Thread::Thread(shared_ptr<Process> process,
-       UserVirtualAddress entry,
-       Priority priority,
-       UserVirtualAddress stackPointer,
-       UserVirtualAddress tlsBase) :
-    Thread(process, entry, priority, stackPointer, stackPointer, tlsBase, 0, 0) {}
+    cout << "Created Thread with tlsPointer: " << tlsPointer << endl;
+}
 
 Thread::Thread(const hos_v1::Thread &handOver) :
     _ownPriority{handOver.ownPriority},
     _currentPriority{handOver.currentPriority},
     _state{State::Transition()},
-    tlsBase{handOver.TLSBase} {
+    tlsPointer{handOver.tlsPointer} {
 
     RegisterState userRegisterState(handOver.registerState);
     kernelStack = make_shared<KernelStack>(userRegisterState);
@@ -131,6 +120,8 @@ Processor *Thread::currentProcessor() const noexcept {
 }
 
 void Thread::currentProcessor(Processor *processor) noexcept {
+    cout << "Changed Thread with tlsPointer " << tlsPointer << endl;
+
     _currentProcessor = processor;
 }
 

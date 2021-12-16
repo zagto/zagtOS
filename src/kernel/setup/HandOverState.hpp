@@ -5,8 +5,6 @@
 
 namespace hos_v1 {
 
-static const size_t THREAD_STRUCT_AREA_SIZE = 0x400;
-
 enum class MappingSource : uint32_t {
     ANONYMOUS = 1, PHYSICAL = 2, DMA = 3,
 };
@@ -64,7 +62,7 @@ struct MappedArea {
 
 struct Thread {
     RegisterState registerState;
-    UserVirtualAddress TLSBase;
+    size_t tlsPointer;
     ThreadPriority currentPriority;
     ThreadPriority ownPriority;
 };

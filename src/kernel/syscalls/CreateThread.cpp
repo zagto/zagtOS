@@ -4,9 +4,9 @@
 size_t CreateThread(const shared_ptr<Process> &process,
                             size_t entry,
                             size_t stack,
+                            size_t entryArgument,
                             size_t priority,
-                            size_t tls,
-                            size_t) {
+                            size_t tlsPointer) {
     Thread::Priority actualPriority;
     if (priority == Thread::KEEP_PRIORITY) {
         actualPriority = CurrentThread()->ownPriority();
@@ -17,7 +17,12 @@ size_t CreateThread(const shared_ptr<Process> &process,
         actualPriority = static_cast<Thread::Priority>(priority);
     }
 
-    auto newThread = make_shared<Thread>(process, entry, actualPriority, stack, tls);
+    auto newThread = make_shared<Thread>(process,
+                                         entry,
+                                         actualPriority,
+                                         stack,
+                                         entryArgument,
+                                         tlsPointer);
     uint32_t handle = process->handleManager.addThread(newThread);
 
     Scheduler::schedule(newThread.get(), true);

@@ -5,8 +5,7 @@
 
 size_t CreateThread(const shared_ptr<Process> &process,
                             size_t entry,
-                            size_t stack,
+                            size_t stack, size_t entryArgument,
                             size_t priority,
-                            size_t tls,
-                            size_t);
+                            size_t tlsPointer);
 

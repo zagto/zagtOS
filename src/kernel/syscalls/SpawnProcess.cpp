@@ -81,28 +81,6 @@ size_t SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
             }
         }
     }
-
-    optional<SpawnProcessSection> TLSSection;
-    if (TLSSectionAddress != 0) {
-        SpawnProcessSection section;
-        process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(&section),
-                                       TLSSectionAddress,
-                                       sizeof(SpawnProcessSection));
-
-        if (section.sizeInMemory % PAGE_SIZE != 0
-                || section.dataSize % PAGE_SIZE != 0) {
-            cout << "SYS_SPAWN_PROCESS: TLS region is not page-aligned" << endl;
-        }
-
-        if ((section.flags & section.FLAG_WRITEABLE)
-                && (section.flags & section.FLAG_EXECUTABLE)) {
-            cout << "SYS_SPAWN_PROCESS: Segment is marked as writeable and executable at the same time"
-                << endl;
-            return EINVAL;
-        }
-        TLSSection = section;
-    }
-
     Message runMessage(process.get(),
                        nullptr,
                        messageAddress,
@@ -112,8 +90,8 @@ size_t SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
 
     new Process(*process,
                 sections,
-                TLSSection,
                 entryAddress,
+                tlsPointer,
                 static_cast<Thread::Priority>(priority),
                 runMessage,
                 logNameBuffer);

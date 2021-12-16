@@ -28,12 +28,11 @@ public:
     uint64_t rip, cs, rflags, rsp, ss;
 
     RegisterState();
-    RegisterState(UserVirtualAddress entry, UserVirtualAddress stackPointer,
-                  UserVirtualAddress runMessageAddress,
-                  UserVirtualAddress tlsBase,
-                  UserVirtualAddress masterTLSBase,
-                  size_t tlsSize);
-    RegisterState(KernelVirtualAddress entry, KernelVirtualAddress stackPointer);
+    RegisterState(UserVirtualAddress entry,
+                  UserVirtualAddress stackPointer,
+                  size_t entryArgument);
+    RegisterState(KernelVirtualAddress entry,
+                  KernelVirtualAddress stackPointer);
 
     inline size_t stackPointer() const {
         return rsp;

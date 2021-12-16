@@ -45,8 +45,8 @@ public:
             const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
     Process(Process &sourceProcess,
             vector<SpawnProcessSection> &sections,
-            optional<SpawnProcessSection> &TLSSection,
             UserVirtualAddress entryAddress,
+            size_t tlsPointer,
             Thread::Priority initialPrioriy,
             Message &runMessage,
             vector<uint8_t> &logName);

@@ -32,7 +32,7 @@ weak void _init();
 #ifdef __GNUC__
 __attribute__((__noinline__))
 #endif
-void __init_libc(char **envp, char *pn, size_t tls_base, uint32_t main_thread_handle)
+void __init_libc(char **envp, char *pn, size_t tls_pointer)
 
 {
     __environ = envp;
@@ -41,7 +41,7 @@ void __init_libc(char **envp, char *pn, size_t tls_base, uint32_t main_thread_ha
     int i;
     for (i=0; pn[i]; i++) if (pn[i]=='/') __progname = pn+i+1;
 
-    __init_tls(tls_base, main_thread_handle);
+    __init_tls(tls_pointer, 0);
     __init_ssp();
 
     libc.secure = 1;
@@ -57,16 +57,17 @@ static void libc_start_init(void)
 
 weak_alias(libc_start_init, __libc_start_init);
 
+struct TLSInfo {
+    uint64_t masterTLSStart;
+    uint64_t masterTLSLength;
+    uint64_t threadTLSPointer;
+};
 
 typedef int lsm2_fn(int (*)(int,char **,char **), int, char **);
 static lsm2_fn libc_start_main_stage2;
 
 int __libc_start_main(int (*main)(int,char **,char **),
-                      struct ZoMessageInfo *run_msg,
-                      size_t tls_base,
-                      size_t master_tls_base,
-                      size_t tls_size,
-                      uint32_t main_thread_handle)
+                      struct ZoMessageInfo *run_msg)
 {
     int argc;
     char **argv;
@@ -114,12 +115,14 @@ int __libc_start_main(int (*main)(int,char **,char **),
         zagtos_init_file_descriptor(2, &syslog_fd);
     }
 
+    struct TLSInfo *tlsInfo = (struct TLSInfo *)0x7FFFFFDF5800;
+
 	/* External linkage, and explicit noinline attribute if available,
 	 * are used to prevent the stack frame used during init from
 	 * persisting for the entire process lifetime. */
-    libc.master_tls_base = master_tls_base;
-    libc.tls_size = tls_size;
-    __init_libc(envp, argv[0], tls_base, main_thread_handle);
+    libc.master_tls_start = tlsInfo->masterTLSStart;
+    libc.tls_size = tlsInfo->masterTLSLength;
+    __init_libc(envp, argv[0], tlsInfo->threadTLSPointer);
 
 	/* Barrier against hoisting application code or anything using ssp
 	 * or thread pointer prior to its initialization above. */

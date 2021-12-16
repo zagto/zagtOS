@@ -255,8 +255,8 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 		}
 	}
 
-	new = (struct pthread *)(tsd - libc.tls_size - pthread_struct_area_size);
-	memcpy((char *)new + pthread_struct_area_size, (void *)libc.master_tls_base, libc.tls_size);
+	new = (struct pthread *)(tsd - pthread_struct_area_size);
+	memcpy((char *)new - libc.tls_size, (void *)libc.master_tls_start, libc.tls_size);
 
 	new->map_base = map;
 	new->map_size = size;
@@ -288,8 +288,9 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
     new->tid = zagtos_syscall(SYS_CREATE_THREAD,
                              c11 ? start_c11 : start,
                              stack,
+                             stack,
                              attr._a_sched ? attr._a_prio : 0xffffffff,
-                             tsd - libc.tls_size);
+                             new);
 
     new->next = self->next;
     new->prev = self;

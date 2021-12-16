@@ -190,7 +190,7 @@ void ProcessAddressSpace::coreDump(Thread *crashedThread) {
     prRegs[18] = regs.rflags;
     prRegs[19] = regs.rsp;
     prRegs[20] = regs.ss;
-    prRegs[21] = crashedThread->tlsBase.value();
+    prRegs[21] = crashedThread->tlsPointer;
     prRegs[22] = 0; /* gsbase */
     prRegs[23] = 0x18|3;
     prRegs[24] = 0x18|3;

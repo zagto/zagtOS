@@ -30,7 +30,7 @@ void Processor::localInitialization() noexcept {
 
     CurrentSystem.gdt.resetTSS(id);
     tss.update(thread);
-    writeModelSpecificRegister(MSR::FSBASE, thread->threadLocalStorage().value());
+    writeModelSpecificRegister(MSR::FSBASE, thread->tlsPointer);
     returnFromInterrupt(thread->kernelStack->userRegisterState());
 }
 

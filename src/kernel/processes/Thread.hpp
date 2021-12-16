@@ -101,16 +101,14 @@ public:
     //VectorRegisterState vectorState;
     shared_ptr<KernelStack> kernelStack;
     shared_ptr<Process> process;
-    UserVirtualAddress tlsBase;
+    size_t tlsPointer;
 
     Thread(shared_ptr<Process> process,
            UserVirtualAddress entry,
            Priority priority,
            UserVirtualAddress stackPointer,
-           UserVirtualAddress runMessageAddress,
-           UserVirtualAddress tlsBase,
-           UserVirtualAddress masterTLSBase,
-           size_t tlsSize);
+           size_t entryArgument,
+           size_t tlsPointer);
     /* shorter constructor for non-first threads, which don't want to know info about master TLS */
     Thread(shared_ptr<Process> process,
            UserVirtualAddress entry,
@@ -125,15 +123,6 @@ public:
     Thread(const hos_v1::Thread &handOver);
 
     ~Thread();
-
-    UserVirtualAddress threadLocalStorage() noexcept {
-        // having a TLS is optional, otherwise tlsBase is null
-        if (tlsBase.value()) {
-            return UserVirtualAddress(tlsBase.value() - hos_v1::THREAD_STRUCT_AREA_SIZE);
-        } else {
-            return {};
-        }
-    }
 
     Priority ownPriority() const noexcept;
     Priority currentPriority() const noexcept;

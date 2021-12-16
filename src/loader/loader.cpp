@@ -60,9 +60,6 @@ extern "C" void LoaderMain() {
 
     /* sections, run message */
     size_t numMappings = process.numSections() + 1;
-    if (process.hasTLS()) {
-        numMappings++;
-    }
     size_t numFrames = process.loadedUserFrames();
 
     size_t handOverSize = sizeof(hos_v1::System)
@@ -136,10 +133,7 @@ extern "C" void LoaderMain() {
 
     RegisterState regState(process.entryAddress(),
                            UserSpaceRegion.end() - 1, /* ensure valid UserVirtualAddress */
-                           process.runMessageAddress(),
-                           process.TLSStart() + hos_v1::THREAD_STRUCT_AREA_SIZE,
-                           process.masterTLSBase(),
-                           process.TLSRegion().length - process.TLSStart().value() % PAGE_SIZE);
+                           process.runMessageAddress().value());
 
     *handOverSystem = hos_v1::System{
         .version = 1,
@@ -187,7 +181,7 @@ extern "C" void LoaderMain() {
     };
     *handOverThread = hos_v1::Thread{
         .registerState = regState,
-        .TLSBase = process.TLSStart() + hos_v1::THREAD_STRUCT_AREA_SIZE,
+        .tlsPointer = process.tlsPointer(),
         .currentPriority = hos_v1::ThreadPriority::BACKGROUND,
         .ownPriority = hos_v1::ThreadPriority::BACKGROUND,
     };
@@ -233,25 +227,6 @@ extern "C" void LoaderMain() {
         .length = PAGE_SIZE
     };
     frameIndex++;
-    /* TLS */
-    if (process.hasTLS()) {
-        handOverMappedAreas[process.numSections() + 1] = hos_v1::MappedArea{
-            .memoryAreaID = process.numSections() + 1,
-            .offset = 0,
-            .start = process.TLSRegion().start,
-            .length = process.TLSRegion().length,
-            .permissions = hos_v1::Permissions::READ_WRITE
-        };
-        handOverMemoryAreas[process.numSections() + 1] = hos_v1::MemoryArea{
-            .frameIDs = handOverFramesIDs + frameIndex,
-            .futexIDs = futexFramesIDs + frameIndex,
-            .source = hos_v1::MappingSource::ANONYMOUS,
-            .isShared = false,
-            .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
-            .length = process.TLSRegion().length
-        };
-        frameIndex += process.TLSRegion().length / PAGE_SIZE;
-    }
     assert(frameIndex == numFrames);
     isort(handOverMappedAreas, numMappings);
 

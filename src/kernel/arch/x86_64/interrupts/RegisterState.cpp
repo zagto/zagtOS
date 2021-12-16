@@ -9,10 +9,7 @@ RegisterState::RegisterState() {
 
 RegisterState::RegisterState(UserVirtualAddress entry,
                              UserVirtualAddress stackPointer,
-                             UserVirtualAddress runMessageAddress,
-                             UserVirtualAddress tlsBase,
-                             UserVirtualAddress masterTLSBase,
-                             size_t tlsSize)
+                             size_t entryArgument)
     : RegisterState() {
 
     rsp = stackPointer.value();
@@ -20,11 +17,7 @@ RegisterState::RegisterState(UserVirtualAddress entry,
     while (rsp % 16 != 8) {
         rsp--;
     }
-    rdi = runMessageAddress.value();
-    cout << "creating RegisterState with tlsBase " << tlsBase.value() << endl;
-    rsi = tlsBase.value();
-    rdx = masterTLSBase.value();
-    rcx = tlsSize;
+    rdi = entryArgument;
     r8 = 1;
 
     if (entry.isKernel()) {
