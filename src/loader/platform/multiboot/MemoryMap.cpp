@@ -159,6 +159,15 @@ uint8_t *allocateHandOver(size_t numPages) {
     initialize();
 
     auto result = findNextAvailableRegion(true, numPages * PAGE_SIZE);
+    /* avoid fully blocking the first 64k, from which the secondary processor entry page needs to
+     * be taken */
+    if (result && result->start < (1ul << 16)) {
+        result->start += PAGE_SIZE;
+        result->length -= PAGE_SIZE;
+        if (result->length < numPages * PAGE_SIZE) {
+            result = findNextAvailableRegion(false, numPages * PAGE_SIZE);
+        }
+    }
     if (!result) {
         cout << "Unable to find memory region to contain Handover structure of " << numPages
              << " pages." << endl;
