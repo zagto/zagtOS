@@ -48,10 +48,11 @@ const MADTTable *findMADT(PhysicalAddress root) noexcept{
     size_t rootVirtual = root.identityMapped().value();
 #endif
 
-    const RSDPTable *rsdp = reinterpret_cast<const RSDPTable *>(rootVirtual);
-    if (rsdp->revision == 0) {
-        return findMADTInternal(rsdp->rsdtAddress);
+    RSDPTable rsdp;
+    memcpy(&rsdp, reinterpret_cast<void *>(rootVirtual), sizeof(RSDPTable));
+    if (rsdp.revision == 0) {
+        return findMADTInternal(rsdp.rsdtAddress);
     } else {
-        return findMADTInternal(rsdp->xsdtAddress);
+        return findMADTInternal(rsdp.xsdtAddress);
     }
 }
