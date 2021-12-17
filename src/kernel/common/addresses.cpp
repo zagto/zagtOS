@@ -52,6 +52,7 @@ void VirtualAddress::checkInUsableRegion() {
 
 
 KernelVirtualAddress::KernelVirtualAddress(size_t value) : VirtualAddress(value) {
+    assert(value);
     assert(isKernel());
 }
 

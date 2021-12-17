@@ -63,7 +63,7 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
     vector<shared_ptr<Port>> ports(count);
 
     for (size_t index = 0; index < count; index++) {
-        ports[index] = process->handleManager.lookupPort(portHandles[index]);
+        ports[index] = process->handleManager.lookup<shared_ptr<Port>>(portHandles[index]);
     }
 
     vector<size_t> lockOrder(count);

@@ -8,7 +8,7 @@ size_t SendMessage(const shared_ptr<Process> &process,
            uint64_t messageAddress,
            uint64_t messageSize,
            uint64_t numMessageHandles){
-    weak_ptr<Port> weakPort = process->handleManager.lookupRemotePort(handle);
+    weak_ptr<Port> weakPort = process->handleManager.lookup<weak_ptr<Port>>(handle);
     shared_ptr<Port> port = weakPort.lock();
     if (!port) {
         cout << "sendMessage: destination port no longer exists: " << handle << endl;

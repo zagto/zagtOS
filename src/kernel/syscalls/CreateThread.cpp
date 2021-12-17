@@ -23,10 +23,9 @@ size_t CreateThread(const shared_ptr<Process> &process,
                                          stack,
                                          entryArgument,
                                          tlsPointer);
-    uint32_t handle = process->handleManager.addThread(newThread);
-
+    uint32_t handle = process->handleManager.add(newThread);
+    newThread->setHandle(handle);
     Scheduler::schedule(newThread.get(), true);
     cout << "created Thread with handle " << handle << endl;
     return handle;
 }
-

@@ -61,5 +61,5 @@ size_t CreateSharedMemory(const shared_ptr<Process> &process,
         throw BadUserSpace(process);
     }
 
-    return process->handleManager.addMemoryArea(memoryArea);
+    return process->handleManager.add(memoryArea);
 }

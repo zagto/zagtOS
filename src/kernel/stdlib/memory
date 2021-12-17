@@ -59,6 +59,11 @@ template<typename T> class weak_ptr;
 template<typename T> class shared_ptr {
 protected:
     friend class weak_ptr<T>;
+    template<typename New, typename Original>
+    friend shared_ptr<New> dynamic_pointer_cast(shared_ptr<Original> original);
+    template<typename New, typename Original>
+    friend weak_ptr<New> dynamic_pointer_cast(weak_ptr<Original> original);
+
     struct InternalPointer {
         SpinLock lock;
         size_t referenceCount{1};
@@ -167,6 +172,9 @@ public:
 
 template<typename T> class weak_ptr {
 private:
+    template<typename New, typename Original>
+    friend weak_ptr<New> dynamic_pointer_cast(weak_ptr<Original> original);
+
     typename shared_ptr<T>::InternalPointer *internalPointer{nullptr};
 
 public:
@@ -243,4 +251,31 @@ shared_ptr<T> make_shared(ArgumentTypes &&...args) {
 template <typename T, typename ...ArgumentTypes>
 unique_ptr<T> make_unique(ArgumentTypes &&...args) {
     return unique_ptr(new T(args...));
+}
+
+template<typename New, typename Original>
+shared_ptr<New> dynamic_pointer_cast(shared_ptr<Original> original) {
+    if (!original.internalPointer || !dynamic_cast<New *>(original.get())) {
+        return {};
+    }
+    shared_ptr<New> result;
+    scoped_lock sl1(KernelInterruptsLock);
+    scoped_lock sl(original.internalPointer->lock);
+    result.internalPointer = original.internalPointer;
+    result.internalPointer->referenceCount++;
+    return result;
+}
+
+template<typename New, typename Original>
+weak_ptr<New> dynamic_pointer_cast(weak_ptr<Original> originalWeak) {
+    shared_ptr<Original> original = originalWeak.lock();
+    if (!original.internalPointer || !dynamic_cast<New *>(original.get())) {
+        return {};
+    }
+    weak_ptr<New> result;
+    scoped_lock sl1(KernelInterruptsLock);
+    scoped_lock sl(original.internalPointer->lock);
+    result.internalPointer = original.internalPointer;
+    result.internalPointer->weakReferenceCount++;
+    return result;
 }

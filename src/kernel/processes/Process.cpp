@@ -58,7 +58,8 @@ Process::Process(Process &sourceProcess,
                                           UserSpaceRegion.end() - 1,
                                           runMessage.infoAddress.value(),
                                           tlsPointer);
-    handleManager.addThread(mainThread);
+    uint32_t handle = handleManager.add(mainThread);
+    mainThread->setHandle(handle);
     Scheduler::schedule(mainThread.get(), true);
 }
 

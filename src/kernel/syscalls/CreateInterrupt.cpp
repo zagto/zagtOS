@@ -20,7 +20,7 @@ size_t CreateInterrupt(const shared_ptr<Process> &process,
                                                      numberOrResultPointer,
                                                      static_cast<TriggerMode>(triggerMode),
                                                      static_cast<Polarity>(polarity));
-        uint32_t handle = process->handleManager.addInterrupt(interrupt);
+        uint32_t handle = process->handleManager.add(interrupt);
         return handle;
     } else if (mode == CREATE_ANY) {
         cout << "TODO" << endl;

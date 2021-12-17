@@ -90,7 +90,7 @@ size_t MMapStruct::perform(const shared_ptr<Process> &process) {
                                              passedRegion.length);
     } else {
         try {
-            memoryArea = process->handleManager.lookupMemoryArea(handle);
+            memoryArea = process->handleManager.lookup<shared_ptr<MemoryArea>>(handle);
         } catch(BadUserSpace &e) {
             cout << "MMAP: passed handle " << handle << " is not a valid MemoryArea object" << endl;
             return EBADF;
