@@ -10,7 +10,7 @@ struct SpawnProcessArgs {
     size_t entryAddress;
     size_t numSections;
     void *sectionsAddress;
-    void *TLSSection;
+    size_t tlsPointer;
     size_t priority;
 
     UUID messageType;
@@ -46,13 +46,12 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
     zbon::decode(binary.data(), program);
 
     std::vector<SpawnProcessSection> sections(program.sections.begin(), program.sections.end());
-    std::optional<SpawnProcessSection> tls(program.TLSSection);
 
     SpawnProcessArgs args = {
         .entryAddress = program.entryAddress,
         .numSections = program.sections.size(),
         .sectionsAddress = sections.data(),
-        .TLSSection = tls ? &*tls : nullptr,
+        .tlsPointer = program.tlsPointer,
         .priority = priority,
         .messageType = messageType, /* inserted below */
         .messageAddress = runMessage.data(),
