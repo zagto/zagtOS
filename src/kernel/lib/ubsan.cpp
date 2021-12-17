@@ -74,3 +74,17 @@ extern "C" void __ubsan_handle_invalid_builtin(SourceLocation *location, void *)
     cout << "Builtin called in Invalid Way" << endl;
     Panic();
 }
+
+extern "C" void __ubsan_handle_dynamic_type_cache_miss(void *, size_t, size_t) {
+    /* Non-fatal? - do nothing */
+}
+
+extern "C" size_t __ubsan_vptr_type_cache[128];
+size_t __ubsan_vptr_type_cache[128];
+
+extern "C" void __ubsan_handle_nonnull_arg(SourceLocation *location) {
+    location->print();
+    cout << "Null value where marked as non-Null" << endl;
+    Panic();
+}
+
