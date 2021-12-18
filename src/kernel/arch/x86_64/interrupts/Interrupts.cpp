@@ -138,6 +138,10 @@ void handleUserException(RegisterState *registerState) {
                 if (ipis & IPI::CheckScheduler) {
                     processor->scheduler.checkChanges();
                 }
+            } else if (DynamicInterruptRegion.contains(registerState->intNr)) {
+                cout << "Dynamic Interrupt " << registerState->intNr << " occured" << endl;
+                InterruptManager.occur({processor->id, registerState->intNr});
+                processor->endOfInterrupt();
             } else {
                 cout << "Unknown Interrupt " << registerState->intNr << endl;
                 Panic();

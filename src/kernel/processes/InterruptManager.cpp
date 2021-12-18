@@ -180,6 +180,8 @@ void BoundInterrupt::occur() noexcept {
     /* each subscriber now has to process once more */
     processingSubscribers += subscriptions.size();
 
+    occurence++;
+
     while (!waitingThreads.empty()) {
         Thread *thread = waitingThreads.pop();
 
