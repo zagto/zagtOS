@@ -81,12 +81,9 @@ size_t ProgramBinary::loadedUserFrames() const {
         assert(sectionSize % PAGE_SIZE == 0);
         sum += sectionSize / PAGE_SIZE;
     }
-    cout << "sum normal " << sum << endl;
 
     /* run message has one frame */
     sum++;
-    cout << "sum normal+msg " << sum << endl;
-
     return sum;
 }
 
@@ -122,10 +119,8 @@ void ProgramBinary::sanityChecks() const {
     /* entry tlsPointer type */
     assert(data[OBJECT_HEADER_SIZE+9] == UINT64);
 
-    cout << "sectionsArrayOffset " << sectionsArrayOffset() << endl;
     assert(data[sectionsArrayOffset()] == OBJECT);
     for (size_t index = 0; index < numSections(); index++) {
-        cout << "checking section " << index << " at offset " << sectionOffset(index) << endl;
         sanityCheckSection(sectionOffset(index));
     }
 }
@@ -188,7 +183,6 @@ void ProgramBinary::load(PagingContext pagingContext,
     for (size_t sectionIndex = 0; sectionIndex < numSections(); sectionIndex++) {
         size_t offset = sectionOffset(sectionIndex);
 
-        cout << "section " << sectionIndex  << " offset " << offset << " dataOffset" << sectionDataOffset(offset) << endl;
         Region region = sectionRegion(offset);
         size_t flags = sectionFlags(offset);
         uint8_t *source = data + sectionDataOffset(offset);
@@ -197,8 +191,6 @@ void ProgramBinary::load(PagingContext pagingContext,
         assert(region.isPageAligned());
         assert(sourceLen % PAGE_SIZE == 0);
         assert(!((flags & FLAG_WRITEABLE) && (flags & FLAG_EXECUTABLE)));
-
-        cout << "loading section to " << region.start << " length " << region.length << endl;
 
         for (size_t pageIndex = 0; pageIndex < region.length / PAGE_SIZE; pageIndex++) {
             PhysicalAddress physicalAddress = AllocatePhysicalFrame();
@@ -250,7 +242,6 @@ void ProgramBinary::load(PagingContext pagingContext,
             .numHandles = 0,
             .allocatedExternally = true
         };
-        cout << "loading runMessage to " << runMessageAddress().value() << endl;
 
         frames[frameIndex] = hos_v1::Frame{
             .address = physicalAddress.value(),

@@ -60,7 +60,6 @@ HandleManager::HandleManager(Process &process,
             shared_ptr<Thread> thread = allThreads[hosHandle.objectID];
             AbstractElement *res = new (at(handle)) PointerElement<shared_ptr<Thread>>(thread);
             thread->setHandle(hosHandle.handle);
-            cout << "handover thread handle " << res << " " << at(handle) << endl;
             assert(dynamic_cast<AbstractPointerElement *>(res));
             assert(dynamic_cast<AbstractPointerElement *>(at(handle)));
             break;
@@ -209,7 +208,6 @@ void HandleManager::insertAllProcessPointersAfterKernelHandover(const shared_ptr
     for (size_t handle = HANDLE_FIRST; handle < numAllocated; handle++) {
         auto threadElement = dynamic_cast<PointerElement<shared_ptr<Thread>> *>(at(handle));
         if (threadElement) {
-            cout << "inserted thread process pointer" << endl;
             threadElement->pointer->process = process;
         }
         auto portElement = dynamic_cast<PointerElement<shared_ptr<Port>> *>(at(handle));

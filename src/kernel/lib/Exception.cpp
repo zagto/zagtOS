@@ -54,8 +54,6 @@ Exception::Action DiscardStateAndSchedule::handle() noexcept {
      * will be additionally locked from a different place at this point. */
     schedulerLock.stick();
 
-    cout << "DiscardStateAndSchedule" << endl;
-
     /* We can't use CurrentThread() here, as users of this exception already set activeThread to
      * null. */
     thread->setKernelEntry(UserReturnEntry);

@@ -12,8 +12,6 @@ Scheduler::Scheduler(CommonProcessor *_processor)
     idleThread = new Thread(IdleThreadEntry, Thread::Priority::IDLE);
     threads[Thread::Priority::IDLE].append(idleThread);
 
-    cout << "created idle thread at " << idleThread << " to scheduler " << _processor->id << endl;
-
     processor = static_cast<Processor *>(_processor);
     idleThread->setState(Thread::State::Running(processor));
     idleThread->currentProcessor(processor);
@@ -29,22 +27,12 @@ void Scheduler::add(Thread *thread, bool online) noexcept {
         assert(processor->activeThread() != nullptr);
     }
 
-    cout << "add thread " << thread << " to scheduler " << processor->id << endl;
-
     thread->currentProcessor(processor);
 
     if (online && thread->currentPriority() > processor->activeThread()->currentPriority()) {
-        /* new thread has heigher proirity - switch */
-        /*if (CurrentProcessor == processor) {
-            _activeThread->setState(Thread::State::Running(processor));
-            threads[_activeThread->currentPriority()].append(_activeThread);
-            thread->setState(Thread::State::Active(processor));
-            _activeThread = thread;
-        } else {*/
-            threads[thread->currentPriority()].append(thread);
-            thread->setState(Thread::State::Running(processor));
-            processor->sendIPI(IPI::CheckScheduler);
-       //}
+        threads[thread->currentPriority()].append(thread);
+        thread->setState(Thread::State::Running(processor));
+        processor->sendIPI(IPI::CheckScheduler);
     } else {
         threads[thread->currentPriority()].append(thread);
         thread->setState(Thread::State::Running(processor));

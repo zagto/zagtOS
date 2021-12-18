@@ -16,7 +16,6 @@ CommonProcessor::CommonProcessor() :
         id{nextProcessorID++},
         scheduler(this) {
 
-    cout << "initializing Processor " << id << " at " << this << endl;
     kernelStack = make_shared<KernelStack>(RegisterState());
 }
 

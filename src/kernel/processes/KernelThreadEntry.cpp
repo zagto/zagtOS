@@ -16,9 +16,6 @@ static void commonSetup() {
 
 void IdleThreadEntry(void *) {
     commonSetup();
-
-    cout << "Hello World from Idle Thread on Processor " << CurrentProcessor()->id << endl;
-
     KernelInterruptsLock.unlock();
 
     while (true) {
@@ -28,9 +25,6 @@ void IdleThreadEntry(void *) {
 
 void UserReturnEntry(void *) {
     commonSetup();
-
-    cout << "Hello World from Regular Thread on Processor " << CurrentProcessor()->id << endl;
-
     CurrentProcessor()->returnToUserMode();
 }
 

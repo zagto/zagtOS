@@ -26,6 +26,10 @@ size_t CreateThread(const shared_ptr<Process> &process,
     uint32_t handle = process->handleManager.add(newThread);
     newThread->setHandle(handle);
     Scheduler::schedule(newThread.get(), true);
-    cout << "created Thread with handle " << handle << endl;
+    cout << "created Thread ";
+    for (char c: process->logName) {
+        cout << c;
+    }
+    cout << " handle " << handle << endl;
     return handle;
 }

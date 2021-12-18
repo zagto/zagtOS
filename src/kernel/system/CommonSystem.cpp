@@ -10,13 +10,8 @@ CommonSystem::CommonSystem(const hos_v1::System &handOver):
     numProcessors{handOver.numProcessors} {}
 
 void CommonSystem::initProcessorsAndTLB() {
-    cout << "Initializing TLBContext and Processor structures..." << endl;
-
     TLBContexts = new TLBContext[numProcessors * tlbContextsPerProcessor];
-    cout << "TLBContext objects created at " << TLBContexts << endl;
-
     Processors = new Processor[numProcessors];
-    cout << "Processor objects created at " << Processors << endl;
 }
 
 FutexFrameID CommonSystem::getNewFutexFrameID() noexcept {

@@ -22,10 +22,9 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
         /* Call global constructors */
         _init();
 
-        cout << "Hello World. Log initialized." << endl;
+        cout << "ZagtOS kernel starting" << endl;
 
         CurrentSystem.initProcessorsAndTLB();
-        cout << "Processors initialized." << endl;
 
         /* The first thing code on any Processor should do after this variable is set is calling
          * InitCurrentProcessorPointer, since Locks and other code now think they can use
@@ -39,7 +38,6 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
 
     InitCurrentProcessorPointer(&Processors[processorID]);
     CurrentProcessor()->hardwareID = hardwareID;
-    cout << "Processor " << processorID << " hardwareID "  << hardwareID << " running." << endl;
     assert(CurrentProcessor()->id == processorID);
 
     CurrentProcessor()->kernelStack->switchToKernelEntry(KernelEntry2, handOver);
@@ -59,10 +57,8 @@ __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
     if (processorID == 0) {
         CurrentSystem.lateInitialization();
 
-        cout << "Creating initial processes..." << endl;
         handOver->decodeProcesses();
 
-        cout << "Unlocking secondary processors..." << endl;
         __atomic_store_n(&processorsStarted, 1, __ATOMIC_SEQ_CST);
         __atomic_store_n(&secondaryProcessorsStartLock, 0, __ATOMIC_SEQ_CST);
 
@@ -71,22 +67,12 @@ __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
             startedCount = __atomic_load_n(&processorsStarted, __ATOMIC_SEQ_CST);
         }
 
-        /*try {
-            testThrow();
-        }  catch (uint64_t i) {
-            cout << "caught int: " << i << endl;
-        }*/
-
         cout << "All processors started: TODO: unlock loader memory" << endl;
         /* TODO: clear handover state from the lower half of kernelOnlyPagingContext */
         /* the ELF data is the last thing we wanted to read from loader memory */
         //CurrentSystem.kernelOnlyPagingContext.completelyUnmapLoaderRegion();
     } else {
         __atomic_add_fetch(&processorsStarted, 1,  __ATOMIC_SEQ_CST);
-    }
-
-    {
-        cout << "Processor " << processorID << " entering normal operation" << endl;
     }
 
     CurrentProcessor()->scheduler.lock.lock();

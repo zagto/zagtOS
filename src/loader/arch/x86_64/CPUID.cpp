@@ -70,8 +70,6 @@ Model getModel() {
         result.familyID += (combinedModel >> 20) & 0xff;
     }
 
-    cout << "CPUID max function = " << maxFunction << endl;
-
     uint32_t advancedPowerManagement;
     __cpuid(0x80000007, unused, unused, unused, advancedPowerManagement);
     result.invariantTSC = advancedPowerManagement & (1u << 8);

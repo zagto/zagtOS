@@ -29,8 +29,6 @@ Thread::Thread(shared_ptr<Process> process,
 
     kernelStack = make_shared<KernelStack>(userRegisterState);
     kernelEntry = UserReturnEntry;
-
-    cout << "Created Thread with tlsPointer: " << tlsPointer << endl;
 }
 
 Thread::Thread(const hos_v1::Thread &handOver) :
@@ -42,8 +40,6 @@ Thread::Thread(const hos_v1::Thread &handOver) :
     RegisterState userRegisterState(handOver.registerState);
     kernelStack = make_shared<KernelStack>(userRegisterState);
     kernelEntry = UserReturnEntry;
-
-    cout << "thread handover cs: " << kernelStack->userRegisterState()->cs << endl;
 }
 
 /* for kernel-only threads: */
@@ -120,8 +116,6 @@ Processor *Thread::currentProcessor() const noexcept {
 }
 
 void Thread::currentProcessor(Processor *processor) noexcept {
-    cout << "Changed Thread with tlsPointer " << tlsPointer << endl;
-
     _currentProcessor = processor;
 }
 

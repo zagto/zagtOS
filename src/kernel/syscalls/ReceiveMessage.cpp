@@ -121,7 +121,6 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
         port->lock.unlock();
     }
 
-    cout << "ReceiveMessage resultIndex: " << resultIndex << endl;
     /* Transfer the resultIndex variable into the message info */
     process->addressSpace.copyTo(messageResult->infoAddress.value(),
                                  reinterpret_cast<uint8_t *>(&resultIndex),

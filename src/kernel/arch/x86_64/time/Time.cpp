@@ -4,8 +4,6 @@
 
 Time::Time(uint64_t timerFrequency):
     timerFrequency{timerFrequency} {
-
-    cout << "Got Timer Frequency: " << (timerFrequency/1000000) << " MHz." << endl;
 }
 
 

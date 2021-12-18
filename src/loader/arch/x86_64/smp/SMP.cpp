@@ -20,8 +20,6 @@ static void wakeSecondaryProcessor(LocalAPIC &localAPIC, size_t hardwareID, size
     startingID = processorID;
     startingHardwareID = hardwareID;
     CurrentEntryStack = &temporaryStack[processorID][TEMPORY_STACK_SIZE / 2];
-    cout << "1 ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
 
 
     __atomic_store_n(&currentlyStarting, true, __ATOMIC_SEQ_CST);
@@ -31,20 +29,11 @@ static void wakeSecondaryProcessor(LocalAPIC &localAPIC, size_t hardwareID, size
     localAPIC.sendStartup(static_cast<uint32_t>(hardwareID), SecondaryProcessorEntry);
 
     while (__atomic_load_n(&currentlyStarting, __ATOMIC_SEQ_CST)) {}
-
-
-    cout << "3 ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-
-
 }
 
 extern "C" void LoaderEntrySecondaryProcessor() {
     size_t id = startingID;
     size_t hardwareID = startingHardwareID;
-
-    cout << "2 ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
 
     cout << "Processor " << id << " hardwareID " << hardwareID << " online" << endl;
 
@@ -114,9 +103,6 @@ void setupSecondaryProcessorEntry(PageTable *masterPageTable) {
     assert(mptAddress < 0x100000000);
     assert(length <= PAGE_SIZE);
 
-    cout << "loading secondary processor entry code to " << entryCodeAddress << endl;
-    cout << "boot MPT at " << mptAddress << endl;
-
     uint8_t *destination = reinterpret_cast<uint8_t *>(entryCodeAddress);
     memcpy(destination, &SecondaryProcessorEntryCode, length);
 
@@ -144,23 +130,8 @@ size_t secondaryProcessorEntryCodeLength() {
 }
 
 size_t startSecondaryProcessors() {
-    cout << "a ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-
-
     setupSecondaryProcessorEntry(HandOverMasterPageTable);
-    cout << "b ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-
-
     size_t numProcessors = findProcessors();
-    cout << "c ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-
-
     FreePhysicalFrame(SecondaryProcessorEntry);
-    cout << "d ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-
     return numProcessors;
 }

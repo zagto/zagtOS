@@ -30,7 +30,6 @@ void System::lateInitialization() {
 }
 
 void System::setupSyscalls() noexcept {
-    cout << "registering syscall entry " << reinterpret_cast<uint64_t>(&syscallEntry) << endl;
     writeModelSpecificRegister(MSR::LSTAR, reinterpret_cast<uint64_t>(&syscallEntry));
     writeModelSpecificRegister(MSR::STAR, (static_cast<uint64_t>(0x08) << 32) | (static_cast<uint64_t>(0x10) << 48));
     writeModelSpecificRegister(MSR::SFMASK, RegisterState::FLAG_INTERRUPTS | RegisterState::FLAG_USER_IOPL);

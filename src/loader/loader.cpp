@@ -103,16 +103,8 @@ extern "C" void LoaderMain() {
     MapFramebufferMemory(framebufferInfo);
     CreateIdentityMap(maxPhysicalAddress);
 
-    cout << "A ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-
-
     cout << "Starting secondary Processors..." << endl;
     size_t numProcessors = startSecondaryProcessors();
-
-    cout << "B ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-
 
     size_t frameIndex = 0;
     cout << "Setting up address space for kernel..." << endl;
@@ -122,12 +114,7 @@ extern "C" void LoaderMain() {
 
     cout << "Setting up address space for initial process..." << endl;
     process.load(PagingContext::PROCESS, handOverFrames, frameIndex);
-    cout << "frameIndex " << frameIndex << " numFrames " << numFrames << endl;
     assert(frameIndex == numFrames);
-
-    cout << "C ------ Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-
 
     cout << "Preparing handover structures..." << endl;
 
