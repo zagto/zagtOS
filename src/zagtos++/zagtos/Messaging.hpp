@@ -4,36 +4,11 @@
 #include <tuple>
 #include <memory>
 #include <zagtos/UUID.hpp>
-#include <zagtos/ZBON.hpp>
-#include <cstdint>
+#include <zagtos/HandleObject.hpp>
 #include <functional>
 
+
 namespace zagtos {
-    class ExternalBinary;
-
-    class HandleObject {
-    protected:
-        static constexpr uint32_t INVALID_HANDLE{static_cast<uint32_t>(-1)};
-
-        uint32_t _handle{INVALID_HANDLE};
-
-        HandleObject(const uint32_t handle);
-
-    public:
-        HandleObject();
-        HandleObject(HandleObject &) = delete;
-        ~HandleObject();
-        HandleObject(HandleObject &&other);
-        HandleObject &operator=(HandleObject &&other);
-
-        static constexpr zbon::Type ZBONType() {
-            return zbon::Type::HANDLE;
-        }
-        zbon::Size ZBONSize() const;
-        void ZBONEncode(zbon::Encoder &encoder) const;
-        void ZBONDecode(zbon::Decoder &decoder);
-    };
-
     class RemotePort : public HandleObject {
     public:
         RemotePort() {}
@@ -43,27 +18,6 @@ namespace zagtos {
         void sendMessage(const UUID messageType,
                          zbon::EncodedData message) const;
     };
-
-    class SharedMemory : public HandleObject {
-    private:
-        void *_map(int protection);
-
-    public:
-        static std::tuple<SharedMemory, std::vector<size_t>> DMA(size_t deviceMax, size_t length);
-        static SharedMemory Physical(size_t physicalAddress, size_t length);
-        static SharedMemory Standard(size_t length);
-
-        SharedMemory() {}
-        SharedMemory(SharedMemory &) = delete;
-        SharedMemory(SharedMemory &&other) : HandleObject(std::move(other)) {}
-
-        void operator=(SharedMemory && other);
-
-        template<typename T> T *map(int protection) {
-            return reinterpret_cast<T *>(_map(protection));
-        }
-    };
-    void UnmapWhole(void *pointer);
 
     struct MessageInfo {
         /* index into the ports array of a ReceiveMessage call */

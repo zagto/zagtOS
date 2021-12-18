@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zagtos/Messaging.hpp>
+#include <zagtos/SharedMemory.hpp>
 #include "Port.hpp"
 
 class Command {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <zagtos/Messaging.hpp>
+#include <zagtos/HandleObject.hpp>
 
 namespace zagtos {
 
@@ -21,6 +21,7 @@ public:
     Interrupt(uint32_t fixedNumber, TriggerMode triggerMode, Polarity polarity);
     Interrupt(Interrupt &) = delete;
     Interrupt(Interrupt &&other) : HandleObject(std::move(other)) {}
+    Interrupt &operator=(Interrupt &other) = delete;
     Interrupt &operator=(Interrupt &&other);
 
     void subscribe();

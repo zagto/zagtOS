@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <zagtos/Messaging.hpp>
+#include <zagtos/SharedMemory.hpp>
 #include <zagtos/UUID.hpp>
 #include <array>
 #include <optional>
