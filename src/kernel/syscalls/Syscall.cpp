@@ -13,6 +13,7 @@
 #include <syscalls/CreateThread.hpp>
 #include <syscalls/Futex.hpp>
 #include <syscalls/GetTime.hpp>
+#include <syscalls/CreateIOPortRange.hpp>
 #include <syscalls/GetFirmwareRoot.hpp>
 #include <syscalls/IOPortRead.hpp>
 #include <syscalls/IOPortWrite.hpp>
@@ -78,8 +79,8 @@ static SyscallFunction *syscallFunctions[] = {
     nullptr,
 
     /* 40 */
-    nullptr, /* RegisterInterrupt */
-    nullptr, /* UnregisterInterrupt */
+    nullptr,
+    &CreateIOPortRange,
     &GetFirmwareRoot,
     &IOPortRead,
     &IOPortWrite,

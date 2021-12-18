@@ -10,6 +10,12 @@
 #include <processes/MemoryArea.hpp>
 #include <processes/InterruptManager.hpp>
 
+/* simple object that a Process can hold via a handle so it can access I/O ports */
+struct IOPortRange {
+    uint16_t start;
+    uint16_t length;
+};
+
 namespace handleManager {
 
 using Type = hos_v1::HandleType;
@@ -54,6 +60,7 @@ template struct PointerElement<weak_ptr<Port>>;
 template struct PointerElement<shared_ptr<Thread>>;
 template struct PointerElement<shared_ptr<MemoryArea>>;
 template struct PointerElement<shared_ptr<BoundInterrupt>>;
+template struct PointerElement<IOPortRange>;
 static constexpr size_t ELEMENT_SIZE = sizeof(PointerElement<shared_ptr<Port>>);
 static constexpr size_t ELEMENT_ALIGN = alignof(PointerElement<shared_ptr<Port>>);
 static_assert(sizeof(PointerElement<weak_ptr<Port>>) == ELEMENT_SIZE);

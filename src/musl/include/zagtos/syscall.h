@@ -41,6 +41,7 @@ static const uint32_t SYS_LOG = 1,
                       SYS_CLOCK_GETTIME = 30,
                       SYS_CLOCK_NANOSLEEP = 31,
 
+                      SYS_CREATE_IO_PORT_RANGE = 41,
                       SYS_GET_ACPI_ROOT = 42,
                       SYS_IO_PORT_READ = 43,
                       SYS_IO_PORT_WRITE = 44,

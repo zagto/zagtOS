@@ -1,9 +1,7 @@
-#define _GNU_SOURCE 1
 #include <zagtos/syscall.h>
 #include <zagtos/Messaging.hpp>
 #include <cassert>
 #include <sys/mman.h>
-#include <climits>
 
 namespace zagtos {
 
