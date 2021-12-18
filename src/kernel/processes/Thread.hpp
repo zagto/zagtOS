@@ -80,7 +80,7 @@ private:
     State _state;
     SpinLock stateLock;
     uint32_t _handle{INVALID_HANDLE};
-    Processor *_currentProcessor;
+    Processor *_currentProcessor = nullptr;
 
 protected:
     /* State */
