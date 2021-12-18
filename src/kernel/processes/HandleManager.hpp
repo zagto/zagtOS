@@ -13,7 +13,7 @@
 /* simple object that a Process can hold via a handle so it can access I/O ports */
 struct IOPortRange {
     uint16_t start;
-    uint16_t length;
+    uint16_t max;
 };
 
 namespace handleManager {
