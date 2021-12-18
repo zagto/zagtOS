@@ -41,7 +41,7 @@ void __init_libc(char **envp, char *pn, size_t tls_pointer)
     int i;
     for (i=0; pn[i]; i++) if (pn[i]=='/') __progname = pn+i+1;
 
-    __init_tls(tls_pointer, 0);
+    __init_tls(tls_pointer, 1);
     __init_ssp();
 
     libc.secure = 1;
