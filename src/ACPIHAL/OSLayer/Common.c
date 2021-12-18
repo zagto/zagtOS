@@ -12,7 +12,6 @@
 #include <limits.h>
 #include <sys/mman.h>
 #include <zagtos/acpi.h>
-#include <zagtos/PortIO.h>
 #include <zagtos/Messaging.h>
 #include <acpi.h>
 
@@ -308,17 +307,6 @@ ACPI_STATUS AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 Value, UINT3
     return AE_OK;
 }
 
-ACPI_STATUS AcpiOsReadPort(ACPI_IO_ADDRESS Address, UINT32 *Value, UINT32 Width) {
-    assert(Width % 8 == 0 && Width <= 32);
-    *Value = ZoReadPort(Address, Width / 8);
-    return AE_OK;
-}
-
-ACPI_STATUS AcpiOsWritePort(ACPI_IO_ADDRESS Address, UINT32 Value, UINT32 Width) {
-    assert(Width % 8 == 0 && Width <= 32);
-    ZoWritePort(Address, Width / 8, Value);
-    return AE_OK;
-}
 
 
 /*
