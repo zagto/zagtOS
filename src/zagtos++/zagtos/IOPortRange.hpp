@@ -14,7 +14,7 @@ public:
     IOPortRange &operator=(IOPortRange &&other);
 
     uint32_t read(uint16_t offset, size_t size);
-    void write(uint16_t offset, size_t length, uint32_t size);
+    void write(uint16_t offset, size_t size, uint32_t value);
 };
 
 }

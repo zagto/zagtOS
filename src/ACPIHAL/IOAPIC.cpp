@@ -29,6 +29,6 @@ void initIoApic(zagtos::RemotePort &) {
                                             &parameters,
                                             nullptr);
     if (status != AE_OK) {
-        throw std::logic_error("_PIC method call failed");
+        std::cerr << "warning: _PIC method call failed: " << status << std::endl;
     }
 }

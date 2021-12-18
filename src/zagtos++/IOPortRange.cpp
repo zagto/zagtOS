@@ -4,8 +4,8 @@
 
 namespace zagtos {
 
-IOPortRange::IOPortRange(uint16_t start, uint16_t length) {
-    _handle = zagtos_syscall2(SYS_CREATE_IO_PORT_RANGE, start, length);
+IOPortRange::IOPortRange(uint16_t start, uint16_t max) {
+    _handle = zagtos_syscall2(SYS_CREATE_IO_PORT_RANGE, start, max);
 }
 
 IOPortRange &IOPortRange::operator=(IOPortRange &&other) {

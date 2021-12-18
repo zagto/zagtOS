@@ -27,7 +27,6 @@ void System::setupCurrentProcessor() noexcept {
 
 void System::lateInitialization() {
     detectIOAPICs();
-    detectIRQSourceOverride();
 }
 
 void System::setupSyscalls() noexcept {
@@ -49,36 +48,6 @@ void System::detectIOAPICs() {
         cout << "IOAPIC at " << subtable.address << ", GSI offset " << subtable.gsiBase
              << ", entries count " << ioApics[index].numEntries() << endl;
     }
-}
-
-void System::detectIRQSourceOverride() noexcept {
-    /* defaults */
-    for (uint32_t index = 0; index < 0xff; index++) {
-        legacyIRQs[index] = {
-            .gsi = index,
-            .polarity = Polarity::ACRIVE_HIGH,
-            .triggerMode = TriggerMode::EDGE,
-        };
-    }
-
-    const MADTTable *madt = findMADT(ACPIRoot);
-    SubtableWrapper<IOAPICSourceOverride> subtables(madt);
-
-    for (size_t index = 0; index < subtables.count(); index++) {
-        IOAPICSourceOverride subtable = subtables[index];
-        legacyIRQs[subtable.irqSource] = {
-            .gsi = subtable.gsi,
-            .polarity = (subtable.flags & ACPI_MADT_FLAG_ACTIVE_LOW)
-                ? Polarity::ACTIVE_LOW
-                : Polarity::ACRIVE_HIGH,
-            .triggerMode = (subtable.flags & ACPI_MADT_FLAG_LEVEL_TRIGGERED)
-                ? TriggerMode::LEVEL
-                : TriggerMode::EDGE,
-        };
-
-        cout << "IOAPIC Souce override IRQ " << (uint32_t)subtable.irqSource << " GSI " << subtable.gsi << endl;
-    }
-
 }
 
 apic::IOAPIC &System::IOAPICForGSI(uint32_t gsi) {

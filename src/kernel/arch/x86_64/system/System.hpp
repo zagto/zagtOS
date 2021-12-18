@@ -18,21 +18,13 @@ private:
     friend class Processor;
     friend __attribute__((noreturn)) void _handleInterrupt(RegisterState *registerState);
 
-    struct LegacyIRQSetup {
-        uint32_t gsi{0};
-        Polarity polarity;
-        TriggerMode triggerMode;
-    };
-
     GlobalDescriptorTable gdt;
     InterruptDescriptorTable idt;
     LegacyPIC legacyPIC;
     vector<apic::IOAPIC> ioApics;
-    LegacyIRQSetup legacyIRQs[0xff];
 
     void setupSyscalls() noexcept;
     void detectIOAPICs();
-    void detectIRQSourceOverride() noexcept;
     apic::IOAPIC &IOAPICForGSI(uint32_t gsi);
 
 public:
