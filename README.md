@@ -1,13 +1,13 @@
 
-# ZagtOS
+## zagtOS - a microkernel operating system written in C++
 
-A microkernel operating system written in C++. Current features include:
+Current features include:
 
 - SMP
 - RTTI, Exceptions, STL-like scoped locks, smart pointers vectors, and minimal undefined behavoir sanitizer in the kernel
 - full runtime support in user space using the [musl](https://www.musl-libc.org/) C library and GNU libstdc++
 - GCC cross compiler for the `*-zagtos` target for user space code
-- [ZBON](src/zagtos++/zagtos/zbon.hpp), a binary data serilization format, used for message passing and for program binaries, which are [converted from ELF](src/ConvertELF)
+- [ZBON](src/zagtos++/zagtos/ZBON.hpp), a binary data serilization format, used for message passing and for program binaries, which are [converted from ELF](src/ConvertELF)
 - Memory Management and Futexes with a Linux-like syscall interface
 - Message passing IPC which is also used for passing handles for access resticted things, like a region of physical address space, or an IPC Port of another user-space Process
 - Interrupt handling by user space Processes (still missing a lot of cases)
