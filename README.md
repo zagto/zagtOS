@@ -4,14 +4,14 @@
 Current features include:
 
 - SMP
-- RTTI, Exceptions, STL-like scoped locks, smart pointers vectors, and minimal undefined behavoir sanitizer in the kernel
+- RTTI, Exceptions, STL-like scoped locks, smart pointers, vectors, and minimal undefined behavoir sanitizer in the kernel
 - full runtime support in user space using the [musl](https://www.musl-libc.org/) C library and GNU libstdc++
 - GCC cross compiler for the `*-zagtos` target for user space code
-- [ZBON](src/zagtos++/zagtos/ZBON.hpp), a binary data serilization format, used for message passing and for program binaries, which are [converted from ELF](src/ConvertELF)
+- [ZBON](src/zagtos++/zagtos/ZBON.hpp), a binary data serialization format, used for message passing and for program binaries, which are [converted from ELF](src/ConvertELF)
 - Memory Management and Futexes with a Linux-like syscall interface
-- Message passing IPC which is also used for passing handles for access resticted things, like a region of physical address space, or an IPC Port of another user-space Process
+- Message passing IPC which is also used for passing handles for access restricted things, like a region of physical address space, or an IPC Port of another user-space Process
 - Interrupt handling by user space Processes (still missing a lot of cases)
-- Bootloader/Kernel [handover protocol](src/kernel/setup/HandOverState.hpp) designed with Live Kernel upgrades in mind (curently the bootloader loads a first Process, which contains the following processes, instead of an initrd-like mechnism)
+- Bootloader/Kernel [handover protocol](src/kernel/setup/HandOverState.hpp) designed with Live Kernel upgrades in mind (currently the bootloader loads a first Process, which contains the following processes, instead of an initrd-like mechanism)
 - Bootloader for both UEFI and Multiboot2
 - An own [build tool](buildtool.cpp) to track dependencies between subprojects
 - DebugBridge that can collect core dumps of Processes over the (virtual) serial port
@@ -34,7 +34,7 @@ make
 
 (This has not been tested on many systems yet, please let me know in which way it goes wrong)
 
-Once the build is complete, a BIOS and UEFI bootable disk image is created at `out/disk.img`. Scripts for running the system in different emulaters are in the `emulate` directory, intened to be used from the project root like:
+Once the build is complete, a BIOS and UEFI bootable disk image is created at `out/disk.img`. Scripts for running the system in different emulaters are in the `emulate` directory, intended to be used from the project root like:
 
 ```
 ./emulate/kvm.sh
