@@ -24,8 +24,6 @@ size_t SendMessage(const shared_ptr<Process> &process,
                                         messageSize,
                                         numMessageHandles);
     message->transfer();
-
-    scoped_lock sl(port->lock);
     port->addMessage(move(message));
     return 0;
 }

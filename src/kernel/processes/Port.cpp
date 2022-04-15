@@ -55,9 +55,29 @@ void Port::setWaitingThread(Thread *thread, size_t index) noexcept {
 }
 
 void Port::addMessage(unique_ptr<Message> message) {
-    assert(lock.isLocked());
+    Thread *wokenThread;
+    {
+        scoped_lock sl(lock);
+        bool wakeThread = false;
 
-    if (waitingThread) {
+        if (waitingThread) {
+            /* A Thread may wait on different ports at a time. If a message on another port is waking
+             * up the Thread right now, it may still be referenced in our waitingThread field. We need
+             * to esure we only wake it up once. So it will be woken up be the Message the sets the
+             * Thread to Transition state first. */
+            if (waitingThread->atomicSetState(Thread::State::WaitMessage(),
+                                              Thread::State::Transition())) {
+                wakeThread = true;
+            }
+        }
+
+        if (!wakeThread) {
+            /* don't wake a Thread, queue message */
+            messages.push_back(move(message));
+            return;
+        }
+
+        /* To wake the Thread, copy message info into it first */
         size_t infoAddress = message->infoAddress.value();
 
         /* Transfer the waitingThreadIndex variable into the message info */
@@ -68,11 +88,16 @@ void Port::addMessage(unique_ptr<Message> message) {
                     true);
 
         waitingThread->kernelStack->userRegisterState()->setSyscallResult(infoAddress);
-        waitingThread->setState(Thread::State::Transition());
-        Thread *tmp = waitingThread;
-        waitingThread = nullptr;
-        Scheduler::schedule(tmp, true);
-    } else {
-        return messages.push_back(move(message));
+        wokenThread = waitingThread;
     }
+
+    /* go out of lock scope, so we can update all ports the Thread was waiting on without messing
+     * up lock ordering */
+    for (auto &port: wokenThread->waitingPorts) {
+        scoped_lock sl(port->lock);
+        assert(port->waitingThread == wokenThread);
+        port->waitingThread = nullptr;
+    }
+
+    Scheduler::schedule(wokenThread, true);
 }

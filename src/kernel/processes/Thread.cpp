@@ -84,9 +84,7 @@ Thread::State Thread::state() noexcept {
     return _state;
 }
 
-void Thread::setState(Thread::State newValue) noexcept {
-    scoped_lock sl1(KernelInterruptsLock);
-    scoped_lock sl(stateLock);
+void Thread::setStateLocked(Thread::State newValue) noexcept {
     if (!(((newValue.kind() == Thread::TRANSITION) != (_state.kind() == Thread::TRANSITION))
            || (newValue.kind() == Thread::ACTIVE && _state.kind() == Thread::RUNNING)
            || (newValue.kind() == Thread::RUNNING && _state.kind() == Thread::ACTIVE))) {
@@ -95,6 +93,24 @@ void Thread::setState(Thread::State newValue) noexcept {
         Panic();
     }
     _state = newValue;
+}
+
+void Thread::setState(Thread::State newValue) noexcept {
+    scoped_lock sl1(KernelInterruptsLock);
+    scoped_lock sl(stateLock);
+    setStateLocked(newValue);
+}
+
+bool Thread::atomicSetState(State oldValue, State newValue) noexcept {
+    scoped_lock sl1(KernelInterruptsLock);
+    scoped_lock sl(stateLock);
+
+    if (_state == oldValue) {
+        setStateLocked(newValue);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 uint32_t Thread::handle() const noexcept {

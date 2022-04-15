@@ -3,8 +3,8 @@
 #include <system/Processor.hpp>
 
 
-void mergeSort(vector<size_t> &container, vector<shared_ptr<Port>> &ports) {
-    vector<size_t> scratch(container.size());
+void mergeSort(vector<shared_ptr<Port>> &container) {
+    vector<shared_ptr<Port>> scratch(container.size());
 
     size_t partSize = 2;
     while (partSize / 2 < container.size()) {
@@ -18,12 +18,12 @@ void mergeSort(vector<size_t> &container, vector<shared_ptr<Port>> &ports) {
             size_t rightEnd = min(leftPos + partSize, container.size());
 
             while (leftPos < leftEnd && rightPos < rightEnd) {
-                if (ports[container[leftPos]].get() <= ports[container[rightPos]].get()) {
-                    scratch[outPos] = container[leftPos];
+                if (container[leftPos].get() <= container[rightPos].get()) {
+                    scratch[outPos] = move(container[leftPos]);
                     outPos++;
                     leftPos++;
                 } else {
-                    scratch[outPos] = container[rightPos];
+                    scratch[outPos] = move(container[rightPos]);
                     outPos++;
                     rightPos++;
                 }
@@ -64,15 +64,11 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
         ports[index] = process->handleManager.lookup<shared_ptr<Port>>(portHandles[index]);
     }
 
-    vector<size_t> lockOrder(count);
-    for (size_t i = 0; i < count; i++) {
-        lockOrder[i] = i;
-    }
-    mergeSort(lockOrder, ports);
+    mergeSort(ports);
 
     /* Danger: non-RAII locking. This is assuming the ports are sorted to not mess up lock order */
-    for (auto portIndex: lockOrder) {
-        ports[portIndex]->lock.lock();
+    for (auto &port: ports) {
+        port->lock.lock();
     }
 
     size_t resultIndex = 0;
@@ -103,6 +99,12 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
                 ports[index]->setWaitingThread(thread, index);
             }
 
+            thread->waitingPorts = move(ports);
+
+            /* unlock the non-RAII port locks */
+            for (auto &port: thread->waitingPorts) {
+                port->lock.unlock();
+            }
             throw DiscardStateAndSchedule(thread, move(sl), move(sl2));
         }
     } catch (...) {

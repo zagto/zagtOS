@@ -97,12 +97,16 @@ protected:
 
     void (*kernelEntry)(void *){nullptr};
     void *kernelEntryData;
+
 public:
     //RegisterState *registerState{nullptr};
     //VectorRegisterState vectorState;
     shared_ptr<KernelStack> kernelStack;
     shared_ptr<Process> process;
     size_t tlsPointer;
+
+    /* When the Thread waits for a Message, this vector contains the Ports it is waiting on. */
+    vector<shared_ptr<Port>> waitingPorts;
 
     Thread(shared_ptr<Process> process,
            UserVirtualAddress entry,
@@ -130,6 +134,7 @@ public:
     void setCurrentPriority(Priority newValue) noexcept;
     State state() noexcept;
     void setState(State newValue) noexcept;
+    bool atomicSetState(State oldValue, State newValue) noexcept;
     Processor *currentProcessor() const noexcept;
     void currentProcessor(Processor *processor) noexcept;
     void setHandle(uint32_t handle) noexcept;
@@ -140,6 +145,9 @@ public:
     /* danger zone - only call this while holding no locks on potential owners. This is for
      * scenarios, like exit, kill ... and puts the thread in EXIT state. */
     void terminate() noexcept;
+
+private:
+    void setStateLocked(Thread::State newValue) noexcept;
 };
 
 Thread *CurrentThread() noexcept;
