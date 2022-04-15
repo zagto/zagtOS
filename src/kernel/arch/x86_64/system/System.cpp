@@ -60,7 +60,7 @@ apic::IOAPIC &System::IOAPICForGSI(uint32_t gsi) {
     throw BadUserSpace(CurrentProcess());
 }
 
-void System::bindInterrutpt(BoundInterrupt &boundInterrupt) {
+void System::bindInterrupt(BoundInterrupt &boundInterrupt) {
     if (boundInterrupt.type == InterruptType::X86_GSI) {
         IOAPICForGSI(boundInterrupt.typeData).bindInterrutpt(boundInterrupt);
     }

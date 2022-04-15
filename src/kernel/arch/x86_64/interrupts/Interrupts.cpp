@@ -140,8 +140,10 @@ void handleUserException(RegisterState *registerState) {
                 }
             } else if (DynamicInterruptRegion.contains(registerState->intNr)) {
                 cout << "Dynamic Interrupt " << registerState->intNr << " occured" << endl;
-                InterruptManager.occur({processor->id, registerState->intNr});
+                /* EOI first, occur may wake threads on other Processors, which may trigger the
+                 * next interrupt, which we don't want to lose (edge-triggered) */
                 processor->endOfInterrupt();
+                InterruptManager.occur({processor->id, registerState->intNr});
             } else {
                 cout << "Unknown Interrupt " << registerState->intNr << endl;
                 Panic();

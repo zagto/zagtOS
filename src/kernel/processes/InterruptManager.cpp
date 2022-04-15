@@ -23,7 +23,7 @@ BoundInterrupt::BoundInterrupt(InterruptType type,
 
     /* sets up interrupt routing in the hardware */
     try {
-        CurrentSystem.bindInterrutpt(*this);
+        CurrentSystem.bindInterrupt(*this);
     } catch (...) {
         /* we don't want to leak a bound InterruptManager entry */
         InterruptManager.unbind(this);
@@ -181,6 +181,8 @@ void BoundInterrupt::occur() noexcept {
     processingSubscribers += subscriptions.size();
 
     occurence++;
+
+    cout << "occurence " << occurence << endl;
 
     while (!waitingThreads.empty()) {
         Thread *thread = waitingThreads.pop();
