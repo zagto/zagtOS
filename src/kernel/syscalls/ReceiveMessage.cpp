@@ -14,33 +14,31 @@ void mergeSort(vector<size_t> &container, vector<shared_ptr<Port>> &ports) {
             size_t outPos = leftPos;
 
             /* merge */
-            if (rightPos < container.size()) {
-                size_t leftEnd = rightPos;
-                size_t rightEnd = min(leftPos + partSize, container.size());
+            size_t leftEnd = rightPos;
+            size_t rightEnd = min(leftPos + partSize, container.size());
 
-                while (leftPos < leftEnd && rightPos < rightEnd) {
-                    if (ports[container[leftPos]].get() <= ports[container[rightPos]].get()) {
-                        scratch[outPos] = container[leftPos];
-                        outPos++;
-                        leftPos++;
-                    } else {
-                        scratch[outPos] = container[rightPos];
-                        outPos++;
-                        rightPos++;
-                    }
-                }
-
-                while (leftPos < leftEnd) {
-                    scratch[outPos] = move(container[leftPos]);
+            while (leftPos < leftEnd && rightPos < rightEnd) {
+                if (ports[container[leftPos]].get() <= ports[container[rightPos]].get()) {
+                    scratch[outPos] = container[leftPos];
                     outPos++;
                     leftPos++;
-                }
-
-                while (rightPos < rightEnd) {
-                    scratch[outPos] = move(container[rightPos]);
+                } else {
+                    scratch[outPos] = container[rightPos];
                     outPos++;
                     rightPos++;
                 }
+            }
+
+            while (leftPos < leftEnd) {
+                scratch[outPos] = move(container[leftPos]);
+                outPos++;
+                leftPos++;
+            }
+
+            while (rightPos < rightEnd) {
+                scratch[outPos] = move(container[rightPos]);
+                outPos++;
+                rightPos++;
             }
         }
 
