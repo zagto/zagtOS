@@ -124,6 +124,22 @@ void Thread::setKernelEntry(void (*entry)(void *), void *data) noexcept {
     kernelEntryData = data;
 }
 
+void Thread::pinToProcessor(Processor *processor) {
+    assert(this == CurrentThread());
+
+    pinnedToProcessor = processor;
+    if (processor != nullptr && processor != CurrentProcessor()) {
+        scoped_lock sl1(KernelInterruptsLock);
+        auto &scheduler = CurrentProcessor()->scheduler;
+        scoped_lock sl2(scheduler.lock);
+
+        scheduler.removeActiveThread();
+        Scheduler::schedule(this, true);
+
+        throw DiscardStateAndSchedule(this, move(sl1), move(sl2));
+    }
+}
+
 void Thread::terminate() noexcept {
     assert(KernelInterruptsLock.isLocked());
 

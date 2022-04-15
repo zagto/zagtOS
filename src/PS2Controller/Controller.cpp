@@ -1,4 +1,5 @@
 #include <chrono>
+#include <unistd.h>
 #include "Controller.hpp"
 
 namespace ps2controller {
@@ -16,26 +17,28 @@ Controller::Controller(zagtos::RemotePort &_environmentPort,
 
     command(Command::DisableFirstPort);
     command(Command::DisableSecondPort);
+    std::cout << "read " << std::endl;
 
     /* read any reamaining data from output buffer */
-    ioPorts.read(IO_PORT_DATA, 1);
+    while (statusBit(Status::OutputBufferFull)) {
+        ioPorts.read(IO_PORT_DATA, 1);
+    }
+    std::cout << "config " << std::endl;
 
     uint8_t config = commandWithResult(Command::ReadConifg);
     config &= ~(Config::FirstPortInterrupt|Config::SecondPortInterrupt|Config::Translation);
     command(Command::WriteConfig);
     data(config);
 
+    std::cout << "self test " << std::endl;
+
     if (commandWithResult(Command::SelfTest) != 0x55) {
         throw std::runtime_error("Controller did not pass self test");
     }
+    std::cout << "self test end" << std::endl;
     /* self test may destroy config */
     command(Command::WriteConfig);
     data(config);
-
-    /* read any reamaining data from output buffer */
-    for (size_t i = 0; i < 100; i++) {
-        ioPorts.read(IO_PORT_DATA, 1);
-    }
 
     bool dualChannelController = config & Config::SecondPortClock;
 
@@ -44,19 +47,19 @@ Controller::Controller(zagtos::RemotePort &_environmentPort,
         ports[1].works = commandWithResult(Command::TestFirstPort) == 0;
     }
 
+    ports[0].interrupt.subscribe();
+    ports[1].interrupt.subscribe();
+
     if (ports[0].works) {
         command(Command::EnableFirstPort);
         config |= Config::FirstPortInterrupt;
-        ports[0].interrupt.subscribe();
     }
     if (ports[1].works) {
         command(Command::EnableSecondPort);
         config |= Config::SecondPortInterrupt;
-        ports[1].interrupt.subscribe();
     }
     command(Command::WriteConfig);
     data(config);
-
 }
 
 uint8_t Controller::status() {

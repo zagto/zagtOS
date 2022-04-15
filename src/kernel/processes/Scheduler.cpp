@@ -61,7 +61,12 @@ size_t Scheduler::nextProcessorID{0};
 
 void Scheduler::schedule(Thread *thread, bool online) noexcept {
     // TODO
-    size_t processorID = __atomic_fetch_add(&nextProcessorID, 1, __ATOMIC_RELAXED) % CurrentSystem.numProcessors;
+    size_t processorID;
+    if (thread->pinnedToProcessor != nullptr) {
+        processorID = thread->pinnedToProcessor->id;
+    } else {
+        processorID = __atomic_fetch_add(&nextProcessorID, 1, __ATOMIC_RELAXED) % CurrentSystem.numProcessors;
+    }
     Processors[processorID].scheduler.add(thread, online);
 }
 

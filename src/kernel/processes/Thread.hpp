@@ -81,6 +81,7 @@ private:
     SpinLock stateLock;
     uint32_t _handle{INVALID_HANDLE};
     Processor *_currentProcessor = nullptr;
+    Processor *pinnedToProcessor = nullptr;
 
 protected:
     /* State */
@@ -134,6 +135,7 @@ public:
     void setHandle(uint32_t handle) noexcept;
     uint32_t handle() const noexcept;
     void setKernelEntry(void (*entry)(void *), void *data = nullptr) noexcept;
+    void pinToProcessor(Processor *processor);
 
     /* danger zone - only call this while holding no locks on potential owners. This is for
      * scenarios, like exit, kill ... and puts the thread in EXIT state. */

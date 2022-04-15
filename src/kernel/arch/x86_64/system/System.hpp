@@ -37,7 +37,7 @@ public:
     /* Called afterwards */
     void lateInitialization();
 
-    void bindInterrutpt(BoundInterrupt &boundInterrupt);
+    void bindInterrupt(BoundInterrupt &boundInterrupt);
     void unbindInterrupt(BoundInterrupt &boundInterrupt);
     void interruptFullyProcessed(BoundInterrupt &boundInterrupt);
 };

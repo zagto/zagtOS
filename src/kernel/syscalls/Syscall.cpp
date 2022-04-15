@@ -23,6 +23,7 @@
 #include <syscalls/ProcessedInterrupt.hpp>
 #include <syscalls/WaitInterrupt.hpp>
 #include <syscalls/SpawnProcess.hpp>
+#include <syscalls/PinThread.hpp>
 #include <system/System.hpp>
 #include <system/Processor.hpp>
 #include <interrupts/Interrupts.hpp> // dealWithException
@@ -92,6 +93,18 @@ static SyscallFunction *syscallFunctions[] = {
 
     /* 50 */
     &SpawnProcess,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+
+    /* 60 */
+    &PinThread,
 };
 
 extern "C"

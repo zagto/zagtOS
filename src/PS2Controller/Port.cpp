@@ -1,6 +1,8 @@
+#include <chrono>
+#include <mutex>
+#include <optional>
 #include "Port.hpp"
 #include "Controller.hpp"
-#include <mutex>
 
 namespace ps2controller {
 
@@ -22,19 +24,26 @@ void Port::handler() {
     sendToDevice(0xff);
 
     bool devicePresent = false;
+    std::vector<uint8_t> data;
 
     while (true) {
         interrupt.wait();
         std::cout << "Got interrupt " << portIndex << std::endl;
 
-        uint8_t data;
+        std::optional<uint8_t> byte;
+
         {
             std::scoped_lock sl(controller.lock);
-            data = controller.data();
+            if (controller.statusBit(Controller::Status::OutputBufferFull)) {
+                std::cout << "got byte" << std::endl;
+                byte = controller.data();
+            } else {
+                std::cout << "interrupt " << portIndex << " but no new data" << std::endl;
+            }
         }
 
         if (!devicePresent) {
-            std::cout << "Got data from first device " << portIndex << ": " << static_cast<uint64_t>(data) << std::endl;
+            std::cout << "Got data from first device " << portIndex << ": " << static_cast<uint64_t>(*byte) << std::endl;
         } else {
             /* TODO: send to driver */
         }

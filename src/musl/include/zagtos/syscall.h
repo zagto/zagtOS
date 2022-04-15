@@ -51,7 +51,9 @@ static const uint32_t SYS_LOG = 1,
                       SYS_PROCESSED_INTERRUPT = 48,
                       SYS_WAIT_INTERRUPT = 49,
 
-                      SYS_SPAWN_PROCESS = 50;
+                      SYS_SPAWN_PROCESS = 50,
+
+                      SYS_PIN_THREAD = 60;
 
 #ifdef __cplusplus
 }
