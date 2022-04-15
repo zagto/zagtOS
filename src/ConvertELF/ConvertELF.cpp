@@ -174,6 +174,6 @@ int main(int argc, char **argv) {
         throw std::runtime_error("could not open output file");
     }
     assert(output.numHandles() == 0);
-    outFile.write(reinterpret_cast<char *>(output.data()), output.size());
+    outFile.write(reinterpret_cast<const char *>(output.data()), output.size());
     outFile.close();
 }
