@@ -249,13 +249,13 @@ protected:
     friend class Encoder;
     friend class Decoder;
 
-    uint8_t *_data;
+    const uint8_t *_data;
     size_t _size;
     size_t _numHandles;
     bool allocatedExternally;
 
 public:
-    constexpr EncodedData(uint8_t *data, size_t size, size_t numHandles, bool _allocatedExternally = false):
+    constexpr EncodedData(const uint8_t *data, size_t size, size_t numHandles, bool _allocatedExternally = false):
         _data{data},
         _size{size},
         _numHandles{numHandles},
@@ -281,7 +281,7 @@ public:
             delete[] _data;
         }
     }
-    uint8_t *data() const {
+    const uint8_t *data() const {
         return _data;
     }
     size_t size() const {
