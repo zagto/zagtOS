@@ -3,7 +3,7 @@
 #include <common/common.hpp>
 
 
-struct RSDPTable {
+struct __attribute__((packed)) RSDPTable {
     char signature[8];
     uint8_t checksum;
     char oemID[6];
@@ -14,7 +14,7 @@ struct RSDPTable {
     uint64_t xsdtAddress;
 };
 
-struct TableHeader {
+struct __attribute__((packed)) TableHeader {
     char signature[4];
     uint32_t length;
     uint8_t revision;
@@ -26,12 +26,12 @@ struct TableHeader {
     uint32_t alsCompilerRevision;
 };
 
-struct MADTSubtableHeader {
+struct __attribute__((packed)) MADTSubtableHeader {
     uint8_t type;
     uint8_t length;
 };
 
-struct MADTTable : TableHeader {
+struct __attribute__((packed)) MADTTable : TableHeader {
     uint32_t localAPICAddress;
     uint32_t flags;
 };
@@ -46,7 +46,7 @@ private:
 
     void scan(size_t limit, size_t &index, const uint8_t *&pointer) const noexcept {
         index = 0;
-        pointer = reinterpret_cast<const uint8_t *>(table) + sizeof(MADTTable);
+        pointer = reinterpret_cast<const uint8_t *>(table) + sizeof(typename T::TableClass);
         const uint8_t *end = reinterpret_cast<const uint8_t *>(table) + table->length;
 
         while (pointer < end) {
