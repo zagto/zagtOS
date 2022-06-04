@@ -8,7 +8,7 @@ void mergeSort(vector<shared_ptr<Port>> &container) {
 
     size_t partSize = 2;
     while (partSize / 2 < container.size()) {
-        for (size_t partIndex = 0; partIndex <= container.size() / partSize; partIndex++) {
+        for (size_t partIndex = 0; partIndex * partSize < container.size(); partIndex++) {
             size_t leftPos = partIndex * partSize;
             size_t rightPos = partIndex * partSize + partSize / 2;
             size_t outPos = leftPos;
