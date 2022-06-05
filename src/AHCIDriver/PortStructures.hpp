@@ -7,6 +7,8 @@
 #include <cstring>
 #include <limits.h>
 
+/* TODO: this code assumes little endian everywhere */
+
 enum FISType {
     REG_H2D = 0x27,
     REG_D2H = 0x34,
