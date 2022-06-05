@@ -41,8 +41,6 @@ int main() {
                                                device.driverRunMessage()));
     }
 
-    std::cout << "Detected " << devices.size() << " devices. Waiting for commands from SystemEnvironment" << std::endl;
-
     std::vector<std::reference_wrapper<Port>> driverPorts;
 
     for (auto &dev: devices) {
