@@ -41,11 +41,14 @@ int main() {
                                                device.driverRunMessage()));
     }
 
+    std::cout << "Detected " << devices.size() << " devices. Waiting for commands from SystemEnvironment" << std::endl;
+
     std::vector<std::reference_wrapper<Port>> driverPorts;
-    std::transform(devices.begin(),
-                   devices.end(),
-                   driverPorts.begin(),
-                   [](Device &dev) -> std::reference_wrapper<Port> { return dev.driverPort(); });
+
+    for (auto &dev: devices) {
+        driverPorts.emplace_back(dev.driverPort());
+    }
+
     while (true) {
         auto messageInfo = Port::receiveMessage(driverPorts);
         if (messageInfo->type == pci::MSG_ALLOCATE_MSI_IRQ) {

@@ -118,5 +118,5 @@ zbon::EncodedData Device::driverRunMessage() {
 }
 
 zagtos::Port &Device::driverPort() {
-    return driverPort();
+    return _driverPort;
 }
