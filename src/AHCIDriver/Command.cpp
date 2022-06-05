@@ -8,7 +8,11 @@ Command::Command(Port &port):
     header{port.commandList[slotID]},
     table{port.commandTables[slotID]} {
 
-    memset(&header, 0, sizeof(header));
+    /* clear all fields the driver uses besides the command table pointers - they are constant in
+     * this driver. */
+    memset(&header,
+           0,
+           reinterpret_cast<size_t>(&header.CTBA0) - reinterpret_cast<size_t>(&header));
 }
 
 Command::~Command() {
@@ -39,8 +43,9 @@ Command::Command(Port &port, ATACommand cmd, size_t length, bool write) : Comman
         };
     }
 
-    header.CFL = sizeof(H2DFIS) / 4;
+    /* length of command FIS in DWORDS (without crc field?) */
+    header.CFL = 5;
+
     header.W = write;
     header.PRDTL = numPages;
-
 }
