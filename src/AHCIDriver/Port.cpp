@@ -48,7 +48,9 @@ void Port::executeCommand(Command &command) {
     std::cout << "D" << std::endl;
 
     if (!(regs.TFD.ERR() == 0 && regs.TFD.STS_ERR() == 0)) {
-        throw std::logic_error("TODO: identify error");
+        std::cout << "Failed to execute command: TFD.ERR: " << regs.TFD.ERR()
+                  << ", TFD.STS.ERR: " << regs.TFD.STS_ERR() << std::endl;
+        throw std::logic_error("TODO: identify error"); // COMRESET?
     }
     std::cout << "E" << std::endl;
 }
@@ -61,9 +63,16 @@ void Port::detectDevice() {
 
     static const uint32_t DET_PRESENT = 3, IPM_ACTIVE = 1, SIG_SATA = 0x00000101;
     if (regs.SSTS.DET() == DET_PRESENT && regs.SSTS.IPM() == IPM_ACTIVE && regs.SIG() == SIG_SATA) {
+        waitWhileBusy();
+        if (regs.TFD.STS_ERR()) {
+            throw std::logic_error("TODO: STS_ERR set during detectDevice");
+        }
+
         if (!devicePresent) {
             std::cout << "detected SATA device" << std::endl;
             devicePresent = true;
+
+            regs.CMD.ST(1);
 
             Command cmd(*this, ATACommand::IDENTIFY_DEVICE, 512, false);
             executeCommand(cmd);
@@ -97,6 +106,11 @@ Port::Port(PortRegisters &regs):
     regs.CLBU(clbAddr >> 32);
     regs.FB(fbAddr);
     regs.FBU(fbAddr >> 32);
+
+    /* Set port to non-idle state and start communication (not necessary?) */
+    regs.CMD.POD(1);
+    regs.CMD.SUD(1);
+    regs.CMD.ICC(1);
 
     regs.CMD.FRE(1);
     regs.SERR.ERR(0xffff);
