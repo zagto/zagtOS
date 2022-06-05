@@ -140,11 +140,11 @@ int main() {
             }
 
             if (std::get<0>(msg) == hal::CONTROLLER_TYPE_PCI) {
-                /*std::cout << "Starting PCI..." << std::endl;
+                std::cout << "Starting PCI..." << std::endl;
                 new std::thread(ControllerServer,
                                 std::ref(PCIController),
                                 std::move(std::get<1>(msg)),
-                                std::ref(PCI));*/
+                                std::ref(PCI));
             } else if (std::get<0>(msg) == hal::CONTROLLER_TYPE_PS2) {
                 std::cout << "Starting PS2..." << std::endl;
                 new std::thread(ControllerServer,
