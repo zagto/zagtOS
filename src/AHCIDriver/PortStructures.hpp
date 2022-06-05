@@ -82,7 +82,7 @@ struct CommandTable {
     uint8_t reserved[PRDT_OFFSET - sizeof(H2DFIS)];
     std::array<PhysicalRegionDescriptor, PRDT_MAX_ENTRIES> PRDT;
 };
-
+static_assert(sizeof(CommandTable) == PAGE_SIZE);
 
 struct CommandHeader {
     uint32_t CFL:5, ATAPI:1, W:1, P:1, R:1, B:1, C:1, reserved0:1, PMP:4, PRDTL:16;
