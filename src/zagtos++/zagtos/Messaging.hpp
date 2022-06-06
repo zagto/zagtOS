@@ -30,6 +30,10 @@ namespace zagtos {
         static void operator delete(void *object);
     };
 
+    class invalid_message : public std::runtime_error {
+        using std::runtime_error::runtime_error;
+    };
+
     class Port : public HandleObject {
     public:
         Port();
@@ -39,15 +43,16 @@ namespace zagtos {
         bool ZBONDecode(zbon::Decoder &) = delete;
 
         std::unique_ptr<MessageInfo> receiveMessage();
-        template<typename T> void receiveMessage(UUID type, T &result) {
+        template<typename T> T receiveMessage(UUID type) {
             while (true) {
+                T result;
                 std::unique_ptr<MessageInfo> msgInfo = receiveMessage();
                 if (type != msgInfo->type) {
-                    std::cerr << "receiveMessage: invalid message type" << std::endl;
+                    throw invalid_message("receiveMessage: invalid message type");
                 } else if (!zbon::decode(msgInfo->data, result)) {
                     std::cerr << "receiveMessage: invalid data" << std::endl;
                 } else {
-                    return;
+                    return result;
                 }
             }
         }
