@@ -23,7 +23,7 @@ public:
     shared_ptr<Process> process;
 
     BadUserSpace(shared_ptr<Process> process) :
-        process{process} {}
+        process{move(process)} {}
 
     Action handle() noexcept override;
     virtual const char *description() noexcept override;
