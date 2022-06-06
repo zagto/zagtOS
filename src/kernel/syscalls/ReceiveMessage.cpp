@@ -87,7 +87,7 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
             messageResult = ports[index]->getMessage();
             /* break if we found a message */
             if (messageResult) {
-                resultIndex = index;
+                resultIndex = originalIndexes[index];
                 break;
             }
         }
