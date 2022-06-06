@@ -22,6 +22,24 @@ enum class ATACommand {
     IDENTIFY_DEVICE = 0xec,
 };
 
+struct __attribute__((packed)) IdentifyDeviceData {
+    uint16_t dummy0[60];
+
+    uint32_t maxLBA28;
+    uint16_t dummy1[83-62];
+
+    uint16_t supportedCommandSets;
+    uint16_t dummy2[100-84];
+
+    uint64_t maxLBA48;
+    uint16_t dummy3[117-104];
+
+    uint32_t wordsPerLogicalSector;
+};
+enum SupportedCommandSet{
+    LBA48 = (1u<10)
+};
+
 class H2DFIS {
 private:
     static const uint8_t COMMAND_BIT{1u<<7};

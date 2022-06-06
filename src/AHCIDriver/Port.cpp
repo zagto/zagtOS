@@ -76,6 +76,21 @@ void Port::detectDevice() {
 
             Command cmd(*this, ATACommand::IDENTIFY_DEVICE, 512, false);
             executeCommand(cmd);
+
+            auto identify = cmd.dataMemory.map<IdentifyDeviceData>(PROT_READ);
+
+            uint64_t sectorSize = static_cast<uint64_t>(identify->wordsPerLogicalSector) * 2;
+            if (sectorSize == 0) {
+                /* use default sector size if wordsPerLogicalSector property is not set */
+                sectorSize = 512;
+            }
+
+            if ((identify->supportedCommandSets & SupportedCommandSet::LBA48) && identify->maxLBA48) {
+                std::cout << "device has " << identify->maxLBA48 << " LBA48 sectors of size " << sectorSize << std::endl;
+            } else if (identify->maxLBA28 != 0) {
+                std::cout << "device has " << identify->maxLBA28 << " LBA28 sectors of size " << sectorSize << std::endl;
+            }
+
         }
     } else {
         if (devicePresent) {
