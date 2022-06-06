@@ -26,7 +26,7 @@ void LocalAPIC::setupMap(PhysicalAddress base) {
     map = static_cast<uint8_t *>(virtualPage) + base.value() % PAGE_SIZE;
 }
 
-void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
+void LocalAPIC::writeInterruptControlRegister(DeliveryMode deliveryMode,
                                               Level level,
                                               TriggerMode triggerMode,
                                               uint32_t destination,
@@ -40,7 +40,7 @@ void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
             vector
             | (static_cast<uint32_t>(deliveryMode) << 8)
             | (static_cast<uint32_t>(level) << 14)
-            | (static_cast<uint32_t>(triggerMode) << 15)
+            | (triggerMode.x86TriggerMode() << 15)
             | (readRegister(Register::INTERRUPT_COMMAND_LOW) & 0b111111111111000010000000000000u));
 
     while (readRegister(Register::INTERRUPT_COMMAND_LOW) & (1u<<12)) {
@@ -50,9 +50,9 @@ void LocalAPIC::wirteInterruptControlRegister(DeliveryMode deliveryMode,
 }
 
 void LocalAPIC::sendIPI(uint32_t apicID) noexcept {
-    wirteInterruptControlRegister(DeliveryMode::FIXED,
+    writeInterruptControlRegister(DeliveryMode::FIXED,
                                   Level::ASSERT,
-                                  TriggerMode::EDGE,
+                                  TriggerMode::RISING_EDGE,
                                   apicID,
                                   static_cast<uint32_t>(StaticInterrupt::IPI));
 }

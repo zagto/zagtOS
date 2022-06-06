@@ -61,8 +61,8 @@ void IOAPIC::bindInterrutpt(BoundInterrupt &boundInterrupt) noexcept {
 
     uint32_t low = static_cast<uint32_t>(boundInterrupt.processorInterrupt.vectorNumber)
             | (static_cast<uint32_t>(DeliveryMode::FIXED) << 8)
-            | (static_cast<uint32_t>(boundInterrupt.polarity) << 13)
-            | (static_cast<uint32_t>(boundInterrupt.triggerMode) << 15);
+            | (boundInterrupt.triggerMode.x86Polarity() << 13)
+            | (boundInterrupt.triggerMode.x86TriggerMode() << 15);
     uint32_t high = (boundInterrupt.processorInterrupt.processorID << 24)
             | 1 /* enabled */;
 

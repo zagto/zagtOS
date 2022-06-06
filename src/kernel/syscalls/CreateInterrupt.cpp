@@ -5,7 +5,7 @@ size_t CreateInterrupt(const shared_ptr<Process> &process,
                        size_t mode,
                        size_t numberOrResultPointer,
                        size_t triggerMode,
-                       size_t polarity,
+                       size_t,
                        size_t) {
     if (!process->canAccessPhysicalMemory()) {
         cout << "CreateInterrupt: not allowed for this process" << endl;
@@ -18,8 +18,7 @@ size_t CreateInterrupt(const shared_ptr<Process> &process,
     if (mode == CREATE_FIXED) {
         auto interrupt = make_shared<BoundInterrupt>(InterruptType::X86_GSI,
                                                      numberOrResultPointer,
-                                                     static_cast<TriggerMode>(triggerMode),
-                                                     static_cast<Polarity>(polarity));
+                                                     static_cast<TriggerMode>(triggerMode));
         uint32_t handle = process->handleManager.add(interrupt);
         return handle;
     } else if (mode == CREATE_ANY) {

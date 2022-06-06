@@ -7,12 +7,10 @@
 
 BoundInterrupt::BoundInterrupt(InterruptType type,
                                size_t typeData,
-                               TriggerMode triggerMode,
-                               Polarity polarity) :
+                               TriggerMode triggerMode) :
     type{type},
     typeData{typeData},
-    triggerMode{triggerMode},
-    polarity{polarity} {
+    triggerMode{triggerMode} {
 
     scoped_lock sl(KernelInterruptsLock);
     /* don't lock ourselves here - nothing is really happening with the data at this point and

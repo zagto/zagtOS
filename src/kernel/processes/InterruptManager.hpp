@@ -32,7 +32,6 @@ private:
     InterruptType type;
     size_t typeData;
     TriggerMode triggerMode;
-    Polarity polarity;
 
     uint64_t occurence{0};
     size_t processingSubscribers{0};
@@ -43,7 +42,7 @@ private:
     void unsubscribe(vector<Subscription>::Iterator subscription) noexcept;
 
 public:
-    BoundInterrupt(InterruptType type, size_t typeData, TriggerMode triggerMode, Polarity polarity);
+    BoundInterrupt(InterruptType type, size_t typeData, TriggerMode triggerMode);
     ~BoundInterrupt() noexcept;
     BoundInterrupt(BoundInterrupt &) = delete;
 

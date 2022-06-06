@@ -43,7 +43,7 @@ ACPI_STATUS AcpiOsInstallInterruptHandler(uint32_t number, ACPI_OSD_HANDLER call
     handler->callback = callback;
     handler->context = context;
 
-    handler->interrupt = zagtos::Interrupt(number, zagtos::TriggerMode::Edge, zagtos::Polarity::ActiveHigh);
+    handler->interrupt = zagtos::Interrupt(number, zagtos::TriggerMode::RISING_EDGE);
     handler->interrupt.subscribe();
 
     handler->thread = std::make_unique<std::thread>(handlerThread, std::ref(*handler));

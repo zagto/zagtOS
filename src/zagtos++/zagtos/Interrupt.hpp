@@ -5,10 +5,7 @@
 namespace zagtos {
 
 enum class TriggerMode : size_t {
-    Edge, Level
-};
-enum class Polarity : size_t {
-    ActiveHigh, ActiveLow
+    LEVEL_LOW, LEVEL_HIGH, FALLING_EDGE, RISING_EDGE
 };
 
 class Interrupt : public HandleObject {
@@ -18,7 +15,7 @@ private:
 
 public:
     Interrupt() {}
-    Interrupt(uint32_t fixedNumber, TriggerMode triggerMode, Polarity polarity);
+    Interrupt(uint32_t fixedNumber, TriggerMode triggerMode);
     Interrupt(Interrupt &) = delete;
     Interrupt(Interrupt &&other) : HandleObject(std::move(other)) {}
     Interrupt &operator=(Interrupt &other) = delete;

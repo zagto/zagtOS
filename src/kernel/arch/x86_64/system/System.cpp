@@ -74,7 +74,7 @@ void System::unbindInterrupt(BoundInterrupt &boundInterrupt) {
 
 void System::interruptFullyProcessed(BoundInterrupt &boundInterrupt) {
     if (boundInterrupt.type == InterruptType::X86_GSI
-            && boundInterrupt.triggerMode == TriggerMode::LEVEL) {
+            && boundInterrupt.triggerMode.isLevel()) {
         IOAPICForGSI(boundInterrupt.typeData).endOfLevelInterrupt();
     }
 }

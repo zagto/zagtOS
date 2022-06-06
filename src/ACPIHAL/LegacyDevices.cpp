@@ -13,7 +13,6 @@ using namespace zagtos;
 struct IRQRedirect {
     uint32_t gsi;
     TriggerMode triggerMode;
-    Polarity polarity;
 };
 
 static std::array<IRQRedirect, 256> redirects;
@@ -42,8 +41,7 @@ static void initIRQRedirects() {
     for (uint32_t irq = 0; irq < 256; irq++) {
         redirects[irq] = {
             .gsi = irq,
-            .triggerMode = TriggerMode::Edge,
-            .polarity = Polarity::ActiveHigh,
+            .triggerMode = TriggerMode::RISING_EDGE,
         };
     }
 
@@ -55,45 +53,51 @@ static void initIRQRedirects() {
         if (subtable->Header.Type == ACPI_MADT_TYPE_INTERRUPT_OVERRIDE) {
             uint16_t acpiPolarity = subtable->IntiFlags & ACPI_MADT_POLARITY_MASK;
             uint16_t acpiTriggerMode = subtable->IntiFlags & ACPI_MADT_TRIGGER_MASK;
-            Polarity polarity;
-            TriggerMode triggerMode;
+            bool edgeTriggered;
+            bool activeHigh;
 
             switch (acpiPolarity) {
             case ACPI_MADT_POLARITY_ACTIVE_HIGH:
-                polarity = Polarity::ActiveHigh;
+                activeHigh = true;
                 break;
             case ACPI_MADT_POLARITY_ACTIVE_LOW:
-                polarity = Polarity::ActiveLow;
+                activeHigh = false;
                 break;
             /* behavoir found in sys/x86/acpica/madt.c in FreeBSD */
             default:
                 if (subtable->SourceIrq == fadt->SciInterrupt) {
-                    polarity = Polarity::ActiveLow;
+                    activeHigh = false;
                 } else {
-                    polarity = Polarity::ActiveHigh;
+                    activeHigh = true;
                 }
             }
 
             switch (acpiTriggerMode) {
             case ACPI_MADT_TRIGGER_EDGE:
-                triggerMode = TriggerMode::Edge;
+                edgeTriggered = true;
                 break;
             case ACPI_MADT_TRIGGER_LEVEL:
-                triggerMode = TriggerMode::Level;
+                edgeTriggered = false;
                 break;
             /* behavoir found in sys/x86/acpica/madt.c in FreeBSD */
             default:
                 if (subtable->SourceIrq == fadt->SciInterrupt) {
-                    triggerMode = TriggerMode::Level;
+                    edgeTriggered = false;
                 } else {
-                    triggerMode = TriggerMode::Edge;
+                    edgeTriggered = true;
                 }
+            }
+
+            TriggerMode triggerMode;
+            if (edgeTriggered) {
+                triggerMode = activeHigh ? TriggerMode::RISING_EDGE : TriggerMode::FALLING_EDGE;
+            } else {
+                triggerMode = activeHigh ? TriggerMode::LEVEL_HIGH : TriggerMode::LEVEL_LOW;
             }
 
             redirects[subtable->SourceIrq] = {
                 .gsi = subtable->GlobalIrq,
                 .triggerMode = triggerMode,
-                .polarity = polarity,
             };
         }
         subtablePointer += subtable->Header.Length;
@@ -101,7 +105,7 @@ static void initIRQRedirects() {
 }
 
 static Interrupt createLegacyInterrupt(uint8_t irq) {
-    return Interrupt(redirects[irq].gsi, redirects[irq].triggerMode, redirects[irq].polarity);
+    return Interrupt(redirects[irq].gsi, redirects[irq].triggerMode);
 }
 
 static void initPS2Controller(RemotePort &environmentPort) {

@@ -4,12 +4,11 @@
 
 namespace zagtos {
 
-Interrupt::Interrupt(uint32_t fixedNumber, TriggerMode triggerMode, Polarity polarity) {
-    _handle = zagtos_syscall4(SYS_CREATE_INTERRUPT,
+Interrupt::Interrupt(uint32_t fixedNumber, TriggerMode triggerMode) {
+    _handle = zagtos_syscall3(SYS_CREATE_INTERRUPT,
                               CREATE_FIXED,
                               fixedNumber,
-                              static_cast<size_t>(triggerMode),
-                              static_cast<size_t>(polarity));
+                              static_cast<size_t>(triggerMode));
 }
 
 Interrupt &Interrupt::operator=(Interrupt &&other) {

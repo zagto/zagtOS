@@ -13,8 +13,8 @@ private:
     uint8_t *map;
 
     void setupMap(PhysicalAddress base);
-    void wirteInterruptControlRegister(apic::DeliveryMode deliveryMode,
-                                       apic::Level level,
+    void writeInterruptControlRegister(apic::DeliveryMode deliveryMode,
+                                       Level level,
                                        TriggerMode triggerMode,
                                        uint32_t destination,
                                        uint8_t vector) noexcept;
