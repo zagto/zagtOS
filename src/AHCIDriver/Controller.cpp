@@ -53,17 +53,14 @@ Controller::Controller(ABAR &abar) :
         }
     }
 
-    /* Setup interrupts */
+    for (Port &port: ports) {
+        port.detectDevice();
+    }
 
+    /* Setup interrupts */
     regs.IS(0);
     for (Port &port: ports) {
         port.enableInterrupts();
     }
     regs.GHC.IE(1);
-
-    for (Port &port: ports) {
-        port.detectDevice();
-    }
-    //
-    regs.IS(0);
 }

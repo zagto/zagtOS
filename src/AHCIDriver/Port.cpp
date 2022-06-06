@@ -101,6 +101,7 @@ void Port::detectDevice() {
 }
 
 void Port::enableInterrupts() {
+    regs.IS(0);
     regs.IE.DHRE(1);
     regs.IE.UFE(1);
     regs.IE.PCE(1);

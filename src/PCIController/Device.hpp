@@ -1,6 +1,8 @@
 #pragma once
 
 #include <zagtos/protocols/Pci.hpp>
+#include <zagtos/Messaging.hpp>
+#include <zagtos/Interrupt.hpp>
 #include "ConfigSpace.hpp"
 
 class Device {
@@ -39,4 +41,5 @@ public:
     uint64_t combinedID() const;
     zbon::EncodedData driverRunMessage();
     zagtos::Port &driverPort();
+    zagtos::Interrupt allocateMSIInterrupt();
 };

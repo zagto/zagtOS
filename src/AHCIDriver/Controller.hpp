@@ -14,4 +14,5 @@ private:
 
 public:
     Controller(ABAR &);
+    void handleInterrupt();
 };

@@ -26,6 +26,7 @@ struct MSICapability64 : MSICapability {
 struct MSICapability32 : MSICapability {
     REGISTER(address)
     REGISTER(data)
+    REGISTER(reserved)
     REGISTER(mask)
     REGISTER(pending)
 };
