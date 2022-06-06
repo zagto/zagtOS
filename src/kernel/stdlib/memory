@@ -73,26 +73,12 @@ protected:
 
         InternalPointer(T *rawPointer) noexcept :
             rawPointer{rawPointer} {}
-        ~InternalPointer() noexcept {
-            if (rawPointer) {
-                delete rawPointer;
-            }
-        }
+        ~InternalPointer() noexcept;
+        void checkReferenceCounts(bool &shouldDelete) noexcept;
     };
 
     InternalPointer *internalPointer{nullptr};
 
-    void checkReferenceCounts(bool &shouldDelete) noexcept {
-        if (internalPointer->referenceCount == 0) {
-            if (internalPointer->weakReferenceCount == 0) {
-                shouldDelete = true;
-            } else {
-                delete internalPointer->rawPointer;
-                internalPointer->valid = false;
-            }
-        }
-        internalPointer = nullptr;
-    }
 
 public:
     shared_ptr() noexcept {}
@@ -113,6 +99,9 @@ public:
     shared_ptr(shared_ptr &&other) noexcept {
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
+    }
+    ~shared_ptr() noexcept {
+        reset();
     }
     void operator=(const shared_ptr &other) noexcept {
         reset();
@@ -155,11 +144,12 @@ public:
             scoped_lock lg(internalPointer->lock);
             assert(internalPointer->referenceCount > 0);
             internalPointer->referenceCount--;
-            checkReferenceCounts(shouldDelete);
+            internalPointer->checkReferenceCounts(shouldDelete);
         }
         if (shouldDelete) {
             delete internalPointer;
         }
+        internalPointer = nullptr;
     }
     void reset(T *newPointer) noexcept {
         reset();
@@ -200,6 +190,9 @@ public:
         internalPointer = other.internalPointer;
         other.internalPointer = nullptr;
     }
+    ~weak_ptr() noexcept {
+        reset();
+    }
     void operator=(const weak_ptr &other) noexcept {
         reset();
         if (other.internalPointer) {
@@ -216,14 +209,12 @@ public:
             scoped_lock lg1(KernelInterruptsLock);
             scoped_lock lg(internalPointer->lock);
             internalPointer->weakReferenceCount--;
-            if (internalPointer->referenceCount == 0 && internalPointer->weakReferenceCount == 0) {
-                shouldDelete = true;
-            }
-            internalPointer = nullptr;
+            internalPointer->checkReferenceCounts(shouldDelete);
         }
         if (shouldDelete) {
             delete internalPointer;
         }
+        internalPointer = nullptr;
     }
     shared_ptr<T> lock() noexcept {
         if (internalPointer) {
