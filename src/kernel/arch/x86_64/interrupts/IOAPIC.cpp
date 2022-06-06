@@ -59,14 +59,14 @@ void IOAPIC::bindInterrutpt(BoundInterrupt &boundInterrupt) noexcept {
     assert(isForGSI(boundInterrupt.typeData));
     scoped_lock sl(lock);
 
-    uint32_t low = static_cast<uint32_t>(boundInterrupt.processorInterrupt.vectorNumber)
+    uint32_t low = static_cast<uint32_t>(boundInterrupt._processorInterrupt.vectorNumber)
             | (static_cast<uint32_t>(DeliveryMode::FIXED) << 8)
             | (boundInterrupt.triggerMode.x86Polarity() << 13)
             | (boundInterrupt.triggerMode.x86TriggerMode() << 15);
-    uint32_t high = (boundInterrupt.processorInterrupt.processorID << 24)
+    uint32_t high = (boundInterrupt._processorInterrupt.processorID << 24)
             | 1 /* enabled */;
 
-    assert(boundInterrupt.processorInterrupt.processorID < 0x10); // TODO
+    assert(boundInterrupt._processorInterrupt.processorID < 0x10); // TODO
 
     writeRegister(REG_FIRST_ENTRY + 2 * (boundInterrupt.typeData - gsiBase), low);
     writeRegister(REG_FIRST_ENTRY + 2 * (boundInterrupt.typeData - gsiBase) + 1, high);

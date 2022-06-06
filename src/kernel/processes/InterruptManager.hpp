@@ -27,7 +27,7 @@ private:
     };
 
     SpinLock lock;
-    ProcessorInterrupt processorInterrupt;
+    ProcessorInterrupt _processorInterrupt;
 
     InterruptType type;
     size_t typeData;
@@ -53,6 +53,7 @@ public:
     void wait();
     void occur() noexcept;
     void checkFullyProcessed() noexcept;
+    const ProcessorInterrupt &processorInterrupt() const noexcept;
 };
 
 namespace interruptManager {

@@ -192,6 +192,10 @@ void BoundInterrupt::occur() noexcept {
     }
 }
 
+const ProcessorInterrupt &BoundInterrupt::processorInterrupt() const noexcept {
+    return _processorInterrupt;
+}
+
 
 namespace interruptManager {
 
@@ -217,7 +221,7 @@ void Manager::bind(BoundInterrupt *binding) {
             BoundInterrupt *&item = allInterrupts[processorID][vectorNumber - vectorOffset];
             if (item == nullptr) {
                 /* found a free place */
-                binding->processorInterrupt = {processorID, vectorNumber};
+                binding->_processorInterrupt = {processorID, vectorNumber};
                 item = binding;
                 return;
             }
@@ -232,7 +236,7 @@ void Manager::unbind(BoundInterrupt *binding) noexcept {
     scoped_lock sl(lock);
 
     BoundInterrupt *&bound = allInterrupts
-           [binding->processorInterrupt.processorID][binding->processorInterrupt.vectorNumber - vectorOffset];
+           [binding->_processorInterrupt.processorID][binding->_processorInterrupt.vectorNumber - vectorOffset];
     assert(bound != nullptr);
     assert(bound == binding);
 
@@ -253,6 +257,5 @@ void Manager::occur(ProcessorInterrupt processorInterrupt) noexcept {
 
     boundInterrupt->occur();
 }
-
 
 }
