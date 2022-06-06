@@ -80,6 +80,8 @@ void Port::addMessage(unique_ptr<Message> message) {
         /* To wake the Thread, copy message info into it first */
         size_t infoAddress = message->infoAddress.value();
 
+        cout << "returning waitingThreadIndex " << waitingThreadIndex << endl;
+
         /* Transfer the waitingThreadIndex variable into the message info */
         waitingThread->process->addressSpace.copyTo(
                     infoAddress,

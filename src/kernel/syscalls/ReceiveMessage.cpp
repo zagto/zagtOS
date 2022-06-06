@@ -3,8 +3,8 @@
 #include <system/Processor.hpp>
 
 
-void mergeSort(vector<shared_ptr<Port>> &container) {
-    vector<shared_ptr<Port>> scratch(container.size());
+void mergeSort(vector<size_t> &container, vector<shared_ptr<Port>> &ports) {
+    vector<size_t> scratch(container.size());
 
     size_t partSize = 2;
     while (partSize / 2 < container.size()) {
@@ -18,7 +18,7 @@ void mergeSort(vector<shared_ptr<Port>> &container) {
             size_t rightEnd = min(leftPos + partSize, container.size());
 
             while (leftPos < leftEnd && rightPos < rightEnd) {
-                if (container[leftPos].get() <= container[rightPos].get()) {
+                if (ports[container[leftPos]].get() <= ports[container[rightPos]].get()) {
                     scratch[outPos] = move(container[leftPos]);
                     outPos++;
                     leftPos++;
@@ -58,13 +58,22 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
     process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(portHandles.data()),
                                    _portHandles,
                                    count * sizeof(uint32_t));
+    vector<shared_ptr<Port>> unsortedPorts(count);
     vector<shared_ptr<Port>> ports(count);
+    vector<size_t> originalIndexes(count);
 
     for (size_t index = 0; index < count; index++) {
-        ports[index] = process->handleManager.lookup<shared_ptr<Port>>(portHandles[index]);
+        unsortedPorts[index] = process->handleManager.lookup<shared_ptr<Port>>(portHandles[index]);
+        originalIndexes[index] = index;
     }
 
-    mergeSort(ports);
+    mergeSort(originalIndexes, unsortedPorts);
+
+    for (size_t index = 0; index < count; index++) {
+        cout << originalIndexes[index] << " -> " << index << endl;
+        ports[index] = move(unsortedPorts[originalIndexes[index]]);
+    }
+    unsortedPorts.resize(0);
 
     /* Danger: non-RAII locking. This is assuming the ports are sorted to not mess up lock order */
     for (auto &port: ports) {
@@ -96,7 +105,7 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
             thread->setState(Thread::State::WaitMessage());
 
             for (size_t index = 0; index < ports.size(); index++) {
-                ports[index]->setWaitingThread(thread, index);
+                ports[index]->setWaitingThread(thread, originalIndexes[index]);
             }
 
             thread->waitingPorts = move(ports);
@@ -121,6 +130,7 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
         port->lock.unlock();
     }
 
+    cout << "returning resultIndex " << resultIndex << " of " << count << endl;
     /* Transfer the resultIndex variable into the message info */
     process->addressSpace.copyTo(messageResult->infoAddress.value(),
                                  reinterpret_cast<uint8_t *>(&resultIndex),
