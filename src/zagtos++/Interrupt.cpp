@@ -11,6 +11,13 @@ Interrupt::Interrupt(uint32_t fixedNumber, TriggerMode triggerMode) {
                               static_cast<size_t>(triggerMode));
 }
 
+Interrupt::Interrupt(TriggerMode triggerMode, ProcessorInterruptInfo &processorInterruptInfo) {
+    _handle = zagtos_syscall3(SYS_CREATE_INTERRUPT,
+                              CREATE_PROCESSOR_DIRECT,
+                              reinterpret_cast<size_t>(&processorInterruptInfo),
+                              static_cast<size_t>(triggerMode));
+}
+
 Interrupt &Interrupt::operator=(Interrupt &&other) {
     HandleObject::operator=(std::move(other));
     return *this;
