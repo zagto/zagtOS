@@ -2,7 +2,7 @@
 #include <zagtos/Messaging.hpp>
 #include <zagtos/Interrupt.hpp>
 #include <zagtos/IOPortRange.hpp>
-#include <zagtos/protocols/Hal.hpp>
+#include <zagtos/protocols/Driver.hpp>
 #include <array>
 extern "C" {
 #include <acpi.h>
@@ -122,9 +122,10 @@ static void initPS2Controller(RemotePort &environmentPort) {
     std::cout << "Found PS/2 controller" << std::endl;
     /* PS/2 Controller */
     environmentPort.sendMessage(
-            hal::MSG_FOUND_CONTROLLER,
+            driver::MSG_FOUND_DEVICE,
             zbon::encodeObject(
-                hal::CONTROLLER_TYPE_PS2,
+                driver::CONTROLLER_TYPE_ROOT,
+                driver::RootDevice::PS2_CONTROLLER,
                 std::make_tuple<Interrupt, Interrupt, IOPortRange>(
                         std::move(int1),
                         std::move(int12),

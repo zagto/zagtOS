@@ -22,11 +22,12 @@ void handlerThreadEntry(ps2controller::Port &port) {
 }
 
 int main() {
-    using MsgType = std::tuple<zagtos::RemotePort,
+    using MsgType = std::tuple<zagtos::UUID,
+                               zagtos::RemotePort,
                                std::tuple<zagtos::Interrupt,
                                           zagtos::Interrupt,
                                           zagtos::IOPortRange>>;
-    auto [envPort, tuple] = zagtos::decodeRunMessage<MsgType>(zagtos::controller::MSG_START);
+    auto [controllerID, envPort, tuple] = zagtos::decodeRunMessage<MsgType>(zagtos::controller::MSG_START);
 
     std::cout << "Hello" << std::endl;
 

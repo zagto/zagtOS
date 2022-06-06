@@ -3,7 +3,7 @@
 #include <sys/mman.h>
 #include <zagtos/Messaging.hpp>
 #include <zagtos/protocols/Pci.hpp>
-#include <zagtos/protocols/Controller.hpp>
+#include <zagtos/protocols/Driver.hpp>
 #include "SegmentGroup.hpp"
 
 using namespace zagtos;
@@ -22,8 +22,8 @@ enum Status {
 };
 
 int main() {
-    auto [envPort, segmentGroupsInfo] =
-            decodeRunMessage<std::tuple<RemotePort, std::vector<pci::SegmentGroup>>>(controller::MSG_START);
+    auto [controllerType, envPort, segmentGroupsInfo] =
+            decodeRunMessage<std::tuple<zagtos::UUID, RemotePort, std::vector<pci::SegmentGroup>>>(driver::MSG_START);
 
     std::cout << "Starting PCI Controller..." << std::endl;
     std::cout << "Got " << segmentGroupsInfo.size() << " segment groups" << std::endl;
@@ -36,8 +36,9 @@ int main() {
     }
 
     for (Device &device: devices) {
-        envPort.sendMessage(controller::MSG_FOUND_DEVICE,
-                            zbon::encodeObject(device.combinedID(),
+        envPort.sendMessage(driver::MSG_FOUND_DEVICE,
+                            zbon::encodeObject(driver::CONTROLLER_TYPE_PCI,
+                                               device.combinedID(),
                                                device.driverRunMessage()));
     }
 
@@ -50,7 +51,21 @@ int main() {
     while (true) {
         auto messageInfo = Port::receiveMessage(driverPorts);
         if (messageInfo->type == pci::MSG_ALLOCATE_MSI_IRQ) {
+            zagtos::RemotePort responsePort;
+            try {
+                zbon::decode(messageInfo->data, responsePort);
+            } catch (zbon::DecoderException *e) {
+                std::cerr << "received malformed ALLOCATE_MSI_IRQ message from driver" << std::endl;
+                continue;
+            }
 
+            size_t portIndex = messageInfo->portIndex;
+            std::cerr << "register interrupt for device " << portIndex << std::endl;
+            auto interrupt = devices[portIndex].allocateMSIInterrupt();
+
+            responsePort.sendMessage(pci::MSG_ALLOCATE_MSI_IRQ_RESULT, zbon::encode(interrupt));
+        } else {
+            std::cerr << "received unknown message type from driver" << std::endl;
         }
     }
 }

@@ -4,9 +4,8 @@
 #include <vector>
 #include <zagtos/ZBON.hpp>
 #include <zagtos/Messaging.hpp>
-#include <zagtos/protocols/Hal.hpp>
 #include <zagtos/protocols/Pci.hpp>
-#include <zagtos/protocols/Controller.hpp>
+#include <zagtos/protocols/Driver.hpp>
 #include <zagtos/ExternalBinary.hpp>
 #include <zagtos/EnvironmentSpawn.hpp>
 
@@ -22,31 +21,52 @@ static constexpr UUID MSG_BE_INIT(
         0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55);
 
 struct DeviceMatch {
+    UUID controller;
     uint64_t id;
     uint64_t idMask;
+
+    static constexpr uint64_t EXACT_MASK = -1;
 };
 
-class Driver {
-private:
-    std::vector<DeviceMatch> _matches;
+class Driver;
+struct RunningDriver {
+    std::shared_ptr<Driver> driver;
+    std::unique_ptr<Port> port;
+};
+std::vector<RunningDriver> RunningDrivers;
+std::vector<std::reference_wrapper<Port>> AllPorts;
+
+struct Driver {
     const ExternalBinary &binary;
+    std::vector<DeviceMatch> drivenDevices;
+    std::vector<UUID> providesClassDevices;
+    std::vector<UUID> providesControllers;
 
-public:
-    Driver(std::vector<DeviceMatch> matches, const ExternalBinary &binary):
-        _matches{matches},
-        binary{binary} {}
-
-    bool matches(uint64_t deviceID) const {
-        for (auto match: _matches) {
-            if (match.id == (deviceID & match.idMask)) {
+    bool matchesDevice(UUID controller, uint64_t deviceID) const {
+        for (auto &match: drivenDevices) {
+            if (match.controller == controller &&match.id == (deviceID & match.idMask)) {
                 return true;
             }
         }
         return false;
     }
 
-    void start(const UUID messageType, zbon::EncodedData runMessage) const {
-        environmentSpawn(binary, Priority::BACKGROUND, messageType, std::move(runMessage));
+    bool canProvideDeviceClass(UUID deviceClass) const {
+        for (auto &match: providesClassDevices) {
+            if (match == deviceClass) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool canProvideController(UUID controller) const {
+        for (auto &match: providesControllers) {
+            if (match == controller) {
+                return true;
+            }
+        }
+        return false;
     }
 
     const char *name() const {
@@ -54,110 +74,102 @@ public:
     }
 };
 
-struct ControllerType {
-    const UUID id;
-    const UUID driverStartMessageID;
-    std::vector<Driver> drivers;
-};
 
-static Driver dACHIDriver{{{0x0106'0000'0000'0000, 0xffff'0000'0000'0000}}, AHCIDriver};
-static ControllerType PCI{hal::CONTROLLER_TYPE_PCI, pci::MSG_START_PCI_DRIVER, {dACHIDriver}};
-static ControllerType PS2{hal::CONTROLLER_TYPE_PS2, pci::MSG_START_PCI_DRIVER, {}};
+std::vector<std::shared_ptr<Driver>> DriverRegistry;
 
+void StartDriver(std::shared_ptr<Driver> driver,
+                 UUID onController,
+                 const zbon::EncodedData &message) {
+    auto port = std::make_unique<Port>();
+    auto runMessage = zbon::encodeObject(onController, *port, message);
+    environmentSpawn(driver->binary, Priority::BACKGROUND, driver::MSG_START, runMessage);
 
-void ControllerServer(const ExternalBinary &program,
-                      zbon::EncodedData startMessage,
-                      const ControllerType &controllerType) {
-    Port port;
-    environmentSpawn(program,
-                     Priority::BACKGROUND,
-                     controller::MSG_START,
-                     zbon::encodeObject(port, std::move(startMessage)));
+    AllPorts.push_back(*port);
+    RunningDrivers.push_back({std::move(driver), std::move(port)});
+}
+
+void registerEmbeddedDrivers() {
+    DriverRegistry.push_back(std::make_shared<Driver>(Driver{
+        ACPIHAL,
+        {},
+        {},
+        {driver::CONTROLLER_TYPE_ROOT}}));
+    DriverRegistry.push_back(std::make_shared<Driver>(Driver{
+        PCIController,
+        {{driver::CONTROLLER_TYPE_ROOT, zagtos::driver::RootDevice::PCI_CONTROLLER, DeviceMatch::EXACT_MASK}},
+        {},
+        {driver::CONTROLLER_TYPE_PCI}}));
+    DriverRegistry.push_back(std::make_shared<Driver>(Driver{
+        PS2Controller,
+        {{driver::CONTROLLER_TYPE_ROOT, zagtos::driver::RootDevice::PS2_CONTROLLER, DeviceMatch::EXACT_MASK}},
+        {},
+        {driver::CONTROLLER_TYPE_PS2}}));
+    DriverRegistry.push_back(std::make_shared<Driver>(Driver{
+        AHCIDriver,
+        {{driver::CONTROLLER_TYPE_PCI, 0x0106'0000'0000'0000, 0xffff'0000'0000'0000}},
+        {},
+        {}}));
+}
+
+int main() {
+    receiveRunMessage(MSG_BE_INIT);
+
+    std::cout << "Setup..." << std::endl;
+
+    registerEmbeddedDrivers();
+
+    std::cout << "Starting HAL..." << std::endl;
+
+    StartDriver(DriverRegistry[0], driver::CONTROLLER_TYPE_ROOT, zbon::encode(0));
 
     while (true) {
-        std::unique_ptr<MessageInfo> msgInfo = port.receiveMessage();
-        if (msgInfo->type == controller::MSG_START_DONE) {
-            std::cerr << "got MSG_START_CONTROLLER_DONE, TODO: what is next?" << std::endl;
-        } else if (msgInfo->type == controller::MSG_FOUND_DEVICE) {
-            std::tuple<uint64_t, zbon::EncodedData> msg;
+        std::unique_ptr<MessageInfo> msgInfo = Port::receiveMessage(
+                    std::vector<std::reference_wrapper<Port>>(AllPorts.begin(), AllPorts.end()));
+        RunningDriver &sender = RunningDrivers[msgInfo->portIndex];
+        std::cout << "Message from " << sender.driver->name() << " (" << msgInfo->portIndex << ")" << std::endl;
+
+        if (msgInfo->type == driver::MSG_START_RESULT) {
+            bool result;
+            try {
+                zbon::decode(msgInfo->data, result);
+            } catch(zbon::DecoderException &e) {
+                std::cout << "Received malformed MSG_START_RESULT message." << std::endl;
+                continue;
+            }
+
+            if (result) {
+                std::cout << sender.driver->name() << " startup complete. TODO: what's next?" << std::endl;
+            } else {
+                std::cout << sender.driver->name() << " startup failed." << std::endl;
+            }
+        } else if (msgInfo->type == driver::MSG_FOUND_DEVICE) {
+            std::tuple<UUID, uint64_t, zbon::EncodedData> msg;
             try {
                 zbon::decode(msgInfo->data, msg);
             } catch(zbon::DecoderException &e) {
                 std::cout << "Received malformed MSG_FOUND_DEVICE message." << std::endl;
                 continue;
             }
-            uint64_t deviceID = std::get<0>(msg);
-            std::cout << "combined device id: " << deviceID << std::endl;
-            zbon::EncodedData &startData = std::get<1>(msg);
 
-            bool foundDriver{false};
-            for (const Driver &driver: controllerType.drivers) {
-                if (driver.matches(deviceID)) {
-                    std::cout << "Matched driver " << driver.name() << std::endl;
-                    driver.start(controllerType.driverStartMessageID, std::move(startData));
-                    foundDriver = true;
+            UUID controllerType = std::get<0>(msg);
+            uint64_t deviceID = std::get<1>(msg);
+            auto driverMessage = std::move(std::get<2>(msg));
+
+            if (!sender.driver->canProvideController(controllerType)) {
+                std::cout << sender.driver->name() << " found a device on a controller it is not allowed to provide" << std::endl;
+                continue;
+            }
+
+            for (auto &driver: DriverRegistry) {
+                if (driver->matchesDevice(controllerType, deviceID)) {
+                    Port port;
+                    std::cout << "starting driver " << driver->name() << " for device found by " << sender.driver->name() << std::endl;
+                    StartDriver(driver, controllerType, driverMessage);
                     break;
                 }
             }
-            if (!foundDriver) {
-                std::cout << "No matching driver" << std::endl;
-            }
-        }
-    }
-}
-
-int main() {
-    receiveRunMessage(MSG_BE_INIT);
-
-    std::cout << "Starting HAL..." << std::endl;
-
-    Port halServerPort;
-    environmentSpawn(ACPIHAL, Priority::BACKGROUND, hal::MSG_START, zbon::encode(halServerPort));
-
-    while (true) {
-        std::unique_ptr<MessageInfo> msgInfo = halServerPort.receiveMessage();
-        if (msgInfo->type == hal::MSG_START_RESULT) {
-            bool result;
-            try {
-                zbon::decode(msgInfo->data, result);
-            } catch(zbon::DecoderException &e) {
-                std::cout << "Received malformed MSG_START_HAL_RESULT message." << std::endl;
-                continue;
-            }
-
-            if (result) {
-                std::cout << "HAL startup complete. TODO: what's next?" << std::endl;
-            } else {
-                std::cout << "HAL startup failed." << std::endl;
-            }
-        } else if (msgInfo->type == hal::MSG_FOUND_CONTROLLER) {
-            std::tuple<UUID, zbon::EncodedData> msg;
-            try {
-                zbon::decode(msgInfo->data, msg);
-            } catch(zbon::DecoderException &e) {
-                std::cout << "Received malformed MSG_FOUND_CONTROLLER message." << std::endl;
-                continue;
-            }
-
-            if (std::get<0>(msg) == hal::CONTROLLER_TYPE_PCI) {
-                std::cout << "Starting PCI..." << std::endl;
-                new std::thread(ControllerServer,
-                                std::ref(PCIController),
-                                std::move(std::get<1>(msg)),
-                                std::ref(PCI));
-            } else if (std::get<0>(msg) == hal::CONTROLLER_TYPE_PS2) {
-                std::cout << "Starting PS2..." << std::endl;
-                new std::thread(ControllerServer,
-                                std::ref(PS2Controller),
-                                std::move(std::get<1>(msg)),
-                                std::ref(PS2));
-            } else {
-                std::cout << "Received MSG_START_CONTROLLER message for unsupported controller "
-                          << "type." << std::endl;
-                continue;
-            }
         } else {
-            std::cout << "Got message of unknown type" << std::endl;
+            std::cout << "Got message of unknown type from HAL" << std::endl;
         }
     }
 }

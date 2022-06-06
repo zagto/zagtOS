@@ -2,7 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <zagtos/protocols/Pci.hpp>
-#include <zagtos/protocols/Hal.hpp>
+#include <zagtos/protocols/Driver.hpp>
 #include <PCI.hpp>
 extern "C" {
     #include <acpi.h>
@@ -75,7 +75,9 @@ void initPCIForOS(zagtos::RemotePort &envPort) {
         return;
     }
 
-    auto msg = zbon::encode(std::make_tuple(zagtos::hal::CONTROLLER_TYPE_PCI, segmentGroups));
-    envPort.sendMessage(zagtos::hal::MSG_FOUND_CONTROLLER, std::move(msg));
+    auto msg = zbon::encode(std::make_tuple(zagtos::driver::CONTROLLER_TYPE_ROOT,
+                                            zagtos::driver::RootDevice::PCI_CONTROLLER,
+                                            segmentGroups));
+    envPort.sendMessage(zagtos::driver::MSG_FOUND_DEVICE, std::move(msg));
 }
 
