@@ -49,11 +49,9 @@ namespace zagtos {
                 std::unique_ptr<MessageInfo> msgInfo = receiveMessage();
                 if (type != msgInfo->type) {
                     throw invalid_message("receiveMessage: invalid message type");
-                } else if (!zbon::decode(msgInfo->data, result)) {
-                    std::cerr << "receiveMessage: invalid data" << std::endl;
-                } else {
-                    return result;
                 }
+                zbon::decode(msgInfo->data, result);
+                return result;
             }
         }
         static std::unique_ptr<MessageInfo> receiveMessage(std::vector<std::reference_wrapper<Port>> ports);
