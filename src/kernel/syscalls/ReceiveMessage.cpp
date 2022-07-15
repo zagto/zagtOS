@@ -14,7 +14,7 @@ void mergeSort(vector<size_t> &container, vector<shared_ptr<Port>> &ports) {
             size_t outPos = leftPos;
 
             /* merge */
-            size_t leftEnd = rightPos;
+            size_t leftEnd = min(rightPos, container.size());
             size_t rightEnd = min(leftPos + partSize, container.size());
 
             while (leftPos < leftEnd && rightPos < rightEnd) {
@@ -53,6 +53,11 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
                    size_t,
                    size_t,
                    size_t) {
+    if (count == 0) {
+        cout << "ReceiveMessage: process tried to wait on 0 ports" << endl;
+        throw BadUserSpace(process);
+    }
+
     vector<uint32_t> portHandles(count);
 
     process->addressSpace.copyFrom(reinterpret_cast<uint8_t *>(portHandles.data()),
@@ -66,7 +71,6 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
         unsortedPorts[index] = process->handleManager.lookup<shared_ptr<Port>>(portHandles[index]);
         originalIndexes[index] = index;
     }
-
     mergeSort(originalIndexes, unsortedPorts);
 
     for (size_t index = 0; index < count; index++) {
