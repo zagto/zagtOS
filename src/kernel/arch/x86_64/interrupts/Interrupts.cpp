@@ -135,6 +135,9 @@ void handleUserException(RegisterState *registerState) {
 
                 uint32_t ipis = __atomic_exchange_n(&processor->ipiFlags, 0, __ATOMIC_SEQ_CST);
 
+                if (ipis & IPI::HaltProcessor) {
+                    basicHalt();
+                }
                 if (ipis & IPI::CheckScheduler) {
                     processor->scheduler.checkChanges();
                 }

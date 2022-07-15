@@ -5,7 +5,8 @@
 
 enum IPI {
     CheckScheduler = 1u << 0,
-    InvalidateQueueProcessing = 1u << 1
+    InvalidateQueueProcessing = 1u << 1,
+    HaltProcessor = 1u << 2
 };
 
 class Processor : public CommonProcessor {

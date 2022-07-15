@@ -2,9 +2,20 @@
 #include <log/Logger.hpp>
 #ifndef ZAGTOS_LOADER
 #include <interrupts/KernelInterruptsLock.hpp>
+#include <system/System.hpp>
+#include <system/Processor.hpp>
 #endif
 
 __attribute__((noreturn)) void Halt() {
+#ifndef ZAGTOS_LOADER
+    if (ProcessorsInitialized) {
+        for (size_t processorID = 0; processorID < CurrentSystem.numProcessors; processorID++) {
+            if (processorID != CurrentProcessor()->id) {
+                Processors[processorID].sendIPI(IPI::HaltProcessor);
+            }
+        }
+    }
+#endif
     basicHalt();
 }
 
