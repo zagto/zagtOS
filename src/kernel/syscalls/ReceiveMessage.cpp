@@ -74,7 +74,6 @@ size_t ReceiveMessage(const shared_ptr<Process> &process,
     mergeSort(originalIndexes, unsortedPorts);
 
     for (size_t index = 0; index < count; index++) {
-        cout << originalIndexes[index] << " -> " << index << endl;
         ports[index] = move(unsortedPorts[originalIndexes[index]]);
     }
     unsortedPorts.resize(0);
