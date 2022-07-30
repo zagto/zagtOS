@@ -17,7 +17,7 @@ class Thread {
 public:
     using Priority = hos_v1::ThreadPriority;
     enum {
-        ACTIVE, RUNNING, MESSAGE, FUTEX, INTERRUPT, TRANSITION, TERMINATED
+        ACTIVE, READY, MESSAGE, FUTEX, INTERRUPT, TRANSITION, TERMINATED
     };
     class State {
     private:
@@ -35,7 +35,7 @@ public:
             return State(Thread::ACTIVE, reinterpret_cast<size_t>(processor));
         }
         static State Running(Processor *processor) noexcept {
-            return State(Thread::RUNNING, reinterpret_cast<size_t>(processor));
+            return State(Thread::READY, reinterpret_cast<size_t>(processor));
         }
         static State WaitMessage() noexcept {
             return State(Thread::MESSAGE);
@@ -57,7 +57,7 @@ public:
             return _kind;
         }
         Processor *currentProcessor() noexcept {
-            assert(_kind == ACTIVE || _kind == RUNNING);
+            assert(_kind == ACTIVE || _kind == READY);
             return reinterpret_cast<Processor *>(relatedObject);
         }
         bool operator==(const State &other) const {
@@ -66,7 +66,7 @@ public:
     };
 
     /* Owners:
-     * - RUNNING, WAITING: Scheduler->lock
+     * - ACTIVE, READY: Scheduler->lock
      * - FUTEX*: FutexManager->lock
      * - MESSAGE: Port*/
 

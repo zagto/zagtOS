@@ -86,8 +86,8 @@ Thread::State Thread::state() noexcept {
 
 void Thread::setStateLocked(Thread::State newValue) noexcept {
     if (!(((newValue.kind() == Thread::TRANSITION) != (_state.kind() == Thread::TRANSITION))
-           || (newValue.kind() == Thread::ACTIVE && _state.kind() == Thread::RUNNING)
-           || (newValue.kind() == Thread::RUNNING && _state.kind() == Thread::ACTIVE))) {
+           || (newValue.kind() == Thread::ACTIVE && _state.kind() == Thread::READY)
+           || (newValue.kind() == Thread::READY && _state.kind() == Thread::ACTIVE))) {
         cout << "Illegal Thread state Transition from " << _state.kind()
              << " to " << newValue.kind() << endl;
         Panic();
@@ -168,7 +168,7 @@ void Thread::terminate() noexcept {
             cout << "TODO: send IPI to terminate active thread" << endl;
             Panic();
             break;
-        case RUNNING: {
+        case READY: {
             Scheduler &scheduler = localState.currentProcessor()->scheduler;
             if (scheduler.lock.trylock()) {
                 if (state() == localState) {
