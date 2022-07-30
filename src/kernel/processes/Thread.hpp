@@ -17,7 +17,7 @@ class Thread {
 public:
     using Priority = hos_v1::ThreadPriority;
     enum {
-        ACTIVE, READY, MESSAGE, FUTEX, INTERRUPT, TRANSITION, TERMINATED
+        ACTIVE, READY, MESSAGE, FUTEX, INTERRUPT, TRANSITION, TERMINATED, TIMER
     };
     class State {
     private:
@@ -52,6 +52,9 @@ public:
         static State Terminated() noexcept {
             return State(Thread::TERMINATED);
         }
+        static State Timer(size_t clockID, size_t time) noexcept {
+            return State(Thread::TIMER);
+        }
 
         uint32_t kind() const noexcept {
             return _kind;
@@ -62,6 +65,14 @@ public:
         }
         bool operator==(const State &other) const {
             return _kind == other._kind && relatedObject == other.relatedObject && relatedObject2 == other.relatedObject2;
+        }
+        size_t clockID() const {
+            assert(_kind == TIMER);
+            return relatedObject;
+        }
+        size_t time() const {
+            assert(_kind == TIMER);
+            return relatedObject2;
         }
     };
 
