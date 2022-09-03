@@ -84,14 +84,46 @@ Thread::State Thread::state() noexcept {
     return _state;
 }
 
+[[noreturn]] void Thread::illegalTransition(Thread::State newValue) noexcept {
+    cout << "Illegal Thread state Transition from " << _state.kind()
+         << " to " << newValue.kind() << endl;
+    Panic();
+}
+
 void Thread::setStateLocked(Thread::State newValue) noexcept {
-    if (!(((newValue.kind() == Thread::TRANSITION) != (_state.kind() == Thread::TRANSITION))
-           || (newValue.kind() == Thread::ACTIVE && _state.kind() == Thread::READY)
-           || (newValue.kind() == Thread::READY && _state.kind() == Thread::ACTIVE))) {
-        cout << "Illegal Thread state Transition from " << _state.kind()
-             << " to " << newValue.kind() << endl;
-        Panic();
+    /* sanity checks */
+    switch (_state.kind()) {
+    case Thread::ACTIVE:
+        if (!(newValue.kind() == Thread::TRANSITION
+              || newValue.kind() == Thread::READY)) {
+            illegalTransition(newValue);
+        }
+        break;
+    case Thread::READY:
+        if (!(newValue.kind() == Thread::TRANSITION
+              || newValue.kind() == Thread::ACTIVE)) {
+            illegalTransition(newValue);
+        }
+        break;
+    case Thread::TIMER:
+        if (!(newValue.kind() == Thread::TRANSITION
+              || newValue.kind() == Thread::READY)) {
+            illegalTransition(newValue);
+        }
+        break;
+
+    case Thread::TRANSITION:
+        if (newValue.kind() == TRANSITION) {
+            illegalTransition(newValue);
+        }
+        break;
+    default:
+        if (newValue.kind() != TRANSITION) {
+            illegalTransition(newValue);
+        }
     }
+
+    /* actual setting */
     _state = newValue;
 }
 

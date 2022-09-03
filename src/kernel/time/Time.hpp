@@ -3,6 +3,10 @@
 #include <common/common.hpp>
 #include <mutex>
 
+enum ClockID {
+    REALTIME, MONOTONIC, COUNT
+};
+
 class Time {
 public:
     mutex offsetLock;
@@ -14,4 +18,5 @@ public:
     void delayMilliseconds(uint64_t ms);
 };
 
+void setTimer(uint64_t value);
 extern "C" uint64_t readTimerValue();

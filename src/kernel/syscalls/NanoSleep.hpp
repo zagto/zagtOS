@@ -6,7 +6,7 @@
 size_t NanoSleep(const shared_ptr<Process> &process,
                  size_t flags,
                  size_t clockID,
-                 size_t timpespec,
+                 size_t timespecAddress,
                  size_t,
                  size_t);
 

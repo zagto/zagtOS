@@ -13,6 +13,7 @@
 #include <syscalls/CreateThread.hpp>
 #include <syscalls/Futex.hpp>
 #include <syscalls/GetTime.hpp>
+#include <syscalls/NanoSleep.hpp>
 #include <syscalls/CreateIOPortRange.hpp>
 #include <syscalls/GetFirmwareRoot.hpp>
 #include <syscalls/IOPortRead.hpp>
@@ -69,7 +70,7 @@ static SyscallFunction *syscallFunctions[] = {
 
     /* 30 */
     &GetTime,
-    nullptr, /* nanosleep */
+    &NanoSleep, /* nanosleep */
     nullptr,
     nullptr,
     nullptr,

@@ -25,25 +25,35 @@ namespace threadList {
         Thread *item;
 
     public:
-        Iterator(Thread *thread) {
+        Iterator(Thread *thread = nullptr) noexcept {
             item = thread;
         }
-        bool operator!=(const Iterator &other) {
+        bool operator!=(const Iterator &other) noexcept {
             return item != other.item;
         }
-        Iterator &operator++() {
+        bool operator==(const Iterator &other) noexcept {
+            return item == other.item;
+        }
+        Iterator &operator++() noexcept {
             assert(item != nullptr);
             item = (item->*ReceptorMember).next;
             return *this;
         }
-        Iterator operator++(int) {
+        Iterator operator++(int) noexcept {
             assert(item != nullptr);
             Iterator copy = item;
             item = (item->*ReceptorMember).next;
             return copy;
         }
-        Thread *operator*() {
+        Thread *operator*() noexcept {
             assert(item != nullptr);
+            return item;
+        }
+        Thread *operator->() noexcept {
+            assert(item != nullptr);
+            return item;
+        }
+        Thread *get() const noexcept {
             return item;
         }
     };
@@ -55,15 +65,15 @@ namespace threadList {
         Thread *tail{nullptr};
 
     public:
-        Iterator<ReceptorMember> begin() {
+        Iterator<ReceptorMember> begin() noexcept {
             return {head};
         }
 
-        Iterator<ReceptorMember> end() {
+        Iterator<ReceptorMember> end() noexcept {
             return {nullptr};
         }
 
-        void append(Thread *thread) {
+        void append(Thread *thread) noexcept {
             Receptor &receptor = thread->*ReceptorMember;
             assert(receptor.list == nullptr);
             assert(receptor.previous == nullptr);
@@ -80,7 +90,28 @@ namespace threadList {
             receptor.list = this;
         }
 
-        void remove(Thread *thread) {
+        void insertBefore(Thread *existingThread, Thread *toInsert) noexcept {
+            Receptor &toInsertReceptor = toInsert->*ReceptorMember;
+            assert(toInsertReceptor.list == nullptr);
+            assert(toInsertReceptor.previous == nullptr);
+            assert(toInsertReceptor.next == nullptr);
+
+            Receptor &existingReceptor = existingThread->*ReceptorMember;
+            assert(existingReceptor.list == this);
+
+            toInsertReceptor.next = existingThread;
+            toInsertReceptor.previous = existingReceptor.previous;
+            toInsertReceptor.list = this;
+            if (existingReceptor.previous == nullptr) {
+                /* existing Thread was first Thread */
+                head = toInsert;
+            } else {
+                (toInsertReceptor.previous->*ReceptorMember).next = toInsert;
+            }
+            existingReceptor.previous = toInsert;
+        }
+
+        void remove(Thread *thread) noexcept {
             Receptor &receptor = thread->*ReceptorMember;
 
             assert(receptor.previous || thread == head);
@@ -102,7 +133,7 @@ namespace threadList {
             receptor.list = nullptr;
         }
 
-        Thread *pop() {
+        Thread *pop() noexcept {
             assert(!empty());
 
             Receptor &receptor = head->*ReceptorMember;
@@ -121,7 +152,7 @@ namespace threadList {
             return result;
         }
 
-        bool empty() const {
+        bool empty() const noexcept {
             assert((head == nullptr) == (tail == nullptr));
             return head == nullptr;
         }

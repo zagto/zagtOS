@@ -23,9 +23,9 @@ public:
     private:
         uint32_t _kind;
         size_t relatedObject;
-        size_t relatedObject2;
+        uint64_t relatedObject2;
 
-        State(uint32_t kind, size_t _relatedObject = 0, size_t _relatedObject2 = 0) noexcept :
+        State(uint32_t kind, size_t _relatedObject = 0, uint64_t _relatedObject2 = 0) noexcept :
             _kind{kind},
             relatedObject{_relatedObject},
             relatedObject2{_relatedObject2} {}
@@ -34,7 +34,7 @@ public:
         static State Active(Processor *processor) noexcept {
             return State(Thread::ACTIVE, reinterpret_cast<size_t>(processor));
         }
-        static State Running(Processor *processor) noexcept {
+        static State Ready(Processor *processor) noexcept {
             return State(Thread::READY, reinterpret_cast<size_t>(processor));
         }
         static State WaitMessage() noexcept {
@@ -52,8 +52,8 @@ public:
         static State Terminated() noexcept {
             return State(Thread::TERMINATED);
         }
-        static State Timer(size_t clockID, size_t time) noexcept {
-            return State(Thread::TIMER);
+        static State Timer(ClockID clockID, size_t timestamp) noexcept {
+            return State(Thread::TIMER, static_cast<size_t>(clockID), timestamp);
         }
 
         uint32_t kind() const noexcept {
@@ -159,6 +159,8 @@ public:
 
 private:
     void setStateLocked(Thread::State newValue) noexcept;
+    [[noreturn]] void illegalTransition(Thread::State newValue) noexcept;
+
 };
 
 Thread *CurrentThread() noexcept;

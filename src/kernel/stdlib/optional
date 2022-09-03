@@ -5,7 +5,7 @@
 template<typename T> class optional {
 private:
     bool hasValue{false};
-    T _value;
+    T _value{};
 
 public:
     constexpr optional() {}

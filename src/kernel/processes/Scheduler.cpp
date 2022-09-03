@@ -10,10 +10,10 @@
 Scheduler::Scheduler(CommonProcessor *_processor)
 {
     idleThread = new Thread(IdleThreadEntry, Thread::Priority::IDLE);
-    threads[Thread::Priority::IDLE].append(idleThread);
+    readyThreads[Thread::Priority::IDLE].append(idleThread);
 
     processor = static_cast<Processor *>(_processor);
-    idleThread->setState(Thread::State::Running(processor));
+    idleThread->setState(Thread::State::Ready(processor));
     idleThread->currentProcessor(processor);
 }
 
@@ -30,12 +30,12 @@ void Scheduler::add(Thread *thread, bool online) noexcept {
     thread->currentProcessor(processor);
 
     if (online && thread->currentPriority() > processor->activeThread()->currentPriority()) {
-        threads[thread->currentPriority()].append(thread);
-        thread->setState(Thread::State::Running(processor));
+        readyThreads[thread->currentPriority()].append(thread);
+        thread->setState(Thread::State::Ready(processor));
         processor->sendIPI(IPI::CheckScheduler);
     } else {
-        threads[thread->currentPriority()].append(thread);
-        thread->setState(Thread::State::Running(processor));
+        readyThreads[thread->currentPriority()].append(thread);
+        thread->setState(Thread::State::Ready(processor));
     }
 }
 
@@ -47,15 +47,40 @@ void Scheduler::checkChanges() {
     Thread *activeThread = processor->activeThread();
 
     for (size_t prio = Thread::NUM_PRIORITIES-1; prio > activeThread->currentPriority(); prio--) {
-        if (!threads[prio].empty()) {
-            activeThread->setState(Thread::State::Running(processor));
-            threads[activeThread->currentPriority()].append(activeThread);
+        if (!readyThreads[prio].empty()) {
+            activeThread->setState(Thread::State::Ready(processor));
+            readyThreads[activeThread->currentPriority()].append(activeThread);
             processor->activeThread(nullptr);
 
             throw DiscardStateAndSchedule(activeThread, move(sl), move(sl2));
         }
     }
 }
+
+[[noreturn]] void Scheduler::setTimer(ClockID clockID, uint64_t timestamp)  {
+    scoped_lock sl(KernelInterruptsLock);
+    scoped_lock sl2(lock);
+
+    Thread *activeThread = processor->activeThread();
+
+    removeActiveThread();
+
+    threadList::Iterator<&Thread::ownerReceptor> it;
+    for (it = timerThreads->begin(); it != timerThreads->end(); ++it) {
+        if (it->state().time() < timestamp) {
+            break;
+        }
+    }
+    if (it == timerThreads->end()) {
+        timerThreads->append(activeThread);
+    } else {
+        timerThreads->insertBefore(it.get(), activeThread);
+    }
+    activeThread->setState(Thread::State::Timer(clockID, timestamp));
+
+    throw DiscardStateAndSchedule(activeThread, move(sl), move(sl2));
+}
+
 
 size_t Scheduler::nextProcessorID{0};
 
@@ -74,7 +99,7 @@ void Scheduler::removeOtherThread(Thread *thread) noexcept {
     assert(lock.isLocked());
     assert(thread != processor->activeThread());
 
-    threads[thread->currentPriority()].remove(thread);
+    readyThreads[thread->currentPriority()].remove(thread);
     thread->setState(Thread::State::Transition());
     thread->currentProcessor(nullptr);
 }
@@ -96,14 +121,14 @@ void Scheduler::scheduleNext() noexcept {
     assert(processor == CurrentProcessor());
 
     for (ssize_t prio = Thread::NUM_PRIORITIES - 1; prio >= 0; prio--) {
-        if (!threads[prio].empty()) {
-            Thread *newActiveThread = threads[prio].pop();
+        if (!readyThreads[prio].empty()) {
+            Thread *newActiveThread = readyThreads[prio].pop();
             processor->activeThread(newActiveThread);
             newActiveThread->setState(Thread::State::Active(processor));
 
             if (newActiveThread == idleThread) {
                 cout << "activeThread on " << processor->id << " is our idle Thread" << endl;
-                assert(threads[prio].empty());
+                assert(readyThreads[prio].empty());
                 assert(prio == 0);
             } else {
                 cout << "activeThread on " << processor->id << " is now ";

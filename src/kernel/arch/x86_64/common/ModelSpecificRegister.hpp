@@ -13,6 +13,7 @@ enum class MSR : uint32_t {
     PLATFORM_ID = 0x17,
     FSB_FREQ = 0xce,
     PLATFORM_INFO = 0xce,
+    TSC_DEADLINE = 0x6e0,
 };
 
 extern "C" uint64_t readModelSpecificRegister(MSR msr);
