@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/mman.h>
 #include <zagtos/syscall.h>
 
@@ -100,31 +101,17 @@ void PrintModuleMap() {}
 void SignalContext::DumpAllRegisters(void *) {}
 const char *DescribeSignalOrException(int) { UNIMPLEMENTED(); }
 
-enum MutexState { MtxUnlocked = 0, MtxLocked = 1, MtxSleeping = 2 };
-
-BlockingMutex::BlockingMutex() {
-  internal_memset(this, 0, sizeof(*this));
+void FutexWait(atomic_uint32_t *p, u32 cmp) {
+  constexpr size_t FUTEX_WAIT = 0;
+  size_t status = zagtos_syscall4(SYS_FUTEX, reinterpret_cast<size_t>(p), FUTEX_WAIT, *reinterpret_cast<int32_t *>(p), NULL);
+  if (status != EAGAIN)  // Normal race.
+    CHECK_EQ(status, 0);
 }
 
-void BlockingMutex::Lock() {
-  CHECK_EQ(owner_, 0);
-  atomic_uint32_t *m = reinterpret_cast<atomic_uint32_t *>(&opaque_storage_);
-  if (atomic_exchange(m, MtxLocked, memory_order_acquire) == MtxUnlocked)
-    return;
-  while (atomic_exchange(m, MtxSleeping, memory_order_acquire) != MtxUnlocked) {
-    internal_sched_yield();
-  }
-}
-
-void BlockingMutex::Unlock() {
-  atomic_uint32_t *m = reinterpret_cast<atomic_uint32_t *>(&opaque_storage_);
-  u32 v = atomic_exchange(m, MtxUnlocked, memory_order_release);
-  CHECK_NE(v, MtxUnlocked);
-}
-
-void BlockingMutex::CheckLocked() {
-  atomic_uint32_t *m = reinterpret_cast<atomic_uint32_t *>(&opaque_storage_);
-  CHECK_NE(MtxUnlocked, atomic_load(m, memory_order_relaxed));
+void FutexWake(atomic_uint32_t *p, u32 count) {
+  constexpr size_t FUTEX_WAKE = 1;
+  size_t status = zagtos_syscall4(SYS_FUTEX, reinterpret_cast<size_t>(p), FUTEX_WAKE, *reinterpret_cast<int32_t *>(p), 0);
+  CHECK_EQ(status, 0);
 }
 
 uptr GetPageSize() { return 0x1000; }
