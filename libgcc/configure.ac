@@ -68,11 +68,6 @@ AC_ARG_ENABLE(shared,
 ], [enable_shared=yes])
 AC_SUBST(enable_shared)
 
-AC_ARG_ENABLE(gcov,
-[  --disable-gcov          don't provide libgcov and related host tools],
-[], [enable_gcov=yes])
-AC_SUBST(enable_gcov)
-
 AC_ARG_ENABLE(vtable-verify,
 [  --enable-vtable-verify    Enable vtable verification feature ],
 [case "$enableval" in
@@ -162,6 +157,18 @@ AC_CANONICAL_HOST
 ACX_NONCANONICAL_HOST
 ACX_NONCANONICAL_TARGET
 GCC_TOPLEV_SUBDIRS
+
+AC_ARG_ENABLE(gcov,
+[  --disable-gcov          don't provide libgcov and related host tools],
+[], [case $target in
+       bpf-*-*)
+         enable_gcov=no
+       ;;
+       *)
+         enable_gcov=yes
+       ;;
+     esac])
+AC_SUBST(enable_gcov)
 
 # Calculate toolexeclibdir
 # Also toolexecdir, though it's only used in toolexeclibdir
@@ -317,7 +324,7 @@ AC_CACHE_CHECK([whether assembler supports CFI directives], [libgcc_cv_cfi],
 # word size rather than the address size.
 cat > conftest.c <<EOF
 #if defined(__x86_64__) || (!defined(__i386__) && defined(__LP64__)) \
-    || defined(__mips64)
+    || defined(__mips64) || defined(__loongarch64)
 host_address=64
 #else
 host_address=32
@@ -457,6 +464,31 @@ powerpc*-*-linux*)
 	__attribute__ ((__ifunc__ ("add_resolver")));])],
     [libgcc_cv_powerpc_float128_hw=yes],
     [libgcc_cv_powerpc_float128_hw=no])])
+  CFLAGS="$saved_CFLAGS"
+
+  saved_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -mcpu=power10 -mfloat128-hardware"
+  AC_CACHE_CHECK([for PowerPC ISA 3.1 to build hardware __float128 libraries],
+		 [libgcc_cv_powerpc_3_1_float128_hw],
+		 [AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([#include <sys/auxv.h>
+     #ifndef AT_PLATFORM
+     #error "AT_PLATFORM is not defined"
+     #endif
+     #ifndef __BUILTIN_CPU_SUPPORTS__
+     #error "__builtin_cpu_supports is not available"
+     #endif
+     vector unsigned char conv (vector unsigned char qs)
+     {
+       vector unsigned char ret;
+       __asm__ ("xscvsqqp %0,%1" : "=v" (ret) : "v" (qs));
+       return ret;
+     }
+     void *conv_resolver (void) { return (void *) conv; }
+     __float128 conv_ifunc (__float128)
+	__attribute__ ((__ifunc__ ("conv_resolver")));])],
+    [libgcc_cv_powerpc_3_1_float128_hw=yes],
+    [libgcc_cv_powerpc_3_1_float128_hw=no])])
   CFLAGS="$saved_CFLAGS"
 esac
 

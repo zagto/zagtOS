@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Free Software Foundation, Inc.
+// Copyright (C) 2020-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,9 +20,10 @@
 
 #include <algorithm>
 #include <ranges>
+#include <tuple>
+#include <vector>
 #include <testsuite_hooks.h>
 #include <testsuite_iterators.h>
-#include <tuple>
 
 namespace ranges = std::ranges;
 namespace views = ranges::views;
@@ -76,6 +77,9 @@ struct X
 void
 test03()
 {
+  using ranges::next;
+  using ranges::begin;
+
   // LWG 3483
   std::pair<int, X> x[3];
   __gnu_test::test_forward_range<std::pair<int, X>> r(x);
@@ -115,6 +119,36 @@ test05()
   VERIFY( r2[0] == 1 && r2[1] == 3 );
 }
 
+void
+test06()
+{
+  // PR libstdc++/100631
+  auto r = views::iota(0)
+    | views::filter([](int){ return true; })
+    | views::take(42)
+    | views::reverse
+    | views::transform([](int) { return std::make_pair(42, "hello"); })
+    | views::take(42)
+    | views::keys;
+  auto b = r.begin();
+  auto e = r.end();
+  VERIFY( e - b == 42 );
+  VERIFY( b - e == -42 );
+}
+
+void
+test07()
+{
+  // PR libstdc++/100631 comment #2
+  auto r = views::iota(0)
+    | views::transform([](int) { return std::make_pair(42, "hello"); })
+    | views::keys;
+  auto b = ranges::cbegin(r);
+  auto e = ranges::end(r);
+  b.base() == e.base();
+  b == e;
+}
+
 int
 main()
 {
@@ -123,4 +157,6 @@ main()
   test03();
   test04();
   test05();
+  test06();
+  test07();
 }
