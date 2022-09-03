@@ -49,7 +49,7 @@ $(EFIFILE): $(SOFILE)
 
 $(SOFILE): $(CXX_OBJS) $(ASM_OBJS)
 	mkdir -p $(dir $@)
-	$(LD) $(LDFLAGS) -o $@ $(CRTBEGIN_OBJ) $(CRTI_OBJ) $(C_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(CRTEND_OBJ) $(CRTN_OBJ) -lefi -lgnuefi
+	$(LD) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(C_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $$(CRTN_OBJ) -lefi -lgnuefi
 
 $(PLATFORM_EFI_BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)
