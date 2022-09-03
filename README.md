@@ -23,7 +23,6 @@ Current features include:
 
 Requirements
 - everything required to build gcc
-- GNU EFI for the UEFI loader
 - GNU parted, mtools, GRUB to create the disk image
 
 If all of these are installed, you should be able to build with just:
@@ -51,6 +50,7 @@ For VirtualBox, additional setup of the VM is required. The Paravirtualization t
 - `src/gcc` GNU GCC, incldung libgcc, libsupc++, libstdc++
 - `src/gmp`, `src/mpc`, `src/mpfr` GCC dependencies, not yet used
 - `src/musl` [musl](https://www.musl-libc.org/) C library (MIT/BSD)
+- `src/gnu-efi` [GNU EFI](https://sourceforge.net/projects/gnu-efi/), used by zagtOS loader (BSD)
 
 ## Licensing
 
