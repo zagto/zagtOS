@@ -18,6 +18,7 @@
 #include "sanitizer_symbolizer_fuchsia.h"
 #elif SANITIZER_ZAGTOS
 #include "sanitizer_symbolizer_zagtos.h"
+#endif
 
 #  include <limits.h>
 #  include <unwind.h>
