@@ -8,3 +8,4 @@ build
 *.includes
 *.cflags
 *.cxxflags
+.qtc_clangd
