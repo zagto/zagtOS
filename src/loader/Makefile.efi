@@ -23,11 +23,11 @@ ifeq ($(ARCH),x86_64)
     EFIFILE = $(PLATFORM_EFI_BUILD_DIR)/BOOTX64.EFI
 endif
 
-EFI_INCLUDE_BASE = /usr/include/efi
+EFI_INCLUDE_BASE = $(SHBUILD_ROOT)/src/gnu-efi/inc
 EFI_INCLUDES = -I$(EFI_INCLUDE_BASE) -I$(EFI_INCLUDE_BASE)/$(ARCH) -I$(EFI_INCLUDE_BASE)/protocol
-EFI_LIB_BASE = /usr/lib64
-EFI_CRT_OBJS = $(EFI_LIB_BASE)/crt0-efi-$(ARCH).o
-EFI_LDS = $(EFI_LIB_BASE)/elf_$(ARCH)_efi.lds
+EFI_LIB_BASE = $(SHBUILD_ROOT)/build/gnu-efi/$(ARCH)
+EFI_CRT_OBJS = $(EFI_LIB_BASE)/gnuefi/crt0-efi-$(ARCH).o
+EFI_LDS = $(SHBUILD_ROOT)/src/gnu-efi/gnuefi/elf_$(ARCH)_efi.lds
 
 CXX = $(ARCH)-elf-g++
 LD = $(ARCH)-elf-ld
@@ -37,7 +37,7 @@ ifeq ($(ARCH),x86_64)
     CXXFLAGS += -DEFI_FUNCTION_WRAPPER
 endif
 
-LDFLAGS = -Os -ffreestanding  -nostdlib -znocombreloc -T $(EFI_LDS) -shared -Bsymbolic -L $(EFI_LIB_BASE) $(EFI_CRT_OBJS)
+LDFLAGS = -Os -ffreestanding  -nostdlib -znocombreloc -T $(EFI_LDS) -shared -Bsymbolic -L $(EFI_LIB_BASE)/lib -L $(EFI_LIB_BASE)/gnuefi $(EFI_CRT_OBJS)
 
 OBJCOPY_SECTIONS = -j .text -j .init -j .fini -j .sdata -j .data -j .dynamic -j .dynsym  -j .rel -j .rela -j .reloc
 
@@ -49,7 +49,7 @@ $(EFIFILE): $(SOFILE)
 
 $(SOFILE): $(CXX_OBJS) $(ASM_OBJS)
 	mkdir -p $(dir $@)
-	$(LD) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(C_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $$(CRTN_OBJ) -lefi -lgnuefi
+	$(LD) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(C_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(CRTN_OBJ) -lefi -lgnuefi
 
 $(PLATFORM_EFI_BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)
