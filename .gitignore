@@ -10,3 +10,4 @@ build
 *.cxxflags
 .qtc_clangd
 *.CoreDump
+bx_enh_dbg.ini
