@@ -1,7 +1,7 @@
 #ifndef __ZAGTOS_FILESYSTEM_H
 #define __ZAGTOS_FILESYSTEM_H
 
-#include <zagtos/messaging.h>
+#include <zagtos/messaging-legacy.h>
 #include <zagtos/object.h>
 
 struct __dirstream;

@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <sys/random.h>
 #include <zagtos/object.h>
-#include <zagtos/messaging.h>
+#include <zagtos/messaging-legacy.h>
 
 
 void zagtos_put_object(void *object) {
