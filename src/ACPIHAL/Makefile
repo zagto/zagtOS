@@ -15,7 +15,7 @@ TARGET = $(SHBUILD_BUILD_DIR)/ACPIHAL
 COMMON_FLAGS = -Os -g -Wall -Wextra -Wpedantic -Werror -I$(PWD) -I$(PWD)/selection/include -ffunction-sections -fdata-sections
 
 # ACPICA C code will trigger warnings, since our code is mostly C++, just hide them
-CFLAGS = $(COMMON_FLAGS) -std=c18 -Wno-unused-parameter -Wno-format-truncation -Wno-stringop-truncation -Wno-format 
+CFLAGS = $(COMMON_FLAGS) -std=c18 -Wno-unused-parameter -Wno-format-truncation -Wno-stringop-truncation -Wno-format -Wno-pedantic -Wno-error=dangling-pointer
 CXXFLAGS = $(COMMON_FLAGS) -std=c++2a
 
 LDFLAGS = -Os
