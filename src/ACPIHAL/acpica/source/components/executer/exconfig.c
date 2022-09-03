@@ -158,6 +158,7 @@
 #include "acdispat.h"
 #include "acevents.h"
 #include "amlcode.h"
+#include <stdio.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER
