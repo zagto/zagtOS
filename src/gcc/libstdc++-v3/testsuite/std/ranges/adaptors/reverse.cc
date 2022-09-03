@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Free Software Foundation, Inc.
+// Copyright (C) 2020-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -161,6 +161,15 @@ test07()
   static_assert(!requires { 0 | reverse; });
 }
 
+void
+test08()
+{
+  // PR libstdc++/100639
+  auto v = views::iota(1701ll, 3000ll) | views::reverse | views::take(5);
+  for (auto x : v)
+    ;
+}
+
 int
 main()
 {
@@ -171,4 +180,5 @@ main()
   test05();
   test06();
   test07();
+  test08();
 }

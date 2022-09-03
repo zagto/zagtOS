@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT(package-unused, version-unused, libsanitizer)
+AC_INIT([package-unused],[version-unused],[libsanitizer])
 AC_CONFIG_SRCDIR([include/sanitizer/common_interface_defs.h])
 
 AM_ENABLE_MULTILIB(, ..)
@@ -21,7 +21,7 @@ AC_USE_SYSTEM_EXTENSIONS
 
 # Do not delete or change the following two lines.  For why, see
 # http://gcc.gnu.org/ml/libstdc++/2003-07/msg00451.html
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_TARGET
 target_alias=${target_alias-$host_alias}
 AC_SUBST(target_alias)
 GCC_LIBSTDCXX_RAW_CXX_FLAGS
@@ -74,8 +74,11 @@ AC_PROG_CXX
 AM_PROG_AS
 AC_PROG_RANLIB
 
-AC_LIBTOOL_DLOPEN
-AM_PROG_LIBTOOL
+_LT_SET_OPTION([LT_INIT],[dlopen])
+m4_warn([obsolete],[AC_LIBTOOL_DLOPEN: Remove this warning and the call to _LT_SET_OPTION when you
+put the 'dlopen' option into LT_INIT's first parameter.])
+
+LT_INIT
 
 AC_PROG_AWK
 case "$AWK" in
@@ -161,11 +164,11 @@ case "$target" in
   *-*-linux*)
     # Some old Linux distributions miss required syscalls.
     sanitizer_supported=no
-    AC_TRY_COMPILE([#include <sys/syscall.h>],[
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/syscall.h>]], [[
       syscall (__NR_gettid);
       syscall (__NR_futex);
       syscall (__NR_exit_group);
-    ], [sanitizer_supported=yes])
+    ]])],[sanitizer_supported=yes],[])
     ;;
   *)
     sanitizer_supported=yes
@@ -352,9 +355,9 @@ AM_CONDITIONAL(LIBBACKTRACE_SUPPORTED,
 
 AH_BOTTOM([#include "libbacktrace/backtrace-rename.h"])
 AC_CONFIG_FILES([Makefile libsanitizer.spec libbacktrace/backtrace-supported.h])
-AC_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 
-AC_CONFIG_FILES(AC_FOREACH([DIR], [interception sanitizer_common libbacktrace lsan asan ubsan], [DIR/Makefile ]),
+AC_CONFIG_FILES(m4_foreach_w([DIR],[interception sanitizer_common libbacktrace lsan asan ubsan],[DIR/Makefile ]),
   [cat > vpsed$$ << \_EOF
 s!`test -f '$<' || echo '$(srcdir)/'`!!
 _EOF
@@ -368,7 +371,7 @@ _EOF
 ])
 
 if test "x$TSAN_SUPPORTED" = "xyes"; then
-  AC_CONFIG_FILES(AC_FOREACH([DIR], [tsan], [DIR/Makefile ]), 
+  AC_CONFIG_FILES(m4_foreach_w([DIR],[tsan],[DIR/Makefile ]), 
     [cat > vpsed$$ << \_EOF
 s!`test -f '$<' || echo '$(srcdir)/'`!!
 _EOF
@@ -383,7 +386,7 @@ _EOF
 fi
 
 if test "x$HWASAN_SUPPORTED" = "xyes"; then
-  AC_CONFIG_FILES(AC_FOREACH([DIR], [hwasan], [DIR/Makefile ]), 
+  AC_CONFIG_FILES(m4_foreach_w([DIR],[hwasan],[DIR/Makefile ]), 
     [cat > vpsed$$ << \_EOF
 s!`test -f '$<' || echo '$(srcdir)/'`!!
 _EOF
@@ -399,6 +402,16 @@ fi
 
 AC_SUBST([TSAN_TARGET_DEPENDENT_OBJECTS])
 AC_SUBST([SANITIZER_COMMON_TARGET_DEPENDENT_OBJECTS])
+
+AC_ARG_ENABLE([werror],
+  [AS_HELP_STRING([--disable-werror], [disable building with -Werror])])
+
+ACX_PROG_CC_WARNING_OPTS([-Wextra -Wall -Wwrite-strings \
+                          -Wmissing-format-attribute -Wcast-qual],
+                          [WARN_FLAGS])
+AS_IF([test "x$enable_werror" != "xno"],
+  [WARN_FLAGS="$WARN_FLAGS -Werror"])
+AC_SUBST([WARN_FLAGS])
 
 # Determine what GCC version number to use in filesystem paths.
 GCC_BASE_VER

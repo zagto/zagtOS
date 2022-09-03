@@ -1,5 +1,5 @@
-/* Prototypes for exported functions defined in arm.c and pe.c
-   Copyright (C) 1999-2021 Free Software Foundation, Inc.
+/* Prototypes for exported functions defined in arm.cc and pe.c
+   Copyright (C) 1999-2022 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rearnsha@arm.com)
    Minor hacks by Nick Clifton (nickc@cygnus.com)
 
@@ -101,6 +101,7 @@ extern char *neon_output_shift_immediate (const char *, char, rtx *,
 					  machine_mode, int, bool);
 extern void neon_pairwise_reduce (rtx, rtx, machine_mode,
 				  rtx (*) (rtx, rtx, rtx));
+extern rtx mve_bool_vec_to_const (rtx const_vec);
 extern rtx neon_make_constant (rtx, bool generate = true);
 extern tree arm_builtin_vectorized_function (unsigned int, tree, tree);
 extern void neon_expand_vector_init (rtx, rtx);
@@ -195,14 +196,22 @@ extern void arm_split_atomic_op (enum rtx_code, rtx, rtx, rtx, rtx, rtx, rtx);
 extern rtx arm_load_tp (rtx);
 extern bool arm_coproc_builtin_available (enum unspecv);
 extern bool arm_coproc_ldc_stc_legitimate_address (rtx);
+extern rtx arm_stack_protect_tls_canary_mem (bool);
+
 
 #if defined TREE_CODE
 extern void arm_init_cumulative_args (CUMULATIVE_ARGS *, tree, rtx, tree);
 extern bool arm_pad_reg_upward (machine_mode, tree, int);
 #endif
 extern int arm_apply_result_size (void);
+extern opt_machine_mode arm_get_mask_mode (machine_mode mode);
 
 #endif /* RTX_CODE */
+
+/* MVE functions.  */
+namespace arm_mve {
+  void handle_arm_mve_types_h ();
+}
 
 /* Thumb functions.  */
 extern void arm_init_expanders (void);
@@ -243,8 +252,7 @@ extern bool arm_change_mode_p (tree);
 extern tree arm_valid_target_attribute_tree (tree, struct gcc_options *,
 					     struct gcc_options *);
 extern void arm_configure_build_target (struct arm_build_target *,
-					struct cl_target_option *,
-					struct gcc_options *, bool);
+					struct cl_target_option *, bool);
 extern void arm_option_reconfigure_globals (void);
 extern void arm_options_perform_arch_sanity_checks (void);
 extern void arm_pr_long_calls (struct cpp_reader *);
@@ -387,15 +395,15 @@ extern void arm_emit_eabi_attribute (const char *, int, int);
 extern void arm_reset_previous_fndecl (void);
 extern void save_restore_target_globals (tree);
 
-/* Defined in gcc/common/config/arm-common.c.  */
+/* Defined in gcc/common/config/arm-common.cc.  */
 extern const char *arm_rewrite_selected_cpu (const char *name);
 
-/* Defined in gcc/common/config/arm-c.c.  */
+/* Defined in gcc/common/config/arm-c.cc.  */
 extern void arm_lang_object_attributes_init (void);
 extern void arm_register_target_pragmas (void);
 extern void arm_cpu_cpp_builtins (struct cpp_reader *);
 
-/* Defined in arm-d.c  */
+/* Defined in arm-d.cc  */
 extern void arm_d_target_versions (void);
 extern void arm_d_register_target_info (void);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Free Software Foundation, Inc.
+// Copyright (C) 2020-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -132,6 +132,9 @@ struct Y
 void
 test06()
 {
+  using ranges::next;
+  using ranges::begin;
+
   // LWG 3483
   Y y[3];
   __gnu_test::test_forward_range<Y> r(y);
