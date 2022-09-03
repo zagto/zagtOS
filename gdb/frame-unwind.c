@@ -1,6 +1,6 @@
 /* Definitions for frame unwinder, for GDB, the GNU debugger.
 
-   Copyright (C) 2003-2021 Free Software Foundation, Inc.
+   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,7 +24,7 @@
 #include "inline-frame.h"
 #include "value.h"
 #include "regcache.h"
-#include "gdb_obstack.h"
+#include "gdbsupport/gdb_obstack.h"
 #include "target.h"
 #include "gdbarch.h"
 #include "dwarf2/frame-tailcall.h"
@@ -127,10 +127,13 @@ frame_unwind_try_unwinder (struct frame_info *this_frame, void **this_cache,
 
   try
     {
+      frame_debug_printf ("trying unwinder \"%s\"", unwinder->name);
       res = unwinder->sniffer (unwinder, this_frame, this_cache);
     }
   catch (const gdb_exception &ex)
     {
+      frame_debug_printf ("caught exception: %s", ex.message->c_str ());
+
       /* Catch all exceptions, caused by either interrupt or error.
 	 Reset *THIS_CACHE, unless something reinitialized the frame
 	 cache meanwhile, in which case THIS_FRAME/THIS_CACHE are now
@@ -153,9 +156,13 @@ frame_unwind_try_unwinder (struct frame_info *this_frame, void **this_cache,
     }
 
   if (res)
-    return 1;
+    {
+      frame_debug_printf ("yes");
+      return 1;
+    }
   else
     {
+      frame_debug_printf ("no");
       /* Don't set *THIS_CACHE to NULL here, because sniffer has to do
 	 so.  */
       frame_cleanup_after_sniffer (this_frame);
@@ -171,6 +178,9 @@ frame_unwind_try_unwinder (struct frame_info *this_frame, void **this_cache,
 void
 frame_unwind_find_by_frame (struct frame_info *this_frame, void **this_cache)
 {
+  FRAME_SCOPED_DEBUG_ENTER_EXIT;
+  frame_debug_printf ("this_frame=%d", frame_relative_level (this_frame));
+
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
   struct frame_unwind_table *table
     = (struct frame_unwind_table *) gdbarch_data (gdbarch, frame_unwind_data);
@@ -290,7 +300,7 @@ frame_unwind_got_constant (struct frame_info *frame, int regnum,
   struct value *reg_val;
 
   reg_val = value_zero (register_type (gdbarch, regnum), not_lval);
-  store_unsigned_integer (value_contents_writeable (reg_val),
+  store_unsigned_integer (value_contents_writeable (reg_val).data (),
 			  register_size (gdbarch, regnum), byte_order, val);
   return reg_val;
 }
@@ -302,7 +312,8 @@ frame_unwind_got_bytes (struct frame_info *frame, int regnum, const gdb_byte *bu
   struct value *reg_val;
 
   reg_val = value_zero (register_type (gdbarch, regnum), not_lval);
-  memcpy (value_contents_raw (reg_val), buf, register_size (gdbarch, regnum));
+  memcpy (value_contents_raw (reg_val).data (), buf,
+	  register_size (gdbarch, regnum));
   return reg_val;
 }
 
@@ -318,7 +329,7 @@ frame_unwind_got_address (struct frame_info *frame, int regnum,
   struct value *reg_val;
 
   reg_val = value_zero (register_type (gdbarch, regnum), not_lval);
-  pack_long (value_contents_writeable (reg_val),
+  pack_long (value_contents_writeable (reg_val).data (),
 	     register_type (gdbarch, regnum), addr);
   return reg_val;
 }

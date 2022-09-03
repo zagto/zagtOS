@@ -1,6 +1,6 @@
 /* GDB routines for manipulating objfiles.
 
-   Copyright (C) 1992-2021 Free Software Foundation, Inc.
+   Copyright (C) 1992-2022 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -36,7 +36,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "gdb_obstack.h"
+#include "gdbsupport/gdb_obstack.h"
 #include "hashtab.h"
 
 #include "breakpoint.h"
@@ -120,12 +120,10 @@ objfile_per_bfd_storage::~objfile_per_bfd_storage ()
 
 /* Create the per-BFD storage object for OBJFILE.  If ABFD is not
    NULL, and it already has a per-BFD storage object, use that.
-   Otherwise, allocate a new per-BFD storage object.  Note that it is
-   not safe to call this multiple times for a given OBJFILE -- it can
-   only be called when allocating or re-initializing OBJFILE.  */
+   Otherwise, allocate a new per-BFD storage object.  */
 
 static struct objfile_per_bfd_storage *
-get_objfile_bfd_data (struct objfile *objfile, struct bfd *abfd)
+get_objfile_bfd_data (bfd *abfd)
 {
   struct objfile_per_bfd_storage *storage = NULL;
 
@@ -134,7 +132,7 @@ get_objfile_bfd_data (struct objfile *objfile, struct bfd *abfd)
 
   if (storage == NULL)
     {
-      storage = new objfile_per_bfd_storage;
+      storage = new objfile_per_bfd_storage (abfd);
       /* If the object requires gdb to do relocations, we simply fall
 	 back to not sharing data across users.  These cases are rare
 	 enough that this seems reasonable.  */
@@ -154,7 +152,7 @@ get_objfile_bfd_data (struct objfile *objfile, struct bfd *abfd)
 void
 set_objfile_per_bfd (struct objfile *objfile)
 {
-  objfile->per_bfd = get_objfile_bfd_data (objfile, objfile->obfd);
+  objfile->per_bfd = get_objfile_bfd_data (objfile->obfd);
 }
 
 /* Set the objfile's per-BFD notion of the "main" name and
@@ -323,7 +321,6 @@ build_objfile_section_table (struct objfile *objfile)
 objfile::objfile (bfd *abfd, const char *name, objfile_flags flags_)
   : flags (flags_),
     pspace (current_program_space),
-    partial_symtabs (new psymtab_storage ()),
     obfd (abfd)
 {
   const char *expanded_name;
@@ -334,7 +331,7 @@ objfile::objfile (bfd *abfd, const char *name, objfile_flags flags_)
 
   objfile_alloc_data (this);
 
-  gdb::unique_xmalloc_ptr<char> name_holder;
+  std::string name_holder;
   if (name == NULL)
     {
       gdb_assert (abfd == NULL);
@@ -347,7 +344,7 @@ objfile::objfile (bfd *abfd, const char *name, objfile_flags flags_)
   else
     {
       name_holder = gdb_abspath (name);
-      expanded_name = name_holder.get ();
+      expanded_name = name_holder.c_str ();
     }
   original_name = obstack_strdup (&objfile_obstack, expanded_name);
 
@@ -364,7 +361,7 @@ objfile::objfile (bfd *abfd, const char *name, objfile_flags flags_)
       build_objfile_section_table (this);
     }
 
-  per_bfd = get_objfile_bfd_data (this, abfd);
+  per_bfd = get_objfile_bfd_data (abfd);
 }
 
 /* If there is a valid and known entry point, function fills *ENTRY_P with it
@@ -471,9 +468,7 @@ objfile::make (bfd *bfd_, const char *name_, objfile_flags flags_,
   if (parent != nullptr)
     add_separate_debug_objfile (result, parent);
 
-  /* Using std::make_shared might be a bit nicer here, but that would
-     require making the constructor public.  */
-  current_program_space->add_objfile (std::shared_ptr<objfile> (result),
+  current_program_space->add_objfile (std::unique_ptr<objfile> (result),
 				      parent);
 
   /* Rebuild section map next time we need it.  */
@@ -594,7 +589,7 @@ objfile::~objfile ()
   {
     struct symtab_and_line cursal = get_current_source_symtab_and_line ();
 
-    if (cursal.symtab && SYMTAB_OBJFILE (cursal.symtab) == this)
+    if (cursal.symtab && cursal.symtab->compunit ()->objfile () == this)
       clear_current_source_symtab_and_line ();
   }
 
@@ -619,14 +614,11 @@ relocate_one_symbol (struct symbol *sym, struct objfile *objfile,
      any symbols in STRUCT_DOMAIN or UNDEF_DOMAIN.
      But I'm leaving out that test, on the theory that
      they can't possibly pass the tests below.  */
-  if ((SYMBOL_CLASS (sym) == LOC_LABEL
-       || SYMBOL_CLASS (sym) == LOC_STATIC)
-      && SYMBOL_SECTION (sym) >= 0)
-    {
-      SET_SYMBOL_VALUE_ADDRESS (sym,
-				SYMBOL_VALUE_ADDRESS (sym)
-				+ delta[SYMBOL_SECTION (sym)]);
-    }
+  if ((sym->aclass () == LOC_LABEL
+       || sym->aclass () == LOC_STATIC)
+      && sym->section_index () >= 0)
+    sym->set_value_address (sym->value_address ()
+			    + delta[sym->section_index ()]);
 }
 
 /* Relocate OBJFILE to NEW_OFFSETS.  There should be OBJFILE->NUM_SECTIONS
@@ -654,48 +646,45 @@ objfile_relocate1 (struct objfile *objfile,
   {
     for (compunit_symtab *cust : objfile->compunits ())
       {
-	for (symtab *s : compunit_filetabs (cust))
+	for (symtab *s : cust->filetabs ())
 	  {
 	    struct linetable *l;
 
 	    /* First the line table.  */
-	    l = SYMTAB_LINETABLE (s);
+	    l = s->linetable ();
 	    if (l)
 	      {
 		for (int i = 0; i < l->nitems; ++i)
-		  l->item[i].pc += delta[COMPUNIT_BLOCK_LINE_SECTION (cust)];
+		  l->item[i].pc += delta[cust->block_line_section ()];
 	      }
 	  }
       }
 
     for (compunit_symtab *cust : objfile->compunits ())
       {
-	const struct blockvector *bv = COMPUNIT_BLOCKVECTOR (cust);
-	int block_line_section = COMPUNIT_BLOCK_LINE_SECTION (cust);
+	struct blockvector *bv = cust->blockvector ();
+	int block_line_section = cust->block_line_section ();
 
-	if (BLOCKVECTOR_MAP (bv))
-	  addrmap_relocate (BLOCKVECTOR_MAP (bv), delta[block_line_section]);
+	if (bv->map () != nullptr)
+	  bv->map ()->relocate (delta[block_line_section]);
 
-	for (int i = 0; i < BLOCKVECTOR_NBLOCKS (bv); ++i)
+	for (block *b : bv->blocks ())
 	  {
-	    struct block *b;
 	    struct symbol *sym;
 	    struct mdict_iterator miter;
 
-	    b = BLOCKVECTOR_BLOCK (bv, i);
-	    BLOCK_START (b) += delta[block_line_section];
-	    BLOCK_END (b) += delta[block_line_section];
+	    b->set_start (b->start () + delta[block_line_section]);
+	    b->set_end (b->end () + delta[block_line_section]);
 
-	    if (BLOCK_RANGES (b) != nullptr)
-	      for (int j = 0; j < BLOCK_NRANGES (b); j++)
-		{
-		  BLOCK_RANGE_START (b, j) += delta[block_line_section];
-		  BLOCK_RANGE_END (b, j) += delta[block_line_section];
-		}
+	    for (blockrange &r : b->ranges ())
+	      {
+		r.set_start (r.start () + delta[block_line_section]);
+		r.set_end (r.end () + delta[block_line_section]);
+	      }
 
 	    /* We only want to iterate over the local symbols, not any
 	       symbols in included symtabs.  */
-	    ALL_DICT_SYMBOLS (BLOCK_MULTIDICT (b), miter, sym)
+	    ALL_DICT_SYMBOLS (b->multidict (), miter, sym)
 	      {
 		relocate_one_symbol (sym, objfile, delta);
 	      }
@@ -703,9 +692,9 @@ objfile_relocate1 (struct objfile *objfile,
       }
   }
 
-  /* This stores relocated addresses and so must be cleared.  This
-     will cause it to be recreated on demand.  */
-  objfile->psymbol_map.clear ();
+  /* Notify the quick symbol object.  */
+  for (const auto &iter : objfile->qf)
+    iter->relocated ();
 
   /* Relocate isolated symbols.  */
   {
@@ -732,7 +721,7 @@ objfile_relocate1 (struct objfile *objfile,
       int idx = s - objfile->sections;
 
       exec_set_section_address (bfd_get_filename (objfile->obfd), idx,
-				obj_section_addr (s));
+				s->addr ());
     }
 
   /* Data changed.  */
@@ -810,25 +799,6 @@ objfile_rebase (struct objfile *objfile, CORE_ADDR slide)
     breakpoint_re_set ();
 }
 
-/* Return non-zero if OBJFILE has partial symbols.  */
-
-int
-objfile_has_partial_symbols (struct objfile *objfile)
-{
-  if (!objfile->sf)
-    return 0;
-
-  /* If we have not read psymbols, but we have a function capable of reading
-     them, then that is an indication that they are in fact available.  Without
-     this function the symbols may have been already read in but they also may
-     not be present in this objfile.  */
-  if ((objfile->flags & OBJF_PSYMTABS_READ) == 0
-      && objfile->sf->sym_read_psymbols != NULL)
-    return 1;
-
-  return objfile->sf->qf->has_symbols (objfile);
-}
-
 /* Return non-zero if OBJFILE has full symbols.  */
 
 int
@@ -844,7 +814,7 @@ int
 objfile_has_symbols (struct objfile *objfile)
 {
   for (::objfile *o : objfile->separate_debug_objfiles ())
-    if (objfile_has_partial_symbols (o) || objfile_has_full_symbols (o))
+    if (o->has_partial_symbols () || objfile_has_full_symbols (o))
       return 1;
   return 0;
 }
@@ -859,7 +829,7 @@ have_partial_symbols (void)
 {
   for (objfile *ofp : current_program_space->objfiles ())
     {
-      if (objfile_has_partial_symbols (ofp))
+      if (ofp->has_partial_symbols ())
 	return 1;
     }
   return 0;
@@ -921,8 +891,8 @@ have_minimal_symbols (void)
 static bool
 sort_cmp (const struct obj_section *sect1, const obj_section *sect2)
 {
-  const CORE_ADDR sect1_addr = obj_section_addr (sect1);
-  const CORE_ADDR sect2_addr = obj_section_addr (sect2);
+  const CORE_ADDR sect1_addr = sect1->addr ();
+  const CORE_ADDR sect2_addr = sect2->addr ();
 
   if (sect1_addr < sect2_addr)
     return true;
@@ -1004,7 +974,7 @@ sort_cmp (const struct obj_section *sect1, const obj_section *sect2)
 static struct obj_section *
 preferred_obj_section (struct obj_section *a, struct obj_section *b)
 {
-  gdb_assert (obj_section_addr (a) == obj_section_addr (b));
+  gdb_assert (a->addr () == b->addr ());
   gdb_assert ((a->objfile->separate_debug_objfile == b->objfile)
 	      || (b->objfile->separate_debug_objfile == a->objfile));
   gdb_assert ((a->objfile->separate_debug_objfile_backlink == b->objfile)
@@ -1016,7 +986,7 @@ preferred_obj_section (struct obj_section *a, struct obj_section *b)
 }
 
 /* Return 1 if SECTION should be inserted into the section map.
-   We want to insert only non-overlay and non-TLS section.  */
+   We want to insert only non-overlay non-TLS non-empty sections.  */
 
 static int
 insert_section_p (const struct bfd *abfd,
@@ -1033,6 +1003,12 @@ insert_section_p (const struct bfd *abfd,
   if ((bfd_section_flags (section) & SEC_THREAD_LOCAL) != 0)
     /* This is a TLS section.  */
     return 0;
+  if (bfd_section_size (section) == 0)
+    {
+      /* This is an empty section.  It has no PCs for find_pc_section (), so
+	 there is no reason to insert it into the section map.  */
+      return 0;
+    }
 
   return 1;
 }
@@ -1052,8 +1028,8 @@ filter_debuginfo_sections (struct obj_section **map, int map_size)
       struct obj_section *const sect2 = map[i + 1];
       const struct objfile *const objfile1 = sect1->objfile;
       const struct objfile *const objfile2 = sect2->objfile;
-      const CORE_ADDR sect1_addr = obj_section_addr (sect1);
-      const CORE_ADDR sect2_addr = obj_section_addr (sect2);
+      const CORE_ADDR sect1_addr = sect1->addr ();
+      const CORE_ADDR sect2_addr = sect2->addr ();
 
       if (sect1_addr == sect2_addr
 	  && (objfile1->separate_debug_objfile == objfile2
@@ -1097,9 +1073,9 @@ filter_overlapping_sections (struct obj_section **map, int map_size)
 	{
 	  struct obj_section *const sect1 = map[i];
 	  struct obj_section *const sect2 = map[k];
-	  const CORE_ADDR sect1_addr = obj_section_addr (sect1);
-	  const CORE_ADDR sect2_addr = obj_section_addr (sect2);
-	  const CORE_ADDR sect1_endaddr = obj_section_endaddr (sect1);
+	  const CORE_ADDR sect1_addr = sect1->addr ();
+	  const CORE_ADDR sect2_addr = sect2->addr ();
+	  const CORE_ADDR sect1_endaddr = sect1->endaddr ();
 
 	  gdb_assert (sect1_addr <= sect2_addr);
 
@@ -1115,7 +1091,7 @@ filter_overlapping_sections (struct obj_section **map, int map_size)
 	      const struct bfd_section *const bfds1 = sect1->the_bfd_section;
 	      const struct bfd_section *const bfds2 = sect2->the_bfd_section;
 
-	      const CORE_ADDR sect2_endaddr = obj_section_endaddr (sect2);
+	      const CORE_ADDR sect2_endaddr = sect2->endaddr ();
 
 	      struct gdbarch *const gdbarch = objf1->arch ();
 
@@ -1206,9 +1182,9 @@ bsearch_cmp (const void *key, const void *elt)
   const CORE_ADDR pc = *(CORE_ADDR *) key;
   const struct obj_section *section = *(const struct obj_section **) elt;
 
-  if (pc < obj_section_addr (section))
+  if (pc < section->addr ())
     return -1;
-  if (pc < obj_section_endaddr (section))
+  if (pc < section->endaddr ())
     return 0;
   return 1;
 }
@@ -1311,8 +1287,7 @@ is_addr_in_objfile (CORE_ADDR addr, const struct objfile *objfile)
       if (section_is_overlay (osect) && !section_is_mapped (osect))
 	continue;
 
-      if (obj_section_addr (osect) <= addr
-	  && addr < obj_section_endaddr (osect))
+      if (osect->addr () <= addr && addr < osect->endaddr ())
 	return true;
     }
   return false;
@@ -1344,18 +1319,12 @@ shared_objfile_contains_address_p (struct program_space *pspace,
 
 void
 default_iterate_over_objfiles_in_search_order
-  (struct gdbarch *gdbarch,
-   iterate_over_objfiles_in_search_order_cb_ftype *cb,
-   void *cb_data, struct objfile *current_objfile)
+  (gdbarch *gdbarch, iterate_over_objfiles_in_search_order_cb_ftype cb,
+   objfile *current_objfile)
 {
-  int stop = 0;
-
   for (objfile *objfile : current_program_space->objfiles ())
-    {
-       stop = cb (objfile, cb_data);
-       if (stop)
-	 return;
-    }
+    if (cb (objfile))
+	return;
 }
 
 /* See objfiles.h.  */
@@ -1396,4 +1365,30 @@ objfile_flavour_name (struct objfile *objfile)
   if (objfile->obfd != NULL)
     return bfd_flavour_name (bfd_get_flavour (objfile->obfd));
   return NULL;
+}
+
+/* See objfiles.h.  */
+
+struct type *
+objfile_int_type (struct objfile *of, int size_in_bytes, bool unsigned_p)
+{
+  struct type *int_type;
+
+  /* Helper macro to examine the various builtin types.  */
+#define TRY_TYPE(F)							\
+  int_type = (unsigned_p						\
+	      ? objfile_type (of)->builtin_unsigned_ ## F		\
+	      : objfile_type (of)->builtin_ ## F);			\
+  if (int_type != NULL && TYPE_LENGTH (int_type) == size_in_bytes)	\
+    return int_type
+
+  TRY_TYPE (char);
+  TRY_TYPE (short);
+  TRY_TYPE (int);
+  TRY_TYPE (long);
+  TRY_TYPE (long_long);
+
+#undef TRY_TYPE
+
+  gdb_assert_not_reached ("unable to find suitable integer type");
 }

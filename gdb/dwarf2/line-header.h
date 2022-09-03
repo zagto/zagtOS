@@ -1,6 +1,6 @@
 /* DWARF 2 debugging format support for GDB.
 
-   Copyright (C) 1994-2021 Free Software Foundation, Inc.
+   Copyright (C) 1994-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -58,9 +58,6 @@ struct file_entry
   unsigned int mod_time {};
 
   unsigned int length {};
-
-  /* True if referenced by the Line Number Program.  */
-  bool included_p {};
 
   /* The associated symbol table, if any.  */
   struct symtab *symtab {};
@@ -139,9 +136,7 @@ struct line_header
   /* OFFSET is for struct dwz_file associated with dwarf2_per_objfile.  */
   unsigned offset_in_dwz : 1; /* Can't initialize bitfields in-class.  */
 
-  unsigned int total_length {};
   unsigned short version {};
-  unsigned int header_length {};
   unsigned char minimum_instruction_length {};
   unsigned char maximum_ops_per_instruction {};
   unsigned char default_is_stmt {};
@@ -162,18 +157,9 @@ struct line_header
      header.  These point into dwarf2_per_objfile->line_buffer.  */
   const gdb_byte *statement_program_start {}, *statement_program_end {};
 
-  /* Return the full name of file number I in this object's file name
-     table.  Use COMP_DIR as the name of the current directory of the
-     compilation.  The result is allocated using xmalloc; the caller
-     is responsible for freeing it.  */
-  gdb::unique_xmalloc_ptr<char> file_full_name (int file,
-						const char *comp_dir) const;
-
   /* Return file name relative to the compilation directory of file
-     number I in this object's file name table.  The result is
-     allocated using xmalloc; the caller is responsible for freeing
-     it.  */
-  gdb::unique_xmalloc_ptr<char> file_file_name (int file) const;
+     number FILE in this object's file name table.  */
+  std::string file_file_name (int file) const;
 
  private:
   /* The include_directories table.  Note these are observing

@@ -1,4 +1,4 @@
-# Copyright 2013-2021 Free Software Foundation, Inc.
+# Copyright 2013-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,10 +32,6 @@ standard_testfile
 set binprefix $binfile
 
 gdb_exit
-
-if { [get_compiler_info] } {
-    return -1
-}
 
 proc compile_and_dump {variant ccopts binfile} {
     global srcdir subdir srcfile

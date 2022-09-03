@@ -1,6 +1,6 @@
 /* Objective-C language support definitions for GDB, the GNU debugger.
 
-   Copyright (C) 1992-2021 Free Software Foundation, Inc.
+   Copyright (C) 1992-2022 Free Software Foundation, Inc.
 
    Contributed by Apple Computer, Inc.
 
@@ -30,8 +30,6 @@ extern CORE_ADDR lookup_objc_class     (struct gdbarch *gdbarch,
 					const char *classname);
 extern CORE_ADDR lookup_child_selector (struct gdbarch *gdbarch,
 					const char *methodname);
-
-extern char *objc_demangle (const char *mangled, int options);
 
 extern int find_objc_msgcall (CORE_ADDR pc, CORE_ADDR *new_pc);
 

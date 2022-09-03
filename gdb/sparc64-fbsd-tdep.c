@@ -1,6 +1,6 @@
 /* Target-dependent code for FreeBSD/sparc64.
 
-   Copyright (C) 2003-2021 Free Software Foundation, Inc.
+   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -199,6 +199,7 @@ sparc64fbsd_sigtramp_frame_sniffer (const struct frame_unwind *self,
 
 static const struct frame_unwind sparc64fbsd_sigtramp_frame_unwind =
 {
+  "sparc64 freebsd sigtramp",
   SIGTRAMP_FRAME,
   default_frame_unwind_stop_reason,
   sparc64fbsd_sigtramp_frame_this_id,
@@ -221,7 +222,7 @@ static const struct regset sparc64fbsd_fpregset =
 static void
 sparc64fbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sparc_gdbarch_tdep *tdep = (sparc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   /* Generic FreeBSD support. */
   fbsd_init_abi (info, gdbarch);

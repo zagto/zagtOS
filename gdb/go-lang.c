@@ -1,6 +1,6 @@
 /* Go language support routines for GDB, the GNU debugger.
 
-   Copyright (C) 2012-2021 Free Software Foundation, Inc.
+   Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -32,7 +32,7 @@
 */
 
 #include "defs.h"
-#include "gdb_obstack.h"
+#include "gdbsupport/gdb_obstack.h"
 #include "block.h"
 #include "symtab.h"
 #include "language.h"
@@ -82,9 +82,9 @@ gccgo_string_p (struct type *type)
       type1 = check_typedef (type1);
 
       if (type0->code () == TYPE_CODE_PTR
-	  && strcmp (TYPE_FIELD_NAME (type, 0), "__data") == 0
+	  && strcmp (type->field (0).name (), "__data") == 0
 	  && type1->code () == TYPE_CODE_INT
-	  && strcmp (TYPE_FIELD_NAME (type, 1), "__length") == 0)
+	  && strcmp (type->field (1).name (), "__length") == 0)
 	{
 	  struct type *target_type = TYPE_TARGET_TYPE (type0);
 
@@ -333,12 +333,9 @@ unpack_mangled_go_symbol (const char *mangled_name,
    This demangler can't work in all situations,
    thus not too much effort is currently put into it.  */
 
-char *
+gdb::unique_xmalloc_ptr<char>
 go_language::demangle_symbol (const char *mangled_name, int options) const
 {
-  struct obstack tempbuf;
-  char *result;
-  char *name_buf;
   const char *package_name;
   const char *object_name;
   const char *method_type_package_name;
@@ -348,15 +345,16 @@ go_language::demangle_symbol (const char *mangled_name, int options) const
   if (mangled_name == NULL)
     return NULL;
 
-  name_buf = unpack_mangled_go_symbol (mangled_name,
-				       &package_name, &object_name,
-				       &method_type_package_name,
-				       &method_type_object_name,
-				       &method_type_is_pointer);
+  gdb::unique_xmalloc_ptr<char> name_buf
+    (unpack_mangled_go_symbol (mangled_name,
+			       &package_name, &object_name,
+			       &method_type_package_name,
+			       &method_type_object_name,
+			       &method_type_is_pointer));
   if (name_buf == NULL)
     return NULL;
 
-  obstack_init (&tempbuf);
+  auto_obstack tempbuf;
 
   /* Print methods as they appear in "method expressions".  */
   if (method_type_package_name != NULL)
@@ -380,18 +378,7 @@ go_language::demangle_symbol (const char *mangled_name, int options) const
     }
   obstack_grow_str0 (&tempbuf, "");
 
-  result = xstrdup ((const char *) obstack_finish (&tempbuf));
-  obstack_free (&tempbuf, NULL);
-  xfree (name_buf);
-  return result;
-}
-
-/* See language.h.  */
-
-const struct exp_descriptor *
-go_language::expression_ops () const
-{
-  return &exp_descriptor_c;
+  return make_unique_xstrdup ((const char *) obstack_finish (&tempbuf));
 }
 
 /* Given a Go symbol, return its package or NULL if unknown.
@@ -431,7 +418,7 @@ go_block_package_name (const struct block *block)
 {
   while (block != NULL)
     {
-      struct symbol *function = BLOCK_FUNCTION (block);
+      struct symbol *function = block->function ();
 
       if (function != NULL)
 	{
@@ -446,49 +433,11 @@ go_block_package_name (const struct block *block)
 	  return NULL;
 	}
 
-      block = BLOCK_SUPERBLOCK (block);
+      block = block->superblock ();
     }
 
   return NULL;
 }
-
-/* See go-lang.h.
-
-   TODO(dje): &^ ?  */
-
-const struct op_print go_language::op_print_tab[] =
-{
-  {",", BINOP_COMMA, PREC_COMMA, 0},
-  {"=", BINOP_ASSIGN, PREC_ASSIGN, 1},
-  {"||", BINOP_LOGICAL_OR, PREC_LOGICAL_OR, 0},
-  {"&&", BINOP_LOGICAL_AND, PREC_LOGICAL_AND, 0},
-  {"|", BINOP_BITWISE_IOR, PREC_BITWISE_IOR, 0},
-  {"^", BINOP_BITWISE_XOR, PREC_BITWISE_XOR, 0},
-  {"&", BINOP_BITWISE_AND, PREC_BITWISE_AND, 0},
-  {"==", BINOP_EQUAL, PREC_EQUAL, 0},
-  {"!=", BINOP_NOTEQUAL, PREC_EQUAL, 0},
-  {"<=", BINOP_LEQ, PREC_ORDER, 0},
-  {">=", BINOP_GEQ, PREC_ORDER, 0},
-  {">", BINOP_GTR, PREC_ORDER, 0},
-  {"<", BINOP_LESS, PREC_ORDER, 0},
-  {">>", BINOP_RSH, PREC_SHIFT, 0},
-  {"<<", BINOP_LSH, PREC_SHIFT, 0},
-  {"+", BINOP_ADD, PREC_ADD, 0},
-  {"-", BINOP_SUB, PREC_ADD, 0},
-  {"*", BINOP_MUL, PREC_MUL, 0},
-  {"/", BINOP_DIV, PREC_MUL, 0},
-  {"%", BINOP_REM, PREC_MUL, 0},
-  {"@", BINOP_REPEAT, PREC_REPEAT, 0},
-  {"-", UNOP_NEG, PREC_PREFIX, 0},
-  {"!", UNOP_LOGICAL_NOT, PREC_PREFIX, 0},
-  {"^", UNOP_COMPLEMENT, PREC_PREFIX, 0},
-  {"*", UNOP_IND, PREC_PREFIX, 0},
-  {"&", UNOP_ADDR, PREC_PREFIX, 0},
-  {"unsafe.Sizeof ", UNOP_SIZEOF, PREC_PREFIX, 0},
-  {"++", UNOP_POSTINCREMENT, PREC_SUFFIX, 0},
-  {"--", UNOP_POSTDECREMENT, PREC_SUFFIX, 0},
-  {NULL, OP_NULL, PREC_SUFFIX, 0}
-};
 
 /* See language.h.  */
 

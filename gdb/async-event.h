@@ -1,5 +1,5 @@
 /* Async events for the GDB event loop.
-   Copyright (C) 1999-2021 Free Software Foundation, Inc.
+   Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,6 +24,15 @@
 struct async_signal_handler;
 struct async_event_handler;
 typedef void (sig_handler_func) (gdb_client_data);
+
+/* Type of async event handler callbacks.
+
+   DATA is the client data originally passed to create_async_event_handler.
+
+   The callback is called when the async event handler is marked.  The callback
+   is responsible for clearing the async event handler if it no longer needs
+   to be called.  */
+
 typedef void (async_event_handler_func) (gdb_client_data);
 
 extern struct async_signal_handler *
@@ -68,6 +77,9 @@ extern void
 /* Call the handler from HANDLER the next time through the event
    loop.  */
 extern void mark_async_event_handler (struct async_event_handler *handler);
+
+/* Return true if HANDLER is marked.  */
+extern bool async_event_handler_marked (async_event_handler *handler);
 
 /* Mark the handler (ASYNC_HANDLER_PTR) as NOT ready.  */
 

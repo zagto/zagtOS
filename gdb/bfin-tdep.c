@@ -1,6 +1,6 @@
 /* Target-dependent code for Analog Devices Blackfin processor, for GDB.
 
-   Copyright (C) 2005-2021 Free Software Foundation, Inc.
+   Copyright (C) 2005-2022 Free Software Foundation, Inc.
 
    Contributed by Analog Devices, Inc.
 
@@ -374,6 +374,7 @@ bfin_frame_prev_register (struct frame_info *this_frame,
 
 static const struct frame_unwind bfin_frame_unwind =
 {
+  "bfin prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   bfin_frame_this_id,
@@ -529,7 +530,7 @@ bfin_push_dummy_call (struct gdbarch *gdbarch,
       int container_len = align_up (TYPE_LENGTH (arg_type), 4);
 
       sp -= container_len;
-      write_memory (sp, value_contents (args[i]), container_len);
+      write_memory (sp, value_contents (args[i]).data (), container_len);
     }
 
   /* Initialize R0, R1, and R2 to the first 3 words of parameters.  */
@@ -597,7 +598,7 @@ bfin_sw_breakpoint_from_kind (struct gdbarch *gdbarch, int kind, int *size)
 
   *size = kind;
 
-  if (strcmp (target_shortname, "sim") == 0)
+  if (strcmp (target_shortname (), "sim") == 0)
     return bfin_sim_breakpoint;
   else
     return bfin_breakpoint;
@@ -765,7 +766,8 @@ bfin_frame_align (struct gdbarch *gdbarch, CORE_ADDR address)
 enum bfin_abi
 bfin_abi (struct gdbarch *gdbarch)
 {
-  return gdbarch_tdep (gdbarch)->bfin_abi;
+  bfin_gdbarch_tdep *tdep = (bfin_gdbarch_tdep *) gdbarch_tdep (gdbarch);
+  return tdep->bfin_abi;
 }
 
 /* Initialize the current architecture based on INFO.  If possible,
@@ -778,7 +780,6 @@ bfin_abi (struct gdbarch *gdbarch)
 static struct gdbarch *
 bfin_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 {
-  struct gdbarch_tdep *tdep;
   struct gdbarch *gdbarch;
   enum bfin_abi abi;
 
@@ -790,12 +791,16 @@ bfin_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
        arches != NULL;
        arches = gdbarch_list_lookup_by_info (arches->next, &info))
     {
-      if (gdbarch_tdep (arches->gdbarch)->bfin_abi != abi)
+      bfin_gdbarch_tdep *tdep
+	= (bfin_gdbarch_tdep *) gdbarch_tdep (arches->gdbarch);
+
+      if (tdep->bfin_abi != abi)
 	continue;
+
       return arches->gdbarch;
     }
 
-  tdep = XCNEW (struct gdbarch_tdep);
+  bfin_gdbarch_tdep *tdep = new bfin_gdbarch_tdep;
   gdbarch = gdbarch_alloc (&info, tdep);
 
   tdep->bfin_abi = abi;

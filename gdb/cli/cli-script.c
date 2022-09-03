@@ -1,6 +1,6 @@
 /* GDB CLI command scripting.
 
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,7 +19,6 @@
 
 #include "defs.h"
 #include "value.h"
-#include "language.h"		/* For value_true */
 #include <ctype.h>
 
 #include "ui-out.h"
@@ -30,6 +29,7 @@
 #include "cli/cli-decode.h"
 #include "cli/cli-script.h"
 #include "cli/cli-style.h"
+#include "gdbcmd.h"
 
 #include "extension.h"
 #include "interps.h"
@@ -155,7 +155,7 @@ multi_line_command_p (enum command_control_type type)
 /* Allocate, initialize a new command line structure for one of the
    control commands (if/while).  */
 
-static struct command_line *
+static command_line_up
 build_command_line (enum command_control_type type, const char *args)
 {
   if (args == NULL || *args == '\0')
@@ -171,7 +171,7 @@ build_command_line (enum command_control_type type, const char *args)
     }
   gdb_assert (args != NULL);
 
-  return new struct command_line (type, xstrdup (args));
+  return command_line_up (new command_line (type, xstrdup (args)));
 }
 
 /* Build and return a new command structure for the control commands
@@ -181,7 +181,7 @@ counted_command_line
 get_command_line (enum command_control_type type, const char *arg)
 {
   /* Allocate and build a new command line structure.  */
-  counted_command_line cmd (build_command_line (type, arg),
+  counted_command_line cmd (build_command_line (type, arg).release (),
 			    command_lines_deleter ());
 
   /* Read in the body of this command.  */
@@ -424,31 +424,14 @@ std::string
 execute_control_commands_to_string (struct command_line *commands,
 				    int from_tty)
 {
-  /* GDB_STDOUT should be better already restored during these
-     restoration callbacks.  */
-  set_batch_flag_and_restore_page_info save_page_info;
+  std::string result;
 
-  string_file str_file;
+  execute_fn_to_string (result, [&] ()
+    {
+      execute_control_commands (commands, from_tty);
+    }, false);
 
-  {
-    current_uiout->redirect (&str_file);
-    ui_out_redirect_pop redirect_popper (current_uiout);
-
-    scoped_restore save_stdout
-      = make_scoped_restore (&gdb_stdout, &str_file);
-    scoped_restore save_stderr
-      = make_scoped_restore (&gdb_stderr, &str_file);
-    scoped_restore save_stdlog
-      = make_scoped_restore (&gdb_stdlog, &str_file);
-    scoped_restore save_stdtarg
-      = make_scoped_restore (&gdb_stdtarg, &str_file);
-    scoped_restore save_stdtargerr
-      = make_scoped_restore (&gdb_stdtargerr, &str_file);
-
-    execute_control_commands (commands, from_tty);
-  }
-
-  return std::move (str_file.string ());
+  return result;
 }
 
 void
@@ -513,14 +496,14 @@ print_command_trace (const char *fmt, ...)
     return;
 
   for (i=0; i < command_nest_depth; i++)
-    printf_filtered ("+");
+    gdb_printf ("+");
 
   va_list args;
 
   va_start (args, fmt);
-  vprintf_filtered (fmt, args);
+  gdb_vprintf (fmt, args);
   va_end (args);
-  puts_filtered ("\n");
+  gdb_puts ("\n");
 }
 
 /* Helper for execute_control_command.  */
@@ -579,7 +562,7 @@ execute_control_command_1 (struct command_line *cmd, int from_tty)
 	/* Keep iterating so long as the expression is true.  */
 	while (loop == 1)
 	  {
-	    int cond_result;
+	    bool cond_result;
 
 	    QUIT;
 
@@ -957,7 +940,7 @@ line_first_arg (const char *p)
    Otherwise, only "end" is recognized.  */
 
 static enum misc_command_type
-process_next_line (const char *p, struct command_line **command,
+process_next_line (const char *p, command_line_up *command,
 		   int parse_commands,
 		   gdb::function_view<void (const char *)> validator)
 
@@ -1055,9 +1038,9 @@ process_next_line (const char *p, struct command_line **command,
 	  *command = build_command_line (guile_control, "");
 	}
       else if (p_end - p == 10 && startswith (p, "loop_break"))
-	*command = new struct command_line (break_control);
+	*command = command_line_up (new command_line (break_control));
       else if (p_end - p == 13 && startswith (p, "loop_continue"))
-	*command = new struct command_line (continue_control);
+	*command = command_line_up (new command_line (continue_control));
       else
 	not_handled = 1;
     }
@@ -1065,22 +1048,12 @@ process_next_line (const char *p, struct command_line **command,
   if (!parse_commands || not_handled)
     {
       /* A normal command.  */
-      *command = new struct command_line (simple_control,
-					  savestring (p, p_end - p));
+      *command = command_line_up (new command_line (simple_control,
+						    savestring (p, p_end - p)));
     }
 
   if (validator)
-    {
-      try
-	{
-	  validator ((*command)->line);
-	}
-      catch (const gdb_exception &ex)
-	{
-	  free_command_lines (command);
-	  throw;
-	}
-    }
+    validator ((*command)->line);
 
   /* Nothing special.  */
   return ok_command;
@@ -1097,10 +1070,11 @@ recurse_read_control_structure (gdb::function_view<const char * ()> read_next_li
 {
   enum misc_command_type val;
   enum command_control_type ret;
-  struct command_line *child_tail, *next;
+  struct command_line *child_tail;
   counted_command_line *current_body = &current_cmd->body_list_0;
+  command_line_up next;
 
-  child_tail = NULL;
+  child_tail = nullptr;
 
   /* Sanity checks.  */
   if (current_cmd->control_type == simple_control)
@@ -1111,8 +1085,8 @@ recurse_read_control_structure (gdb::function_view<const char * ()> read_next_li
     {
       dont_repeat ();
 
-      next = NULL;
-      val = process_next_line (read_next_line_func (), &next, 
+      next = nullptr;
+      val = process_next_line (read_next_line_func (), &next,
 			       current_cmd->control_type != python_control
 			       && current_cmd->control_type != guile_control
 			       && current_cmd->control_type != compile_control,
@@ -1144,7 +1118,7 @@ recurse_read_control_structure (gdb::function_view<const char * ()> read_next_li
 	      && current_body == &current_cmd->body_list_0)
 	    {
 	      current_body = &current_cmd->body_list_1;
-	      child_tail = NULL;
+	      child_tail = nullptr;
 	      continue;
 	    }
 	  else
@@ -1154,21 +1128,26 @@ recurse_read_control_structure (gdb::function_view<const char * ()> read_next_li
 	    }
 	}
 
-      if (child_tail)
+      /* Transfer ownership of NEXT to the command's body list.  */
+      if (child_tail != nullptr)
 	{
-	  child_tail->next = next;
+	  child_tail->next = next.release ();
+	  child_tail = child_tail->next;
 	}
       else
-	*current_body = counted_command_line (next, command_lines_deleter ());
-
-      child_tail = next;
+	{
+	  child_tail = next.get ();
+	  *current_body = counted_command_line (next.release (),
+						command_lines_deleter ());
+	}
 
       /* If the latest line is another control structure, then recurse
 	 on it.  */
-      if (multi_line_command_p (next->control_type))
+      if (multi_line_command_p (child_tail->control_type))
 	{
 	  control_level++;
-	  ret = recurse_read_control_structure (read_next_line_func, next,
+	  ret = recurse_read_control_structure (read_next_line_func,
+						child_tail,
 						validator);
 	  control_level--;
 
@@ -1240,10 +1219,11 @@ read_command_lines_1 (gdb::function_view<const char * ()> read_next_line_func,
 		      int parse_commands,
 		      gdb::function_view<void (const char *)> validator)
 {
-  struct command_line *tail, *next;
+  struct command_line *tail;
   counted_command_line head (nullptr, command_lines_deleter ());
   enum command_control_type ret;
   enum misc_command_type val;
+  command_line_up next;
 
   control_level = 0;
   tail = NULL;
@@ -1273,7 +1253,7 @@ read_command_lines_1 (gdb::function_view<const char * ()> read_next_line_func,
       if (multi_line_command_p (next->control_type))
 	{
 	  control_level++;
-	  ret = recurse_read_control_structure (read_next_line_func, next,
+	  ret = recurse_read_control_structure (read_next_line_func, next.get (),
 						validator);
 	  control_level--;
 
@@ -1281,15 +1261,18 @@ read_command_lines_1 (gdb::function_view<const char * ()> read_next_line_func,
 	    break;
 	}
 
+      /* Transfer ownership of NEXT to the HEAD list.  */
       if (tail)
 	{
-	  tail->next = next;
+	  tail->next = next.release ();
+	  tail = tail->next;
 	}
       else
 	{
-	  head = counted_command_line (next, command_lines_deleter ());
+	  tail = next.get ();
+	  head = counted_command_line (next.release (),
+				       command_lines_deleter ());
 	}
-      tail = next;
     }
 
   dont_repeat ();
@@ -1350,10 +1333,10 @@ validate_comname (const char **comname)
       const char *tem = prefix.c_str ();
 
       c = lookup_cmd (&tem, cmdlist, "", NULL, 0, 1);
-      if (c->prefixlist == NULL)
+      if (!c->is_prefix ())
 	error (_("\"%s\" is not a prefix command."), prefix.c_str ());
 
-      list = c->prefixlist;
+      list = c->subcommands;
       *comname = last_word;
     }
 
@@ -1391,7 +1374,7 @@ do_define_command (const char *comname, int from_tty,
       CMD_POST_HOOK
     };
   struct cmd_list_element *c, *newc, *hookc = 0, **list;
-  const char *tem, *comfull;
+  const char *comfull;
   int  hook_type      = CMD_NO_HOOK;
   int  hook_name_size = 0;
    
@@ -1403,11 +1386,7 @@ do_define_command (const char *comname, int from_tty,
   comfull = comname;
   list = validate_comname (&comname);
 
-  /* Look it up, and verify that we got an exact match.  */
-  tem = comname;
-  c = lookup_cmd (&tem, *list, "", NULL, -1, 1);
-  if (c && strcmp (comname, c->name) != 0)
-    c = 0;
+  c = lookup_cmd_exact (comname, *list);
 
   if (c && commands == nullptr)
     {
@@ -1418,7 +1397,7 @@ do_define_command (const char *comname, int from_tty,
 	  /* if C is a prefix command that was previously defined,
 	     tell the user its subcommands will be kept, and ask
 	     if ok to redefine the command.  */
-	  if (c->prefixlist != nullptr)
+	  if (c->is_prefix ())
 	    q = (c->user_commands.get () == nullptr
 		 || query (_("Keeping subcommands of prefix command \"%s\".\n"
 			     "Redefine command \"%s\"? "), c->name, c->name));
@@ -1448,11 +1427,9 @@ do_define_command (const char *comname, int from_tty,
 
   if (hook_type != CMD_NO_HOOK)
     {
-      /* Look up cmd it hooks, and verify that we got an exact match.  */
-      tem = comname + hook_name_size;
-      hookc = lookup_cmd (&tem, *list, "", NULL, -1, 0);
-      if (hookc && strcmp (comname + hook_name_size, hookc->name) != 0)
-	hookc = 0;
+      /* Look up cmd it hooks.  */
+      hookc = lookup_cmd_exact (comname + hook_name_size, *list,
+				/* ignore_help_classes = */ false);
       if (!hookc && commands == nullptr)
 	{
 	  warning (_("Your new `%s' command does not "
@@ -1476,9 +1453,8 @@ do_define_command (const char *comname, int from_tty,
     cmds = *commands;
 
   {
-    struct cmd_list_element **c_prefixlist
-      = c == nullptr ? nullptr : c->prefixlist;
-    const char *c_prefixname = c == nullptr ? nullptr : c->prefixname;
+    struct cmd_list_element **c_subcommands
+      = c == nullptr ? nullptr : c->subcommands;
 
     newc = add_cmd (comname, class_user, user_defined_command,
 		    (c != nullptr && c->theclass == class_user)
@@ -1487,10 +1463,9 @@ do_define_command (const char *comname, int from_tty,
 
     /* If we define or re-define a command that was previously defined
        as a prefix, keep the prefix information.  */
-    if (c_prefixlist != nullptr)
+    if (c_subcommands != nullptr)
       {
-	newc->prefixlist = c_prefixlist;
-	newc->prefixname = c_prefixname;
+	newc->subcommands = c_subcommands;
 	/* allow_unknown: see explanation in equivalent logic in
 	   define_prefix_command ().  */
 	newc->allow_unknown = newc->user_commands.get () != nullptr;
@@ -1593,22 +1568,17 @@ static void
 define_prefix_command (const char *comname, int from_tty)
 {
   struct cmd_list_element *c, **list;
-  const char *tem;
   const char *comfull;
 
   comfull = comname;
   list = validate_comname (&comname);
 
-  /* Look it up, and verify that we got an exact match.  */
-  tem = comname;
-  c = lookup_cmd (&tem, *list, "", NULL, -1, 1);
-  if (c != nullptr && strcmp (comname, c->name) != 0)
-    c = nullptr;
+  c = lookup_cmd_exact (comname, *list);
 
   if (c != nullptr && c->theclass != class_user)
     error (_("Command \"%s\" is built-in."), comfull);
 
-  if (c != nullptr && c->prefixlist != nullptr)
+  if (c != nullptr && c->is_prefix ())
     {
       /* c is already a user defined prefix command.  */
       return;
@@ -1622,11 +1592,10 @@ define_prefix_command (const char *comname, int from_tty)
 		   xstrdup ("User-defined."), list);
     }
 
-  /* Allocate the c->prefixlist, which marks the command as a prefix
+  /* Allocate the c->subcommands, which marks the command as a prefix
      command.  */
-  c->prefixlist = new struct cmd_list_element*;
-  *(c->prefixlist) = nullptr;
-  c->prefixname = xstrprintf ("%s ", comfull);
+  c->subcommands = new struct cmd_list_element*;
+  *(c->subcommands) = nullptr;
   /* If the prefix command C is not a command, then it must be followed
      by known subcommands.  Otherwise, if C is also a normal command,
      it can be followed by C args that must not cause a 'subcommand'
@@ -1678,25 +1647,25 @@ show_user_1 (struct cmd_list_element *c, const char *prefix, const char *name,
     {
       struct command_line *cmdlines = c->user_commands.get ();
 
-      fprintf_filtered (stream, "User %scommand \"",
-			c->prefixlist == NULL ? "" : "prefix ");
+      gdb_printf (stream, "User %scommand \"",
+		  c->is_prefix () ? "prefix" : "");
       fprintf_styled (stream, title_style.style (), "%s%s",
 		      prefix, name);
-      fprintf_filtered (stream, "\":\n");
+      gdb_printf (stream, "\":\n");
       if (cmdlines)
 	{
 	  print_command_lines (current_uiout, cmdlines, 1);
-	  fputs_filtered ("\n", stream);
+	  gdb_puts ("\n", stream);
 	}
     }
 
-  if (c->prefixlist != NULL)
+  if (c->is_prefix ())
     {
-      const char *prefixname = c->prefixname;
+      const std::string prefixname = c->prefixname ();
 
-      for (c = *c->prefixlist; c != NULL; c = c->next)
-	if (c->theclass == class_user || c->prefixlist != NULL)
-	  show_user_1 (c, prefixname, c->name, gdb_stdout);
+      for (c = *c->subcommands; c != NULL; c = c->next)
+	if (c->theclass == class_user || c->is_prefix ())
+	  show_user_1 (c, prefixname.c_str (), c->name, gdb_stdout);
     }
 
 }

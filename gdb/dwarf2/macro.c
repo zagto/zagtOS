@@ -1,6 +1,6 @@
 /* Read DWARF macro information
 
-   Copyright (C) 1994-2021 Free Software Foundation, Inc.
+   Copyright (C) 1994-2022 Free Software Foundation, Inc.
 
    Adapted by Gary Funck (gary@intrepid.com), Intrepid Technology,
    Inc.  with support from Florida State University (under contract
@@ -35,6 +35,7 @@
 #include "buildsym.h"
 #include "macrotab.h"
 #include "complaints.h"
+#include "objfiles.h"
 
 static void
 dwarf2_macro_malformed_definition_complaint (const char *arg1)
@@ -51,7 +52,7 @@ macro_start_file (buildsym_compunit *builder,
 		  const struct line_header *lh)
 {
   /* File name relative to the compilation directory of this source file.  */
-  gdb::unique_xmalloc_ptr<char> file_name = lh->file_file_name (file);
+  std::string file_name = lh->file_file_name (file);
 
   if (! current_file)
     {
@@ -61,11 +62,11 @@ macro_start_file (buildsym_compunit *builder,
 
       /* If we have no current file, then this must be the start_file
 	 directive for the compilation unit's main source file.  */
-      current_file = macro_set_main (macro_table, file_name.get ());
+      current_file = macro_set_main (macro_table, file_name.c_str ());
       macro_define_special (macro_table);
     }
   else
-    current_file = macro_include (current_file, line, file_name.get ());
+    current_file = macro_include (current_file, line, file_name.c_str ());
 
   return current_file;
 }
@@ -330,7 +331,7 @@ skip_unknown_opcode (unsigned int opcode,
 
   if (opcode_definitions[opcode] == NULL)
     {
-      complaint (_("unrecognized DW_MACFINO opcode 0x%x"),
+      complaint (_("unrecognized DW_MACINFO or DW_MACRO opcode 0x%x"),
 		 opcode);
       return NULL;
     }
@@ -429,7 +430,7 @@ dwarf_decode_macro_bytes (dwarf2_per_objfile *per_objfile,
 			  unsigned int offset_size,
 			  struct dwarf2_section_info *str_section,
 			  struct dwarf2_section_info *str_offsets_section,
-			  ULONGEST str_offsets_base,
+			  gdb::optional<ULONGEST> str_offsets_base,
 			  htab_t include_hash)
 {
   struct objfile *objfile = per_objfile->objfile;
@@ -509,7 +510,8 @@ dwarf_decode_macro_bytes (dwarf2_per_objfile *per_objfile,
 		    || macinfo_type == DW_MACRO_undef_sup
 		    || section_is_dwz)
 		  {
-		    dwz_file *dwz = dwarf2_get_dwz_file (per_objfile->per_bfd);
+		    dwz_file *dwz = dwarf2_get_dwz_file (per_objfile->per_bfd,
+							 true);
 
 		    body = dwz->read_string (objfile, str_offset);
 		  }
@@ -574,15 +576,27 @@ dwarf_decode_macro_bytes (dwarf2_per_objfile *per_objfile,
 	    int offset_index = read_unsigned_leb128 (abfd, mac_ptr, &bytes_read);
 	    mac_ptr += bytes_read;
 
+	    /* Use of the strx operators requires a DW_AT_str_offsets_base.  */
+	    if (!str_offsets_base.has_value ())
+	      {
+		complaint (_("use of %s with unknown string offsets base "
+			     "[in module %s]"),
+			   (macinfo_type == DW_MACRO_define_strx
+			    ? "DW_MACRO_define_strx"
+			    : "DW_MACRO_undef_strx"),
+			   objfile_name (objfile));
+		break;
+	      }
+
 	    str_offsets_section->read (objfile);
 	    const gdb_byte *info_ptr = (str_offsets_section->buffer
-					+ str_offsets_base
+					+ *str_offsets_base
 					+ offset_index * offset_size);
 
 	    const char *macinfo_str = (macinfo_type == DW_MACRO_define_strx ?
 				       "DW_MACRO_define_strx" : "DW_MACRO_undef_strx");
 
-	    if (str_offsets_base + offset_index * offset_size
+	    if (*str_offsets_base + offset_index * offset_size
 		>= str_offsets_section->size)
 	      {
 		complaint (_("%s pointing outside of .debug_str_offsets section "
@@ -693,7 +707,8 @@ dwarf_decode_macro_bytes (dwarf2_per_objfile *per_objfile,
 
 	    if (macinfo_type == DW_MACRO_import_sup)
 	      {
-		dwz_file *dwz = dwarf2_get_dwz_file (per_objfile->per_bfd);
+		dwz_file *dwz = dwarf2_get_dwz_file (per_objfile->per_bfd,
+						     true);
 
 		dwz->macro.read (objfile);
 
@@ -765,7 +780,8 @@ dwarf_decode_macros (dwarf2_per_objfile *per_objfile,
 		     const struct line_header *lh, unsigned int offset_size,
 		     unsigned int offset, struct dwarf2_section_info *str_section,
 		     struct dwarf2_section_info *str_offsets_section,
-		     ULONGEST str_offsets_base, int section_is_gnu)
+		     gdb::optional<ULONGEST> str_offsets_base,
+		     int section_is_gnu)
 {
   bfd *abfd;
   const gdb_byte *mac_ptr, *mac_end;

@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2014-2021 Free Software Foundation, Inc.
+   Copyright 2014-2022 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,8 +39,8 @@ func:
 	.long  0x4c870461    /* bnstarl cr1                */
 	.long  0x4dec0460    /* blttar+ cr3                */
 	.long  0x4ce20461    /* bnetarl+                   */
-	.long  0x4c880c60    /* bctar   4,4*cr2+lt,1       */
-	.long  0x4c871461    /* bctarl  4,4*cr1+so,2       */
+	.long  0x4c880c60    /* bgetar  cr2,1              */
+	.long  0x4c871461    /* bnstarl cr1,2              */
 	.long  0x7c00003c    /* waitasec                   */
 	.long  0x7c00411c    /* msgsndp r8                 */
 	.long  0x7c200126    /* mtsle   1                  */

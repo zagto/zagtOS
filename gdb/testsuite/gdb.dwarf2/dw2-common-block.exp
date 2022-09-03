@@ -1,4 +1,4 @@
-# Copyright 2012-2021 Free Software Foundation, Inc.
+# Copyright 2012-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ if { [prepare_for_testing "failed to prepare" "${testfile}" $srcfile \
 
 if ![runto MAIN__] then {
     perror "couldn't run to breakpoint MAIN__"
-    continue
+    return
 }
 
 gdb_breakpoint [gdb_get_line_number "stop-here-out" \

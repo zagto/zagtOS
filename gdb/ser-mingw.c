@@ -1,6 +1,6 @@
 /* Serial interface for local (hardwired) serial ports on Windows systems
 
-   Copyright (C) 2006-2021 Free Software Foundation, Inc.
+   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -30,6 +30,7 @@
 #include <sys/types.h>
 
 #include "command.h"
+#include "gdbsupport/buildargv.h"
 
 struct ser_windows_state
 {
@@ -598,6 +599,11 @@ console_select_thread (void *arg)
 		  SetEvent (state->read_event);
 		  break;
 		}
+	    }
+	  else if (record.EventType == MOUSE_EVENT)
+	    {
+	      SetEvent (state->read_event);
+	      break;
 	    }
 
 	  /* Otherwise discard it and wait again.  */

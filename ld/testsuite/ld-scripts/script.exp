@@ -1,6 +1,6 @@
 # Test basic linker script functionality
 # By Ian Lance Taylor, Cygnus Support
-#   Copyright (C) 1999-2021 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -22,7 +22,7 @@
 set testname "script"
 
 if ![ld_assemble $as $srcdir/$subdir/script.s tmpdir/script.o] { 
-    unresolved $testname
+    unsupported $testname
     return
 }
 
@@ -229,6 +229,7 @@ foreach test_script $test_script_list {
 
 run_dump_test "align-with-input"
 run_dump_test "pr20302"
+run_dump_test "output-section-types"
 
 run_dump_test "segment-start" {{name (default)}}
 run_dump_test "segment-start" {{name (overridden)} \

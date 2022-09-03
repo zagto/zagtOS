@@ -1,6 +1,6 @@
 /* Python interface to breakpoints
 
-   Copyright (C) 2008-2021 Free Software Foundation, Inc.
+   Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -34,6 +34,29 @@
 #include "py-event.h"
 #include "linespec.h"
 
+/* Debugging of Python breakpoints.  */
+
+static bool pybp_debug;
+
+/* Implementation of "show debug py-breakpoint".  */
+
+static void
+show_pybp_debug (struct ui_file *file, int from_tty,
+		 struct cmd_list_element *c, const char *value)
+{
+  gdb_printf (file, _("Python breakpoint debugging is %s.\n"), value);
+}
+
+/* Print a "py-breakpoint" debug statement.  */
+
+#define pybp_debug_printf(fmt, ...) \
+  debug_prefixed_printf_cond (pybp_debug, "py-breakpoint", fmt, ##__VA_ARGS__)
+
+/* Print a "py-breakpoint" enter/exit debug statements.  */
+
+#define PYBP_SCOPED_DEBUG_ENTER_EXIT \
+  scoped_debug_enter_exit (pybp_debug, "py-breakpoint")
+
 /* Number of live breakpoints.  */
 static int bppy_live;
 
@@ -58,10 +81,12 @@ static struct pybp_code pybp_codes[] =
 {
   { "BP_NONE", bp_none},
   { "BP_BREAKPOINT", bp_breakpoint},
+  { "BP_HARDWARE_BREAKPOINT", bp_hardware_breakpoint},
   { "BP_WATCHPOINT", bp_watchpoint},
   { "BP_HARDWARE_WATCHPOINT", bp_hardware_watchpoint},
   { "BP_READ_WATCHPOINT", bp_read_watchpoint},
   { "BP_ACCESS_WATCHPOINT", bp_access_watchpoint},
+  { "BP_CATCHPOINT", bp_catchpoint},
   {NULL} /* Sentinel.  */
 };
 
@@ -199,7 +224,7 @@ bppy_set_thread (PyObject *self, PyObject *newvalue, void *closure)
 		       _("Cannot delete `thread' attribute."));
       return -1;
     }
-  else if (PyInt_Check (newvalue))
+  else if (PyLong_Check (newvalue))
     {
       if (! gdb_py_int_as_long (newvalue, &id))
 	return -1;
@@ -241,7 +266,7 @@ bppy_set_task (PyObject *self, PyObject *newvalue, void *closure)
 		       _("Cannot delete `task' attribute."));
       return -1;
     }
-  else if (PyInt_Check (newvalue))
+  else if (PyLong_Check (newvalue))
     {
       if (! gdb_py_int_as_long (newvalue, &id))
 	return -1;
@@ -316,7 +341,7 @@ bppy_set_ignore_count (PyObject *self, PyObject *newvalue, void *closure)
 		       _("Cannot delete `ignore_count' attribute."));
       return -1;
     }
-  else if (! PyInt_Check (newvalue))
+  else if (!PyLong_Check (newvalue))
     {
       PyErr_SetString (PyExc_TypeError,
 		       _("The value of `ignore_count' must be an integer."));
@@ -383,11 +408,12 @@ bppy_get_location (PyObject *self, void *closure)
 
   BPPY_REQUIRE_VALID (obj);
 
-  if (obj->bp->type != bp_breakpoint)
+  if (obj->bp->type != bp_breakpoint
+      && obj->bp->type != bp_hardware_breakpoint)
     Py_RETURN_NONE;
 
-  const char *str = event_location_to_string (obj->bp->location.get ());
-  if (! str)
+  const char *str = obj->bp->locspec->to_string ();
+  if (str == nullptr)
     str = "";
   return host_string_to_python_string (str).release ();
 }
@@ -407,7 +433,7 @@ bppy_get_expression (PyObject *self, void *closure)
 
   wp = (struct watchpoint *) obj->bp;
 
-  str = wp->exp_string;
+  str = wp->exp_string.get ();
   if (! str)
     str = "";
 
@@ -423,7 +449,7 @@ bppy_get_condition (PyObject *self, void *closure)
 
   BPPY_REQUIRE_VALID (obj);
 
-  str = obj->bp->cond_string;
+  str = obj->bp->cond_string.get ();
   if (! str)
     Py_RETURN_NONE;
 
@@ -754,9 +780,9 @@ bppy_init (PyObject *self, PyObject *args, PyObject *kwargs)
 
   if (lineobj != NULL)
     {
-      if (PyInt_Check (lineobj))
-	line.reset (xstrprintf ("%ld", PyInt_AsLong (lineobj)));
-      else if (PyString_Check (lineobj))
+      if (PyLong_Check (lineobj))
+	line = xstrprintf ("%ld", PyLong_AsLong (lineobj));
+      else if (PyUnicode_Check (lineobj))
 	line = python_string_to_host_string (lineobj);
       else
 	{
@@ -793,8 +819,9 @@ bppy_init (PyObject *self, PyObject *args, PyObject *kwargs)
       switch (type)
 	{
 	case bp_breakpoint:
+	case bp_hardware_breakpoint:
 	  {
-	    event_location_up location;
+	    location_spec_up locspec;
 	    symbol_name_match_type func_name_match_type
 	      = (qualified != NULL && PyObject_IsTrue (qualified)
 		  ? symbol_name_match_type::FULL
@@ -806,35 +833,38 @@ bppy_init (PyObject *self, PyObject *args, PyObject *kwargs)
 		  copy_holder (xstrdup (skip_spaces (spec)));
 		const char *copy = copy_holder.get ();
 
-		location  = string_to_event_location (&copy,
-						      current_language,
-						      func_name_match_type);
+		locspec  = string_to_location_spec (&copy,
+						    current_language,
+						    func_name_match_type);
 	      }
 	    else
 	      {
-		struct explicit_location explicit_loc;
+		std::unique_ptr<explicit_location_spec> explicit_loc
+		  (new explicit_location_spec ());
 
-		initialize_explicit_location (&explicit_loc);
-		explicit_loc.source_filename = source;
-		explicit_loc.function_name = function;
-		explicit_loc.label_name = label;
+		explicit_loc->source_filename
+		  = source != nullptr ? xstrdup (source) : nullptr;
+		explicit_loc->function_name
+		  = function != nullptr ? xstrdup (function) : nullptr;
+		explicit_loc->label_name
+		  = label != nullptr ? xstrdup (label) : nullptr;
 
 		if (line != NULL)
-		  explicit_loc.line_offset =
-		    linespec_parse_line_offset (line.get ());
+		  explicit_loc->line_offset
+		    = linespec_parse_line_offset (line.get ());
 
-		explicit_loc.func_name_match_type = func_name_match_type;
+		explicit_loc->func_name_match_type = func_name_match_type;
 
-		location = new_explicit_location (&explicit_loc);
+		locspec.reset (explicit_loc.release ());
 	      }
 
-	    const struct breakpoint_ops *ops =
-	      breakpoint_ops_for_event_location (location.get (), false);
+	    const struct breakpoint_ops *ops
+	      = breakpoint_ops_for_location_spec (locspec.get (), false);
 
-	    create_breakpoint (python_gdbarch,
-			       location.get (), NULL, -1, NULL,
+	    create_breakpoint (gdbpy_enter::get_gdbarch (),
+			       locspec.get (), NULL, -1, NULL, false,
 			       0,
-			       temporary_bp, bp_breakpoint,
+			       temporary_bp, type,
 			       0,
 			       AUTO_BOOLEAN_TRUE,
 			       ops,
@@ -857,6 +887,8 @@ bppy_init (PyObject *self, PyObject *args, PyObject *kwargs)
 	      error(_("Cannot understand watchpoint access type."));
 	    break;
 	  }
+	case bp_catchpoint:
+	  error (_("BP_CATCHPOINT not supported"));
 	default:
 	  error(_("Do not understand breakpoint type to set."));
 	}
@@ -872,25 +904,24 @@ bppy_init (PyObject *self, PyObject *args, PyObject *kwargs)
   return 0;
 }
 
-
+/* Append to LIST the breakpoint Python object associated to B.
+
+   Return true on success.  Return false on failure, with the Python error
+   indicator set.  */
 
 static bool
 build_bp_list (struct breakpoint *b, PyObject *list)
 {
   PyObject *bp = (PyObject *) b->py_bp_object;
-  int iserr = 0;
 
   /* Not all breakpoints will have a companion Python object.
      Only breakpoints that were created via bppy_new, or
      breakpoints that were created externally and are tracked by
      the Python Scripting API.  */
-  if (bp)
-    iserr = PyList_Append (list, bp);
-
-  if (iserr == -1)
+  if (bp == nullptr)
     return true;
 
-  return false;
+  return PyList_Append (list, bp) == 0;
 }
 
 /* Static function to return a tuple holding all breakpoints.  */
@@ -905,15 +936,11 @@ gdbpy_breakpoints (PyObject *self, PyObject *args)
   if (list == NULL)
     return NULL;
 
-  /* If iterate_over_breakpoints returns non NULL it signals an error
-     condition.  In that case abandon building the list and return
-     NULL.  */
-  auto callback = [&] (breakpoint *bp)
-    {
-      return build_bp_list(bp, list.get ());
-    };
-  if (iterate_over_breakpoints (callback) != NULL)
-    return NULL;
+  /* If build_bp_list returns false, it signals an error condition.  In that
+     case abandon building the list and return nullptr.  */
+  for (breakpoint *bp : all_breakpoints ())
+    if (!build_bp_list (bp, list.get ()))
+      return nullptr;
 
   return PyList_AsTuple (list.get ());
 }
@@ -930,15 +957,13 @@ gdbpy_breakpoint_cond_says_stop (const struct extension_language_defn *extlang,
   int stop;
   struct gdbpy_breakpoint_object *bp_obj = b->py_bp_object;
   PyObject *py_bp = (PyObject *) bp_obj;
-  struct gdbarch *garch;
 
   if (bp_obj == NULL)
     return EXT_LANG_BP_STOP_UNSET;
 
   stop = -1;
-  garch = b->gdbarch ? b->gdbarch : get_current_arch ();
 
-  gdbpy_enter enter_py (garch, current_language);
+  gdbpy_enter enter_py (b->gdbarch);
 
   if (bp_obj->is_finish_bp)
     bpfinishpy_pre_stop_hook (bp_obj);
@@ -981,15 +1006,13 @@ gdbpy_breakpoint_has_cond (const struct extension_language_defn *extlang,
 			   struct breakpoint *b)
 {
   PyObject *py_bp;
-  struct gdbarch *garch;
 
   if (b->py_bp_object == NULL)
     return 0;
 
   py_bp = (PyObject *) b->py_bp_object;
-  garch = b->gdbarch ? b->gdbarch : get_current_arch ();
 
-  gdbpy_enter enter_py (garch, current_language);
+  gdbpy_enter enter_py (b->gdbarch);
   return PyObject_HasAttrString (py_bp, stop_func);
 }
 
@@ -1002,29 +1025,42 @@ gdbpy_breakpoint_has_cond (const struct extension_language_defn *extlang,
 static void
 gdbpy_breakpoint_created (struct breakpoint *bp)
 {
+  PYBP_SCOPED_DEBUG_ENTER_EXIT;
+
   gdbpy_breakpoint_object *newbp;
 
   if (!user_breakpoint_p (bp) && bppy_pending_object == NULL)
-    return;
+    {
+      pybp_debug_printf ("not attaching python object to this breakpoint");
+      return;
+    }
 
   if (bp->type != bp_breakpoint
+      && bp->type != bp_hardware_breakpoint
       && bp->type != bp_watchpoint
       && bp->type != bp_hardware_watchpoint
       && bp->type != bp_read_watchpoint
-      && bp->type != bp_access_watchpoint)
-    return;
+      && bp->type != bp_access_watchpoint
+      && bp->type != bp_catchpoint)
+    {
+      pybp_debug_printf ("is not a breakpoint or watchpoint");
+      return;
+    }
 
-  struct gdbarch *garch = bp->gdbarch ? bp->gdbarch : get_current_arch ();
-  gdbpy_enter enter_py (garch, current_language);
+  gdbpy_enter enter_py (bp->gdbarch);
 
   if (bppy_pending_object)
     {
       newbp = bppy_pending_object;
       Py_INCREF (newbp);
       bppy_pending_object = NULL;
+      pybp_debug_printf ("attaching existing breakpoint object");
     }
   else
-    newbp = PyObject_New (gdbpy_breakpoint_object, &breakpoint_object_type);
+    {
+      newbp = PyObject_New (gdbpy_breakpoint_object, &breakpoint_object_type);
+      pybp_debug_printf ("attaching new breakpoint object");
+    }
   if (newbp)
     {
       newbp->number = bp->number;
@@ -1053,14 +1089,15 @@ gdbpy_breakpoint_created (struct breakpoint *bp)
 static void
 gdbpy_breakpoint_deleted (struct breakpoint *b)
 {
+  PYBP_SCOPED_DEBUG_ENTER_EXIT;
+
   int num = b->number;
   struct breakpoint *bp = NULL;
 
   bp = get_breakpoint (num);
   if (bp)
     {
-      struct gdbarch *garch = bp->gdbarch ? bp->gdbarch : get_current_arch ();
-      gdbpy_enter enter_py (garch, current_language);
+      gdbpy_enter enter_py (b->gdbarch);
 
       gdbpy_ref<gdbpy_breakpoint_object> bp_obj (bp->py_bp_object);
       if (bp_obj != NULL)
@@ -1083,14 +1120,15 @@ gdbpy_breakpoint_deleted (struct breakpoint *b)
 static void
 gdbpy_breakpoint_modified (struct breakpoint *b)
 {
+  PYBP_SCOPED_DEBUG_ENTER_EXIT;
+
   int num = b->number;
   struct breakpoint *bp = NULL;
 
   bp = get_breakpoint (num);
   if (bp)
     {
-      struct gdbarch *garch = bp->gdbarch ? bp->gdbarch : get_current_arch ();
-      gdbpy_enter enter_py (garch, current_language);
+      gdbpy_enter enter_py (b->gdbarch);
 
       PyObject *bp_obj = (PyObject *) bp->py_bp_object;
       if (bp_obj)
@@ -1121,9 +1159,12 @@ gdbpy_initialize_breakpoints (void)
 			      (PyObject *) &breakpoint_object_type) < 0)
     return -1;
 
-  gdb::observers::breakpoint_created.attach (gdbpy_breakpoint_created);
-  gdb::observers::breakpoint_deleted.attach (gdbpy_breakpoint_deleted);
-  gdb::observers::breakpoint_modified.attach (gdbpy_breakpoint_modified);
+  gdb::observers::breakpoint_created.attach (gdbpy_breakpoint_created,
+					     "py-breakpoint");
+  gdb::observers::breakpoint_deleted.attach (gdbpy_breakpoint_deleted,
+					     "py-breakpoint");
+  gdb::observers::breakpoint_modified.attach (gdbpy_breakpoint_modified,
+					      "py-breakpoint");
 
   /* Add breakpoint types constants.  */
   for (i = 0; pybp_codes[i].name; ++i)
@@ -1278,3 +1319,17 @@ PyTypeObject breakpoint_object_type =
   bppy_init,			  /* tp_init */
   0,				  /* tp_alloc */
 };
+
+void _initialize_py_breakpoint ();
+void
+_initialize_py_breakpoint ()
+{
+  add_setshow_boolean_cmd
+      ("py-breakpoint", class_maintenance, &pybp_debug,
+	_("Set Python breakpoint debugging."),
+	_("Show Python breakpoint debugging."),
+	_("When on, Python breakpoint debugging is enabled."),
+	NULL,
+	show_pybp_debug,
+	&setdebuglist, &showdebuglist);
+}

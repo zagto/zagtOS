@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script
 dnl
-dnl   Copyright (C) 2012-2021 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2022 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -23,9 +23,9 @@ AC_CONFIG_SRCDIR(ldmain.c)
 
 AC_CANONICAL_TARGET
 AC_CANONICAL_BUILD
-AC_ISC_POSIX
 
 AM_INIT_AUTOMAKE
+AM_SILENT_RULES([yes])
 AM_MAINTAINER_MODE
 
 AC_PROG_CC
@@ -38,6 +38,19 @@ AC_PROG_INSTALL
 LT_INIT
 ACX_LARGEFILE
 
+ac_checking=
+. ${srcdir}/../bfd/development.sh
+test "$development" = true && ac_checking=yes
+AC_ARG_ENABLE(checking,
+[  --enable-checking       enable run-time checks],
+[case "${enableval}" in
+  no|none)  ac_checking= ;;
+  *)	    ac_checking=yes ;;
+esac])dnl
+if test x$ac_checking != x ; then
+  AC_DEFINE(ENABLE_CHECKING, 1, [Define if you want run-time sanity checks.])
+fi
+
 AC_ARG_WITH(lib-path, [  --with-lib-path=dir1:dir2...  set default LIB_PATH],LIB_PATH=$withval)
 AC_ARG_ENABLE(targets,
 [  --enable-targets        alternative target configurations],
@@ -47,13 +60,8 @@ AC_ARG_ENABLE(targets,
   no)       enable_targets= ;;
   *)        enable_targets=$enableval ;;
 esac])dnl
-AC_ARG_ENABLE(64-bit-bfd,
-[  --enable-64-bit-bfd     64-bit support (on hosts with narrower word sizes)],
-[case "${enableval}" in
-  yes)  want64=true  ;;
-  no)   want64=false ;;
-  *)    AC_MSG_ERROR(bad value ${enableval} for 64-bit-bfd option) ;;
-esac],[want64=false])dnl
+
+BFD_64_BIT
 
 AC_ARG_WITH(sysroot,
 [  --with-sysroot[=DIR] Search for usr/lib et al within DIR.],
@@ -195,6 +203,37 @@ AC_ARG_ENABLE(separate-code,
   no) ac_default_ld_z_separate_code=0 ;;
 esac])
 
+
+# By default warn when an executable stack is created due to object files
+# requesting such, not when the user specifies -z execstack.
+ac_default_ld_warn_execstack=2
+AC_ARG_ENABLE(warn-execstack,
+	      AS_HELP_STRING([--enable-warn-execstack],
+	      [enable warnings when creating an executable stack]),
+[case "${enableval}" in
+  yes) ac_default_ld_warn_execstack=1 ;;
+  no)  ac_default_ld_warn_execstack=0 ;;
+esac])
+
+ac_default_ld_warn_rwx_segments=unset
+AC_ARG_ENABLE(warn-rwx-segments,
+	      AS_HELP_STRING([--enable-warn-rwx-segments],
+	      [enable warnings when creating segements with RWX permissions]),
+[case "${enableval}" in
+  yes) ac_default_ld_warn_rwx_segments=1 ;;
+  no)  ac_default_ld_warn_rwx_segments=0 ;;
+esac])
+
+ac_default_ld_default_execstack=unset
+AC_ARG_ENABLE(default-execstack,
+	      AS_HELP_STRING([--enable-default-execstack],
+	      [create an executable stack if an input file is missing a .note.GNU-stack section]),
+[case "${enableval}" in
+  yes) ac_default_ld_default_execstack=1 ;;
+  no)  ac_default_ld_default_execstack=0 ;;
+esac])
+
+
 # Decide if --error-handling-script should be supported.
 ac_support_error_handling_script=unset
 AC_ARG_ENABLE(error-handling-script,
@@ -231,12 +270,50 @@ case "${enable_default_hash_style}" in
   *) ac_default_emit_gnu_hash=0 ;;
 esac
 
+AC_ARG_ENABLE(initfini-array,
+[  --disable-initfini-array do not use .init_array/.fini_array sections],
+[case "${enableval}" in
+ yes|no) ;;
+ *) AC_MSG_ERROR([invalid --enable-initfini-array argument]) ;;
+ esac], [enable_initfini_array=yes])
+AC_SUBST(enable_initfini_array)
+if test $enable_initfini_array = yes; then
+  AC_DEFINE(HAVE_INITFINI_ARRAY, 1,
+    [Define .init_array/.fini_array sections are available and working.])
+fi
+
 GCC_ENABLE([libctf], [yes], [], [Handle .ctf type-info sections])
 if test "${enable_libctf}" = yes; then
     AC_DEFINE(ENABLE_LIBCTF, 1, [Handle .ctf type-info sections])
 fi
 AM_CONDITIONAL(ENABLE_LIBCTF, test "${enable_libctf}" = yes)
 AC_SUBST(enable_libctf)
+
+# Used to validate --package-metadata= input. Disabled by default.
+AC_ARG_ENABLE([jansson],
+  [AS_HELP_STRING([--enable-jansson],
+    [enable jansson [default=no]])],
+  [enable_jansson=$enableval],
+  [enable_jansson="no"])
+
+if test "x$enable_jansson" != "xno"; then
+  PKG_PROG_PKG_CONFIG
+  AS_IF([test -n "$PKG_CONFIG"],
+    [
+      PKG_CHECK_MODULES(JANSSON, [jansson],
+	[
+	  AC_DEFINE(HAVE_JANSSON, 1, [The jansson library is to be used])
+	  AC_SUBST([JANSSON_CFLAGS])
+	  AC_SUBST([JANSSON_LIBS])
+	],
+	[
+	  AC_MSG_ERROR([Cannot find jansson library])
+	])
+    ],
+    [
+      AC_MSG_ERROR([Cannot find pkg-config])
+    ])
+fi
 
 AM_BINUTILS_WARNINGS
 
@@ -280,29 +357,24 @@ ACX_PROG_CMP_IGNORE_INITIAL
 AC_SUBST(HDEFINES)
 AC_SUBST(NATIVE_LIB_DIRS)
 
-AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h elf-hints.h limits.h locale.h sys/param.h)
-AC_CHECK_HEADERS(fcntl.h sys/file.h sys/time.h sys/stat.h)
-ACX_HEADER_STRING
-AC_CHECK_FUNCS(glob mkstemp realpath sbrk setlocale waitpid)
-AC_CHECK_FUNCS(open lseek close)
-AC_HEADER_DIRENT
+# We use headers from include/ that check various HAVE_*_H macros, thus
+# should ensure they are set by configure.  This is true even when C99
+# guarantees they are available.
+# sha1.h and md4.h test HAVE_LIMITS_H, HAVE_SYS_TYPES_H and HAVE_STDINT_H
+# plugin-api.h tests HAVE_STDINT_H and HAVE_INTTYPES_H
+# Besides those, we need to check anything used in ld/ not in C99.
+AC_CHECK_HEADERS(fcntl.h elf-hints.h limits.h inttypes.h stdint.h \
+		 sys/file.h sys/mman.h sys/param.h sys/stat.h sys/time.h \
+		 sys/types.h unistd.h)
+AC_CHECK_FUNCS(close glob lseek mkstemp open realpath sbrk waitpid)
 
-dnl AC_CHECK_HEADERS(sys/mman.h)
+BFD_BINARY_FOPEN
+
+AC_CHECK_DECLS([asprintf, environ, sbrk])
+
 AC_FUNC_MMAP
 
 AC_SEARCH_LIBS([dlopen], [dl])
-
-AC_ARG_ENABLE(initfini-array,
-[  --disable-initfini-array do not use .init_array/.fini_array sections],
-[case "${enableval}" in
- yes|no) ;;
- *) AC_MSG_ERROR([invalid --enable-initfini-array argument]) ;;
- esac], [enable_initfini_array=yes])
-AC_SUBST(enable_initfini_array)
-if test $enable_initfini_array = yes; then
-  AC_DEFINE(HAVE_INITFINI_ARRAY, 1,
-    [Define .init_array/.fini_array sections are available and working.])
-fi
 
 AC_MSG_CHECKING(for a known getopt prototype in unistd.h)
 AC_CACHE_VAL(ld_cv_decl_getopt_unistd_h,
@@ -313,10 +385,6 @@ if test $ld_cv_decl_getopt_unistd_h = yes; then
   AC_DEFINE([HAVE_DECL_GETOPT], 1,
 	    [Is the prototype for getopt in <unistd.h> in the expected format?])
 fi
-
-BFD_BINARY_FOPEN
-
-AC_CHECK_DECLS([asprintf, environ, free, getenv, sbrk, strstr])
 
 # Link in zlib if we can.  This allows us to read and write
 # compressed CTF sections.
@@ -350,25 +418,16 @@ all_emul_extras=
 all_libpath=
 TDIRS=
 
-# If the host is 64-bit, then we enable 64-bit targets by default.
-# This is consistent with what ../bfd/configure.ac does.
-if test x${want64} = xfalse; then
-  AC_CHECK_SIZEOF(void *)
-  if test "x${ac_cv_sizeof_void_p}" = "x8"; then
-    want64=true
-  fi
-fi
-
-elf_list_options=FALSE
-elf_shlib_list_options=FALSE
-elf_plt_unwind_list_options=FALSE
+elf_list_options=false
+elf_shlib_list_options=false
+elf_plt_unwind_list_options=false
 for targ_alias in `echo $target_alias $enable_targets | sed 's/,/ /g'`
 do
   if test "$targ_alias" = "all"; then
     all_targets=true
-    elf_list_options=TRUE
-    elf_shlib_list_options=TRUE
-    elf_plt_unwind_list_options=TRUE
+    elf_list_options=true
+    elf_shlib_list_options=true
+    elf_plt_unwind_list_options=true
   else
     # Canonicalize the secondary target names.
     result=`$ac_config_sub $targ_alias 2>/dev/null`
@@ -384,11 +443,11 @@ do
       EMUL=$targ_emul
     fi
 
-    if test x${want64} = xfalse; then
+    if test x${enable_64_bit_bfd} = xno; then
       . ${srcdir}/../bfd/config.bfd
     fi
 
-    if test x${want64} = xtrue; then
+    if test x${enable_64_bit_bfd} = xyes; then
       targ_extra_emuls="$targ_extra_emuls $targ64_extra_emuls"
       targ_extra_libpath="$targ_extra_libpath $targ64_extra_libpath"
     fi
@@ -404,25 +463,25 @@ do
 tdir_$i=$result"
 	  case "${i}" in
 	  *elf*)
-	    elf_list_options=TRUE
+	    elf_list_options=true
 	    ;;
 	  *)
 	    if $GREP "TEMPLATE_NAME=elf" ${srcdir}/emulparams/${i}.sh >/dev/null 2>/dev/null; then
-	      elf_list_options=TRUE
+	      elf_list_options=true
 	    fi
 	    ;;
 	  esac
-	  if test "$elf_list_options" = "TRUE"; then
+	  if test "$elf_list_options" = "true"; then
 	    source_sh()
 	    {
 	      . $1
 	    }
 	    source_sh ${srcdir}/emulparams/${i}.sh
 	    if test x${GENERATE_SHLIB_SCRIPT} = xyes; then
-	      elf_shlib_list_options=TRUE
+	      elf_shlib_list_options=true
 	    fi
 	    if test x${PLT_UNWIND} = xyes; then
-	      elf_plt_unwind_list_options=TRUE
+	      elf_plt_unwind_list_options=true
 	    fi
 	  fi
 	  ;;
@@ -499,6 +558,26 @@ AC_DEFINE_UNQUOTED(DEFAULT_LD_Z_SEPARATE_CODE,
   $ac_default_ld_z_separate_code,
   [Define to 1 if you want to enable -z separate-code in ELF linker by default.])
 
+
+AC_DEFINE_UNQUOTED(DEFAULT_LD_WARN_EXECSTACK,
+  $ac_default_ld_warn_execstack,
+  [Define to 1 if you want to enable --warn-execstack in ELF linker by default.])
+
+if test "${ac_default_ld_warn_rwx_segments}" = unset; then
+  ac_default_ld_warn_rwx_segments=1
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_LD_WARN_RWX_SEGMENTS,
+  $ac_default_ld_warn_rwx_segments,
+  [Define to 0 if you want to disable --warn-rwx-segments in ELF linker by default.])
+
+if test "${ac_default_ld_default_execstack}" = unset; then
+  ac_default_ld_default_execstack=1
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_LD_EXECSTACK,
+  $ac_default_ld_default_execstack,
+  [Define to 0 if you want to disable the generation of an executable stack when a .note-GNU-stack section is missing.])
+
+
 if test "${ac_support_error_handling_script}" = unset; then
   ac_support_error_handling_script=1
 fi
@@ -523,7 +602,7 @@ AC_SUBST(TDIRS)
 AM_SUBST_NOTMAKE(TDIRS)
 
 if test x${all_targets} = xtrue; then
-  if test x${want64} = xtrue; then
+  if test x${enable_64_bit_bfd} = xyes; then
     EMULATION_OFILES='$(ALL_EMULATIONS) $(ALL_64_EMULATIONS)'
     EMUL_EXTRA_OFILES='$(ALL_EMUL_EXTRA_OFILES) $(ALL_64_EMUL_EXTRA_OFILES)'
   else
@@ -597,3 +676,5 @@ AC_SUBST(pdfdir)
 
 AC_CONFIG_FILES(Makefile po/Makefile.in:po/Make-in)
 AC_OUTPUT
+
+GNU_MAKE_JOBSERVER

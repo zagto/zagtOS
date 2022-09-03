@@ -1,6 +1,6 @@
 /* Top level stuff for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,8 +24,6 @@
 #include "gdbsupport/event-loop.h"
 #include "gdbsupport/next-iterator.h"
 #include "value.h"
-
-struct tl_interp_info;
 
 /* Prompt state.  */
 
@@ -173,6 +171,8 @@ public:
     current_ui = ui_list;
   }
 
+  DISABLE_COPY_AND_ASSIGN (switch_thru_all_uis);
+
   /* If done iterating, return true; otherwise return false.  */
   bool done () const
   {
@@ -190,11 +190,6 @@ public:
 
  private:
 
-  /* No need for these.  They are intentionally not defined
-     anywhere.  */
-  switch_thru_all_uis &operator= (const switch_thru_all_uis &);
-  switch_thru_all_uis (const switch_thru_all_uis &);
-
   /* Used to iterate through the UIs.  */
   struct ui *m_iter;
 
@@ -207,11 +202,13 @@ public:
 #define SWITCH_THRU_ALL_UIS()		\
   for (switch_thru_all_uis stau_state; !stau_state.done (); stau_state.next ())
 
+using ui_range = next_range<ui>;
+
 /* An adapter that can be used to traverse over all UIs.  */
 static inline
-next_adapter<ui> all_uis ()
+ui_range all_uis ()
 {
-  return next_adapter<ui> (ui_list);
+  return ui_range (ui_list);
 }
 
 /* Register the UI's input file descriptor in the event loop.  */
@@ -262,7 +259,7 @@ extern scoped_value_mark prepare_execute_command (void);
 
 /* This function returns a pointer to the string that is used
    by gdb for its command prompt.  */
-extern char *get_prompt (void);
+extern const std::string &get_prompt ();
 
 /* This function returns a pointer to the string that is used
    by gdb for its command prompt.  */
@@ -273,12 +270,8 @@ extern void set_prompt (const char *s);
 
 extern int gdb_in_secondary_prompt_p (struct ui *ui);
 
-/* From random places.  */
-extern int readnow_symbol_files;
-extern int readnever_symbol_files;
-
 /* Perform _initialize initialization.  */
-extern void gdb_init (char *);
+extern void gdb_init ();
 
 /* For use by event-top.c.  */
 /* Variables from top.c.  */
@@ -297,5 +290,10 @@ extern void set_verbose (const char *, int, struct cmd_list_element *);
 extern char *handle_line_of_input (struct buffer *cmd_line_buffer,
 				   const char *rl, int repeat,
 				   const char *annotation_suffix);
+
+/* Call at startup to see if the user has requested that gdb start up
+   quietly.  */
+
+extern bool check_quiet_mode ();
 
 #endif

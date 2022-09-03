@@ -1,4 +1,4 @@
---  Copyright 2012-2021 Free Software Foundation, Inc.
+--  Copyright 2012-2022 Free Software Foundation, Inc.
 --
 --  This program is free software; you can redistribute it and/or modify
 --  it under the terms of the GNU General Public License as published by
@@ -47,6 +47,11 @@ package Pck is
    type Multi_Dimension is array (Boolean, Color) of Short;
    pragma Pack (Multi_Dimension);
    type Multi_Dimension_Access is access all Multi_Dimension;
+
+   type My_Enum is (Blue, Red, Green);
+
+   type My_Array_Type is array (My_Enum) of Integer;
+   type Confused_Array_Type is array (Color) of My_Array_Type;
 
    procedure Do_Nothing (A : System.Address);
 end Pck;

@@ -1,4 +1,4 @@
-/* Copyright 2016-2021 Free Software Foundation, Inc.
+/* Copyright 2016-2022 Free Software Foundation, Inc.
    Contributed by Dimitar Dimitrov <dimitar@dinux.eu>
 
    This file is part of the PRU simulator.
@@ -19,7 +19,6 @@
 #ifndef PRU_H
 #define PRU_H
 
-#include "config.h"
 #include "opcode/pru.h"
 
 /* Needed for handling the dual PRU address space.  */

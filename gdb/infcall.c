@@ -1,6 +1,6 @@
 /* Perform an inferior function call, for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -62,9 +62,9 @@ show_may_call_functions_p (struct ui_file *file, int from_tty,
 			   struct cmd_list_element *c,
 			   const char *value)
 {
-  fprintf_filtered (file,
-		    _("Permission to call functions in the program is %s.\n"),
-		    value);
+  gdb_printf (file,
+	      _("Permission to call functions in the program is %s.\n"),
+	      value);
 }
 
 /* How you should pass arguments to a function depends on whether it
@@ -92,10 +92,10 @@ static void
 show_coerce_float_to_double_p (struct ui_file *file, int from_tty,
 			       struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file,
-		    _("Coercion of floats to doubles "
-		      "when calling functions is %s.\n"),
-		    value);
+  gdb_printf (file,
+	      _("Coercion of floats to doubles "
+		"when calling functions is %s.\n"),
+	      value);
 }
 
 /* This boolean tells what gdb should do if a signal is received while
@@ -110,10 +110,10 @@ static void
 show_unwind_on_signal_p (struct ui_file *file, int from_tty,
 			 struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file,
-		    _("Unwinding of stack if a signal is "
-		      "received while in a call dummy is %s.\n"),
-		    value);
+  gdb_printf (file,
+	      _("Unwinding of stack if a signal is "
+		"received while in a call dummy is %s.\n"),
+	      value);
 }
 
 /* This boolean tells what gdb should do if a std::terminate call is
@@ -136,10 +136,10 @@ show_unwind_on_terminating_exception_p (struct ui_file *file, int from_tty,
 					const char *value)
 
 {
-  fprintf_filtered (file,
-		    _("Unwind stack if a C++ exception is "
-		      "unhandled while in a call dummy is %s.\n"),
-		    value);
+  gdb_printf (file,
+	      _("Unwind stack if a C++ exception is "
+		"unhandled while in a call dummy is %s.\n"),
+	      value);
 }
 
 /* Perform the standard coercions that are specified
@@ -251,7 +251,7 @@ find_function_addr (struct value *function,
 		    struct type **function_type)
 {
   struct type *ftype = check_typedef (value_type (function));
-  struct gdbarch *gdbarch = get_type_arch (ftype);
+  struct gdbarch *gdbarch = ftype->arch ();
   struct type *value_type = NULL;
   /* Initialize it just to avoid a GCC false warning.  */
   CORE_ADDR funaddr = 0;
@@ -269,8 +269,8 @@ find_function_addr (struct value *function,
       ftype = check_typedef (TYPE_TARGET_TYPE (ftype));
       if (ftype->code () == TYPE_CODE_FUNC
 	  || ftype->code () == TYPE_CODE_METHOD)
-	funaddr = gdbarch_convert_from_func_ptr_addr (gdbarch, funaddr,
-						      current_top_target ());
+	funaddr = gdbarch_convert_from_func_ptr_addr
+	  (gdbarch, funaddr, current_inferior ()->top_target());
     }
   if (ftype->code () == TYPE_CODE_FUNC
       || ftype->code () == TYPE_CODE_METHOD)
@@ -321,9 +321,8 @@ find_function_addr (struct value *function,
 
 	      funaddr = value_as_address (value_addr (function));
 	      nfunaddr = funaddr;
-	      funaddr
-		= gdbarch_convert_from_func_ptr_addr (gdbarch, funaddr,
-						      current_top_target ());
+	      funaddr = gdbarch_convert_from_func_ptr_addr
+		(gdbarch, funaddr, current_inferior ()->top_target ());
 	      if (funaddr != nfunaddr)
 		found_descriptor = 1;
 	    }
@@ -452,7 +451,7 @@ get_call_return_value (struct call_return_meta_info *ri)
 	{
 	  retval = allocate_value (ri->value_type);
 	  read_value_memory (retval, 0, 1, ri->struct_addr,
-			     value_contents_raw (retval),
+			     value_contents_raw (retval).data (),
 			     TYPE_LENGTH (ri->value_type));
 	}
     }
@@ -461,7 +460,7 @@ get_call_return_value (struct call_return_meta_info *ri)
       retval = allocate_value (ri->value_type);
       gdbarch_return_value (ri->gdbarch, ri->function, ri->value_type,
 			    get_current_regcache (),
-			    value_contents_raw (retval), NULL);
+			    value_contents_raw (retval).data (), NULL);
       if (stack_temporaries && class_or_union_p (ri->value_type))
 	{
 	  /* Values of class type returned in registers are copied onto
@@ -575,32 +574,23 @@ call_thread_fsm::should_notify_stop ()
    thrown errors.  The caller should rethrow if there's an error.  */
 
 static struct gdb_exception
-run_inferior_call (struct call_thread_fsm *sm,
+run_inferior_call (std::unique_ptr<call_thread_fsm> sm,
 		   struct thread_info *call_thread, CORE_ADDR real_pc)
 {
   struct gdb_exception caught_error;
-  int saved_in_infcall = call_thread->control.in_infcall;
   ptid_t call_thread_ptid = call_thread->ptid;
-  enum prompt_state saved_prompt_state = current_ui->prompt_state;
   int was_running = call_thread->state == THREAD_RUNNING;
-  int saved_ui_async = current_ui->async;
-
-  /* Infcalls run synchronously, in the foreground.  */
-  current_ui->prompt_state = PROMPT_BLOCKED;
-  /* So that we don't print the prompt prematurely in
-     fetch_inferior_event.  */
-  current_ui->async = 0;
 
   delete_file_handler (current_ui->input_fd);
 
-  call_thread->control.in_infcall = 1;
+  scoped_restore restore_in_infcall
+    = make_scoped_restore (&call_thread->control.in_infcall, 1);
 
   clear_proceed_status (0);
 
   /* Associate the FSM with the thread after clear_proceed_status
-     (otherwise it'd clear this FSM), and before anything throws, so
-     we don't leak it (and any resources it manages).  */
-  call_thread->thread_fsm = sm;
+     (otherwise it'd clear this FSM).  */
+  call_thread->set_thread_fsm (std::move (sm));
 
   disable_watchpoints_before_interactive_call_start ();
 
@@ -609,6 +599,15 @@ run_inferior_call (struct call_thread_fsm *sm,
 
   try
     {
+      /* Infcalls run synchronously, in the foreground.  */
+      scoped_restore restore_prompt_state
+	= make_scoped_restore (&current_ui->prompt_state, PROMPT_BLOCKED);
+
+      /* So that we don't print the prompt prematurely in
+	 fetch_inferior_event.  */
+      scoped_restore restore_ui_async
+	= make_scoped_restore (&current_ui->async, 0);
+
       proceed (real_pc, GDB_SIGNAL_0);
 
       /* Inferior function calls are always synchronous, even if the
@@ -624,12 +623,10 @@ run_inferior_call (struct call_thread_fsm *sm,
      so.  normal_stop calls async_enable_stdin, so reset the prompt
      state again here.  In other cases, stdin will be re-enabled by
      inferior_event_handler, when an exception is thrown.  */
-  current_ui->prompt_state = saved_prompt_state;
   if (current_ui->prompt_state == PROMPT_BLOCKED)
     delete_file_handler (current_ui->input_fd);
   else
     ui_register_input_event_handler (current_ui);
-  current_ui->async = saved_ui_async;
 
   /* If the infcall does NOT succeed, normal_stop will have already
      finished the thread states.  However, on success, normal_stop
@@ -664,8 +661,6 @@ run_inferior_call (struct call_thread_fsm *sm,
       if (call_thread->state != THREAD_EXITED)
 	breakpoint_auto_delete (call_thread->control.stop_bpstat);
     }
-
-  call_thread->control.in_infcall = saved_in_infcall;
 
   return caught_error;
 }
@@ -813,6 +808,11 @@ call_function_by_hand_dummy (struct value *function,
   type *ftype;
   type *values_type;
   CORE_ADDR funaddr = find_function_addr (function, &values_type, &ftype);
+
+  if (is_nocall_function (ftype))
+    error (_("Cannot call the function '%s' which does not follow the "
+	     "target calling convention."),
+	   get_function_name (funaddr, name_buf, sizeof (name_buf)));
 
   if (values_type == NULL)
     values_type = default_return_type;
@@ -1027,8 +1027,8 @@ call_function_by_hand_dummy (struct value *function,
 	 prototyped.  Can we respect TYPE_VARARGS?  Probably not.  */
       if (ftype->code () == TYPE_CODE_METHOD)
 	prototyped = 1;
-      if (TYPE_TARGET_TYPE (ftype) == NULL && ftype->num_fields () == 0
-	  && default_return_type != NULL)
+      else if (TYPE_TARGET_TYPE (ftype) == NULL && ftype->num_fields () == 0
+	       && default_return_type != NULL)
 	{
 	  /* Calling a no-debug function with the return type
 	     explicitly cast.  Assume the function is prototyped,
@@ -1084,7 +1084,7 @@ call_function_by_hand_dummy (struct value *function,
       if (info.trivially_copy_constructible)
 	{
 	  int length = TYPE_LENGTH (param_type);
-	  write_memory (addr, value_contents (args[i]), length);
+	  write_memory (addr, value_contents (args[i]).data (), length);
 	}
       else
 	{
@@ -1252,12 +1252,9 @@ call_function_by_hand_dummy (struct value *function,
      just below is the place to chop this function in two..  */
 
   {
-    struct thread_fsm *saved_sm;
-    struct call_thread_fsm *sm;
-
     /* Save the current FSM.  We'll override it.  */
-    saved_sm = call_thread->thread_fsm;
-    call_thread->thread_fsm = NULL;
+    std::unique_ptr<thread_fsm> saved_sm = call_thread->release_thread_fsm ();
+    struct call_thread_fsm *sm;
 
     /* Save this thread's ptid, we need it later but the thread
        may have exited.  */
@@ -1274,17 +1271,19 @@ call_function_by_hand_dummy (struct value *function,
 			      values_type,
 			      return_method != return_method_normal,
 			      struct_addr);
-
-    e = run_inferior_call (sm, call_thread.get (), real_pc);
+    {
+      std::unique_ptr<call_thread_fsm> sm_up (sm);
+      e = run_inferior_call (std::move (sm_up), call_thread.get (), real_pc);
+    }
 
     gdb::observers::inferior_call_post.notify (call_thread_ptid, funaddr);
 
     if (call_thread->state != THREAD_EXITED)
       {
 	/* The FSM should still be the same.  */
-	gdb_assert (call_thread->thread_fsm == sm);
+	gdb_assert (call_thread->thread_fsm () == sm);
 
-	if (call_thread->thread_fsm->finished_p ())
+	if (call_thread->thread_fsm ()->finished_p ())
 	  {
 	    struct value *retval;
 
@@ -1298,11 +1297,16 @@ call_function_by_hand_dummy (struct value *function,
 	    /* Get the return value.  */
 	    retval = sm->return_value;
 
-	    /* Clean up / destroy the call FSM, and restore the
-	       original one.  */
-	    call_thread->thread_fsm->clean_up (call_thread.get ());
-	    delete call_thread->thread_fsm;
-	    call_thread->thread_fsm = saved_sm;
+	    /* Restore the original FSM and clean up / destroh the call FSM.
+	       Doing it in this order ensures that if the call to clean_up
+	       throws, the original FSM is properly restored.  */
+	    {
+	      std::unique_ptr<thread_fsm> finalizing
+		= call_thread->release_thread_fsm ();
+	      call_thread->set_thread_fsm (std::move (saved_sm));
+
+	      finalizing->clean_up (call_thread.get ());
+	    }
 
 	    maybe_remove_breakpoints ();
 
@@ -1316,9 +1320,13 @@ call_function_by_hand_dummy (struct value *function,
 
 	/* Didn't complete.  Clean up / destroy the call FSM, and restore the
 	   previous state machine, and handle the error.  */
-	call_thread->thread_fsm->clean_up (call_thread.get ());
-	delete call_thread->thread_fsm;
-	call_thread->thread_fsm = saved_sm;
+	{
+	  std::unique_ptr<thread_fsm> finalizing
+	    = call_thread->release_thread_fsm ();
+	  call_thread->set_thread_fsm (std::move (saved_sm));
+
+	  finalizing->clean_up (call_thread.get ());
+	}
       }
   }
 

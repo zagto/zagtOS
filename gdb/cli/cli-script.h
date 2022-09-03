@@ -1,5 +1,5 @@
 /* Header file for GDB CLI command implementation library.
-   Copyright (C) 2000-2021 Free Software Foundation, Inc.
+   Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,9 @@ struct command_lines_deleter
 
 /* A reference-counted struct command_line.  */
 typedef std::shared_ptr<command_line> counted_command_line;
+
+/* A unique_ptr specialization for command_line.  */
+typedef std::unique_ptr<command_line, command_lines_deleter> command_line_up;
 
 /* * Structure for saved commands lines (for breakpoints, defined
    commands, etc).  */

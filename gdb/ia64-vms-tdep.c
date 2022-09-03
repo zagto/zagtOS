@@ -1,6 +1,6 @@
 /* Target-dependent code for OpenVMS IA-64.
 
-   Copyright (C) 2012-2021 Free Software Foundation, Inc.
+   Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -41,7 +41,8 @@ ia64_vms_find_proc_info_x (unw_addr_space_t as, unw_word_t ip,
   CORE_ADDR table_addr;
   unsigned int info_len;
 
-  res = target_read (current_top_target (), TARGET_OBJECT_OPENVMS_UIB,
+  res = target_read (current_inferior ()->top_target (),
+		     TARGET_OBJECT_OPENVMS_UIB,
 		     annex + 2, buf, 0, sizeof (buf));
 
   if (res != sizeof (buf))
@@ -131,7 +132,7 @@ static struct libunwind_descr ia64_vms_libunwind_descr;
 static void
 ia64_openvms_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  set_gdbarch_long_double_format (gdbarch, floatformats_ia64_quad);
+  set_gdbarch_long_double_format (gdbarch, floatformats_ieee_quad);
 
 #ifdef HAVE_LIBUNWIND_IA64_H
   /* Override the default descriptor.  */

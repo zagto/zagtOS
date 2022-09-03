@@ -1,5 +1,5 @@
 /* S390 native-dependent code for GDB, the GNU debugger.
-   Copyright (C) 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
    Contributed by D.J. Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
    for IBM Deutschland Entwicklung GmbH, IBM Corporation.
@@ -29,6 +29,7 @@
 #include "regset.h"
 #include "nat/linux-ptrace.h"
 #include "gdbcmd.h"
+#include "gdbarch.h"
 
 #include "s390-tdep.h"
 #include "s390-linux-tdep.h"
@@ -43,7 +44,6 @@
 #include <algorithm>
 #include "inf-ptrace.h"
 #include "linux-tdep.h"
-#include "gdbarch.h"
 
 /* Per-thread arch-specific data.  */
 
@@ -878,8 +878,8 @@ s390_linux_nat_target::remove_watchpoint (CORE_ADDR addr, int len,
 	}
     }
 
-  fprintf_unfiltered (gdb_stderr,
-		      "Attempt to remove nonexistent watchpoint.\n");
+  gdb_printf (gdb_stderr,
+	      "Attempt to remove nonexistent watchpoint.\n");
   return -1;
 }
 
@@ -931,8 +931,8 @@ s390_linux_nat_target::remove_hw_breakpoint (struct gdbarch *gdbarch,
 	}
     }
 
-  fprintf_unfiltered (gdb_stderr,
-		      "Attempt to remove nonexistent breakpoint.\n");
+  gdb_printf (gdb_stderr,
+	      "Attempt to remove nonexistent breakpoint.\n");
   return -1;
 }
 
@@ -988,7 +988,7 @@ s390_linux_nat_target::auxv_parse (gdb_byte **readptr,
 const struct target_desc *
 s390_linux_nat_target::read_description ()
 {
-  int tid = s390_inferior_tid ();
+  int tid = inferior_ptid.pid ();
 
   have_regset_last_break
     = check_regset (tid, NT_S390_LAST_BREAK, 8);
@@ -1002,7 +1002,7 @@ s390_linux_nat_target::read_description ()
      that mode, report s390 architecture with 64-bit GPRs.  */
 #ifdef __s390x__
   {
-    CORE_ADDR hwcap = linux_get_hwcap (current_top_target ());
+    CORE_ADDR hwcap = linux_get_hwcap (current_inferior ()->top_target ());
 
     have_regset_tdb = (hwcap & HWCAP_S390_TE)
       && check_regset (tid, NT_S390_TDB, s390_sizeof_tdbregset);

@@ -1,6 +1,6 @@
 /* Target-dependent code for NetBSD/i386.
 
-   Copyright (C) 1988-2021 Free Software Foundation, Inc.
+   Copyright (C) 1988-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -76,7 +76,7 @@ static int i386nbsd_sc_reg_offset[] =
 };
 
 /* From <machine/mcontext.h>.  */
-int i386nbsd_mc_reg_offset[] =
+static int i386nbsd_mc_reg_offset[] =
 {
   11 * 4,			/* %eax */
   10 * 4,			/* %ecx */
@@ -372,7 +372,7 @@ i386nbsd_sigtramp_cache_init (const struct tramp_frame *self,
 static void 
 i386nbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  i386_gdbarch_tdep *tdep = (i386_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   /* Obviously NetBSD is BSD-based.  */
   i386bsd_init_abi (info, gdbarch);
@@ -407,7 +407,7 @@ i386nbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 static void
 i386nbsdelf_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  i386_gdbarch_tdep *tdep = (i386_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   /* It's still NetBSD.  */
   i386nbsd_init_abi (info, gdbarch);

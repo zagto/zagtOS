@@ -1,6 +1,6 @@
 /* Implementation of the GDB variable objects API.
 
-   Copyright (C) 1999-2021 Free Software Foundation, Inc.
+   Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include "gdbcmd.h"
 #include "block.h"
 #include "valprint.h"
-#include "gdb_regex.h"
+#include "gdbsupport/gdb_regex.h"
 
 #include "varobj.h"
 #include "gdbthread.h"
@@ -47,7 +47,7 @@ static void
 show_varobjdebug (struct ui_file *file, int from_tty,
 		  struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("Varobj debugging is %s.\n"), value);
+  gdb_printf (file, _("Varobj debugging is %s.\n"), value);
 }
 
 /* String representations of gdb's format codes.  */
@@ -316,8 +316,8 @@ varobj_create (const char *objname,
 	  || opcode == OP_TYPEOF
 	  || opcode == OP_DECLTYPE)
 	{
-	  fprintf_unfiltered (gdb_stderr, "Attempt to use a type name"
-			      " as an expression.\n");
+	  gdb_printf (gdb_stderr, "Attempt to use a type name"
+		      " as an expression.\n");
 	  return NULL;
 	}
 
@@ -661,8 +661,7 @@ varobj_get_iterator (struct varobj *var)
     return py_varobj_get_iterator (var, var->dynamic->pretty_printer);
 #endif
 
-  gdb_assert_not_reached (_("\
-requested an iterator from a non-dynamic varobj"));
+  gdb_assert_not_reached ("requested an iterator from a non-dynamic varobj");
 }
 
 static bool
@@ -1345,11 +1344,8 @@ install_new_value (struct varobj *var, struct value *value, bool initial)
     {
       print_value = varobj_value_get_print_value (var->value.get (),
 						  var->format, var);
-      if ((var->print_value.empty () && !print_value.empty ())
-	  || (!var->print_value.empty () && print_value.empty ())
-	  || (!var->print_value.empty () && !print_value.empty ()
-	      && var->print_value != print_value))
-	  changed = true;
+      if (var->print_value != print_value)
+	changed = true;
     }
   var->print_value = print_value;
 
@@ -1756,7 +1752,7 @@ uninstall_variable (struct varobj *var)
   htab_remove_elt_with_hash (varobj_table, var->obj_name.c_str (), hash);
 
   if (varobjdebug)
-    fprintf_unfiltered (gdb_stdlog, "Deleting %s\n", var->obj_name.c_str ());
+    gdb_printf (gdb_stdlog, "Deleting %s\n", var->obj_name.c_str ());
 
   /* If root, remove varobj from root list.  */
   if (is_root_p (var))
@@ -1844,10 +1840,12 @@ varobj::~varobj ()
     }
 #endif
 
+  /* This must be deleted before the root object, because Python-based
+     destructors need access to some components.  */
+  delete var->dynamic;
+
   if (is_root_p (var))
     delete var->root;
-
-  delete var->dynamic;
 }
 
 /* Return the type of the value that's stored in VAR,
@@ -1938,8 +1936,8 @@ check_scope (const struct varobj *var)
     {
       CORE_ADDR pc = get_frame_pc (fi);
 
-      if (pc <  BLOCK_START (var->root->valid_block) ||
-	  pc >= BLOCK_END (var->root->valid_block))
+      if (pc <  var->root->valid_block->start () ||
+	  pc >= var->root->valid_block->end ())
 	scope = false;
       else
 	select_frame (fi);
@@ -2207,7 +2205,7 @@ varobj_value_get_print_value (struct value *value,
 
 			  thevalue = std::string (s.get ());
 			  len = thevalue.size ();
-			  gdbarch = get_type_arch (value_type (value));
+			  gdbarch = value_type (value)->arch ();
 			  type = builtin_type (gdbarch)->builtin_char;
 
 			  if (!string_print)
@@ -2231,8 +2229,8 @@ varobj_value_get_print_value (struct value *value,
 
   /* If the THEVALUE has contents, it is a regular string.  */
   if (!thevalue.empty ())
-    LA_PRINT_STRING (&stb, type, (gdb_byte *) thevalue.c_str (),
-		     len, encoding.get (), 0, &opts);
+    current_language->printstr (&stb, type, (gdb_byte *) thevalue.c_str (),
+				len, encoding.get (), 0, &opts);
   else if (string_print)
     /* Otherwise, if string_print is set, and it is not a regular
        string, it is a lazy string.  */
@@ -2241,7 +2239,7 @@ varobj_value_get_print_value (struct value *value,
     /* All other cases.  */
     common_val_print (value, &stb, 0, &opts, current_language);
 
-  return std::move (stb.string ());
+  return stb.release ();
 }
 
 bool

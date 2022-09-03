@@ -1,6 +1,6 @@
 /* Python interface to finish breakpoints
 
-   Copyright (C) 2011-2021 Free Software Foundation, Inc.
+   Copyright (C) 2011-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -40,13 +40,17 @@ struct finish_breakpoint_object
 {
   /* gdb.Breakpoint base class.  */
   gdbpy_breakpoint_object py_bp;
-  /* gdb.Type object of the value return by the breakpointed function.
-     May be NULL if no debug information was available or return type
-     was VOID.  */
-  PyObject *return_type;
-  /* gdb.Value object of the function finished by this breakpoint.  Will be
-     NULL if return_type is NULL.  */
+
+  /* gdb.Symbol object of the function finished by this breakpoint.
+
+     nullptr if no debug information was available or return type was VOID.  */
+  PyObject *func_symbol;
+
+  /* gdb.Value object of the function finished by this breakpoint.
+
+     nullptr if no debug information was available or return type was VOID.  */
   PyObject *function_value;
+
   /* When stopped at this FinishBreakpoint, gdb.Value object returned by
      the function; Py_None if the value is not computable; NULL if GDB is
      not stopped at a FinishBreakpoint.  */
@@ -80,8 +84,8 @@ bpfinishpy_dealloc (PyObject *self)
   struct finish_breakpoint_object *self_bpfinish =
 	(struct finish_breakpoint_object *) self;
 
+  Py_XDECREF (self_bpfinish->func_symbol);
   Py_XDECREF (self_bpfinish->function_value);
-  Py_XDECREF (self_bpfinish->return_type);
   Py_XDECREF (self_bpfinish->return_value);
   Py_TYPE (self)->tp_free (self);
 }
@@ -99,16 +103,17 @@ bpfinishpy_pre_stop_hook (struct gdbpy_breakpoint_object *bp_obj)
   /* Can compute return_value only once.  */
   gdb_assert (!self_finishbp->return_value);
 
-  if (!self_finishbp->return_type)
+  if (self_finishbp->func_symbol == nullptr)
     return;
 
   try
     {
+      struct symbol *func_symbol =
+	symbol_object_to_symbol (self_finishbp->func_symbol);
       struct value *function =
 	value_object_to_value (self_finishbp->function_value);
-      struct type *value_type =
-	type_object_to_type (self_finishbp->return_type);
-      struct value *ret = get_return_value (function, value_type);
+      struct value *ret =
+	get_return_value (func_symbol, function);
 
       if (ret)
 	{
@@ -165,7 +170,6 @@ bpfinishpy_init (PyObject *self, PyObject *args, PyObject *kwargs)
   PyObject *internal = NULL;
   int internal_bp = 0;
   CORE_ADDR pc;
-  struct symbol *function;
 
   if (!gdb_PyArg_ParseTupleAndKeywords (args, kwargs, "|OO", keywords,
 					&frame_obj, &internal))
@@ -239,30 +243,30 @@ bpfinishpy_init (PyObject *self, PyObject *args, PyObject *kwargs)
     }
 
   /* Find the function we will return from.  */
-  self_bpfinish->return_type = NULL;
-  self_bpfinish->function_value = NULL;
+  self_bpfinish->func_symbol = nullptr;
+  self_bpfinish->function_value = nullptr;
 
   try
     {
       if (get_frame_pc_if_available (frame, &pc))
 	{
-	  function = find_pc_function (pc);
-	  if (function != NULL)
+	  struct symbol *function = find_pc_function (pc);
+	  if (function != nullptr)
 	    {
 	      struct type *ret_type =
-		check_typedef (TYPE_TARGET_TYPE (SYMBOL_TYPE (function)));
+		check_typedef (TYPE_TARGET_TYPE (function->type ()));
 
 	      /* Remember only non-void return types.  */
 	      if (ret_type->code () != TYPE_CODE_VOID)
 		{
-		  struct value *func_value;
-
 		  /* Ignore Python errors at this stage.  */
-		  self_bpfinish->return_type = type_to_type_object (ret_type);
+		  value *func_value = read_var_value (function, NULL, frame);
+		  self_bpfinish->function_value
+		    = value_to_value_object (func_value);
 		  PyErr_Clear ();
-		  func_value = read_var_value (function, NULL, frame);
-		  self_bpfinish->function_value =
-		      value_to_value_object (func_value);
+
+		  self_bpfinish->func_symbol
+		    = symbol_to_symbol_object (function);
 		  PyErr_Clear ();
 		}
 	    }
@@ -274,14 +278,15 @@ bpfinishpy_init (PyObject *self, PyObject *args, PyObject *kwargs)
 	 remain NULL.  */
     }
 
-  if (self_bpfinish->return_type == NULL || self_bpfinish->function_value == NULL)
+  if (self_bpfinish->func_symbol == nullptr
+      || self_bpfinish->function_value == nullptr)
     {
       /* Won't be able to compute return value.  */
-      Py_XDECREF (self_bpfinish->return_type);
+      Py_XDECREF (self_bpfinish->func_symbol);
       Py_XDECREF (self_bpfinish->function_value);
 
-      self_bpfinish->return_type = NULL;
-      self_bpfinish->function_value = NULL;
+      self_bpfinish->func_symbol = nullptr;
+      self_bpfinish->function_value = nullptr;
     }
 
   bppy_pending_object = &self_bpfinish->py_bp;
@@ -291,16 +296,16 @@ bpfinishpy_init (PyObject *self, PyObject *args, PyObject *kwargs)
   try
     {
       /* Set a breakpoint on the return address.  */
-      event_location_up location
-	= new_address_location (get_frame_pc (prev_frame), NULL, 0);
-      create_breakpoint (python_gdbarch,
-			 location.get (), NULL, thread, NULL,
+      location_spec_up locspec
+	= new_address_location_spec (get_frame_pc (prev_frame), NULL, 0);
+      create_breakpoint (gdbpy_enter::get_gdbarch (),
+			 locspec.get (), NULL, thread, NULL, false,
 			 0,
 			 1 /*temp_flag*/,
 			 bp_breakpoint,
 			 0,
 			 AUTO_BOOLEAN_TRUE,
-			 &bkpt_breakpoint_ops,
+			 &code_breakpoint_ops,
 			 0, 1, internal_bp, 0);
     }
   catch (const gdb_exception &except)
@@ -342,7 +347,7 @@ bpfinishpy_out_of_scope (struct finish_breakpoint_object *bpfinish_obj)
 /* Callback for `bpfinishpy_detect_out_scope'.  Triggers Python's
    `B->out_of_scope' function if B is a FinishBreakpoint out of its scope.  */
 
-static bool
+static void
 bpfinishpy_detect_out_scope_cb (struct breakpoint *b,
 				struct breakpoint *bp_stopped)
 {
@@ -372,23 +377,18 @@ bpfinishpy_detect_out_scope_cb (struct breakpoint *b,
 	    }
 	}
     }
-
-  return 0;
 }
 
 /* Attached to `stop' notifications, check if the execution has run
    out of the scope of any FinishBreakpoint before it has been hit.  */
 
 static void
-bpfinishpy_handle_stop (struct bpstats *bs, int print_frame)
+bpfinishpy_handle_stop (struct bpstat *bs, int print_frame)
 {
-  gdbpy_enter enter_py (get_current_arch (), current_language);
+  gdbpy_enter enter_py;
 
-  iterate_over_breakpoints ([&] (breakpoint *bp)
-    {
-      return bpfinishpy_detect_out_scope_cb
-	(bp, bs == NULL ? NULL : bs->breakpoint_at);
-    });
+  for (breakpoint *bp : all_breakpoints_safe ())
+    bpfinishpy_detect_out_scope_cb (bp, bs == NULL ? NULL : bs->breakpoint_at);
 }
 
 /* Attached to `exit' notifications, triggers all the necessary out of
@@ -397,12 +397,10 @@ bpfinishpy_handle_stop (struct bpstats *bs, int print_frame)
 static void
 bpfinishpy_handle_exit (struct inferior *inf)
 {
-  gdbpy_enter enter_py (target_gdbarch (), current_language);
+  gdbpy_enter enter_py (target_gdbarch ());
 
-  iterate_over_breakpoints ([&] (breakpoint *bp)
-    {
-      return bpfinishpy_detect_out_scope_cb (bp, nullptr);
-    });
+  for (breakpoint *bp : all_breakpoints_safe ())
+    bpfinishpy_detect_out_scope_cb (bp, nullptr);
 }
 
 /* Initialize the Python finish breakpoint code.  */
@@ -417,8 +415,10 @@ gdbpy_initialize_finishbreakpoints (void)
 			      (PyObject *) &finish_breakpoint_object_type) < 0)
     return -1;
 
-  gdb::observers::normal_stop.attach (bpfinishpy_handle_stop);
-  gdb::observers::inferior_exit.attach (bpfinishpy_handle_exit);
+  gdb::observers::normal_stop.attach (bpfinishpy_handle_stop,
+				      "py-finishbreakpoint");
+  gdb::observers::inferior_exit.attach (bpfinishpy_handle_exit,
+					"py-finishbreakpoint");
 
   return 0;
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2021 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2022 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -46,7 +46,7 @@ typedef struct initializer
 static initializer cpu_flag_init[] =
 {
   { "CPU_UNKNOWN_FLAGS",
-    "~(CpuL1OM|CpuK1OM)" },
+    "~CpuIAMCU" },
   { "CPU_GENERIC32_FLAGS",
     "Cpu186|Cpu286|Cpu386" },
   { "CPU_GENERIC64_FLAGS",
@@ -243,12 +243,10 @@ static initializer cpu_flag_init[] =
     "CPU_AVX512F_FLAGS|CpuAVX512_BITALG" },
   { "CPU_AVX512_BF16_FLAGS",
     "CPU_AVX512F_FLAGS|CpuAVX512_BF16" },
-  { "CPU_L1OM_FLAGS",
-    "unknown" },
-  { "CPU_K1OM_FLAGS",
-    "unknown" },
+  { "CPU_AVX512_FP16_FLAGS",
+    "CPU_AVX512BW_FLAGS|CpuAVX512_FP16" },
   { "CPU_IAMCU_FLAGS",
-    "Cpu186|Cpu286|Cpu386|Cpu486|Cpu586" },
+    "Cpu186|Cpu286|Cpu386|Cpu486|Cpu586|CpuIAMCU" },
   { "CPU_ADX_FLAGS",
     "CpuADX" },
   { "CPU_RDSEED_FLAGS",
@@ -374,7 +372,7 @@ static initializer cpu_flag_init[] =
   { "CPU_ANY_AVX2_FLAGS",
     "CPU_ANY_AVX512F_FLAGS|CpuAVX2" },
   { "CPU_ANY_AVX512F_FLAGS",
-    "CpuAVX512F|CpuAVX512CD|CpuAVX512ER|CpuAVX512PF|CpuAVX512DQ|CpuAVX512BW|CpuAVX512VL|CpuAVX512IFMA|CpuAVX512VBMI|CpuAVX512_4FMAPS|CpuAVX512_4VNNIW|CpuAVX512_VPOPCNTDQ|CpuAVX512_VBMI2|CpuAVX512_VNNI|CpuAVX512_BITALG|CpuAVX512_BF16|CpuAVX512_VP2INTERSECT" },
+    "CpuAVX512F|CpuAVX512CD|CpuAVX512ER|CpuAVX512PF|CpuAVX512DQ|CPU_ANY_AVX512BW_FLAGS|CpuAVX512VL|CpuAVX512IFMA|CpuAVX512VBMI|CpuAVX512_4FMAPS|CpuAVX512_4VNNIW|CpuAVX512_VPOPCNTDQ|CpuAVX512_VBMI2|CpuAVX512_VNNI|CpuAVX512_BITALG|CpuAVX512_BF16|CpuAVX512_VP2INTERSECT" },
   { "CPU_ANY_AVX512CD_FLAGS",
     "CpuAVX512CD" },
   { "CPU_ANY_AVX512ER_FLAGS",
@@ -384,7 +382,7 @@ static initializer cpu_flag_init[] =
   { "CPU_ANY_AVX512DQ_FLAGS",
     "CpuAVX512DQ" },
   { "CPU_ANY_AVX512BW_FLAGS",
-    "CpuAVX512BW" },
+    "CpuAVX512BW|CPU_ANY_AVX512_FP16_FLAGS" },
   { "CPU_ANY_AVX512VL_FLAGS",
     "CpuAVX512VL" },
   { "CPU_ANY_AVX512IFMA_FLAGS",
@@ -439,6 +437,8 @@ static initializer cpu_flag_init[] =
     "CpuWideKL" },
   { "CPU_ANY_HRESET_FLAGS",
     "CpuHRESET" },
+  { "CPU_ANY_AVX512_FP16_FLAGS",
+    "CpuAVX512_FP16" },
 };
 
 static initializer operand_type_init[] =
@@ -475,8 +475,6 @@ static initializer operand_type_init[] =
     "Disp16" },
   { "OPERAND_TYPE_DISP32",
     "Disp32" },
-  { "OPERAND_TYPE_DISP32S",
-    "Disp32S" },
   { "OPERAND_TYPE_DISP64",
     "Disp64" },
   { "OPERAND_TYPE_INOUTPORTREG",
@@ -520,7 +518,7 @@ static initializer operand_type_init[] =
   { "OPERAND_TYPE_DISP16_32",
     "Disp16|Disp32" },
   { "OPERAND_TYPE_ANYDISP",
-    "Disp8|Disp16|Disp32|Disp32S|Disp64" },
+    "Disp8|Disp16|Disp32|Disp64" },
   { "OPERAND_TYPE_IMM16_32",
     "Imm16|Imm32" },
   { "OPERAND_TYPE_IMM16_32S",
@@ -584,8 +582,6 @@ static bitfield cpu_flags[] =
   BITFIELD (CpuAVX512VL),
   BITFIELD (CpuAVX512DQ),
   BITFIELD (CpuAVX512BW),
-  BITFIELD (CpuL1OM),
-  BITFIELD (CpuK1OM),
   BITFIELD (CpuIAMCU),
   BITFIELD (CpuSSE4a),
   BITFIELD (Cpu3dnow),
@@ -630,8 +626,6 @@ static bitfield cpu_flags[] =
   BITFIELD (CpuPREFETCHWT1),
   BITFIELD (CpuSE1),
   BITFIELD (CpuCLWB),
-  BITFIELD (Cpu64),
-  BITFIELD (CpuNo64),
   BITFIELD (CpuMPX),
   BITFIELD (CpuAVX512IFMA),
   BITFIELD (CpuAVX512VBMI),
@@ -645,6 +639,7 @@ static bitfield cpu_flags[] =
   BITFIELD (CpuAVX512_VP2INTERSECT),
   BITFIELD (CpuTDX),
   BITFIELD (CpuAVX_VNNI),
+  BITFIELD (CpuAVX512_FP16),
   BITFIELD (CpuMWAITX),
   BITFIELD (CpuCLZERO),
   BITFIELD (CpuOSPKE),
@@ -677,6 +672,8 @@ static bitfield cpu_flags[] =
   BITFIELD (CpuINVLPGB),
   BITFIELD (CpuTLBSYNC),
   BITFIELD (CpuSNP),
+  BITFIELD (Cpu64),
+  BITFIELD (CpuNo64),
 #ifdef CpuUnused
   BITFIELD (CpuUnused),
 #endif
@@ -693,6 +690,7 @@ static bitfield opcode_modifiers[] =
   BITFIELD (FloatR),
   BITFIELD (Size),
   BITFIELD (CheckRegSize),
+  BITFIELD (DistinctDest),
   BITFIELD (MnemonicSize),
   BITFIELD (Anysize),
   BITFIELD (No_bSuf),
@@ -705,12 +703,9 @@ static bitfield opcode_modifiers[] =
   BITFIELD (IsString),
   BITFIELD (RegMem),
   BITFIELD (BNDPrefixOk),
-  BITFIELD (NoTrackPrefixOk),
-  BITFIELD (IsLockable),
   BITFIELD (RegKludge),
   BITFIELD (Implicit1stXmm0),
-  BITFIELD (RepPrefixOk),
-  BITFIELD (HLEPrefixOk),
+  BITFIELD (PrefixOk),
   BITFIELD (ToDword),
   BITFIELD (ToQword),
   BITFIELD (AddrPrefixOpReg),
@@ -722,11 +717,11 @@ static bitfield opcode_modifiers[] =
   BITFIELD (Vex),
   BITFIELD (VexVVVV),
   BITFIELD (VexW),
+  BITFIELD (OpcodeSpace),
   BITFIELD (OpcodePrefix),
   BITFIELD (VexSources),
   BITFIELD (SIB),
   BITFIELD (SSE2AVX),
-  BITFIELD (NoAVX),
   BITFIELD (EVex),
   BITFIELD (Masking),
   BITFIELD (Broadcast),
@@ -789,7 +784,6 @@ static bitfield operand_types[] =
   BITFIELD (Disp8),
   BITFIELD (Disp16),
   BITFIELD (Disp32),
-  BITFIELD (Disp32S),
   BITFIELD (Disp64),
   BITFIELD (Byte),
   BITFIELD (Word),
@@ -860,7 +854,7 @@ static void
 process_copyright (FILE *fp)
 {
   fprintf (fp, "/* This file is automatically generated by i386-gen.  Do not edit!  */\n\
-/* Copyright (C) 2007-2021 Free Software Foundation, Inc.\n\
+/* Copyright (C) 2007-2022 Free Software Foundation, Inc.\n\
 \n\
    This file is part of the GNU opcodes library.\n\
 \n\
@@ -971,17 +965,6 @@ set_bitfield (char *f, bitfield *array, int value,
   if (*f == '\0')
     return;
 
-  if (strcmp (f, "CpuFP") == 0)
-    {
-      set_bitfield("Cpu387", array, value, size, lineno);
-      set_bitfield("Cpu287", array, value, size, lineno);
-      f = "Cpu8087";
-    }
-  else if (strcmp (f, "Mmword") == 0)
-    f= "Qword";
-  else if (strcmp (f, "Oword") == 0)
-    f= "Xmmword";
-
   for (i = 0; i < size; i++)
     if (strcasecmp (array[i].name, f) == 0)
       {
@@ -1058,22 +1041,15 @@ process_i386_cpu_flag (FILE *table, char *flag, int macro,
 		       const char *comma, const char *indent,
 		       int lineno)
 {
-  char *str, *next, *last;
+  char *str, *next = flag, *last;
   unsigned int i;
+  int value = 1;
   bitfield flags [ARRAY_SIZE (cpu_flags)];
 
   /* Copy the default cpu flags.  */
   memcpy (flags, cpu_flags, sizeof (cpu_flags));
 
-  if (strcasecmp (flag, "unknown") == 0)
-    {
-      /* We turn on everything except for cpu64 in case of
-	 CPU_UNKNOWN_FLAGS.  */
-      for (i = 0; i < ARRAY_SIZE (flags); i++)
-	if (flags[i].position != Cpu64)
-	  flags[i].value = 1;
-    }
-  else if (flag[0] == '~')
+  if (flag[0] == '~')
     {
       last = flag + strlen (flag);
 
@@ -1089,28 +1065,25 @@ process_i386_cpu_flag (FILE *table, char *flag, int macro,
       else
 	next = flag + 1;
 
-      /* First we turn on everything except for cpu64.  */
+      /* First we turn on everything except for cpu64, cpuno64, and - if
+         present - the padding field.  */
       for (i = 0; i < ARRAY_SIZE (flags); i++)
-	if (flags[i].position != Cpu64)
+	if (flags[i].position < Cpu64)
 	  flags[i].value = 1;
 
       /* Turn off selective bits.  */
+      value = 0;
+    }
+
+  if (strcmp (flag, "0"))
+    {
+      /* Turn on/off selective bits.  */
+      last = flag + strlen (flag);
       for (; next && next < last; )
 	{
 	  str = next_field (next, '|', &next, last);
 	  if (str)
-	    set_bitfield (str, flags, 0, ARRAY_SIZE (flags), lineno);
-	}
-    }
-  else if (strcmp (flag, "0"))
-    {
-      /* Turn on selective bits.  */
-      last = flag + strlen (flag);
-      for (next = flag; next && next < last; )
-	{
-	  str = next_field (next, '|', &next, last);
-	  if (str)
-	    set_bitfield (str, flags, 1, ARRAY_SIZE (flags), lineno);
+	    set_bitfield (str, flags, value, ARRAY_SIZE (flags), lineno);
 	}
     }
 
@@ -1188,12 +1161,12 @@ adjust_broadcast_modifier (char **opnd)
   return bcst_type;
 }
 
-static int
-process_i386_opcode_modifier (FILE *table, char *mod, char **opnd, int lineno)
+static void
+process_i386_opcode_modifier (FILE *table, char *mod, unsigned int space,
+			      unsigned int prefix, char **opnd, int lineno)
 {
   char *str, *next, *last;
   bitfield modifiers [ARRAY_SIZE (opcode_modifiers)];
-  unsigned int regular_encoding = 1;
 
   active_isstring = 0;
 
@@ -1212,19 +1185,7 @@ process_i386_opcode_modifier (FILE *table, char *mod, char **opnd, int lineno)
 	    {
 	      int val = 1;
 	      if (strcasecmp(str, "Broadcast") == 0)
-		{
-		  val = adjust_broadcast_modifier (opnd);
-		  regular_encoding = 0;
-		}
-	      else if (strcasecmp(str, "Vex") == 0
-		       || strncasecmp(str, "Vex=", 4) == 0
-		       || strcasecmp(str, "EVex") == 0
-		       || strncasecmp(str, "EVex=", 5) == 0
-		       || strncasecmp(str, "Disp8MemShift=", 14) == 0
-		       || strncasecmp(str, "Masking=", 8) == 0
-		       || strcasecmp(str, "SAE") == 0
-		       || strcasecmp(str, "IsPrefix") == 0)
-		regular_encoding = 0;
+		val = adjust_broadcast_modifier (opnd);
 
 	      set_bitfield (str, modifiers, val, ARRAY_SIZE (modifiers),
 			    lineno);
@@ -1245,6 +1206,32 @@ process_i386_opcode_modifier (FILE *table, char *mod, char **opnd, int lineno)
 	    }
 	}
 
+      if (space)
+	{
+	  if (!modifiers[OpcodeSpace].value)
+	    modifiers[OpcodeSpace].value = space;
+	  else if (modifiers[OpcodeSpace].value != space)
+	    fail (_("%s:%d: Conflicting opcode space specifications\n"),
+		  filename, lineno);
+	  else
+	    fprintf (stderr,
+		     _("%s:%d: Warning: redundant opcode space specification\n"),
+		     filename, lineno);
+	}
+
+      if (prefix)
+	{
+	  if (!modifiers[OpcodePrefix].value)
+	    modifiers[OpcodePrefix].value = prefix;
+	  else if (modifiers[OpcodePrefix].value != prefix)
+	    fail (_("%s:%d: Conflicting prefix specifications\n"),
+		  filename, lineno);
+	  else
+	    fprintf (stderr,
+		     _("%s:%d: Warning: redundant prefix specification\n"),
+		     filename, lineno);
+	}
+
       if (have_w && !bwlq_suf)
 	fail ("%s: %d: stray W modifier\n", filename, lineno);
       if (have_w && !(bwlq_suf & 1))
@@ -1256,8 +1243,6 @@ process_i386_opcode_modifier (FILE *table, char *mod, char **opnd, int lineno)
 		 filename, lineno);
     }
   output_opcode_modifier (table, modifiers, ARRAY_SIZE (modifiers));
-
-  return regular_encoding;
 }
 
 enum stage {
@@ -1355,10 +1340,7 @@ process_i386_operand_type (FILE *table, char *op, enum stage stage,
 	  if (!active_cpu_flags.bitfield.cpu64
 	      && !active_cpu_flags.bitfield.cpumpx)
 	    set_bitfield("Disp16", types, 1, ARRAY_SIZE (types), lineno);
-	  if (!active_cpu_flags.bitfield.cpu64)
-	    set_bitfield("Disp32", types, 1, ARRAY_SIZE (types), lineno);
-	  if (!active_cpu_flags.bitfield.cpuno64)
-	    set_bitfield("Disp32S", types, 1, ARRAY_SIZE (types), lineno);
+	  set_bitfield("Disp32", types, 1, ARRAY_SIZE (types), lineno);
 	}
     }
   output_operand_type (table, class, instance, types, ARRAY_SIZE (types),
@@ -1369,21 +1351,16 @@ static void
 output_i386_opcode (FILE *table, const char *name, char *str,
 		    char *last, int lineno)
 {
-  unsigned int i;
-  char *operands, *base_opcode, *extension_opcode, *opcode_length;
+  unsigned int i, length, prefix = 0, space = 0;
+  char *base_opcode, *extension_opcode, *end;
   char *cpu_flags, *opcode_modifier, *operand_types [MAX_OPERANDS];
-
-  /* Find number of operands.  */
-  operands = next_field (str, ',', &str, last);
+  unsigned long long opcode;
 
   /* Find base_opcode.  */
   base_opcode = next_field (str, ',', &str, last);
 
   /* Find extension_opcode.  */
   extension_opcode = next_field (str, ',', &str, last);
-
-  /* Find opcode_length.  */
-  opcode_length = next_field (str, ',', &str, last);
 
   /* Find cpu_flags.  */
   cpu_flags = next_field (str, ',', &str, last);
@@ -1396,91 +1373,90 @@ output_i386_opcode (FILE *table, const char *name, char *str,
   if (*str != '{')
     abort ();
   str = remove_leading_whitespaces (str + 1);
+  remove_trailing_whitespaces (str);
 
+  /* Remove } and trailing white space. */
   i = strlen (str);
-
-  /* There are at least "X}".  */
-  if (i < 2)
+  if (!i || str[i - 1] != '}')
     abort ();
+  str[--i] = '\0';
+  remove_trailing_whitespaces (str);
 
-  /* Remove trailing white spaces and }. */
-  do
+  if (!*str)
+    operand_types [i = 0] = NULL;
+  else
     {
-      i--;
-      if (ISSPACE (str[i]) || str[i] == '}')
-	str[i] = '\0';
-      else
-	break;
-    }
-  while (i != 0);
+      last = str + strlen (str);
 
-  last = str + i;
-
-  /* Find operand_types.  */
-  for (i = 0; i < ARRAY_SIZE (operand_types); i++)
-    {
-      if (str >= last)
+      /* Find operand_types.  */
+      for (i = 0; i < ARRAY_SIZE (operand_types); i++)
 	{
-	  operand_types [i] = NULL;
-	  break;
-	}
+	  if (str >= last)
+	    {
+	      operand_types [i] = NULL;
+	      break;
+	    }
 
-      operand_types [i] = next_field (str, ',', &str, last);
-      if (*operand_types[i] == '0')
-	{
-	  if (i != 0)
-	    operand_types[i] = NULL;
-	  break;
+	  operand_types [i] = next_field (str, ',', &str, last);
 	}
     }
 
-  fprintf (table, "  { \"%s\", %s, %s, %s, %s,\n",
-	   name, base_opcode, extension_opcode, opcode_length, operands);
+  opcode = strtoull (base_opcode, &end, 0);
+
+  /* Determine opcode length.  */
+  for (length = 1; length < 8; ++length)
+    if (!(opcode >> (8 * length)))
+       break;
+
+  /* Transform prefixes encoded in the opcode into opcode modifier
+     representation.  */
+  if (length > 1)
+    {
+      switch (opcode >> (8 * length - 8))
+	{
+	case 0x66: prefix = PREFIX_0X66; break;
+	case 0xF3: prefix = PREFIX_0XF3; break;
+	case 0xF2: prefix = PREFIX_0XF2; break;
+	}
+
+      if (prefix)
+	opcode &= (1ULL << (8 * --length)) - 1;
+    }
+
+  /* Transform opcode space encoded in the opcode into opcode modifier
+     representation.  */
+  if (length > 1 && (opcode >> (8 * length - 8)) == 0xf)
+    {
+      switch ((opcode >> (8 * length - 16)) & 0xff)
+	{
+	default:   space = SPACE_0F;   break;
+	case 0x38: space = SPACE_0F38; break;
+	case 0x3A: space = SPACE_0F3A; break;
+	}
+
+      if (space != SPACE_0F && --length == 1)
+	fail (_("%s:%d: %s: unrecognized opcode encoding space\n"),
+	      filename, lineno, name);
+      opcode &= (1ULL << (8 * --length)) - 1;
+    }
+
+  if (length > 2)
+    fail (_("%s:%d: %s: residual opcode (0x%0*llx) too large\n"),
+	  filename, lineno, name, 2 * length, opcode);
+
+  fprintf (table, "  { \"%s\", 0x%0*llx%s, %s, %lu,\n",
+	   name, 2 * (int)length, opcode, end, extension_opcode, i);
+
+  process_i386_opcode_modifier (table, opcode_modifier, space, prefix,
+				operand_types, lineno);
 
   process_i386_cpu_flag (table, cpu_flags, 0, ",", "    ", lineno);
-
-  if (process_i386_opcode_modifier (table, opcode_modifier,
-				    operand_types, lineno))
-    {
-      char *end;
-      unsigned long int length = strtoul (opcode_length, &end, 0);
-      unsigned long int opcode = strtoul (base_opcode, &end, 0);
-      switch (length)
-	{
-	case 4:
-	  break;
-	case 3:
-	  if ((opcode >> 24) != 0)
-	    fail (_("%s: %s: (base_opcode >> 24) != 0: %s\n"),
-		  filename, name, base_opcode);
-	  break;
-	case 2:
-	  if ((opcode >> 16) != 0)
-	    fail (_("%s: %s: (base_opcode >> 16) != 0: %s\n"),
-		  filename, name, base_opcode);
-	  break;
-	case 1:
-	  if ((opcode >> 8) != 0)
-	    fail (_("%s: %s: (base_opcode >> 8) != 0: %s\n"),
-		  filename, name, base_opcode);
-	  break;
-	case 0:
-	  if (opcode != 0)
-	    fail (_("%s: %s: base_opcode != 0: %s\n"),
-		  filename, name, base_opcode);
-	  break;
-	default:
-	  fail (_("%s: %s: invalid opcode length: %s\n"),
-		filename, name, opcode_length);
-	  break;
-	}
-    }
 
   fprintf (table, "    { ");
 
   for (i = 0; i < ARRAY_SIZE (operand_types); i++)
     {
-      if (operand_types[i] == NULL || *operand_types[i] == '0')
+      if (!operand_types[i])
 	{
 	  if (i == 0)
 	    process_i386_operand_type (table, "0", stage_opcodes, "\t  ",
@@ -1580,7 +1556,7 @@ parse_template (char *buf, int lineno)
       inst->args = NULL;
 
       cur = next_field (buf, ':', &next, end);
-      inst->name = xstrdup (cur);
+      inst->name = *cur != '$' ? xstrdup (cur) : "";
 
       for (param = tmpl->params; param; param = param->next)
 	{
@@ -1861,11 +1837,11 @@ process_i386_opcodes (FILE *table)
 
   fclose (fp);
 
-  fprintf (table, "  { NULL, 0, 0, 0, 0,\n");
+  fprintf (table, "  { NULL, 0, 0, 0,\n");
+
+  process_i386_opcode_modifier (table, "0", 0, 0, NULL, -1);
 
   process_i386_cpu_flag (table, "0", 0, ",", "    ", -1);
-
-  process_i386_opcode_modifier (table, "0", NULL, -1);
 
   fprintf (table, "    { ");
   process_i386_operand_type (table, "0", stage_opcodes, "\t  ", -1);

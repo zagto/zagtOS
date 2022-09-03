@@ -1,4 +1,4 @@
-# Copyright 2015-2021 Free Software Foundation, Inc.
+# Copyright 2015-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@ if { [prepare_for_testing "failed to prepare" ${testfile} ${srcfile} \
 }
 
 if ![fortran_runto_main] {
-    untested "could not run to main"
     return -1
 }
 
@@ -133,7 +132,7 @@ clean_restart ${testfile}
 
 if ![fortran_runto_main] then {
     perror "couldn't run to main"
-    continue
+    return
 }
 gdb_breakpoint [gdb_get_line_number "vla2-allocated"]
 gdb_continue_to_breakpoint "vla2-allocated, second time"

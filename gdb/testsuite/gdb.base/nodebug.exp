@@ -1,4 +1,4 @@
-# Copyright 1997-2021 Free Software Foundation, Inc.
+# Copyright 1997-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,10 +17,6 @@
 
 
 standard_testfile .c
-
-if [get_compiler_info] {
-    return -1
-}
 
 if [test_compiler_info "xlc-*"] {
     # By default, IBM'x xlc compiler doesn't add static variables into the symtab.

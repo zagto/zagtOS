@@ -1,6 +1,6 @@
 /* Shared general utility routines for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,6 +21,7 @@
 #include "common-utils.h"
 #include "host-defs.h"
 #include "safe-ctype.h"
+#include "gdbsupport/gdb-xfree.h"
 
 void *
 xzalloc (size_t size)
@@ -31,19 +32,18 @@ xzalloc (size_t size)
 /* Like asprintf/vasprintf but get an internal_error if the call
    fails. */
 
-char *
+gdb::unique_xmalloc_ptr<char>
 xstrprintf (const char *format, ...)
 {
-  char *ret;
   va_list args;
 
   va_start (args, format);
-  ret = xstrvprintf (format, args);
+  gdb::unique_xmalloc_ptr<char> ret = xstrvprintf (format, args);
   va_end (args);
   return ret;
 }
 
-char *
+gdb::unique_xmalloc_ptr<char>
 xstrvprintf (const char *format, va_list ap)
 {
   char *ret = NULL;
@@ -55,7 +55,7 @@ xstrvprintf (const char *format, va_list ap)
      happen, but just to be sure.  */
   if (ret == NULL || status < 0)
     internal_error (__FILE__, __LINE__, _("vasprintf call failed"));
-  return ret;
+  return gdb::unique_xmalloc_ptr<char> (ret);
 }
 
 int
@@ -119,7 +119,7 @@ string_vprintf (const char* fmt, va_list args)
 
 /* See documentation in common-utils.h.  */
 
-void
+std::string &
 string_appendf (std::string &str, const char *fmt, ...)
 {
   va_list vp;
@@ -127,12 +127,14 @@ string_appendf (std::string &str, const char *fmt, ...)
   va_start (vp, fmt);
   string_vappendf (str, fmt, vp);
   va_end (vp);
+
+  return str;
 }
 
 
 /* See documentation in common-utils.h.  */
 
-void
+std::string &
 string_vappendf (std::string &str, const char *fmt, va_list args)
 {
   va_list vp;
@@ -148,6 +150,8 @@ string_vappendf (std::string &str, const char *fmt, va_list args)
   /* C++11 and later guarantee std::string uses contiguous memory and
      always includes the terminating '\0'.  */
   vsprintf (&str[curr_size], fmt, args); /* ARI: vsprintf */
+
+  return str;
 }
 
 char *
@@ -391,4 +395,53 @@ align_down (ULONGEST v, int n)
   /* Check that N is really a power of two.  */
   gdb_assert (n && (n & (n-1)) == 0);
   return (v & -n);
+}
+
+/* See gdbsupport/common-utils.h.  */
+
+int
+fromhex (int a)
+{
+  if (a >= '0' && a <= '9')
+    return a - '0';
+  else if (a >= 'a' && a <= 'f')
+    return a - 'a' + 10;
+  else if (a >= 'A' && a <= 'F')
+    return a - 'A' + 10;
+  else
+    error (_("Invalid hex digit %d"), a);
+}
+
+/* See gdbsupport/common-utils.h.  */
+
+int
+hex2bin (const char *hex, gdb_byte *bin, int count)
+{
+  int i;
+
+  for (i = 0; i < count; i++)
+    {
+      if (hex[0] == 0 || hex[1] == 0)
+	{
+	  /* Hex string is short, or of uneven length.
+	     Return the count that has been converted so far.  */
+	  return i;
+	}
+      *bin++ = fromhex (hex[0]) * 16 + fromhex (hex[1]);
+      hex += 2;
+    }
+  return i;
+}
+
+/* See gdbsupport/common-utils.h.  */
+
+gdb::byte_vector
+hex2bin (const char *hex)
+{
+  size_t bin_len = strlen (hex) / 2;
+  gdb::byte_vector bin (bin_len);
+
+  hex2bin (hex, bin.data (), bin_len);
+
+  return bin;
 }

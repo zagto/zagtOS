@@ -1,4 +1,4 @@
---  Copyright 2016-2021 Free Software Foundation, Inc.
+--  Copyright 2016-2022 Free Software Foundation, Inc.
 --
 --  This program is free software; you can redistribute it and/or modify
 --  it under the terms of the GNU General Public License as published by
@@ -29,6 +29,10 @@ package Pck is
    type FP4_Type is delta Delta4 range 0.0 .. Delta4 * 10
       with Small => Delta4 / 3.0;
    FP4_Var : FP4_Type := 2 * Delta4;
+
+   Delta5 : constant := 0.000_000_000_000_000_000_1;
+   type FP5_Type is delta Delta5 range 0.0 .. Delta5 * 10
+      with Small => Delta5 / 3.0;
 
    procedure Do_Nothing (A : System.Address);
 end pck;

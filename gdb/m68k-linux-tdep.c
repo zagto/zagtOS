@@ -1,6 +1,6 @@
 /* Motorola m68k target-dependent support for GNU/Linux.
 
-   Copyright (C) 1996-2021 Free Software Foundation, Inc.
+   Copyright (C) 1996-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -69,7 +69,7 @@ m68k_linux_pc_in_sigtramp (struct frame_info *this_frame)
   unsigned long insn0, insn1, insn2;
   CORE_ADDR pc = get_frame_pc (this_frame);
 
-  if (!safe_frame_unwind_memory (this_frame, pc - 4, buf, sizeof (buf)))
+  if (!safe_frame_unwind_memory (this_frame, pc - 4, {buf, sizeof (buf)}))
     return 0;
   insn1 = extract_unsigned_integer (buf + 4, 4, byte_order);
   insn2 = extract_unsigned_integer (buf + 8, 4, byte_order);
@@ -316,6 +316,7 @@ m68k_linux_sigtramp_frame_sniffer (const struct frame_unwind *self,
 
 static const struct frame_unwind m68k_linux_sigtramp_frame_unwind =
 {
+  "m68k linux sigtramp",
   SIGTRAMP_FRAME,
   default_frame_unwind_stop_reason,
   m68k_linux_sigtramp_frame_this_id,
@@ -383,7 +384,7 @@ m68k_linux_iterate_over_regset_sections (struct gdbarch *gdbarch,
 static void
 m68k_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  m68k_gdbarch_tdep *tdep = (m68k_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   linux_init_abi (info, gdbarch, 0);
 
@@ -407,7 +408,7 @@ m68k_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   /* GNU/Linux uses SVR4-style shared libraries.  */
   set_solib_svr4_fetch_link_map_offsets (gdbarch,
-					 svr4_ilp32_fetch_link_map_offsets);
+					 linux_ilp32_fetch_link_map_offsets);
 
   /* GNU/Linux uses the dynamic linker included in the GNU C Library.  */
   set_gdbarch_skip_solib_resolver (gdbarch, glibc_skip_solib_resolver);
@@ -429,5 +430,6 @@ _initialize_m68k_linux_tdep ()
 {
   gdbarch_register_osabi (bfd_arch_m68k, 0, GDB_OSABI_LINUX,
 			  m68k_linux_init_abi);
-  gdb::observers::inferior_created.attach (m68k_linux_inferior_created);
+  gdb::observers::inferior_created.attach (m68k_linux_inferior_created,
+					   "m68k-linux-tdep");
 }

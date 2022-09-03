@@ -1,6 +1,6 @@
 /* TUI windows implemented in Python
 
-   Copyright (C) 2020-2021 Free Software Foundation, Inc.
+   Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -47,6 +47,9 @@ struct gdbpy_tui_window
 
   /* The TUI window, or nullptr if the window has been deleted.  */
   tui_py_window *window;
+
+  /* Return true if this object is valid.  */
+  bool is_valid () const;
 };
 
 extern PyTypeObject gdbpy_tui_window_object_type
@@ -88,13 +91,17 @@ public:
 
   void refresh_window () override
   {
-    tui_win_info::refresh_window ();
     if (m_inner_window != nullptr)
       {
+	wnoutrefresh (handle.get ());
 	touchwin (m_inner_window.get ());
 	tui_wrefresh (m_inner_window.get ());
       }
+    else
+      tui_win_info::refresh_window ();
   }
+
+  void click (int mouse_x, int mouse_y, int mouse_button) override;
 
   /* Erase and re-box the window.  */
   void erase ()
@@ -106,8 +113,9 @@ public:
       }
   }
 
-  /* Write STR to the window.  */
-  void output (const char *str);
+  /* Write STR to the window.  FULL_WINDOW is true to erase the window
+     contents beforehand.  */
+  void output (const char *str, bool full_window);
 
   /* A helper function to compute the viewport width.  */
   int viewport_width () const
@@ -137,9 +145,17 @@ private:
   gdbpy_ref<gdbpy_tui_window> m_wrapper;
 };
 
+/* See gdbpy_tui_window declaration above.  */
+
+bool
+gdbpy_tui_window::is_valid () const
+{
+  return window != nullptr && tui_active;
+}
+
 tui_py_window::~tui_py_window ()
 {
-  gdbpy_enter enter_py (get_current_arch (), current_language);
+  gdbpy_enter enter_py;
 
   /* This can be null if the user-provided Python construction
      function failed.  */
@@ -165,7 +181,7 @@ tui_py_window::rerender ()
 {
   tui_win_info::rerender ();
 
-  gdbpy_enter enter_py (get_current_arch (), current_language);
+  gdbpy_enter enter_py;
 
   int h = viewport_height ();
   int w = viewport_width ();
@@ -190,7 +206,7 @@ tui_py_window::rerender ()
 void
 tui_py_window::do_scroll_horizontal (int num_to_scroll)
 {
-  gdbpy_enter enter_py (get_current_arch (), current_language);
+  gdbpy_enter enter_py;
 
   if (PyObject_HasAttrString (m_window.get (), "hscroll"))
     {
@@ -204,7 +220,7 @@ tui_py_window::do_scroll_horizontal (int num_to_scroll)
 void
 tui_py_window::do_scroll_vertical (int num_to_scroll)
 {
-  gdbpy_enter enter_py (get_current_arch (), current_language);
+  gdbpy_enter enter_py;
 
   if (PyObject_HasAttrString (m_window.get (), "vscroll"))
     {
@@ -216,12 +232,33 @@ tui_py_window::do_scroll_vertical (int num_to_scroll)
 }
 
 void
-tui_py_window::output (const char *text)
+tui_py_window::click (int mouse_x, int mouse_y, int mouse_button)
+{
+  gdbpy_enter enter_py;
+
+  if (PyObject_HasAttrString (m_window.get (), "click"))
+    {
+      gdbpy_ref<> result (PyObject_CallMethod (m_window.get (), "click",
+					       "iii", mouse_x, mouse_y,
+					       mouse_button));
+      if (result == nullptr)
+	gdbpy_print_stack ();
+    }
+}
+
+void
+tui_py_window::output (const char *text, bool full_window)
 {
   if (m_inner_window != nullptr)
     {
+      if (full_window)
+	werase (m_inner_window.get ());
+
       tui_puts (text, m_inner_window.get ());
-      tui_wrefresh (m_inner_window.get ());
+      if (full_window)
+	check_and_display_highlight_if_needed ();
+      else
+	tui_wrefresh (m_inner_window.get ());
     }
 }
 
@@ -248,7 +285,7 @@ public:
 
   gdbpy_tui_window_maker (const gdbpy_tui_window_maker &other)
   {
-    gdbpy_enter enter_py (get_current_arch (), current_language);
+    gdbpy_enter enter_py;
     m_constr = other.m_constr;
   }
 
@@ -260,7 +297,7 @@ public:
 
   gdbpy_tui_window_maker &operator= (const gdbpy_tui_window_maker &other)
   {
-    gdbpy_enter enter_py (get_current_arch (), current_language);
+    gdbpy_enter enter_py;
     m_constr = other.m_constr;
     return *this;
   }
@@ -275,14 +312,14 @@ private:
 
 gdbpy_tui_window_maker::~gdbpy_tui_window_maker ()
 {
-  gdbpy_enter enter_py (get_current_arch (), current_language);
+  gdbpy_enter enter_py;
   m_constr.reset (nullptr);
 }
 
 tui_win_info *
 gdbpy_tui_window_maker::operator() (const char *win_name)
 {
-  gdbpy_enter enter_py (get_current_arch (), current_language);
+  gdbpy_enter enter_py;
 
   gdbpy_ref<gdbpy_tui_window> wrapper
     (PyObject_New (gdbpy_tui_window, &gdbpy_tui_window_object_type));
@@ -344,9 +381,21 @@ gdbpy_register_tui_window (PyObject *self, PyObject *args, PyObject *kw)
 
 #define REQUIRE_WINDOW(Window)					\
     do {							\
-      if ((Window)->window == nullptr)				\
+      if (!(Window)->is_valid ())				\
 	return PyErr_Format (PyExc_RuntimeError,		\
 			     _("TUI window is invalid."));	\
+    } while (0)
+
+/* Require that "Window" be a valid window.  */
+
+#define REQUIRE_WINDOW_FOR_SETTER(Window)			\
+    do {							\
+      if (!(Window)->is_valid ())				\
+	{							\
+	  PyErr_Format (PyExc_RuntimeError,			\
+			_("TUI window is invalid."));		\
+	  return -1;						\
+	}							\
     } while (0)
 
 /* Python function which checks the validity of a TUI window
@@ -356,7 +405,7 @@ gdbpy_tui_is_valid (PyObject *self, PyObject *args)
 {
   gdbpy_tui_window *win = (gdbpy_tui_window *) self;
 
-  if (win->window != nullptr)
+  if (win->is_valid ())
     Py_RETURN_TRUE;
   Py_RETURN_FALSE;
 }
@@ -380,13 +429,14 @@ gdbpy_tui_write (PyObject *self, PyObject *args)
 {
   gdbpy_tui_window *win = (gdbpy_tui_window *) self;
   const char *text;
+  int full_window = 0;
 
-  if (!PyArg_ParseTuple (args, "s", &text))
+  if (!PyArg_ParseTuple (args, "s|i", &text, &full_window))
     return nullptr;
 
   REQUIRE_WINDOW (win);
 
-  win->window->output (text);
+  win->window->output (text, full_window);
 
   Py_RETURN_NONE;
 }
@@ -428,13 +478,9 @@ gdbpy_tui_set_title (PyObject *self, PyObject *newvalue, void *closure)
 {
   gdbpy_tui_window *win = (gdbpy_tui_window *) self;
 
-  if (win->window == nullptr)
-    {
-      PyErr_Format (PyExc_RuntimeError, _("TUI window is invalid."));
-      return -1;
-    }
+  REQUIRE_WINDOW_FOR_SETTER (win);
 
-  if (win->window == nullptr)
+  if (newvalue == nullptr)
     {
       PyErr_Format (PyExc_TypeError, _("Cannot delete \"title\" attribute."));
       return -1;

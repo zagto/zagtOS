@@ -1,6 +1,6 @@
 /* Target dependent code for ARC architecture, for GDB.
 
-   Copyright 2005-2021 Free Software Foundation, Inc.
+   Copyright 2005-2022 Free Software Foundation, Inc.
    Contributed by Synopsys Inc.
 
    This file is part of GDB.
@@ -27,6 +27,7 @@
 #include "frame-base.h"
 #include "frame-unwind.h"
 #include "gdbcore.h"
+#include "reggroups.h"
 #include "gdbcmd.h"
 #include "objfiles.h"
 #include "osabi.h"
@@ -87,7 +88,7 @@ struct arc_frame_cache
 
 /* Global debug flag.  */
 
-int arc_debug;
+bool arc_debug;
 
 /* List of "maintenance print arc" commands.  */
 
@@ -434,14 +435,14 @@ arc_insn_get_branch_target (const struct arc_instruction &insn)
   /* JLI and EI depend on optional AUX registers.  Not supported right now.  */
   else if (insn.insn_class == JLI)
     {
-      fprintf_unfiltered (gdb_stderr,
-			  "JLI_S instruction is not supported by the GDB.");
+      gdb_printf (gdb_stderr,
+		  "JLI_S instruction is not supported by the GDB.");
       return 0;
     }
   else if (insn.insn_class == EI)
     {
-      fprintf_unfiltered (gdb_stderr,
-			  "EI_S instruction is not supported by the GDB.");
+      gdb_printf (gdb_stderr,
+		  "EI_S instruction is not supported by the GDB.");
       return 0;
     }
   /* LEAVE_S: PC = BLINK.  */
@@ -601,9 +602,8 @@ arc_write_pc (struct regcache *regcache, CORE_ADDR new_pc)
 {
   struct gdbarch *gdbarch = regcache->arch ();
 
-  if (arc_debug)
-    debug_printf ("arc: Writing PC, new value=%s\n",
-		  paddress (gdbarch, new_pc));
+  arc_debug_printf ("Writing PC, new value=%s",
+		    paddress (gdbarch, new_pc));
 
   regcache_cooked_write_unsigned (regcache, gdbarch_pc_regnum (gdbarch),
 				  new_pc);
@@ -614,13 +614,10 @@ arc_write_pc (struct regcache *regcache, CORE_ADDR new_pc)
 
   if ((status32 & ARC_STATUS32_DE_MASK) != 0)
     {
-      if (arc_debug)
-	{
-	  debug_printf ("arc: Changing PC while in delay slot.  Will "
+      arc_debug_printf ("Changing PC while in delay slot.  Will "
 			"reset STATUS32.DE bit to zero.  Value of STATUS32 "
-			"register is 0x%s\n",
+			"register is 0x%s",
 			phex (status32, ARC_REGISTER_SIZE));
-	}
 
       /* Reset bit and write to the cache.  */
       status32 &= ~0x40;
@@ -734,8 +731,7 @@ arc_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		     function_call_return_method return_method,
 		     CORE_ADDR struct_addr)
 {
-  if (arc_debug)
-    debug_printf ("arc: push_dummy_call (nargs = %d)\n", nargs);
+  arc_debug_printf ("nargs = %d", nargs);
 
   int arg_reg = ARC_FIRST_ARG_REGNUM;
 
@@ -751,9 +747,8 @@ arc_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       /* Pass the return address in the first argument register.  */
       regcache_cooked_write_unsigned (regcache, arg_reg, struct_addr);
 
-      if (arc_debug)
-	debug_printf ("arc: struct return address %s passed in R%d",
-		      print_core_address (gdbarch, struct_addr), arg_reg);
+      arc_debug_printf ("struct return address %s passed in R%d",
+			print_core_address (gdbarch, struct_addr), arg_reg);
 
       arg_reg++;
     }
@@ -771,8 +766,7 @@ arc_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 
 	  total_space += space;
 
-	  if (arc_debug)
-	    debug_printf ("arc: arg %d: %u bytes -> %u\n", i, len, space);
+	  arc_debug_printf ("arg %d: %u bytes -> %u", i, len, space);
 	}
 
       /* Allocate a buffer to hold a memory image of the arguments.  */
@@ -785,10 +779,10 @@ arc_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	  unsigned int len = TYPE_LENGTH (value_type (args[i]));
 	  unsigned int space = align_up (len, 4);
 
-	  memcpy (data, value_contents (args[i]), (size_t) len);
-	  if (arc_debug)
-	    debug_printf ("arc: copying arg %d, val 0x%08x, len %d to mem\n",
-			  i, *((int *) value_contents (args[i])), len);
+	  memcpy (data, value_contents (args[i]).data (), (size_t) len);
+	  arc_debug_printf ("copying arg %d, val 0x%08x, len %d to mem",
+			    i, *((int *) value_contents (args[i]).data ()),
+			    len);
 
 	  data += space;
 	}
@@ -797,9 +791,8 @@ arc_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       data = memory_image;
       while (arg_reg <= ARC_LAST_ARG_REGNUM)
 	{
-	  if (arc_debug)
-	    debug_printf ("arc: passing 0x%02x%02x%02x%02x in register R%d\n",
-			  data[0], data[1], data[2], data[3], arg_reg);
+	  arc_debug_printf ("passing 0x%02x%02x%02x%02x in register R%d",
+			    data[0], data[1], data[2], data[3], arg_reg);
 
 	  /* Note we don't use write_unsigned here, since that would convert
 	     the byte order, but we are already in the correct byte order.  */
@@ -819,8 +812,7 @@ arc_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	 operation).  */
       if (total_space > 0)
 	{
-	  if (arc_debug)
-	    debug_printf ("arc: passing %d bytes on stack\n", total_space);
+	  arc_debug_printf ("passing %d bytes on stack\n", total_space);
 
 	  sp -= total_space;
 	  write_memory (sp, data, (int) total_space);
@@ -916,8 +908,7 @@ arc_extract_return_value (struct gdbarch *gdbarch, struct type *type,
 {
   unsigned int len = TYPE_LENGTH (type);
 
-  if (arc_debug)
-    debug_printf ("arc: extract_return_value\n");
+  arc_debug_printf ("called");
 
   if (len <= ARC_REGISTER_SIZE)
     {
@@ -928,8 +919,7 @@ arc_extract_return_value (struct gdbarch *gdbarch, struct type *type,
       store_unsigned_integer (valbuf, (int) len,
 			      gdbarch_byte_order (gdbarch), val);
 
-      if (arc_debug)
-	debug_printf ("arc: returning 0x%s\n", phex (val, ARC_REGISTER_SIZE));
+      arc_debug_printf ("returning 0x%s", phex (val, ARC_REGISTER_SIZE));
     }
   else if (len <= ARC_REGISTER_SIZE * 2)
     {
@@ -945,10 +935,9 @@ arc_extract_return_value (struct gdbarch *gdbarch, struct type *type,
 			      (int) len - ARC_REGISTER_SIZE,
 			      gdbarch_byte_order (gdbarch), high);
 
-      if (arc_debug)
-	debug_printf ("arc: returning 0x%s%s\n",
-		      phex (high, ARC_REGISTER_SIZE),
-		      phex (low, ARC_REGISTER_SIZE));
+      arc_debug_printf ("returning 0x%s%s",
+			phex (high, ARC_REGISTER_SIZE),
+			phex (low, ARC_REGISTER_SIZE));
     }
   else
     error (_("arc: extract_return_value: type length %u too large"), len);
@@ -970,8 +959,7 @@ arc_store_return_value (struct gdbarch *gdbarch, struct type *type,
 {
   unsigned int len = TYPE_LENGTH (type);
 
-  if (arc_debug)
-    debug_printf ("arc: store_return_value\n");
+  arc_debug_printf ("called");
 
   if (len <= ARC_REGISTER_SIZE)
     {
@@ -982,8 +970,7 @@ arc_store_return_value (struct gdbarch *gdbarch, struct type *type,
 				      gdbarch_byte_order (gdbarch));
       regcache_cooked_write_unsigned (regcache, ARC_R0_REGNUM, val);
 
-      if (arc_debug)
-	debug_printf ("arc: storing 0x%s\n", phex (val, ARC_REGISTER_SIZE));
+      arc_debug_printf ("storing 0x%s", phex (val, ARC_REGISTER_SIZE));
     }
   else if (len <= ARC_REGISTER_SIZE * 2)
     {
@@ -999,10 +986,9 @@ arc_store_return_value (struct gdbarch *gdbarch, struct type *type,
       regcache_cooked_write_unsigned (regcache, ARC_R0_REGNUM, low);
       regcache_cooked_write_unsigned (regcache, ARC_R1_REGNUM, high);
 
-      if (arc_debug)
-	debug_printf ("arc: storing 0x%s%s\n",
-		      phex (high, ARC_REGISTER_SIZE),
-		      phex (low, ARC_REGISTER_SIZE));
+      arc_debug_printf ("storing 0x%s%s",
+			phex (high, ARC_REGISTER_SIZE),
+			phex (low, ARC_REGISTER_SIZE));
     }
   else
     error (_("arc_store_return_value: type length too large."));
@@ -1013,11 +999,10 @@ arc_store_return_value (struct gdbarch *gdbarch, struct type *type,
 static int
 arc_get_longjmp_target (struct frame_info *frame, CORE_ADDR *pc)
 {
-  if (arc_debug)
-    debug_printf ("arc: get_longjmp_target\n");
+  arc_debug_printf ("called");
 
   struct gdbarch *gdbarch = get_frame_arch (frame);
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  arc_gdbarch_tdep *tdep = (arc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
   int pc_offset = tdep->jb_pc * ARC_REGISTER_SIZE;
   gdb_byte buf[ARC_REGISTER_SIZE];
   CORE_ADDR jb_addr = get_frame_register_unsigned (frame, ARC_FIRST_ARG_REGNUM);
@@ -1046,10 +1031,9 @@ arc_return_value (struct gdbarch *gdbarch, struct value *function,
 			  || valtype->code () == TYPE_CODE_UNION
 			  || TYPE_LENGTH (valtype) > 2 * ARC_REGISTER_SIZE);
 
-  if (arc_debug)
-    debug_printf ("arc: return_value (readbuf = %s, writebuf = %s)\n",
-		  host_address_to_string (readbuf),
-		  host_address_to_string (writebuf));
+  arc_debug_printf ("readbuf = %s, writebuf = %s",
+		    host_address_to_string (readbuf),
+		    host_address_to_string (writebuf));
 
   if (writebuf != NULL)
     {
@@ -1322,30 +1306,6 @@ arc_is_in_prologue (struct gdbarch *gdbarch, const struct arc_instruction &insn,
   return false;
 }
 
-/* Copy of gdb_buffered_insn_length_fprintf from disasm.c.  */
-
-static int ATTRIBUTE_PRINTF (2, 3)
-arc_fprintf_disasm (void *stream, const char *format, ...)
-{
-  return 0;
-}
-
-struct disassemble_info
-arc_disassemble_info (struct gdbarch *gdbarch)
-{
-  struct disassemble_info di;
-  init_disassemble_info (&di, &null_stream, arc_fprintf_disasm);
-  di.arch = gdbarch_bfd_arch_info (gdbarch)->arch;
-  di.mach = gdbarch_bfd_arch_info (gdbarch)->mach;
-  di.endian = gdbarch_byte_order (gdbarch);
-  di.read_memory_func = [](bfd_vma memaddr, gdb_byte *myaddr,
-			   unsigned int len, struct disassemble_info *info)
-    {
-      return target_read_code (memaddr, myaddr, len);
-    };
-  return di;
-}
-
 /* Analyze the prologue and update the corresponding frame cache for the frame
    unwinder for unwinding frames that doesn't have debug info.  In such
    situation GDB attempts to parse instructions in the prologue to understand
@@ -1400,10 +1360,9 @@ static CORE_ADDR
 arc_analyze_prologue (struct gdbarch *gdbarch, const CORE_ADDR entrypoint,
 		      const CORE_ADDR limit_pc, struct arc_frame_cache *cache)
 {
-  if (arc_debug)
-    debug_printf ("arc: analyze_prologue (entrypoint=%s, limit_pc=%s)\n",
-		  paddress (gdbarch, entrypoint),
-		  paddress (gdbarch, limit_pc));
+  arc_debug_printf ("entrypoint=%s, limit_pc=%s",
+		    paddress (gdbarch, entrypoint),
+		    paddress (gdbarch, limit_pc));
 
   /* Prologue values.  Only core registers can be stored.  */
   pv_t regs[ARC_LAST_CORE_REGNUM + 1];
@@ -1417,11 +1376,12 @@ arc_analyze_prologue (struct gdbarch *gdbarch, const CORE_ADDR entrypoint,
   while (current_prologue_end < limit_pc)
     {
       struct arc_instruction insn;
-      struct disassemble_info di = arc_disassemble_info (gdbarch);
-      arc_insn_decode (current_prologue_end, &di, arc_delayed_print_insn,
-		       &insn);
 
-      if (arc_debug >= 2)
+      struct gdb_non_printing_memory_disassembler dis (gdbarch);
+      arc_insn_decode (current_prologue_end, dis.disasm_info (),
+		       arc_delayed_print_insn, &insn);
+
+      if (arc_debug)
 	arc_insn_dump (insn);
 
       /* If this instruction is in the prologue, fields in the cache will be
@@ -1429,9 +1389,8 @@ arc_analyze_prologue (struct gdbarch *gdbarch, const CORE_ADDR entrypoint,
       if (!arc_is_in_prologue (gdbarch, insn, regs, &stack))
 	{
 	  /* Found an instruction that is not in the prologue.  */
-	  if (arc_debug)
-	    debug_printf ("arc: End of prologue reached at address %s\n",
-			  paddress (gdbarch, insn.address));
+	  arc_debug_printf ("End of prologue reached at address %s",
+			    paddress (gdbarch, insn.address));
 	  break;
 	}
 
@@ -1492,8 +1451,7 @@ const static int MAX_PROLOGUE_LENGTH
 static CORE_ADDR
 arc_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
-  if (arc_debug)
-    debug_printf ("arc: skip_prologue\n");
+  arc_debug_printf ("pc = %s", paddress (gdbarch, pc));
 
   CORE_ADDR func_addr;
   const char *func_name;
@@ -1665,19 +1623,19 @@ static void
 arc_print_frame_cache (struct gdbarch *gdbarch, const char *message,
 		       struct arc_frame_cache *cache, int addresses_known)
 {
-  debug_printf ("arc: frame_info %s\n", message);
-  debug_printf ("arc: prev_sp = %s\n", paddress (gdbarch, cache->prev_sp));
-  debug_printf ("arc: frame_base_reg = %i\n", cache->frame_base_reg);
-  debug_printf ("arc: frame_base_offset = %s\n",
-		plongest (cache->frame_base_offset));
+  arc_debug_printf ("frame_info %s", message);
+  arc_debug_printf ("prev_sp = %s", paddress (gdbarch, cache->prev_sp));
+  arc_debug_printf ("frame_base_reg = %i", cache->frame_base_reg);
+  arc_debug_printf ("frame_base_offset = %s",
+		    plongest (cache->frame_base_offset));
 
   for (int i = 0; i <= ARC_BLINK_REGNUM; i++)
     {
-      if (trad_frame_addr_p (cache->saved_regs, i))
-	debug_printf ("arc: saved register %s at %s %s\n",
-		      gdbarch_register_name (gdbarch, i),
-		      (addresses_known) ? "address" : "offset",
-		      paddress (gdbarch, cache->saved_regs[i].addr ()));
+      if (cache->saved_regs[i].is_addr ())
+	arc_debug_printf ("saved register %s at %s %s",
+			  gdbarch_register_name (gdbarch, i),
+			  (addresses_known) ? "address" : "offset",
+			      paddress (gdbarch, cache->saved_regs[i].addr ()));
     }
 }
 
@@ -1686,8 +1644,7 @@ arc_print_frame_cache (struct gdbarch *gdbarch, const char *message,
 static struct arc_frame_cache *
 arc_make_frame_cache (struct frame_info *this_frame)
 {
-  if (arc_debug)
-    debug_printf ("arc: frame_cache\n");
+  arc_debug_printf ("called");
 
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
 
@@ -1738,7 +1695,7 @@ arc_make_frame_cache (struct frame_info *this_frame)
 
   for (int i = 0; i <= ARC_LAST_CORE_REGNUM; i++)
     {
-      if (trad_frame_addr_p (cache->saved_regs, i))
+      if (cache->saved_regs[i].is_addr ())
 	cache->saved_regs[i].set_addr (cache->saved_regs[i].addr ()
 				       + cache->prev_sp);
     }
@@ -1755,8 +1712,7 @@ static void
 arc_frame_this_id (struct frame_info *this_frame, void **this_cache,
 		   struct frame_id *this_id)
 {
-  if (arc_debug)
-    debug_printf ("arc: frame_this_id\n");
+  arc_debug_printf ("called");
 
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
 
@@ -1851,10 +1807,10 @@ arc_dwarf2_frame_init_reg (struct gdbarch *gdbarch, int regnum,
 static struct arc_frame_cache *
 arc_make_sigtramp_frame_cache (struct frame_info *this_frame)
 {
-  if (arc_debug)
-    debug_printf ("arc: sigtramp_frame_cache\n");
+  arc_debug_printf ("called");
 
-  struct gdbarch_tdep *tdep = gdbarch_tdep (get_frame_arch (this_frame));
+  gdbarch *arch = get_frame_arch (this_frame);
+  arc_gdbarch_tdep *tdep = (arc_gdbarch_tdep *) gdbarch_tdep (arch);
 
   /* Allocate new frame cache instance and space for saved register info.  */
   struct arc_frame_cache *cache = FRAME_OBSTACK_ZALLOC (struct arc_frame_cache);
@@ -1891,8 +1847,7 @@ static void
 arc_sigtramp_frame_this_id (struct frame_info *this_frame,
 			    void **this_cache, struct frame_id *this_id)
 {
-  if (arc_debug)
-    debug_printf ("arc: sigtramp_frame_this_id\n");
+  arc_debug_printf ("called");
 
   if (*this_cache == NULL)
     *this_cache = arc_make_sigtramp_frame_cache (this_frame);
@@ -1911,8 +1866,7 @@ static struct value *
 arc_sigtramp_frame_prev_register (struct frame_info *this_frame,
 				  void **this_cache, int regnum)
 {
-  if (arc_debug)
-    debug_printf ("arc: sigtramp_frame_prev_register (regnum = %d)\n", regnum);
+  arc_debug_printf ("regnum = %d", regnum);
 
   /* Make sure we've initialized the cache.  */
   if (*this_cache == NULL)
@@ -1930,12 +1884,10 @@ arc_sigtramp_frame_sniffer (const struct frame_unwind *self,
 			    struct frame_info *this_frame,
 			    void **this_cache)
 {
-  struct gdbarch_tdep *tdep;
+  arc_debug_printf ("called");
 
-  if (arc_debug)
-    debug_printf ("arc: sigtramp_frame_sniffer\n");
-
-  tdep = gdbarch_tdep (get_frame_arch (this_frame));
+  gdbarch *arch = get_frame_arch (this_frame);
+  arc_gdbarch_tdep *tdep = (arc_gdbarch_tdep *) gdbarch_tdep (arch);
 
   /* If we have a sigcontext_addr handler, then just return 1 (same as the
      "default_frame_sniffer ()").  */
@@ -1948,6 +1900,7 @@ arc_sigtramp_frame_sniffer (const struct frame_unwind *self,
    accepts the frame.  */
 
 static const struct frame_unwind arc_frame_unwind = {
+  "arc prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   arc_frame_this_id,
@@ -1963,6 +1916,7 @@ static const struct frame_unwind arc_frame_unwind = {
    context.  */
 
 static const struct frame_unwind arc_sigtramp_frame_unwind = {
+  "arc sigtramp",
   SIGTRAMP_FRAME,
   default_frame_unwind_stop_reason,
   arc_sigtramp_frame_this_id,
@@ -2193,8 +2147,7 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 		tdesc_arch_data_up *tdesc_data)
 {
   const struct target_desc *tdesc_loc = info.target_desc;
-  if (arc_debug)
-    debug_printf ("arc: Target description initialization.\n");
+  arc_debug_printf ("Target description initialization.");
 
   /* If target doesn't provide a description, use the default ones.  */
   if (!tdesc_has_registers (tdesc_loc))
@@ -2206,8 +2159,7 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
     }
   gdb_assert (tdesc_loc != nullptr);
 
-  if (arc_debug)
-    debug_printf ("arc: Have got a target description\n");
+  arc_debug_printf ("Have got a target description");
 
   const struct tdesc_feature *feature_core
     = tdesc_find_feature (tdesc_loc, ARC_CORE_FEATURE_NAME);
@@ -2253,8 +2205,7 @@ arc_tdesc_init (struct gdbarch_info info, const struct target_desc **tdesc,
 
   if (!valid_p)
     {
-      if (arc_debug)
-	debug_printf ("arc: Target description is not valid\n");
+      arc_debug_printf ("Target description is not valid");
       return false;
     }
 
@@ -2300,19 +2251,18 @@ arc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   const struct target_desc *tdesc;
   tdesc_arch_data_up tdesc_data;
 
-  if (arc_debug)
-    debug_printf ("arc: Architecture initialization.\n");
+  arc_debug_printf ("Architecture initialization.");
 
   if (!arc_tdesc_init (info, &tdesc, &tdesc_data))
     return nullptr;
 
   /* Allocate the ARC-private target-dependent information structure, and the
      GDB target-independent information structure.  */
-  gdb::unique_xmalloc_ptr<struct gdbarch_tdep> tdep
-    (XCNEW (struct gdbarch_tdep));
+  std::unique_ptr<arc_gdbarch_tdep> tdep_holder (new arc_gdbarch_tdep);
+  arc_gdbarch_tdep *tdep = tdep_holder.get ();
   tdep->jb_pc = -1; /* No longjmp support by default.  */
   tdep->has_hw_loops = arc_check_for_hw_loops (tdesc, tdesc_data.get ());
-  struct gdbarch *gdbarch = gdbarch_alloc (&info, tdep.release ());
+  struct gdbarch *gdbarch = gdbarch_alloc (&info, tdep_holder.release ());
 
   /* Data types.  */
   set_gdbarch_short_bit (gdbarch, 16);
@@ -2394,7 +2344,7 @@ arc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
      It can override functions set earlier.  */
   gdbarch_init_osabi (info, gdbarch);
 
-  if (gdbarch_tdep (gdbarch)->jb_pc >= 0)
+  if (tdep->jb_pc >= 0)
     set_gdbarch_get_longjmp_target (gdbarch, arc_get_longjmp_target);
 
   /* Disassembler options.  Enforce CPU if it was specified in XML target
@@ -2447,10 +2397,12 @@ arc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	      arc_disassembler_options = NULL;
 	      break;
 	    }
-	  set_gdbarch_disassembler_options (gdbarch,
-					    &arc_disassembler_options);
 	}
     }
+
+  set_gdbarch_disassembler_options (gdbarch, &arc_disassembler_options);
+  set_gdbarch_valid_disassembler_options (gdbarch,
+					  disassembler_options_arc ());
 
   tdesc_use_registers (gdbarch, tdesc, std::move (tdesc_data));
 
@@ -2462,18 +2414,18 @@ arc_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 static void
 arc_dump_tdep (struct gdbarch *gdbarch, struct ui_file *file)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  arc_gdbarch_tdep *tdep = (arc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
-  fprintf_unfiltered (file, "arc_dump_tdep: jb_pc = %i\n", tdep->jb_pc);
+  gdb_printf (file, "arc_dump_tdep: jb_pc = %i\n", tdep->jb_pc);
 
-  fprintf_unfiltered (file, "arc_dump_tdep: is_sigtramp = <%s>\n",
-		      host_address_to_string (tdep->is_sigtramp));
-  fprintf_unfiltered (file, "arc_dump_tdep: sigcontext_addr = <%s>\n",
-		      host_address_to_string (tdep->sigcontext_addr));
-  fprintf_unfiltered (file, "arc_dump_tdep: sc_reg_offset = <%s>\n",
-		      host_address_to_string (tdep->sc_reg_offset));
-  fprintf_unfiltered (file, "arc_dump_tdep: sc_num_regs = %d\n",
-		      tdep->sc_num_regs);
+  gdb_printf (file, "arc_dump_tdep: is_sigtramp = <%s>\n",
+	      host_address_to_string (tdep->is_sigtramp));
+  gdb_printf (file, "arc_dump_tdep: sigcontext_addr = <%s>\n",
+	      host_address_to_string (tdep->sigcontext_addr));
+  gdb_printf (file, "arc_dump_tdep: sc_reg_offset = <%s>\n",
+	      host_address_to_string (tdep->sc_reg_offset));
+  gdb_printf (file, "arc_dump_tdep: sc_num_regs = %d\n",
+	      tdep->sc_num_regs);
 }
 
 /* This command accepts single argument - address of instruction to
@@ -2491,8 +2443,8 @@ dump_arc_instruction_command (const char *args, int from_tty)
 
   CORE_ADDR address = value_as_address (val);
   struct arc_instruction insn;
-  struct disassemble_info di = arc_disassemble_info (target_gdbarch ());
-  arc_insn_decode (address, &di, arc_delayed_print_insn, &insn);
+  struct gdb_non_printing_memory_disassembler dis (target_gdbarch ());
+  arc_insn_decode (address, dis.disasm_info (), arc_delayed_print_insn, &insn);
   arc_insn_dump (insn);
 }
 
@@ -2505,11 +2457,11 @@ _initialize_arc_tdep ()
   /* Register ARC-specific commands with gdb.  */
 
   /* Add root prefix command for "maintenance print arc" commands.  */
-  add_show_prefix_cmd ("arc", class_maintenance,
-		       _("ARC-specific maintenance commands for printing GDB "
-			 "internal state."),
-		       &maintenance_print_arc_list, "maintenance print arc ",
-		       0, &maintenanceprintlist);
+  add_basic_prefix_cmd ("arc", class_maintenance,
+			_("ARC-specific maintenance commands for printing GDB "
+			  "internal state."),
+			&maintenance_print_arc_list,
+			0, &maintenanceprintlist);
 
   add_cmd ("arc-instruction", class_maintenance,
 	   dump_arc_instruction_command,
@@ -2517,10 +2469,10 @@ _initialize_arc_tdep ()
 	   &maintenance_print_arc_list);
 
   /* Debug internals for ARC GDB.  */
-  add_setshow_zinteger_cmd ("arc", class_maintenance,
-			    &arc_debug,
-			    _("Set ARC specific debugging."),
-			    _("Show ARC specific debugging."),
-			    _("Non-zero enables ARC specific debugging."),
-			    NULL, NULL, &setdebuglist, &showdebuglist);
+  add_setshow_boolean_cmd ("arc", class_maintenance,
+			   &arc_debug,
+			   _("Set ARC specific debugging."),
+			   _("Show ARC specific debugging."),
+			   _("When set, ARC specific debugging is enabled."),
+			   NULL, NULL, &setdebuglist, &showdebuglist);
 }

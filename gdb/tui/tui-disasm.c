@@ -1,6 +1,6 @@
 /* Disassembly display.
 
-   Copyright (C) 1998-2021 Free Software Foundation, Inc.
+   Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
    Contributed by Hewlett-Packard Company.
 
@@ -40,6 +40,7 @@
 #include "progspace.h"
 #include "objfiles.h"
 #include "cli/cli-style.h"
+#include "tui/tui-location.h"
 
 #include "gdb_curses.h"
 
@@ -60,7 +61,7 @@ len_without_escapes (const std::string &str)
   const char *ptr = str.c_str ();
   char c;
 
-  while ((c = *ptr++) != '\0')
+  while ((c = *ptr) != '\0')
     {
       if (c == '\033')
 	{
@@ -76,7 +77,10 @@ len_without_escapes (const std::string &str)
 	    }
 	}
       else
-	++len;
+	{
+	  ++len;
+	  ++ptr;
+	}
     }
   return len;
 }
@@ -126,14 +130,12 @@ tui_disassemble (struct gdbarch *gdbarch,
 	}
 
       /* Capture the disassembled instruction.  */
-      tal.insn = std::move (gdb_dis_out.string ());
-      gdb_dis_out.clear ();
+      tal.insn = gdb_dis_out.release ();
 
       /* And capture the address the instruction is at.  */
       tal.addr = orig_pc;
       print_address (gdbarch, orig_pc, &gdb_dis_out);
-      tal.addr_string = std::move (gdb_dis_out.string ());
-      gdb_dis_out.clear ();
+      tal.addr_string = gdb_dis_out.release ();
 
       if (addr_size != nullptr)
 	{
@@ -166,15 +168,15 @@ tui_find_backward_disassembly_start_address (CORE_ADDR addr)
 					      lookup_msym_prefer::TEXT,
 					      &msym_prev);
   if (msym.minsym != nullptr)
-    return BMSYMBOL_VALUE_ADDRESS (msym);
+    return msym.value_address ();
   else if (msym_prev.minsym != nullptr)
-    return BMSYMBOL_VALUE_ADDRESS (msym_prev);
+    return msym_prev.value_address ();
 
   /* Find the section that ADDR is in, and look for the start of the
      section.  */
   struct obj_section *section = find_pc_section (addr);
   if (section != NULL)
-    return obj_section_addr (section);
+    return section->addr ();
 
   return addr;
 }
@@ -320,7 +322,6 @@ tui_disasm_window::set_contents (struct gdbarch *arch,
   int i;
   int max_lines;
   CORE_ADDR cur_pc;
-  struct tui_locator_window *locator = tui_locator_win_info_ptr ();
   int tab_len = tui_tab_width;
   int insn_pos;
 
@@ -331,7 +332,7 @@ tui_disasm_window::set_contents (struct gdbarch *arch,
   m_gdbarch = arch;
   m_start_line_or_addr.loa = LOA_ADDRESS;
   m_start_line_or_addr.u.addr = pc;
-  cur_pc = locator->addr;
+  cur_pc = tui_location.addr ();
 
   /* Window size, excluding highlight box.  */
   max_lines = height - 2;
@@ -384,13 +385,10 @@ tui_disasm_window::set_contents (struct gdbarch *arch,
 void
 tui_get_begin_asm_address (struct gdbarch **gdbarch_p, CORE_ADDR *addr_p)
 {
-  struct tui_locator_window *locator;
   struct gdbarch *gdbarch = get_current_arch ();
   CORE_ADDR addr = 0;
 
-  locator = tui_locator_win_info_ptr ();
-
-  if (locator->addr == 0)
+  if (tui_location.addr () == 0)
     {
       if (have_full_symbols () || have_partial_symbols ())
 	{
@@ -406,13 +404,13 @@ tui_get_begin_asm_address (struct gdbarch **gdbarch_p, CORE_ADDR *addr_p)
 	  struct bound_minimal_symbol main_symbol
 	    = lookup_minimal_symbol (main_name (), nullptr, nullptr);
 	  if (main_symbol.minsym != nullptr)
-	    addr = BMSYMBOL_VALUE_ADDRESS (main_symbol);
+	    addr = main_symbol.value_address ();
 	}
     }
   else				/* The target is executing.  */
     {
-      gdbarch = locator->gdbarch;
-      addr = locator->addr;
+      gdbarch = tui_location.gdbarch ();
+      addr = tui_location.addr ();
     }
 
   *gdbarch_p = gdbarch;

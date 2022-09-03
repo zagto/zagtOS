@@ -1,5 +1,5 @@
 /* read.c - read a source file -
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -64,7 +64,7 @@
 #endif
 
 char *input_line_pointer;	/*->next char of source file to parse.  */
-bfd_boolean input_from_string = FALSE;
+bool input_from_string = false;
 
 #if BITS_PER_CHAR != 8
 /*  The following table is indexed by[(char)] and will break if
@@ -364,9 +364,7 @@ static const pseudo_typeS potable[] = {
   {"common.s", s_mri_common, 1},
   {"data", s_data, 0},
   {"dc", cons, 2},
-#ifdef TC_ADDRESS_BYTES
   {"dc.a", cons, 0},
-#endif
   {"dc.b", cons, 1},
   {"dc.d", float_cons, 'd'},
   {"dc.l", cons, 4},
@@ -384,10 +382,10 @@ static const pseudo_typeS potable[] = {
   {"ds.b", s_space, 1},
   {"ds.d", s_space, 8},
   {"ds.l", s_space, 4},
-  {"ds.p", s_space, 12},
+  {"ds.p", s_space, 'p'},
   {"ds.s", s_space, 4},
   {"ds.w", s_space, 2},
-  {"ds.x", s_space, 12},
+  {"ds.x", s_space, 'x'},
   {"debug", s_ignore, 0},
 #ifdef S_SET_DESC
   {"desc", s_desc, 0},
@@ -414,10 +412,8 @@ static const pseudo_typeS potable[] = {
   {"exitm", s_mexit, 0},
 /* extend  */
   {"extern", s_ignore, 0},	/* We treat all undef as ext.  */
-  {"appfile", s_app_file, 1},
-  {"appline", s_app_line, 1},
   {"fail", s_fail, 0},
-  {"file", s_app_file, 0},
+  {"file", s_file, 0},
   {"fill", s_fill, 0},
   {"float", float_cons, 'f'},
   {"format", s_ignore, 0},
@@ -450,7 +446,7 @@ static const pseudo_typeS potable[] = {
   {"irepc", s_irp, 1},
   {"lcomm", s_lcomm, 0},
   {"lflags", s_ignore, 0},	/* Listing flags.  */
-  {"linefile", s_app_line, 0},
+  {"linefile", s_linefile, 0},
   {"linkonce", s_linkonce, 0},
   {"list", listing_list, 1},	/* Turn listing on.  */
   {"llen", listing_psize, 1},
@@ -530,6 +526,9 @@ static const pseudo_typeS potable[] = {
   {"weakref", s_weakref, 0},
   {"word", cons, 2},
   {"zero", s_space, 0},
+  {"2byte", cons, 2},
+  {"4byte", cons, 4},
+  {"8byte", cons, 8},
   {NULL, NULL, 0}			/* End sentinel.  */
 };
 
@@ -624,25 +623,6 @@ pobegin (void)
       continue;								\
     }
 
-/* This function is used when scrubbing the characters between #APP
-   and #NO_APP.  */
-
-static char *scrub_string;
-static char *scrub_string_end;
-
-static size_t
-scrub_from_string (char *buf, size_t buflen)
-{
-  size_t copy;
-
-  copy = scrub_string_end - scrub_string;
-  if (copy > buflen)
-    copy = buflen;
-  memcpy (buf, scrub_string, copy);
-  scrub_string += copy;
-  return copy;
-}
-
 /* Helper function of read_a_source_file, which tries to expand a macro.  */
 static int
 try_macro (char term, const char *line)
@@ -657,7 +637,7 @@ try_macro (char term, const char *line)
 	as_bad ("%s", err);
       *input_line_pointer++ = term;
       input_scrub_include_sb (&out,
-			      input_line_pointer, 1);
+			      input_line_pointer, expanding_macro);
       sb_kill (&out);
       buffer_limit =
 	input_scrub_next_buffer (&input_line_pointer);
@@ -792,7 +772,7 @@ assemble_one (char *line)
 
 #endif  /* HANDLE_BUNDLE */
 
-static bfd_boolean
+static bool
 in_bss (void)
 {
   flagword flags = bfd_section_flags (now_seg);
@@ -898,7 +878,7 @@ read_a_source_file (const char *name)
 #endif
       while (input_line_pointer < buffer_limit)
 	{
-	  bfd_boolean was_new_line;
+	  bool was_new_line;
 	  /* We have more of this buffer to parse.  */
 
 	  /* We now have input_line_pointer->1st char of next line.
@@ -928,7 +908,7 @@ read_a_source_file (const char *name)
 		  if (s != last_eol)
 		    {
 		      char *copy;
-		      int len;
+		      size_t len;
 
 		      last_eol = s;
 		      /* Copy it for safe keeping.  Also give an indication of
@@ -1265,7 +1245,7 @@ read_a_source_file (const char *name)
 	      while (ISDIGIT (*input_line_pointer))
 		{
 		  const long digit = *input_line_pointer - '0';
-		  if (temp > (LONG_MAX - digit) / 10)
+		  if (temp > (INT_MAX - digit) / 10)
 		    {
 		      as_bad (_("local label too large near %s"), backup);
 		      temp = -1;
@@ -1313,13 +1293,10 @@ read_a_source_file (const char *name)
 	    {			/* Its a comment.  Better say APP or NO_APP.  */
 	      sb sbuf;
 	      char *ends;
-	      char *new_buf;
-	      char *new_tmp;
-	      unsigned int new_length;
-	      char *tmp_buf = 0;
+	      size_t len;
 
 	      s = input_line_pointer;
-	      if (strncmp (s, "APP\n", 4))
+	      if (!startswith (s, "APP\n"))
 		{
 		  /* We ignore it.  */
 		  ignore_rest_of_line ();
@@ -1329,91 +1306,32 @@ read_a_source_file (const char *name)
 	      s += 4;
 
 	      ends = strstr (s, "#NO_APP\n");
+	      len = ends ? ends - s : buffer_limit - s;
 
+	      sb_build (&sbuf, len + 100);
+	      sb_add_buffer (&sbuf, s, len);
 	      if (!ends)
 		{
-		  unsigned int tmp_len;
-		  unsigned int num;
-
 		  /* The end of the #APP wasn't in this buffer.  We
 		     keep reading in buffers until we find the #NO_APP
 		     that goes with this #APP  There is one.  The specs
 		     guarantee it...  */
-		  tmp_len = buffer_limit - s;
-		  tmp_buf = XNEWVEC (char, tmp_len + 1);
-		  memcpy (tmp_buf, s, tmp_len);
 		  do
 		    {
-		      new_tmp = input_scrub_next_buffer (&buffer);
-		      if (!new_tmp)
+		      buffer_limit = input_scrub_next_buffer (&buffer);
+		      if (!buffer_limit)
 			break;
-		      else
-			buffer_limit = new_tmp;
-		      input_line_pointer = buffer;
 		      ends = strstr (buffer, "#NO_APP\n");
-		      if (ends)
-			num = ends - buffer;
-		      else
-			num = buffer_limit - buffer;
-
-		      tmp_buf = XRESIZEVEC (char, tmp_buf, tmp_len + num);
-		      memcpy (tmp_buf + tmp_len, buffer, num);
-		      tmp_len += num;
+		      len = ends ? ends - buffer : buffer_limit - buffer;
+		      sb_add_buffer (&sbuf, buffer, len);
 		    }
 		  while (!ends);
-
-		  input_line_pointer = ends ? ends + 8 : NULL;
-
-		  s = tmp_buf;
-		  ends = s + tmp_len;
-
-		}
-	      else
-		{
-		  input_line_pointer = ends + 8;
 		}
 
-	      scrub_string = s;
-	      scrub_string_end = ends;
-
-	      new_length = ends - s;
-	      new_buf = XNEWVEC (char, new_length);
-	      new_tmp = new_buf;
-	      for (;;)
-		{
-		  size_t space;
-		  size_t size;
-
-		  space = (new_buf + new_length) - new_tmp;
-		  size = do_scrub_chars (scrub_from_string, new_tmp, space);
-
-		  if (size < space)
-		    {
-		      new_tmp[size] = 0;
-		      break;
-		    }
-
-		  new_buf = XRESIZEVEC (char, new_buf, new_length + 100);
-		  new_tmp = new_buf + new_length;
-		  new_length += 100;
-		}
-
-	      free (tmp_buf);
-
-	      /* We've "scrubbed" input to the preferred format.  In the
-		 process we may have consumed the whole of the remaining
-		 file (and included files).  We handle this formatted
-		 input similar to that of macro expansion, letting
-		 actual macro expansion (possibly nested) and other
-		 input expansion work.  Beware that in messages, line
-		 numbers and possibly file names will be incorrect.  */
-	      new_length = strlen (new_buf);
-	      sb_build (&sbuf, new_length);
-	      sb_add_buffer (&sbuf, new_buf, new_length);
-	      input_scrub_include_sb (&sbuf, input_line_pointer, 0);
+	      input_line_pointer = ends ? ends + 8 : NULL;
+	      input_scrub_include_sb (&sbuf, input_line_pointer, expanding_none);
 	      sb_kill (&sbuf);
 	      buffer_limit = input_scrub_next_buffer (&input_line_pointer);
-	      free (new_buf);
 	      continue;
 	    }
 
@@ -1939,7 +1857,6 @@ s_mri_common (int small ATTRIBUTE_UNUSED)
   if (S_IS_DEFINED (sym) && !S_IS_COMMON (sym))
     {
       as_bad (_("symbol `%s' is already defined"), S_GET_NAME (sym));
-      ignore_rest_of_line ();
       mri_comment_end (stop, stopc);
       return;
     }
@@ -2000,15 +1917,11 @@ s_data (int ignore ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
-/* Handle the .appfile pseudo-op.  This is automatically generated by
-   do_scrub_chars when a preprocessor # line comment is seen with a
-   file name.  This default definition may be overridden by the object
-   or CPU specific pseudo-ops.  This function is also the default
-   definition for .file; the APPFILE argument is 1 for .appfile, 0 for
-   .file.  */
+/* Handle the .file pseudo-op.  This default definition may be overridden by
+   the object or CPU specific pseudo-ops.  */
 
 void
-s_app_file_string (char *file, int appfile ATTRIBUTE_UNUSED)
+s_file_string (char *file)
 {
 #ifdef LISTING
   if (listing)
@@ -2016,12 +1929,12 @@ s_app_file_string (char *file, int appfile ATTRIBUTE_UNUSED)
 #endif
   register_dependency (file);
 #ifdef obj_app_file
-  obj_app_file (file, appfile);
+  obj_app_file (file);
 #endif
 }
 
 void
-s_app_file (int appfile)
+s_file (int ignore ATTRIBUTE_UNUSED)
 {
   char *s;
   int length;
@@ -2029,8 +1942,7 @@ s_app_file (int appfile)
   /* Some assemblers tolerate immediately following '"'.  */
   if ((s = demand_copy_string (&length)) != 0)
     {
-      int may_omit
-	= (!new_logical_line_flags (s, -1, 1) && appfile);
+      new_logical_line_flags (s, -1, 1);
 
       /* In MRI mode, the preprocessor may have inserted an extraneous
 	 backquote.  */
@@ -2040,47 +1952,61 @@ s_app_file (int appfile)
 	++input_line_pointer;
 
       demand_empty_rest_of_line ();
-      if (!may_omit)
-	s_app_file_string (s, appfile);
+      s_file_string (s);
     }
 }
 
-static int
+static bool
 get_linefile_number (int *flag)
 {
+  expressionS exp;
+
   SKIP_WHITESPACE ();
 
   if (*input_line_pointer < '0' || *input_line_pointer > '9')
-    return 0;
+    return false;
 
-  *flag = get_absolute_expression ();
+  /* Don't mistakenly interpret octal numbers as line numbers.  */
+  if (*input_line_pointer == '0')
+    {
+      *flag = 0;
+      ++input_line_pointer;
+      return true;
+    }
 
-  return 1;
+  expression_and_evaluate (&exp);
+  if (exp.X_op != O_constant)
+    return false;
+
+#if defined (BFD64) || LONG_MAX > INT_MAX
+  if (exp.X_add_number < INT_MIN || exp.X_add_number > INT_MAX)
+    return false;
+#endif
+
+  *flag = exp.X_add_number;
+
+  return true;
 }
 
-/* Handle the .appline pseudo-op.  This is automatically generated by
+/* Handle the .linefile pseudo-op.  This is automatically generated by
    do_scrub_chars when a preprocessor # line comment is seen.  This
    default definition may be overridden by the object or CPU specific
    pseudo-ops.  */
 
 void
-s_app_line (int appline)
+s_linefile (int ignore ATTRIBUTE_UNUSED)
 {
   char *file = NULL;
-  int l;
+  int linenum, flags = 0;
 
   /* The given number is that of the next line.  */
-  if (appline)
-    l = get_absolute_expression ();
-  else if (!get_linefile_number (&l))
+  if (!get_linefile_number (&linenum))
     {
       ignore_rest_of_line ();
       return;
     }
 
-  l--;
-
-  if (l < -1)
+  if (linenum < 0)
     /* Some of the back ends can't deal with non-positive line numbers.
        Besides, it's silly.  GCC however will generate a line number of
        zero when it is pre-processing builtins for assembler-with-cpp files:
@@ -2091,74 +2017,75 @@ s_app_line (int appline)
        in the GCC and GDB testsuites.  So we check for negative line numbers
        rather than non-positive line numbers.  */
     as_warn (_("line numbers must be positive; line number %d rejected"),
-	     l + 1);
+	     linenum);
   else
     {
-      int flags = 0;
       int length = 0;
 
-      if (!appline)
+      SKIP_WHITESPACE ();
+
+      if (*input_line_pointer == '"')
+	file = demand_copy_string (&length);
+      else if (*input_line_pointer == '.')
 	{
-	  SKIP_WHITESPACE ();
-
-	  if (*input_line_pointer == '"')
-	    file = demand_copy_string (&length);
-
-	  if (file)
-	    {
-	      int this_flag;
-
-	      while (get_linefile_number (&this_flag))
-		switch (this_flag)
-		  {
-		    /* From GCC's cpp documentation:
-		       1: start of a new file.
-		       2: returning to a file after having included
-			  another file.
-		       3: following text comes from a system header file.
-		       4: following text should be treated as extern "C".
-
-		       4 is nonsensical for the assembler; 3, we don't
-		       care about, so we ignore it just in case a
-		       system header file is included while
-		       preprocessing assembly.  So 1 and 2 are all we
-		       care about, and they are mutually incompatible.
-		       new_logical_line_flags() demands this.  */
-		  case 1:
-		  case 2:
-		    if (flags && flags != (1 << this_flag))
-		      as_warn (_("incompatible flag %i in line directive"),
-			       this_flag);
-		    else
-		      flags |= 1 << this_flag;
-		    break;
-
-		  case 3:
-		  case 4:
-		    /* We ignore these.  */
-		    break;
-
-		  default:
-		    as_warn (_("unsupported flag %i in line directive"),
-			     this_flag);
-		    break;
-		  }
-
-	      if (!is_end_of_line[(unsigned char)*input_line_pointer])
-		file = 0;
-	    }
+	  /* buffer_and_nest() may insert this form.  */
+	  ++input_line_pointer;
+	  flags = 1 << 3;
 	}
 
-      if (appline || file)
+      if (file)
 	{
-	  new_logical_line_flags (file, l, flags);
+	  int this_flag;
+
+	  while (get_linefile_number (&this_flag))
+	    switch (this_flag)
+	      {
+		/* From GCC's cpp documentation:
+		   1: start of a new file.
+		   2: returning to a file after having included another file.
+		   3: following text comes from a system header file.
+		   4: following text should be treated as extern "C".
+
+		   4 is nonsensical for the assembler; 3, we don't care about,
+		   so we ignore it just in case a system header file is
+		   included while preprocessing assembly.  So 1 and 2 are all
+		   we care about, and they are mutually incompatible.
+		   new_logical_line_flags() demands this.  */
+	      case 1:
+	      case 2:
+		if (flags && flags != (1 << this_flag))
+		  as_warn (_("incompatible flag %i in line directive"),
+			   this_flag);
+		else
+		  flags |= 1 << this_flag;
+		break;
+
+	      case 3:
+	      case 4:
+		/* We ignore these.  */
+		break;
+
+	      default:
+		as_warn (_("unsupported flag %i in line directive"),
+			 this_flag);
+		break;
+	      }
+
+	  if (!is_end_of_line[(unsigned char)*input_line_pointer])
+	    file = NULL;
+        }
+
+      if (file || flags)
+	{
+	  linenum--;
+	  new_logical_line_flags (file, linenum, flags);
 #ifdef LISTING
 	  if (listing)
-	    listing_source_line (l);
+	    listing_source_line (linenum);
 #endif
 	}
     }
-  if (appline || file)
+  if (file || flags)
     demand_empty_rest_of_line ();
   else
     ignore_rest_of_line ();
@@ -2435,7 +2362,7 @@ s_irp (int irpc)
 
   sb_kill (&s);
 
-  input_scrub_include_sb (&out, input_line_pointer, 1);
+  input_scrub_include_sb (&out, input_line_pointer, expanding_repeat);
   sb_kill (&out);
   buffer_limit = input_scrub_next_buffer (&input_line_pointer);
 }
@@ -3105,14 +3032,17 @@ s_rept (int ignore ATTRIBUTE_UNUSED)
 
   count = (size_t) get_absolute_expression ();
 
-  do_repeat (count, "REPT", "ENDR");
+  do_repeat (count, "REPT", "ENDR", NULL);
 }
 
 /* This function provides a generic repeat block implementation.   It allows
-   different directives to be used as the start/end keys.  */
+   different directives to be used as the start/end keys.  Any text matching
+   the optional EXPANDER in the block is replaced by the remaining iteration
+   count.  */
 
 void
-do_repeat (size_t count, const char *start, const char *end)
+do_repeat (size_t count, const char *start, const char *end,
+	   const char *expander)
 {
   sb one;
   sb many;
@@ -3130,46 +3060,16 @@ do_repeat (size_t count, const char *start, const char *end)
       return;
     }
 
-  sb_build (&many, count * one.len);
-  while (count-- > 0)
-    sb_add_sb (&many, &one);
-
-  sb_kill (&one);
-
-  input_scrub_include_sb (&many, input_line_pointer, 1);
-  sb_kill (&many);
-  buffer_limit = input_scrub_next_buffer (&input_line_pointer);
-}
-
-/* Like do_repeat except that any text matching EXPANDER in the
-   block is replaced by the iteration count.  */
-
-void
-do_repeat_with_expander (size_t count,
-			 const char * start,
-			 const char * end,
-			 const char * expander)
-{
-  sb one;
-  sb many;
-
-  if (((ssize_t) count) < 0)
+  if (expander == NULL || strstr (one.ptr, expander) == NULL)
     {
-      as_bad (_("negative count for %s - ignored"), start);
-      count = 0;
+      sb_build (&many, count * one.len);
+      while (count-- > 0)
+	sb_add_sb (&many, &one);
     }
-
-  sb_new (&one);
-  if (!buffer_and_nest (start, end, &one, get_non_macro_line_sb))
+  else
     {
-      as_bad (_("%s without %s"), start, end);
-      return;
-    }
+      sb_new (&many);
 
-  sb_new (&many);
-
-  if (expander != NULL && strstr (one.ptr, expander) != NULL)
-    {
       while (count -- > 0)
 	{
 	  int len;
@@ -3188,13 +3088,10 @@ do_repeat_with_expander (size_t count,
 	  sb_kill (& processed);
 	}
     }
-  else
-    while (count-- > 0)
-      sb_add_sb (&many, &one);
 
   sb_kill (&one);
 
-  input_scrub_include_sb (&many, input_line_pointer, 1);
+  input_scrub_include_sb (&many, input_line_pointer, expanding_repeat);
   sb_kill (&many);
   buffer_limit = input_scrub_next_buffer (&input_line_pointer);
 }
@@ -3325,6 +3222,29 @@ s_space (int mult)
 #ifdef md_flush_pending_output
   md_flush_pending_output ();
 #endif
+
+  switch (mult)
+    {
+    case 'x':
+#ifdef X_PRECISION
+# ifndef P_PRECISION
+#  define P_PRECISION     X_PRECISION
+#  define P_PRECISION_PAD X_PRECISION_PAD
+# endif
+      mult = (X_PRECISION + X_PRECISION_PAD) * sizeof (LITTLENUM_TYPE);
+      if (!mult)
+#endif
+	mult = 12;
+      break;
+
+    case 'p':
+#ifdef P_PRECISION
+      mult = (P_PRECISION + P_PRECISION_PAD) * sizeof (LITTLENUM_TYPE);
+      if (!mult)
+#endif
+	mult = 12;
+      break;
+    }
 
 #ifdef md_cons_align
   md_cons_align (1);
@@ -3615,6 +3535,113 @@ s_nops (int ignore ATTRIBUTE_UNUSED)
   *p = val.X_add_number;
 }
 
+/* Obtain the size of a floating point number, given a type.  */
+
+static int
+float_length (int float_type, int *pad_p)
+{
+  int length, pad = 0;
+
+  switch (float_type)
+    {
+    case 'b':
+    case 'B':
+    case 'h':
+    case 'H':
+      length = 2;
+      break;
+
+    case 'f':
+    case 'F':
+    case 's':
+    case 'S':
+      length = 4;
+      break;
+
+    case 'd':
+    case 'D':
+    case 'r':
+    case 'R':
+      length = 8;
+      break;
+
+    case 'x':
+    case 'X':
+#ifdef X_PRECISION
+      length = X_PRECISION * sizeof (LITTLENUM_TYPE);
+      pad = X_PRECISION_PAD * sizeof (LITTLENUM_TYPE);
+      if (!length)
+#endif
+	length = 12;
+      break;
+
+    case 'p':
+    case 'P':
+#ifdef P_PRECISION
+      length = P_PRECISION * sizeof (LITTLENUM_TYPE);
+      pad = P_PRECISION_PAD * sizeof (LITTLENUM_TYPE);
+      if (!length)
+#endif
+	length = 12;
+      break;
+
+    default:
+      as_bad (_("unknown floating type '%c'"), float_type);
+      length = -1;
+      break;
+    }
+
+  if (pad_p)
+    *pad_p = pad;
+
+  return length;
+}
+
+static int
+parse_one_float (int float_type, char temp[MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT])
+{
+  int length;
+
+  SKIP_WHITESPACE ();
+
+  /* Skip any 0{letter} that may be present.  Don't even check if the
+     letter is legal.  Someone may invent a "z" format and this routine
+     has no use for such information. Lusers beware: you get
+     diagnostics if your input is ill-conditioned.  */
+  if (input_line_pointer[0] == '0'
+      && ISALPHA (input_line_pointer[1]))
+    input_line_pointer += 2;
+
+  /* Accept :xxxx, where the x's are hex digits, for a floating point
+     with the exact digits specified.  */
+  if (input_line_pointer[0] == ':')
+    {
+      ++input_line_pointer;
+      length = hex_float (float_type, temp);
+      if (length < 0)
+	{
+	  ignore_rest_of_line ();
+	  return length;
+	}
+    }
+  else
+    {
+      const char *err;
+
+      err = md_atof (float_type, temp, &length);
+      know (length <= MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT);
+      know (err != NULL || length > 0);
+      if (err)
+	{
+	  as_bad (_("bad floating literal: %s"), err);
+	  ignore_rest_of_line ();
+	  return -1;
+	}
+    }
+
+  return length;
+}
+
 /* This is like s_space, but the value is a floating point number with
    the given precision.  This is for the MRI dcb.s pseudo-op and
    friends.  */
@@ -3640,51 +3667,24 @@ s_float_space (int float_type)
   SKIP_WHITESPACE ();
   if (*input_line_pointer != ',')
     {
-      as_bad (_("missing value"));
-      ignore_rest_of_line ();
-      if (flag_mri)
-	mri_comment_end (stop, stopc);
-      return;
-    }
+      int pad;
 
-  ++input_line_pointer;
-
-  SKIP_WHITESPACE ();
-
-  /* Skip any 0{letter} that may be present.  Don't even check if the
-   * letter is legal.  */
-  if (input_line_pointer[0] == '0'
-      && ISALPHA (input_line_pointer[1]))
-    input_line_pointer += 2;
-
-  /* Accept :xxxx, where the x's are hex digits, for a floating point
-     with the exact digits specified.  */
-  if (input_line_pointer[0] == ':')
-    {
-      flen = hex_float (float_type, temp);
-      if (flen < 0)
-	{
-	  ignore_rest_of_line ();
-	  if (flag_mri)
-	    mri_comment_end (stop, stopc);
-	  return;
-	}
+      flen = float_length (float_type, &pad);
+      if (flen >= 0)
+	memset (temp, 0, flen += pad);
     }
   else
     {
-      const char *err;
+      ++input_line_pointer;
 
-      err = md_atof (float_type, temp, &flen);
-      know (flen <= MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT);
-      know (err != NULL || flen > 0);
-      if (err)
-	{
-	  as_bad (_("bad floating literal: %s"), err);
-	  ignore_rest_of_line ();
-	  if (flag_mri)
-	    mri_comment_end (stop, stopc);
-	  return;
-	}
+      flen = parse_one_float (float_type, temp);
+    }
+
+  if (flen < 0)
+    {
+      if (flag_mri)
+	mri_comment_end (stop, stopc);
+      return;
     }
 
   while (--count >= 0)
@@ -3848,12 +3848,19 @@ s_weakref (int ignore ATTRIBUTE_UNUSED)
 
 
 /* Verify that we are at the end of a line.  If not, issue an error and
-   skip to EOL.  */
+   skip to EOL.  This function may leave input_line_pointer one past
+   buffer_limit, so should not be called from places that may
+   dereference input_line_pointer unconditionally.  Note that when the
+   gas parser is switched to handling a string (where buffer_limit
+   should be the size of the string excluding the NUL terminator) this
+   will be one past the NUL; is_end_of_line(0) returns true.  */
 
 void
 demand_empty_rest_of_line (void)
 {
   SKIP_WHITESPACE ();
+  if (input_line_pointer > buffer_limit)
+    return;
   if (is_end_of_line[(unsigned char) *input_line_pointer])
     input_line_pointer++;
   else
@@ -3866,26 +3873,22 @@ demand_empty_rest_of_line (void)
 		 *input_line_pointer);
       ignore_rest_of_line ();
     }
-
   /* Return pointing just after end-of-line.  */
-  know (is_end_of_line[(unsigned char) input_line_pointer[-1]]);
 }
 
 /* Silently advance to the end of line.  Use this after already having
-   issued an error about something bad.  */
+   issued an error about something bad.  Like demand_empty_rest_of_line,
+   this function may leave input_line_pointer one after buffer_limit;
+   Don't call it from within expression parsing code in an attempt to
+   silence further errors.  */
 
 void
 ignore_rest_of_line (void)
 {
-  while (input_line_pointer < buffer_limit
-	 && !is_end_of_line[(unsigned char) *input_line_pointer])
-    input_line_pointer++;
-
-  input_line_pointer++;
-
+  while (input_line_pointer <= buffer_limit)
+    if (is_end_of_line[(unsigned char) *input_line_pointer++])
+      break;
   /* Return pointing just after end-of-line.  */
-  if (input_line_pointer <= buffer_limit)
-    know (is_end_of_line[(unsigned char) input_line_pointer[-1]]);
 }
 
 /* Sets frag for given symbol to zero_address_frag, except when the
@@ -4092,10 +4095,8 @@ cons_worker (int nbytes,	/* 1=.byte, 2=.word, 4=.long.  */
       return;
     }
 
-#ifdef TC_ADDRESS_BYTES
   if (nbytes == 0)
     nbytes = TC_ADDRESS_BYTES ();
-#endif
 
 #ifdef md_cons_align
   md_cons_align (nbytes);
@@ -4506,24 +4507,19 @@ emit_expr_with_reloc (expressionS *exp,
       valueT get;
       valueT use;
       valueT mask;
-      valueT hibit;
       valueT unmask;
 
       /* JF << of >= number of bits in the object is undefined.  In
 	 particular SPARC (Sun 4) has problems.  */
       if (nbytes >= sizeof (valueT))
 	{
+	  know (nbytes == sizeof (valueT));
 	  mask = 0;
-	  if (nbytes > sizeof (valueT))
-	    hibit = 0;
-	  else
-	    hibit = (valueT) 1 << (nbytes * BITS_PER_CHAR - 1);
 	}
       else
 	{
 	  /* Don't store these bits.  */
 	  mask = ~(valueT) 0 << (BITS_PER_CHAR * nbytes);
-	  hibit = (valueT) 1 << (nbytes * BITS_PER_CHAR - 1);
 	}
 
       unmask = ~mask;		/* Do store these bits.  */
@@ -4535,23 +4531,16 @@ emit_expr_with_reloc (expressionS *exp,
 
       get = exp->X_add_number;
       use = get & unmask;
-      if ((get & mask) != 0
-	  && ((get & mask) != mask
-	      || (get & hibit) == 0))
+      if ((get & mask) != 0 && (-get & mask) != 0)
 	{
+	  char get_buf[128];
+	  char use_buf[128];
+
+	  /* These buffers help to ease the translation of the warning message.  */
+	  sprintf_vma (get_buf, get);
+	  sprintf_vma (use_buf, use);
 	  /* Leading bits contain both 0s & 1s.  */
-#if defined (BFD64) && BFD_HOST_64BIT_LONG_LONG
-#ifndef __MSVCRT__
-	  as_warn (_("value 0x%llx truncated to 0x%llx"),
-		   (unsigned long long) get, (unsigned long long) use);
-#else
-	  as_warn (_("value 0x%I64x truncated to 0x%I64x"),
-		   (unsigned long long) get, (unsigned long long) use);
-#endif
-#else
-	  as_warn (_("value 0x%lx truncated to 0x%lx"),
-		   (unsigned long) get, (unsigned long) use);
-#endif
+	  as_warn (_("value 0x%s truncated to 0x%s"), get_buf, use_buf);
 	}
       /* Put bytes in right order.  */
       md_number_to_chars (p, use, (int) nbytes);
@@ -4822,39 +4811,11 @@ parse_repeat_cons (expressionS *exp, unsigned int nbytes)
 static int
 hex_float (int float_type, char *bytes)
 {
-  int length;
+  int pad, length = float_length (float_type, &pad);
   int i;
 
-  switch (float_type)
-    {
-    case 'f':
-    case 'F':
-    case 's':
-    case 'S':
-      length = 4;
-      break;
-
-    case 'd':
-    case 'D':
-    case 'r':
-    case 'R':
-      length = 8;
-      break;
-
-    case 'x':
-    case 'X':
-      length = 12;
-      break;
-
-    case 'p':
-    case 'P':
-      length = 12;
-      break;
-
-    default:
-      as_bad (_("unknown floating type type '%c'"), float_type);
-      return -1;
-    }
+  if (length < 0)
+    return length;
 
   /* It would be nice if we could go through expression to parse the
      hex constant, but if we get a bignum it's a pain to sort it into
@@ -4901,7 +4862,9 @@ hex_float (int float_type, char *bytes)
 	memset (bytes, 0, length - i);
     }
 
-  return length;
+  memset (bytes + length, 0, pad);
+
+  return length + pad;
 }
 
 /*			float_cons()
@@ -4927,7 +4890,6 @@ float_cons (/* Clobbers input_line-pointer, checks end-of-line.  */
 {
   char *p;
   int length;			/* Number of chars in an object.  */
-  const char *err;		/* Error from scanning floating literal.  */
   char temp[MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT];
 
   if (is_it_end_of_statement ())
@@ -4961,41 +4923,9 @@ float_cons (/* Clobbers input_line-pointer, checks end-of-line.  */
 
   do
     {
-      /* input_line_pointer->1st char of a flonum (we hope!).  */
-      SKIP_WHITESPACE ();
-
-      /* Skip any 0{letter} that may be present. Don't even check if the
-	 letter is legal. Someone may invent a "z" format and this routine
-	 has no use for such information. Lusers beware: you get
-	 diagnostics if your input is ill-conditioned.  */
-      if (input_line_pointer[0] == '0'
-	  && ISALPHA (input_line_pointer[1]))
-	input_line_pointer += 2;
-
-      /* Accept :xxxx, where the x's are hex digits, for a floating
-	 point with the exact digits specified.  */
-      if (input_line_pointer[0] == ':')
-	{
-	  ++input_line_pointer;
-	  length = hex_float (float_type, temp);
-	  if (length < 0)
-	    {
-	      ignore_rest_of_line ();
-	      return;
-	    }
-	}
-      else
-	{
-	  err = md_atof (float_type, temp, &length);
-	  know (length <= MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT);
-	  know (err != NULL || length > 0);
-	  if (err)
-	    {
-	      as_bad (_("bad floating literal: %s"), err);
-	      ignore_rest_of_line ();
-	      return;
-	    }
-	}
+      length = parse_one_float (float_type, temp);
+      if (length < 0)
+	return;
 
       if (!need_pass_2)
 	{
@@ -5611,7 +5541,7 @@ next_char_of_string (void)
 	case '8':
 	case '9':
 	  {
-	    long number;
+	    unsigned number;
 	    int i;
 
 	    for (i = 0, number = 0;
@@ -5629,7 +5559,7 @@ next_char_of_string (void)
 	case 'x':
 	case 'X':
 	  {
-	    long number;
+	    unsigned number;
 
 	    number = 0;
 	    c = *input_line_pointer++;
@@ -5740,12 +5670,12 @@ demand_copy_C_string (int *len_pointer)
 
       for (len = *len_pointer; len > 0; len--)
 	{
-	  if (*s == 0)
+	  if (s[len - 1] == 0)
 	    {
 	      s = 0;
-	      len = 1;
 	      *len_pointer = 0;
 	      as_bad (_("this string may not contain \'\\0\'"));
+	      break;
 	    }
 	}
     }
@@ -5906,7 +5836,16 @@ s_incbin (int x ATTRIBUTE_UNUSED)
   if (binfile)
     {
       long   file_len;
+      struct stat filestat;
 
+      if (fstat (fileno (binfile), &filestat) != 0
+	  || ! S_ISREG (filestat.st_mode)
+	  || S_ISDIR (filestat.st_mode))
+	{
+	  as_bad (_("unable to include `%s'"), path);
+	  goto done;
+	}
+      
       register_dependency (path);
 
       /* Compute the length of the file.  */
@@ -6265,7 +6204,7 @@ input_scrub_insert_line (const char *line)
   size_t len = strlen (line);
   sb_build (&newline, len);
   sb_add_buffer (&newline, line, len);
-  input_scrub_include_sb (&newline, input_line_pointer, 0);
+  input_scrub_include_sb (&newline, input_line_pointer, expanding_none);
   sb_kill (&newline);
   buffer_limit = input_scrub_next_buffer (&input_line_pointer);
 }
@@ -6362,7 +6301,7 @@ temp_ilp (char *buf)
 
   input_line_pointer = buf;
   buffer_limit = buf + strlen (buf);
-  input_from_string = TRUE;
+  input_from_string = true;
 }
 
 /* Restore a saved input line pointer.  */
@@ -6374,7 +6313,7 @@ restore_ilp (void)
 
   input_line_pointer = saved_ilp;
   buffer_limit = saved_limit;
-  input_from_string = FALSE;
+  input_from_string = false;
 
   saved_ilp = NULL;
 }

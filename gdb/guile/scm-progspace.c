@@ -1,6 +1,6 @@
 /* Guile interface to program spaces.
 
-   Copyright (C) 2010-2021 Free Software Foundation, Inc.
+   Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -417,7 +417,12 @@ gdbscm_initialize_pspaces (void)
   scm_set_smob_print (pspace_smob_tag, psscm_print_pspace_smob);
 
   gdbscm_define_functions (pspace_functions, 1);
+}
 
+void _initialize_scm_progspace ();
+void
+_initialize_scm_progspace ()
+{
   psscm_pspace_data_key
     = register_program_space_data_with_cleanup (NULL,
 						psscm_handle_pspace_deleted);
