@@ -12,6 +12,11 @@ void detectTimerFrequency() {
         Panic();
     }
 
+    if (!model.TSCDeadline) {
+        cout << "CPU without an TSC deadline timer mode. This is not supported." << endl;
+        Panic();
+    }
+
     const char *methodName = nullptr;
 
     if (model.hypervisor == cpuid::Hypervisor::NONE) {

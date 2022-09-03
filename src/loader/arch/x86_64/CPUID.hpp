@@ -26,6 +26,7 @@ namespace cpuid {
         uint32_t modelID;
         uint32_t steppingID;
 
+        bool TSCDeadline;
         bool invariantTSC;
 
         optional<CrystalInfo> frequencyInfo;

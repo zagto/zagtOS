@@ -12,14 +12,19 @@ static const char *HYPERVISOR_STRING_QEMU_TCG = "TCGTCGTCGTCG";
 static const char *HYPERVISOR_STRING_EMPTY = "\0\0\0\0\0\0\0\0\0\0\0\0";
 static const size_t VENDOR_STRING_LENGTH = 12;
 
+static const uint32_t FEATURE_ECX_TSC_DEADLINE = (1u << 24);
+static const uint32_t ADVANCED_POWER_MANAGEMENT_INVARIANT_TSC = (1u << 8);
+
 Model getModel() {
+
     size_t maxFunction;
     uint32_t unused;
     uint32_t vendorString[4] = {0};
     uint32_t hypervisorString[4] = {0};
     uint32_t combinedModel;
+    uint32_t featuresECX;
     __cpuid(0, maxFunction, vendorString[0], vendorString[2], vendorString[1]);
-    __cpuid(1, combinedModel, unused, unused, unused);
+    __cpuid(1, combinedModel, unused, featuresECX, unused);
     __cpuid(0x40000000, unused, hypervisorString[0], hypervisorString[1], hypervisorString[2]);
 
     Model result;
@@ -31,6 +36,8 @@ Model getModel() {
         cout << "Unsupported CPU Vendor String: " << reinterpret_cast<char *>(vendorString) << endl;
         Panic();
     }
+
+    result.TSCDeadline = featuresECX & FEATURE_ECX_TSC_DEADLINE;
 
     uint32_t hypervisorTSCKHz = 0, hypervisorBusKHz = 0;
     __cpuid(0x40000010, hypervisorTSCKHz, hypervisorBusKHz, unused, unused);
@@ -72,7 +79,7 @@ Model getModel() {
 
     uint32_t advancedPowerManagement;
     __cpuid(0x80000007, unused, unused, unused, advancedPowerManagement);
-    result.invariantTSC = advancedPowerManagement & (1u << 8);
+    result.invariantTSC = advancedPowerManagement & ADVANCED_POWER_MANAGEMENT_INVARIANT_TSC;
 
     if (result.vendor == Vendor::INTEL
             && result.hypervisor == Hypervisor::NONE
