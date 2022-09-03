@@ -43,6 +43,14 @@ uptr internal_sched_yield() {
   return 0;
 }
 
+void internal_usleep(u64 useconds) {
+  struct timespec ts;
+  ts.tv_sec = useconds / 1000000;
+  ts.tv_nsec = (useconds % 1000000) * 1000;
+  zagtos_syscall4(SYS_CLOCK_NANOSLEEP, /*flags*/ 0, CLOCK_MONOTONIC,
+                  reinterpret_cast<size_t>(&ts), reinterpret_cast<size_t>(&ts));
+}
+
 uptr internal_getpid() {
   return 0;
 }
@@ -56,6 +64,10 @@ uptr GetThreadSelf() { return static_cast<uptr>(pthread_self()); }
 tid_t GetTid() { return GetThreadSelf(); }
 
 void Abort() { abort(); }
+
+bool CreateDir(const char *pathname) {
+  return false;
+}
 
 int Atexit(void (*function)(void)) { return atexit(function); }
 
@@ -103,7 +115,7 @@ const char *DescribeSignalOrException(int) { UNIMPLEMENTED(); }
 
 void FutexWait(atomic_uint32_t *p, u32 cmp) {
   constexpr size_t FUTEX_WAIT = 0;
-  size_t status = zagtos_syscall4(SYS_FUTEX, reinterpret_cast<size_t>(p), FUTEX_WAIT, *reinterpret_cast<int32_t *>(p), NULL);
+  size_t status = zagtos_syscall4(SYS_FUTEX, reinterpret_cast<size_t>(p), FUTEX_WAIT, *reinterpret_cast<int32_t *>(p), 0);
   if (status != EAGAIN)  // Normal race.
     CHECK_EQ(status, 0);
 }
