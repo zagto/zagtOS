@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+SRCDIR="$PWD"
+cd "$SHBUILD_BUILD_DIR"
+
+make -f "$SRCDIR/Makefile" "CC=$ARCH-zagto-zagtos-gcc" "LD=$ARCH-zagto-zagtos-ld" "AR=$ARCH-zagto-zagtos-ar" "AS=$ARCH-zagto-zagtos-as"
+
+make -f "$SRCDIR/Makefile"
+
+
+# -j "$PARALLEL_JOBS"
