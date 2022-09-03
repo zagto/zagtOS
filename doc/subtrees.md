@@ -29,6 +29,11 @@ git subtree pull --prefix src/musl git://git.musl-libc.org/musl v1.2.3 --squash
 git subtree pull --prefix src/ACPIHAL/acpica https://github.com/acpica/acpica.git R03_31_22 --squash
 ```
 
+## GNU EFI
+```
+git subtree pull --prefix src/gnu-efi https://git.code.sf.net/p/gnu-efi/code 3.0.15 --squash
+```
+
 ## GRUB (TODO)
 
 GRUB is currently expected to be installed on the system (as a package, does not necessarily need to be used as bootl)
