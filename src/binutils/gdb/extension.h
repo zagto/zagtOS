@@ -1,6 +1,6 @@
 /* Interface between gdb and its extension languages.
 
-   Copyright (C) 2014-2021 Free Software Foundation, Inc.
+   Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -268,12 +268,15 @@ extern objfile_script_sourcer_func *ext_lang_objfile_script_sourcer
 extern objfile_script_executor_func *ext_lang_objfile_script_executor
   (const struct extension_language_defn *);
 
-extern int ext_lang_auto_load_enabled (const struct extension_language_defn *);
+/* Return true if auto-loading of EXTLANG scripts is enabled.
+   False is returned if support for this language isn't compiled in.  */
+
+extern bool ext_lang_auto_load_enabled (const struct extension_language_defn *);
 
 /* Wrappers for each extension language API function that iterate over all
    extension languages.  */
 
-extern void finish_ext_lang_initialization (void);
+extern void ext_lang_initialization (void);
 
 extern void eval_ext_lang_from_control_command (struct command_line *cmd);
 
@@ -315,5 +318,29 @@ extern void get_matching_xmethod_workers
 
 extern gdb::optional<std::string> ext_lang_colorize
   (const std::string &filename, const std::string &contents);
+
+/* Try to colorize a single line of disassembler output, CONTENT for
+   GDBARCH.  This will return either a colorized (using ANSI terminal
+   escapes) version of CONTENT, or an empty value if colorizing could not
+   be done.  */
+
+extern gdb::optional<std::string> ext_lang_colorize_disasm
+  (const std::string &content, gdbarch *gdbarch);
+
+/* Calls extension_language_ops::print_insn for each extension language,
+   returning the result from the first extension language that returns a
+   non-empty result (any further extension languages are not then called).
+
+   All arguments are forwarded to extension_language_ops::print_insn, see
+   that function for a full description.  */
+
+extern gdb::optional<int> ext_lang_print_insn
+  (struct gdbarch *gdbarch, CORE_ADDR address, struct disassemble_info *info);
+
+#if GDB_SELF_TEST
+namespace selftests {
+extern void (*hook_set_active_ext_lang) ();
+}
+#endif
 
 #endif /* EXTENSION_H */

@@ -1,5 +1,5 @@
 /* Shared library declarations for GDB, the GNU Debugger.
-   Copyright (C) 1990-2021 Free Software Foundation, Inc.
+   Copyright (C) 1990-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -162,6 +162,8 @@ struct target_so_ops
      for this target.  */
   void (*handle_event) (void);
 };
+
+using so_list_range = next_range<so_list>;
 
 /* Free the memory associated with a (so_list *).  */
 void free_so (struct so_list *so);

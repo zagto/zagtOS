@@ -1,4 +1,4 @@
-# Copyright 2012-2021 Free Software Foundation, Inc.
+# Copyright 2012-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@ if {[prepare_for_testing "failed to prepare" $testfile $srcfile {debug}]} {
 }
 
 if ![runto_main] {
-    fail "run to main"
     return -1
 }
 
@@ -45,10 +44,10 @@ gdb_test_debug_expr "print /x {char\[4\]} array" \
 
 # This caused gdb to output garbage and possibly segfault
 gdb_test_debug_expr "print \"hello\"" \
-    ".*OP_STRING\[^\r\n\]*Language-specific string type: 0.*\[\r\n\]\\$$decimal = \"hello\"" \
+    ".*OP_STRING\[^\r\n\]*.*: ordinary string.*\[\r\n\]\\$$decimal = \"hello\"" \
     "string evaluation with debug expr"
 
 # An expression using a function call.
 gdb_test_debug_expr "print call_me ( &val )" \
-    ".*OP_FUNCALL\[^\r\n\]*Number of args: 1.*\[\r\n\]\\$$decimal = 0.*" \
+    ".*OP_FUNCALL\[^\r\n\]*.*UNOP_ADDR.*\[\r\n\]\\$$decimal = 0.*" \
     "function call expression"

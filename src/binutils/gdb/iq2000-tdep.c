@@ -1,7 +1,7 @@
 /* Target-dependent code for the IQ2000 architecture, for GDB, the GNU
    Debugger.
 
-   Copyright (C) 2000-2021 Free Software Foundation, Inc.
+   Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
    Contributed by Red Hat.
 
@@ -426,6 +426,7 @@ iq2000_frame_this_id (struct frame_info *this_frame, void **this_cache,
 }
 
 static const struct frame_unwind iq2000_frame_unwind = {
+  "iq2000 prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   iq2000_frame_this_id,
@@ -711,7 +712,7 @@ iq2000_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
     {
       type = value_type (args[i]);
       typelen = TYPE_LENGTH (type);
-      val = value_contents (args[i]);
+      val = value_contents (args[i]).data ();
       if (typelen <= 4)
 	{
 	  /* Char, short, int, float, pointer, and structs <= four bytes.  */

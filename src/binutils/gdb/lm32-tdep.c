@@ -1,7 +1,7 @@
 /* Target-dependent code for Lattice Mico32 processor, for GDB.
    Contributed by Jon Beniston <jon@beniston.com>
 
-   Copyright (C) 2009-2021 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -28,15 +28,13 @@
 #include "remote.h"
 #include "gdbcore.h"
 #include "gdb/sim-lm32.h"
-#include "gdb/callback.h"
-#include "gdb/remote-sim.h"
-#include "sim-regno.h"
 #include "arch-utils.h"
 #include "regcache.h"
 #include "trad-frame.h"
 #include "reggroups.h"
 #include "opcodes/lm32-desc.h"
 #include <algorithm>
+#include "gdbarch.h"
 
 /* Macros to extract fields from an instruction.  */
 #define LM32_OPCODE(insn)       ((insn >> 26) & 0x3f)
@@ -45,7 +43,7 @@
 #define LM32_REG2(insn)         ((insn >> 11) & 0x1f)
 #define LM32_IMM16(insn)        ((((long)insn & 0xffff) << 16) >> 16)
 
-struct gdbarch_tdep
+struct lm32_gdbarch_tdep : gdbarch_tdep
 {
   /* gdbarch target dependent data here.  Currently unused for LM32.  */
 };
@@ -61,21 +59,11 @@ struct lm32_frame_cache
   trad_frame_saved_reg *saved_regs;
 };
 
-/* Add the available register groups.  */
-
-static void
-lm32_add_reggroups (struct gdbarch *gdbarch)
-{
-  reggroup_add (gdbarch, general_reggroup);
-  reggroup_add (gdbarch, all_reggroup);
-  reggroup_add (gdbarch, system_reggroup);
-}
-
 /* Return whether a given register is in a given group.  */
 
 static int
 lm32_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
-			  struct reggroup *group)
+			  const struct reggroup *group)
 {
   if (group == general_reggroup)
     return ((regnum >= SIM_LM32_R0_REGNUM) && (regnum <= SIM_LM32_RA_REGNUM))
@@ -274,7 +262,7 @@ lm32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 
       /* FIXME: Handle structures.  */
 
-      contents = (gdb_byte *) value_contents (arg);
+      contents = (gdb_byte *) value_contents (arg).data ();
       val = extract_unsigned_integer (contents, TYPE_LENGTH (arg_type),
 				      byte_order);
 
@@ -417,7 +405,7 @@ lm32_frame_cache (struct frame_info *this_frame, void **this_prologue_cache)
   /* Convert callee save offsets into addresses.  */
   for (i = 0; i < gdbarch_num_regs (get_frame_arch (this_frame)) - 1; i++)
     {
-      if (trad_frame_addr_p (info->saved_regs, i))
+      if (info->saved_regs[i].is_addr ())
 	info->saved_regs[i].set_addr (this_base + info->saved_regs[i].addr ());
     }
 
@@ -429,7 +417,7 @@ lm32_frame_cache (struct frame_info *this_frame, void **this_prologue_cache)
 
   /* The previous frame's SP needed to be computed.  Save the computed
      value.  */
-  trad_frame_set_value (info->saved_regs, SIM_LM32_SP_REGNUM, prev_sp);
+  info->saved_regs[SIM_LM32_SP_REGNUM].set_value (prev_sp);
 
   return info;
 }
@@ -458,6 +446,7 @@ lm32_frame_prev_register (struct frame_info *this_frame,
 }
 
 static const struct frame_unwind lm32_frame_unwind = {
+  "lm32 prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   lm32_frame_this_id,
@@ -493,7 +482,6 @@ static struct gdbarch *
 lm32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 {
   struct gdbarch *gdbarch;
-  struct gdbarch_tdep *tdep;
 
   /* If there is already a candidate, use it.  */
   arches = gdbarch_list_lookup_by_info (arches, &info);
@@ -501,7 +489,7 @@ lm32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
     return arches->gdbarch;
 
   /* None found, create a new architecture from the information provided.  */
-  tdep = XCNEW (struct gdbarch_tdep);
+  lm32_gdbarch_tdep *tdep = new lm32_gdbarch_tdep;
   gdbarch = gdbarch_alloc (&info, tdep);
 
   /* Type sizes.  */
@@ -542,7 +530,6 @@ lm32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_push_dummy_call (gdbarch, lm32_push_dummy_call);
   set_gdbarch_return_value (gdbarch, lm32_return_value);
 
-  lm32_add_reggroups (gdbarch);
   set_gdbarch_register_reggroup_p (gdbarch, lm32_register_reggroup_p);
 
   return gdbarch;

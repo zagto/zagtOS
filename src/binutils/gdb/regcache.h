@@ -1,6 +1,6 @@
 /* Cache and manage the values of registers for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -149,6 +149,15 @@ extern void regcache_collect_regset (const struct regset *regset,
 				     const struct regcache *regcache,
 				     int regnum, void *buf, size_t size);
 
+
+/* Return true if a set of registers contains the value of the
+   register numbered REGNUM.  The size of the set of registers is
+   given in SIZE, and the layout of the set of registers is described
+   by MAP.  */
+
+extern bool regcache_map_supplies (const struct regcache_map_entry *map,
+				   int regnum, struct gdbarch *gdbarch,
+				   size_t size);
 
 /* The type of a register.  This function is slightly more efficient
    then its gdbarch vector counterpart since it returns a precomputed

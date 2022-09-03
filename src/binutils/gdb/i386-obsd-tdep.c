@@ -1,6 +1,6 @@
 /* Target-dependent code for OpenBSD/i386.
 
-   Copyright (C) 1988-2021 Free Software Foundation, Inc.
+   Copyright (C) 1988-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -99,7 +99,7 @@ i386obsd_sigtramp_p (struct frame_info *this_frame)
     {
       /* If we can't read the instructions, return zero.  */
       if (!safe_frame_unwind_memory (this_frame, start_pc + *offset,
-				     buf, buflen))
+				     {buf, buflen}))
 	return 0;
 
       /* Check for sigreturn(2).  */
@@ -391,6 +391,7 @@ i386obsd_trapframe_sniffer (const struct frame_unwind *self,
 }
 
 static const struct frame_unwind i386obsd_trapframe_unwind = {
+  "i386 openbsd trap",
   /* FIXME: kettenis/20051219: This really is more like an interrupt
      frame, but SIGTRAMP_FRAME would print <signal handler called>,
      which really is not what we want here.  */
@@ -406,7 +407,7 @@ static const struct frame_unwind i386obsd_trapframe_unwind = {
 static void 
 i386obsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  i386_gdbarch_tdep *tdep = (i386_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   /* Obviously OpenBSD is BSD-based.  */
   i386bsd_init_abi (info, gdbarch);

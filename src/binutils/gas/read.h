@@ -1,5 +1,5 @@
 /* read.h - of read.c
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -19,7 +19,7 @@
    02110-1301, USA.  */
 
 extern char *input_line_pointer;	/* -> char we are parsing now.  */
-extern bfd_boolean input_from_string;
+extern bool input_from_string;
 
 /* Define to make whitespace be allowed in many syntactically
    unnecessary places.  Normally undefined.  For compatibility with
@@ -114,7 +114,7 @@ extern char original_case_string[];
 
 extern void pop_insert (const pseudo_typeS *);
 extern unsigned int get_stab_string_offset
-  (const char *, const char *, bfd_boolean);
+  (const char *, const char *, bool);
 extern void aout_process_stab (int, const char *, int, int, int);
 extern char *demand_copy_string (int *lenP);
 extern char *demand_copy_C_string (int *len_pointer);
@@ -148,8 +148,7 @@ extern void stabs_generate_asm_file (void);
 extern void stabs_generate_asm_lineno (void);
 extern void stabs_generate_asm_func (const char *, const char *);
 extern void stabs_generate_asm_endfunc (const char *, const char *);
-extern void do_repeat (size_t, const char *, const char *);
-extern void do_repeat_with_expander (size_t, const char *, const char *, const char *);
+extern void do_repeat (size_t, const char *, const char *, const char *);
 extern void end_repeat (int);
 extern void do_parse_cons_expression (expressionS *, int);
 
@@ -164,9 +163,9 @@ extern void bss_alloc (symbolS *, addressT, unsigned);
 extern offsetT parse_align (int);
 extern symbolS *s_comm_internal (int, symbolS *(*) (int, symbolS *, addressT));
 extern symbolS *s_lcomm_internal (int, symbolS *, addressT);
-extern void s_app_file_string (char *, int);
-extern void s_app_file (int);
-extern void s_app_line (int);
+extern void s_file_string (char *);
+extern void s_file (int);
+extern void s_linefile (int);
 extern void s_bundle_align_mode (int);
 extern void s_bundle_lock (int);
 extern void s_bundle_unlock (int);

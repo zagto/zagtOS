@@ -1,5 +1,5 @@
 /* Darwin support for GDB, the GNU debugger.
-   Copyright (C) 2008-2021 Free Software Foundation, Inc.
+   Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
    Contributed by AdaCore.
 
@@ -32,9 +32,14 @@
 #include "gdb_bfd.h"
 #include <string>
 #include <algorithm>
+#include "dwarf2/public.h"
 
 /* If non-zero displays debugging message.  */
 static unsigned int mach_o_debug_level = 0;
+
+#define macho_debug(LEVEL, FMT, ...) \
+  debug_prefixed_printf_cond_nofunc (mach_o_debug_level > LEVEL, \
+				     "machoread", FMT, ## __VA_ARGS__)
 
 /* Dwarf debugging information are never in the final executable.  They stay
    in object files and the executable contains the list of object files read
@@ -399,7 +404,7 @@ macho_resolve_oso_sym_with_minsym (struct objfile *main_objfile, asymbol *sym)
       return 0;
     }
   else
-    return BMSYMBOL_VALUE_ADDRESS (msym);
+    return msym.value_address ();
 }
 
 /* Add oso file OSO/ABFD as a symbol file.  */
@@ -420,9 +425,7 @@ macho_add_oso_symfile (oso_el *oso, const gdb_bfd_ref_ptr &abfd,
   /* Per section flag to mark which section have been rebased.  */
   unsigned char *sections_rebased;
 
-  if (mach_o_debug_level > 0)
-    printf_unfiltered
-      (_("Loading debugging symbols from oso: %s\n"), oso->name);
+  macho_debug (0, _("Loading debugging symbols from oso: %s\n"), oso->name);
 
   if (!bfd_check_format (abfd.get (), bfd_object))
     {
@@ -491,13 +494,9 @@ macho_add_oso_symfile (oso_el *oso, const gdb_bfd_ref_ptr &abfd,
 	    complaint (_("Duplicated symbol %s in symbol table"), sym->name);
 	  else
 	    {
-	      if (mach_o_debug_level > 4)
-		{
-		  struct gdbarch *arch = main_objfile->arch ();
-		  printf_unfiltered
-		    (_("Adding symbol %s (addr: %s)\n"),
-		     sym->name, paddress (arch, sym->value));
-		}
+	      macho_debug (4, _("Adding symbol %s (addr: %s)\n"),
+			   sym->name, paddress (main_objfile->arch (),
+						sym->value));
 	      ent->sym = sym;
 	    }
 	}
@@ -565,14 +564,9 @@ macho_add_oso_symfile (oso_el *oso, const gdb_bfd_ref_ptr &abfd,
 		{
 		  CORE_ADDR res = addr - sym->value;
 
-		  if (mach_o_debug_level > 3)
-		    {
-		      struct gdbarch *arch = main_objfile->arch ();
-		      printf_unfiltered
-			(_("resolve sect %s with %s (set to %s)\n"),
-			 sec->name, sym->name,
-			 paddress (arch, res));
-		    }
+		  macho_debug (3, _("resolve sect %s with %s (set to %s)\n"),
+			       sec->name, sym->name,
+			       paddress (main_objfile->arch (), res));
 		  bfd_set_section_vma (sec, res);
 		  sections_rebased[sec->index] = 1;
 		}
@@ -842,8 +836,7 @@ macho_symfile_read (struct objfile *objfile, symfile_add_flags symfile_flags)
 	{
 	  struct bfd_section *asect, *dsect;
 
-	  if (mach_o_debug_level > 0)
-	    printf_unfiltered (_("dsym file found\n"));
+	  macho_debug (0, _("dsym file found\n"));
 
 	  /* Set dsym section size.  */
 	  for (asect = objfile->obfd->sections, dsect = dsym_bfd->sections;
@@ -867,7 +860,7 @@ macho_symfile_read (struct objfile *objfile, symfile_add_flags symfile_flags)
   if (dwarf2_has_info (objfile, NULL))
     {
       /* DWARF 2 sections */
-      dwarf2_build_psymtabs (objfile);
+      dwarf2_initialize_objfile (objfile);
     }
 
   /* Then the oso.  */
@@ -886,9 +879,8 @@ macho_symfile_relocate (struct objfile *objfile, asection *sectp,
   if ((sectp->flags & SEC_RELOC) == 0)
     return NULL;
 
-  if (mach_o_debug_level > 0)
-    printf_unfiltered (_("Relocate section '%s' of %s\n"),
-		       sectp->name, objfile_name (objfile));
+  macho_debug (0, _("Relocate section '%s' of %s\n"),
+	       sectp->name, objfile_name (objfile));
 
   return bfd_simple_get_relocated_section_contents (abfd, sectp, buf, NULL);
 }
@@ -906,7 +898,7 @@ macho_symfile_offsets (struct objfile *objfile,
   struct obj_section *osect;
 
   /* Allocate section_offsets.  */
-  objfile->section_offsets.assign (bfd_count_sections (objfile->obfd), 0);
+  objfile->section_offsets.assign (gdb_bfd_count_sections (objfile->obfd), 0);
 
   /* This code is run when we first add the objfile with
      symfile_add_with_addrs_or_offsets, when "addrs" not "offsets" are
@@ -925,7 +917,7 @@ macho_symfile_offsets (struct objfile *objfile,
 
 	  if (bfd_sect_name == addrs[i].name)
 	    {
-	      obj_section_offset (osect) = addrs[i].addr;
+	      osect->set_offset (addrs[i].addr);
 	      break;
 	    }
 	}
@@ -950,14 +942,12 @@ static const struct sym_fns macho_sym_fns = {
   macho_new_init,               /* init anything gbl to entire symtab */
   macho_symfile_init,           /* read initial info, setup for sym_read() */
   macho_symfile_read,           /* read a symbol file into symtab */
-  NULL,				/* sym_read_psymbols */
   macho_symfile_finish,         /* finished with file, cleanup */
   macho_symfile_offsets,        /* xlate external to internal form */
   default_symfile_segments,	/* Get segment information from a file.  */
   NULL,
   macho_symfile_relocate,	/* Relocate a debug section.  */
   NULL,				/* sym_get_probes */
-  &psym_functions
 };
 
 void _initialize_machoread ();

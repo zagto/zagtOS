@@ -1,6 +1,6 @@
 /* Target-dependent code for NetBSD/mips.
 
-   Copyright (C) 2002-2021 Free Software Foundation, Inc.
+   Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
    Contributed by Wasabi Systems, Inc.
 
@@ -266,7 +266,7 @@ mipsnbsd_get_longjmp_target (struct frame_info *frame, CORE_ADDR *pc)
   jb_addr = get_frame_register_unsigned (frame, MIPS_A0_REGNUM);
 
   if (target_read_memory (jb_addr + NBSD_MIPS_JB_OFFSET (gdbarch), buf,
-  			  NBSD_MIPS_JB_ELEMENT_SIZE (gdbarch)))
+			  NBSD_MIPS_JB_ELEMENT_SIZE (gdbarch)))
     return 0;
 
   *pc = extract_unsigned_integer (buf, NBSD_MIPS_JB_ELEMENT_SIZE (gdbarch),

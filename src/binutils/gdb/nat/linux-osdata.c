@@ -1,6 +1,6 @@
 /* Linux-specific functions to retrieve OS data.
 
-   Copyright (C) 2009-2021 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -212,7 +212,7 @@ user_from_uid (char *user, int maxlen, uid_t uid)
 
   if (pwentry)
     {
-      strncpy (user, pwentry->pw_name, maxlen);
+      strncpy (user, pwentry->pw_name, maxlen - 1);
       /* Ensure that the user name is null-terminated.  */
       user[maxlen - 1] = '\0';
     }
@@ -266,7 +266,7 @@ get_cores_used_by_process (PID_T pid, int *cores, const int num_cores)
 
 	  sscanf (dp->d_name, "%lld", &tid);
 	  core = linux_common_core_of_thread (ptid_t ((pid_t) pid,
-						      (pid_t) tid, 0));
+						      (pid_t) tid));
 
 	  if (core >= 0 && core < num_cores)
 	    {
@@ -302,7 +302,7 @@ linux_xfer_osdata_processes (struct buffer *buffer)
 	  char *command_line;
 	  int *cores;
 	  int task_count;
-	  char *cores_str;
+	  std::string cores_str;
 	  int i;
 
 	  if (!isdigit (dp->d_name[0])
@@ -320,19 +320,15 @@ linux_xfer_osdata_processes (struct buffer *buffer)
 	  /* Find CPU cores used by the process.  */
 	  cores = XCNEWVEC (int, num_cores);
 	  task_count = get_cores_used_by_process (pid, cores, num_cores);
-	  cores_str = (char *) xcalloc (task_count, sizeof ("4294967295") + 1);
 
 	  for (i = 0; i < num_cores && task_count > 0; ++i)
 	    if (cores[i])
 	      {
-		char core_str[sizeof ("4294967295")];
-
-		sprintf (core_str, "%d", i);
-		strcat (cores_str, core_str);
+		string_appendf (cores_str, "%d", i);
 
 		task_count -= cores[i];
 		if (task_count > 0)
-		  strcat (cores_str, ",");
+		  cores_str += ",";
 	      }
 
 	  xfree (cores);
@@ -348,10 +344,9 @@ linux_xfer_osdata_processes (struct buffer *buffer)
 	     pid,
 	     user,
 	     command_line ? command_line : "",
-	     cores_str);
+	     cores_str.c_str());
 
 	  xfree (command_line);
-	  xfree (cores_str);
 	}
 
       closedir (dirp);
@@ -521,7 +516,7 @@ linux_xfer_osdata_threads (struct buffer *buffer)
 			continue;
 
 		      tid = atoi (dp2->d_name);
-		      core = linux_common_core_of_thread (ptid_t (pid, tid, 0));
+		      core = linux_common_core_of_thread (ptid_t (pid, tid));
 
 		      buffer_xml_printf
 			(buffer,
@@ -920,7 +915,7 @@ time_from_time_t (char *time, int maxlen, TIME_T seconds)
 	 characters long.  */
       char buf[30];
       const char *time_str = ctime_r (&t, buf);
-      strncpy (time, time_str, maxlen);
+      strncpy (time, time_str, maxlen - 1);
       time[maxlen - 1] = '\0';
     }
 }
@@ -935,7 +930,7 @@ group_from_gid (char *group, int maxlen, gid_t gid)
 
   if (grentry)
     {
-      strncpy (group, grentry->gr_name, maxlen);
+      strncpy (group, grentry->gr_name, maxlen - 1);
       /* Ensure that the group name is null-terminated.  */
       group[maxlen - 1] = '\0';
     }
@@ -1284,7 +1279,7 @@ linux_xfer_osdata_modules (struct buffer *buffer)
 
 static void linux_xfer_osdata_info_os_types (struct buffer *buffer);
 
-struct osdata_type {
+static struct osdata_type {
   const char *type;
   const char *title;
   const char *description;

@@ -1,6 +1,6 @@
 /* Target-dependent code for GNU/Linux x86-64.
 
-   Copyright (C) 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 2001-2022 Free Software Foundation, Inc.
    Contributed by Jiri Smid, SuSE Labs.
 
    This file is part of GDB.
@@ -41,6 +41,7 @@
 #include "glibc-tdep.h"
 #include "arch/amd64.h"
 #include "target-descriptions.h"
+#include "expop.h"
 
 /* The syscall's XML filename for i386.  */
 #define XML_SYSCALL_FILENAME_AMD64 "syscalls/amd64-linux.xml"
@@ -146,7 +147,7 @@ amd64_linux_sigtramp_start (struct frame_info *this_frame)
      PC is not at the start of the instruction sequence, there will be
      a few trailing readable bytes on the stack.  */
 
-  if (!safe_frame_unwind_memory (this_frame, pc, buf, sizeof buf))
+  if (!safe_frame_unwind_memory (this_frame, pc, buf))
     return 0;
 
   if (buf[0] != LINUX_SIGTRAMP_INSN0)
@@ -155,7 +156,7 @@ amd64_linux_sigtramp_start (struct frame_info *this_frame)
 	return 0;
 
       pc -= LINUX_SIGTRAMP_OFFSET1;
-      if (!safe_frame_unwind_memory (this_frame, pc, buf, sizeof buf))
+      if (!safe_frame_unwind_memory (this_frame, pc, buf))
 	return 0;
     }
 
@@ -236,7 +237,7 @@ amd64_linux_get_syscall_number (struct gdbarch *gdbarch,
      is stored at %rax register.  */
   regcache->cooked_read (AMD64_LINUX_ORIG_RAX_REGNUM, buf);
 
-  ret = extract_signed_integer (buf, 8, byte_order);
+  ret = extract_signed_integer (buf, byte_order);
 
   return ret;
 }
@@ -278,7 +279,7 @@ static int amd64_linux_sc_reg_offset[] =
 
 static int
 amd64_linux_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
-				 struct reggroup *group)
+				 const struct reggroup *group)
 { 
   if (regnum == AMD64_LINUX_ORIG_RAX_REGNUM
       || regnum == AMD64_FSBASE_REGNUM
@@ -458,6 +459,9 @@ amd64_canonicalize_syscall (enum amd64_syscall syscall_number)
   case amd64_sys_pipe:
   case amd64_x32_sys_pipe:
     return gdb_sys_pipe;
+
+  case amd64_sys_pipe2:
+    return gdb_sys_pipe2;
 
   case amd64_sys_select:
   case amd64_x32_sys_select:
@@ -1495,9 +1499,10 @@ amd64_linux_syscall_record_common (struct regcache *regcache,
 
   if (syscall_gdb == gdb_sys_no_syscall)
     {
-      printf_unfiltered (_("Process record and replay target doesn't "
-			   "support syscall number %s\n"), 
-			 pulongest (syscall_native));
+      gdb_printf (gdb_stderr,
+		  _("Process record and replay target doesn't "
+		    "support syscall number %s\n"), 
+		  pulongest (syscall_native));
       return -1;
     }
   else
@@ -1576,14 +1581,16 @@ amd64_linux_read_description (uint64_t xcr0_features_bit, bool is_x32)
 {
   static target_desc *amd64_linux_tdescs \
     [2/*AVX*/][2/*MPX*/][2/*AVX512*/][2/*PKRU*/] = {};
-  static target_desc *x32_linux_tdescs[2/*AVX*/][2/*AVX512*/] = {};
+  static target_desc *x32_linux_tdescs \
+    [2/*AVX*/][2/*AVX512*/][2/*PKRU*/] = {};
 
   target_desc **tdesc;
 
   if (is_x32)
     {
       tdesc = &x32_linux_tdescs[(xcr0_features_bit & X86_XSTATE_AVX) ? 1 : 0 ]
-	[(xcr0_features_bit & X86_XSTATE_AVX512) ? 1 : 0];
+	[(xcr0_features_bit & X86_XSTATE_AVX512) ? 1 : 0]
+	[(xcr0_features_bit & X86_XSTATE_PKRU) ? 1 : 0];
     }
   else
     {
@@ -1649,7 +1656,7 @@ amd64_linux_iterate_over_regset_sections (struct gdbarch *gdbarch,
 					  void *cb_data,
 					  const struct regcache *regcache)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  i386_gdbarch_tdep *tdep = (i386_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   cb (".reg", 27 * 8, 27 * 8, &i386_gregset, NULL, cb_data);
   cb (".reg2", 512, 512, &amd64_fpregset, NULL, cb_data);
@@ -1733,16 +1740,15 @@ amd64_dtrace_disable_probe (struct gdbarch *gdbarch, CORE_ADDR addr)
 /* Implementation of `gdbarch_dtrace_parse_probe_argument', as defined
    in gdbarch.h.  */
 
-static void
+static expr::operation_up
 amd64_dtrace_parse_probe_argument (struct gdbarch *gdbarch,
-				   struct expr_builder *builder,
 				   int narg)
 {
-  struct stoken str;
-
   /* DTrace probe arguments can be found on the ABI-defined places for
      regular arguments at the current PC.  The probe abstraction
      currently supports up to 12 arguments for probes.  */
+
+  using namespace expr;
 
   if (narg < 6)
     {
@@ -1757,12 +1763,7 @@ amd64_dtrace_parse_probe_argument (struct gdbarch *gdbarch,
 	};
       int regno = arg_reg_map[narg];
       const char *regname = user_reg_map_regnum_to_name (gdbarch, regno);
-
-      write_exp_elt_opcode (builder, OP_REGISTER);
-      str.ptr = regname;
-      str.length = strlen (regname);
-      write_exp_string (builder, str);
-      write_exp_elt_opcode (builder, OP_REGISTER);
+      return make_operation<register_operation> (regname);
     }
   else
     {
@@ -1770,27 +1771,21 @@ amd64_dtrace_parse_probe_argument (struct gdbarch *gdbarch,
       const char *regname = user_reg_map_regnum_to_name (gdbarch, AMD64_RSP_REGNUM);
 
       /* Displacement.  */
-      write_exp_elt_opcode (builder, OP_LONG);
-      write_exp_elt_type (builder, builtin_type (gdbarch)->builtin_long);
-      write_exp_elt_longcst (builder, narg - 6);
-      write_exp_elt_opcode (builder, OP_LONG);
+      struct type *long_type = builtin_type (gdbarch)->builtin_long;
+      operation_up disp	= make_operation<long_const_operation> (long_type,
+								narg - 6);
 
       /* Register: SP.  */
-      write_exp_elt_opcode (builder, OP_REGISTER);
-      str.ptr = regname;
-      str.length = strlen (regname);
-      write_exp_string (builder, str);
-      write_exp_elt_opcode (builder, OP_REGISTER);
+      operation_up reg = make_operation<register_operation> (regname);
 
-      write_exp_elt_opcode (builder, BINOP_ADD);
+      operation_up add = make_operation<add_operation> (std::move (disp),
+							std::move (reg));
 
       /* Cast to long. */
-      write_exp_elt_opcode (builder, UNOP_CAST);
-      write_exp_elt_type (builder,
-			  lookup_pointer_type (builtin_type (gdbarch)->builtin_long));
-      write_exp_elt_opcode (builder, UNOP_CAST);
+      operation_up cast = make_operation<unop_cast_operation> (std::move (add),
+							       long_type);
 
-      write_exp_elt_opcode (builder, UNOP_IND);
+      return make_operation<unop_ind_operation> (std::move (cast));
     }
 }
 
@@ -1798,7 +1793,7 @@ static void
 amd64_linux_init_abi_common(struct gdbarch_info info, struct gdbarch *gdbarch,
 			    int num_disp_step_buffers)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  i386_gdbarch_tdep *tdep = (i386_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   linux_init_abi (info, gdbarch, num_disp_step_buffers);
 
@@ -1851,7 +1846,7 @@ amd64_linux_init_abi_common(struct gdbarch_info info, struct gdbarch *gdbarch,
 static void
 amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  i386_gdbarch_tdep *tdep = (i386_gdbarch_tdep *) gdbarch_tdep (gdbarch);
   struct tdesc_arch_data *tdesc_data = info.tdesc_data;
   const struct tdesc_feature *feature;
   int valid_p;
@@ -2053,7 +2048,7 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   /* GNU/Linux uses SVR4-style shared libraries.  */
   set_solib_svr4_fetch_link_map_offsets
-    (gdbarch, svr4_lp64_fetch_link_map_offsets);
+    (gdbarch, linux_lp64_fetch_link_map_offsets);
 
   /* Register DTrace handlers.  */
   set_gdbarch_dtrace_parse_probe_argument (gdbarch, amd64_dtrace_parse_probe_argument);
@@ -2065,7 +2060,7 @@ amd64_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 static void
 amd64_x32_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  i386_gdbarch_tdep *tdep = (i386_gdbarch_tdep *) gdbarch_tdep (gdbarch);
   struct tdesc_arch_data *tdesc_data = info.tdesc_data;
   const struct tdesc_feature *feature;
   int valid_p;
@@ -2267,7 +2262,7 @@ amd64_x32_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   /* GNU/Linux uses SVR4-style shared libraries.  */
   set_solib_svr4_fetch_link_map_offsets
-    (gdbarch, svr4_ilp32_fetch_link_map_offsets);
+    (gdbarch, linux_ilp32_fetch_link_map_offsets);
 }
 
 void _initialize_amd64_linux_tdep ();

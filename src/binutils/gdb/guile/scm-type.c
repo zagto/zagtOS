@@ -1,6 +1,6 @@
 /* Scheme interface to types.
 
-   Copyright (C) 2008-2021 Free Software Foundation, Inc.
+   Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -108,8 +108,9 @@ tyscm_type_name (struct type *type)
     {
       string_file stb;
 
-      LA_PRINT_TYPE (type, "", &stb, -1, 0, &type_print_raw_options);
-      return std::move (stb.string ());
+      current_language->print_type (type, "", &stb, -1, 0,
+				    &type_print_raw_options);
+      return stb.release ();
     }
   catch (const gdb_exception &except)
     {
@@ -151,7 +152,7 @@ tyscm_eq_type_smob (const void *ap, const void *bp)
 static htab_t
 tyscm_type_map (struct type *type)
 {
-  struct objfile *objfile = TYPE_OBJFILE (type);
+  struct objfile *objfile = type->objfile_owner ();
   htab_t htab;
 
   if (objfile == NULL)
@@ -351,7 +352,7 @@ tyscm_copy_type_recursive (void **slot, void *info)
 {
   type_smob *t_smob = (type_smob *) *slot;
   htab_t copied_types = (htab_t) info;
-  struct objfile *objfile = TYPE_OBJFILE (t_smob->type);
+  struct objfile *objfile = t_smob->type->objfile_owner ();
   htab_t htab;
   eqable_gdb_smob **new_slot;
   type_smob t_smob_for_lookup;
@@ -823,8 +824,15 @@ gdbscm_type_range (SCM self)
     case TYPE_CODE_ARRAY:
     case TYPE_CODE_STRING:
     case TYPE_CODE_RANGE:
-      low = type->bounds ()->low.const_val ();
-      high = type->bounds ()->high.const_val ();
+      if (type->bounds ()->low.kind () == PROP_CONST)
+	low = type->bounds ()->low.const_val ();
+      else
+	low = 0;
+
+      if (type->bounds ()->high.kind () == PROP_CONST)
+	high = type->bounds ()->high.const_val ();
+      else
+	high = 0;
       break;
     }
 
@@ -992,7 +1000,7 @@ gdbscm_type_field (SCM self, SCM field_scm)
 
     for (int i = 0; i < type->num_fields (); i++)
       {
-	const char *t_field_name = TYPE_FIELD_NAME (type, i);
+	const char *t_field_name = type->field (i).name ();
 
 	if (t_field_name && (strcmp_iw (t_field_name, field.get ()) == 0))
 	  {
@@ -1034,7 +1042,7 @@ gdbscm_type_has_field_p (SCM self, SCM field_scm)
 
     for (int i = 0; i < type->num_fields (); i++)
       {
-	const char *t_field_name = TYPE_FIELD_NAME (type, i);
+	const char *t_field_name = type->field (i).name ();
 
 	if (t_field_name && (strcmp_iw (t_field_name, field.get ()) == 0))
 	  return SCM_BOOL_T;
@@ -1124,8 +1132,8 @@ gdbscm_field_name (SCM self)
     = tyscm_get_field_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
   struct field *field = tyscm_field_smob_to_field (f_smob);
 
-  if (FIELD_NAME (*field))
-    return gdbscm_scm_from_c_string (FIELD_NAME (*field));
+  if (field->name () != nullptr)
+    return gdbscm_scm_from_c_string (field->name ());
   return SCM_BOOL_F;
 }
 
@@ -1159,7 +1167,7 @@ gdbscm_field_enumval (SCM self)
   SCM_ASSERT_TYPE (type->code () == TYPE_CODE_ENUM,
 		   self, SCM_ARG1, FUNC_NAME, _("enum type"));
 
-  return scm_from_long (FIELD_ENUMVAL (*field));
+  return scm_from_long (field->loc_enumval ());
 }
 
 /* (field-bitpos <gdb:field>) -> integer
@@ -1176,7 +1184,7 @@ gdbscm_field_bitpos (SCM self)
   SCM_ASSERT_TYPE (type->code () != TYPE_CODE_ENUM,
 		   self, SCM_ARG1, FUNC_NAME, _("non-enum type"));
 
-  return scm_from_long (FIELD_BITPOS (*field));
+  return scm_from_long (field->loc_bitpos ());
 }
 
 /* (field-bitsize <gdb:field>) -> integer
@@ -1189,7 +1197,7 @@ gdbscm_field_bitsize (SCM self)
     = tyscm_get_field_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
   struct field *field = tyscm_field_smob_to_field (f_smob);
 
-  return scm_from_long (FIELD_BITPOS (*field));
+  return scm_from_long (field->loc_bitpos ());
 }
 
 /* (field-artificial? <gdb:field>) -> boolean
@@ -1311,6 +1319,7 @@ static const scheme_integer_constant type_integer_constants[] =
   X (TYPE_CODE_METHODPTR),
   X (TYPE_CODE_MEMBERPTR),
   X (TYPE_CODE_REF),
+  X (TYPE_CODE_RVALUE_REF),
   X (TYPE_CODE_CHAR),
   X (TYPE_CODE_BOOL),
   X (TYPE_CODE_COMPLEX),
@@ -1498,11 +1507,16 @@ Internal function to assist the type fields iterator."));
 
   block_keyword = scm_from_latin1_keyword ("block");
 
+  global_types_map = gdbscm_create_eqable_gsmob_ptr_map (tyscm_hash_type_smob,
+							 tyscm_eq_type_smob);
+}
+
+void _initialize_scm_type ();
+void
+_initialize_scm_type ()
+{
   /* Register an objfile "free" callback so we can properly copy types
      associated with the objfile when it's about to be deleted.  */
   tyscm_objfile_data_key
     = register_objfile_data_with_cleanup (save_objfile_types, NULL);
-
-  global_types_map = gdbscm_create_eqable_gsmob_ptr_map (tyscm_hash_type_smob,
-							 tyscm_eq_type_smob);
 }

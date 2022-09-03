@@ -1,6 +1,6 @@
 /* Target-dependent code for the VAX.
 
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -123,7 +123,7 @@ vax_store_arguments (struct regcache *regcache, int nargs,
 
       sp -= (len + 3) & ~3;
       count += (len + 3) / 4;
-      write_memory (sp, value_contents_all (args[i]), len);
+      write_memory (sp, value_contents_all (args[i]).data (), len);
     }
 
   /* Push argument count.  */
@@ -361,7 +361,7 @@ vax_frame_cache (struct frame_info *this_frame, void **this_cache)
     }
 
   /* Bits 1:0 of the stack pointer were saved in the control bits.  */
-  trad_frame_set_value (cache->saved_regs, VAX_SP_REGNUM, addr + (mask >> 14));
+  cache->saved_regs[VAX_SP_REGNUM].set_value (addr + (mask >> 14));
 
   return cache;
 }
@@ -390,6 +390,7 @@ vax_frame_prev_register (struct frame_info *this_frame,
 
 static const struct frame_unwind vax_frame_unwind =
 {
+  "vax prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   vax_frame_this_id,

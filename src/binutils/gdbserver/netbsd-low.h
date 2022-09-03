@@ -1,4 +1,4 @@
-/* Copyright (C) 2020-2021 Free Software Foundation, Inc.
+/* Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -121,7 +121,7 @@ public:
 
   bool supports_pid_to_exec_file () override;
 
-  char *pid_to_exec_file (int pid) override;
+  const char *pid_to_exec_file (int pid) override;
 
   const char *thread_name (ptid_t thread) override;
 

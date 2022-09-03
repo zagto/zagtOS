@@ -1,6 +1,6 @@
 /* Frame unwinder for frames with DWARF Call Frame Information.
 
-   Copyright (C) 2003-2021 Free Software Foundation, Inc.
+   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
    Contributed by Mark Kettenis.
 
@@ -37,6 +37,7 @@
 #include "complaints.h"
 #include "dwarf2/frame.h"
 #include "dwarf2/read.h"
+#include "dwarf2/public.h"
 #include "ax.h"
 #include "dwarf2/loc.h"
 #include "dwarf2/frame-tailcall.h"
@@ -178,7 +179,7 @@ static CORE_ADDR read_encoded_value (struct comp_unit *unit, gdb_byte encoding,
 				     CORE_ADDR func_base);
 
 
-/* See dwarf2-frame.h.  */
+/* See dwarf2/frame.h.  */
 bool dwarf2_frame_unwinders_enabled_p = true;
 
 /* Store the length the expression for the CFA in the `cfa_reg' field,
@@ -190,18 +191,6 @@ dwarf2_frame_state::dwarf2_frame_state (CORE_ADDR pc_, struct dwarf2_cie *cie)
     code_align (cie->code_alignment_factor),
     retaddr_column (cie->return_address_register)
 {
-}
-
-
-/* Helper functions for execute_stack_op.  */
-
-static CORE_ADDR
-read_addr_from_reg (struct frame_info *this_frame, int reg)
-{
-  struct gdbarch *gdbarch = get_frame_arch (this_frame);
-  int regnum = dwarf_reg_to_regnum_or_error (gdbarch, reg);
-
-  return address_from_register (regnum, this_frame);
 }
 
 /* Execute the required actions for both the DW_CFA_restore and
@@ -235,116 +224,21 @@ register %s (#%d) at %s"),
     }
 }
 
-class dwarf_expr_executor : public dwarf_expr_context
-{
-public:
-
-  dwarf_expr_executor (dwarf2_per_objfile *per_objfile)
-    : dwarf_expr_context (per_objfile)
-  {}
-
-  struct frame_info *this_frame;
-
-  CORE_ADDR read_addr_from_reg (int reg) override
-  {
-    return ::read_addr_from_reg (this_frame, reg);
-  }
-
-  struct value *get_reg_value (struct type *type, int reg) override
-  {
-    struct gdbarch *gdbarch = get_frame_arch (this_frame);
-    int regnum = dwarf_reg_to_regnum_or_error (gdbarch, reg);
-
-    return value_from_register (type, regnum, this_frame);
-  }
-
-  void read_mem (gdb_byte *buf, CORE_ADDR addr, size_t len) override
-  {
-    read_memory (addr, buf, len);
-  }
-
-  void get_frame_base (const gdb_byte **start, size_t *length) override
-  {
-    invalid ("DW_OP_fbreg");
-  }
-
-  void push_dwarf_reg_entry_value (enum call_site_parameter_kind kind,
-				   union call_site_parameter_u kind_u,
-				   int deref_size) override
-  {
-    invalid ("DW_OP_entry_value");
-  }
-
-  CORE_ADDR get_object_address () override
-  {
-    invalid ("DW_OP_push_object_address");
-  }
-
-  CORE_ADDR get_frame_cfa () override
-  {
-    invalid ("DW_OP_call_frame_cfa");
-  }
-
-  CORE_ADDR get_tls_address (CORE_ADDR offset) override
-  {
-    invalid ("DW_OP_form_tls_address");
-  }
-
-  void dwarf_call (cu_offset die_offset) override
-  {
-    invalid ("DW_OP_call*");
-  }
-
-  struct value *dwarf_variable_value (sect_offset sect_off) override
-  {
-    invalid ("DW_OP_GNU_variable_value");
-  }
-
-  CORE_ADDR get_addr_index (unsigned int index) override
-  {
-    invalid ("DW_OP_addrx or DW_OP_GNU_addr_index");
-  }
-
- private:
-
-  void invalid (const char *op) ATTRIBUTE_NORETURN
-  {
-    error (_("%s is invalid in this context"), op);
-  }
-};
-
 static CORE_ADDR
 execute_stack_op (const gdb_byte *exp, ULONGEST len, int addr_size,
 		  struct frame_info *this_frame, CORE_ADDR initial,
 		  int initial_in_stack_memory, dwarf2_per_objfile *per_objfile)
 {
-  CORE_ADDR result;
-
-  dwarf_expr_executor ctx (per_objfile);
+  dwarf_expr_context ctx (per_objfile, addr_size);
   scoped_value_mark free_values;
 
-  ctx.this_frame = this_frame;
-  ctx.gdbarch = get_frame_arch (this_frame);
-  ctx.addr_size = addr_size;
-  ctx.ref_addr_size = -1;
-
   ctx.push_address (initial, initial_in_stack_memory);
-  ctx.eval (exp, len);
+  value *result_val = ctx.evaluate (exp, len, true, nullptr, this_frame);
 
-  if (ctx.location == DWARF_VALUE_MEMORY)
-    result = ctx.fetch_address (0);
-  else if (ctx.location == DWARF_VALUE_REGISTER)
-    result = ctx.read_addr_from_reg (value_as_long (ctx.fetch (0)));
+  if (VALUE_LVAL (result_val) == lval_memory)
+    return value_address (result_val);
   else
-    {
-      /* This is actually invalid DWARF, but if we ever do run across
-	 it somehow, we might as well support it.  So, instead, report
-	 it as unimplemented.  */
-      error (_("\
-Not implemented: computing unwound register using explicit value operator"));
-    }
-
-  return result;
+    return value_as_address (result_val);
 }
 
 
@@ -851,7 +745,7 @@ dwarf2_frame_find_quirks (struct dwarf2_frame_state *fs,
   if (cust == NULL)
     return;
 
-  if (producer_is_realview (COMPUNIT_PRODUCER (cust)))
+  if (producer_is_realview (cust->producer ()))
     {
       if (fde->cie->version == 1)
 	fs->armcc_cfa_offsets_sf = 1;
@@ -875,7 +769,7 @@ dwarf2_frame_find_quirks (struct dwarf2_frame_state *fs,
 }
 
 
-/* See dwarf2-frame.h.  */
+/* See dwarf2/frame.h.  */
 
 int
 dwarf2_fetch_cfa_info (struct gdbarch *gdbarch, CORE_ADDR pc,
@@ -1379,6 +1273,7 @@ dwarf2_frame_sniffer (const struct frame_unwind *self,
 
 static const struct frame_unwind dwarf2_frame_unwind =
 {
+  "dwarf2",
   NORMAL_FRAME,
   dwarf2_frame_unwind_stop_reason,
   dwarf2_frame_this_id,
@@ -1390,6 +1285,7 @@ static const struct frame_unwind dwarf2_frame_unwind =
 
 static const struct frame_unwind dwarf2_signal_frame_unwind =
 {
+  "dwarf2 signal",
   SIGTRAMP_FRAME,
   dwarf2_frame_unwind_stop_reason,
   dwarf2_frame_this_id,
@@ -2296,9 +2192,9 @@ show_dwarf_unwinders_enabled_p (struct ui_file *file, int from_tty,
 				struct cmd_list_element *c,
 				const char *value)
 {
-  fprintf_filtered (file,
-		    _("The DWARF stack unwinders are currently %s.\n"),
-		    value);
+  gdb_printf (file,
+	      _("The DWARF stack unwinders are currently %s.\n"),
+	      value);
 }
 
 void _initialize_dwarf2_frame ();

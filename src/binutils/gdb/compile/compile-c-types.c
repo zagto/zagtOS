@@ -1,6 +1,6 @@
 /* Convert types from GDB to GCC
 
-   Copyright (C) 2014-2021 Free Software Foundation, Inc.
+   Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -112,10 +112,10 @@ convert_struct_or_union (compile_c_instance *context, struct type *type)
       if (bitsize == 0)
 	bitsize = 8 * TYPE_LENGTH (type->field (i).type ());
       context->plugin ().build_add_field (result,
-					  TYPE_FIELD_NAME (type, i),
+					  type->field (i).name (),
 					  field_type,
 					  bitsize,
-					  TYPE_FIELD_BITPOS (type, i));
+					  type->field (i).loc_bitpos ());
     }
 
   context->plugin ().finish_record_or_union (result, TYPE_LENGTH (type));
@@ -137,7 +137,7 @@ convert_enum (compile_c_instance *context, struct type *type)
   for (i = 0; i < type->num_fields (); ++i)
     {
       context->plugin ().build_add_enum_constant
-	(result, TYPE_FIELD_NAME (type, i), TYPE_FIELD_ENUMVAL (type, i));
+	(result, type->field (i).name (), type->field (i).loc_enumval ());
     }
 
   context->plugin ().finish_enum_type (result);
@@ -164,10 +164,10 @@ convert_func (compile_c_instance *context, struct type *type)
      GDB's parser used to do.  */
   if (target_type == NULL)
     {
-      if (TYPE_OBJFILE_OWNED (type))
-	target_type = objfile_type (TYPE_OWNER (type).objfile)->builtin_int;
+      if (type->is_objfile_owned ())
+	target_type = objfile_type (type->objfile_owner ())->builtin_int;
       else
-	target_type = builtin_type (TYPE_OWNER (type).gdbarch)->builtin_int;
+	target_type = builtin_type (type->arch_owner ())->builtin_int;
       warning (_("function has unknown return type; assuming int"));
     }
 
@@ -323,10 +323,10 @@ convert_type_basic (compile_c_instance *context, struct type *type)
 	   built-in parser does.  For now, assume "int" like GDB's
 	   built-in parser used to do, but at least warn.  */
 	struct type *fallback;
-	if (TYPE_OBJFILE_OWNED (type))
-	  fallback = objfile_type (TYPE_OWNER (type).objfile)->builtin_int;
+	if (type->is_objfile_owned ())
+	  fallback = objfile_type (type->objfile_owner ())->builtin_int;
 	else
-	  fallback = builtin_type (TYPE_OWNER (type).gdbarch)->builtin_int;
+	  fallback = builtin_type (type->arch_owner ())->builtin_int;
 	warning (_("variable has unknown type; assuming int"));
 	return convert_int (context, fallback);
       }

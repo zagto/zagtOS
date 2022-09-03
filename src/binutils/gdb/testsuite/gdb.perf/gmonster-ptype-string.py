@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2021 Free Software Foundation, Inc.
+# Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ from perftest import perftest
 from perftest import measure
 from perftest import utils
 
+
 class GmonsterPtypeString(perftest.TestCaseWithBasicMeasurements):
     def __init__(self, name, run_names, binfile):
         super(GmonsterPtypeString, self).__init__(name)
@@ -34,8 +35,7 @@ class GmonsterPtypeString(perftest.TestCaseWithBasicMeasurements):
 
     def execute_test(self):
         for run in self.run_names:
-            this_run_binfile = "%s-%s" % (self.binfile,
-                                          utils.convert_spaces(run))
+            this_run_binfile = "%s-%s" % (self.binfile, utils.convert_spaces(run))
             utils.select_file(this_run_binfile)
             utils.runto_main()
             utils.safe_execute("mt expand-symtabs")

@@ -1,6 +1,6 @@
 /* CLI Definitions for GDB, the GNU debugger.
 
-   Copyright (C) 2016-2021 Free Software Foundation, Inc.
+   Copyright (C) 2016-2022 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,11 +33,6 @@ public:
   void pre_command_loop () override;
   bool supports_command_editing () override;
 };
-
-/* The CLI interpreter's set_logging_proc method.  Exported so other
-   interpreters can reuse it.  */
-extern void cli_set_logging (struct interp *interp,
-			     ui_file_up logfile, bool logging_redirect);
 
 extern int cli_interpreter_supports_command_editing (struct interp *interp);
 

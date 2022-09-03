@@ -1,6 +1,6 @@
 /* Handle Darwin shared libraries for GDB, the GNU Debugger.
 
-   Copyright (C) 2009-2021 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -488,7 +488,8 @@ darwin_solib_read_all_image_info_addr (struct darwin_info *info)
   if (TYPE_LENGTH (ptr_type) > sizeof (buf))
     return;
 
-  len = target_read (current_top_target (), TARGET_OBJECT_DARWIN_DYLD_INFO,
+  len = target_read (current_inferior ()->top_target (),
+		     TARGET_OBJECT_DARWIN_DYLD_INFO,
 		     NULL, buf, 0, TYPE_LENGTH (ptr_type));
   if (len <= 0)
     return;
@@ -503,6 +504,10 @@ darwin_solib_read_all_image_info_addr (struct darwin_info *info)
 static void
 darwin_solib_create_inferior_hook (int from_tty)
 {
+  /* Everything below only makes sense if we have a running inferior.  */
+  if (!target_has_execution ())
+    return;
+
   struct darwin_info *info = get_darwin_info ();
   CORE_ADDR load_addr;
 

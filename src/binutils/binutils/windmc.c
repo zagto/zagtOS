@@ -1,5 +1,5 @@
 /* windmc.c -- a program to compile Windows message files.
-   Copyright (C) 2007-2021 Free Software Foundation, Inc.
+   Copyright (C) 2007-2022 Free Software Foundation, Inc.
    Written by Kai Tietz, Onevision.
 
    This file is part of GNU Binutils.
@@ -50,7 +50,7 @@ typedef struct mc_msg_item
   struct bin_messagetable_item *res;
 } mc_msg_item;
 
-int target_is_bigendian = 0;
+bool target_is_bigendian = 0;
 const char *def_target_arch;
 
 /* Globals and static variable definitions. */
@@ -338,7 +338,7 @@ mc_add_node_lang (mc_node *root, const mc_keyword *lang, rc_uint_type vid)
 static char *
 convert_unicode_to_ACP (const unichar *usz)
 {
-  char *s;
+  char *s = NULL;
   rc_uint_type l;
 
   if (! usz)
@@ -607,7 +607,7 @@ mc_generate_bin_item (mc_node_lang *n, rc_uint_type *res_len)
   else
     {
       rc_uint_type txt_len, l;
-      char *cvt_txt;
+      char *cvt_txt = NULL;
 
       codepage_from_unicode( &l, n->message, &cvt_txt, n->lang->lang_info.wincp);
       if (! cvt_txt)
@@ -941,12 +941,10 @@ main (int argc, char **argv)
   char *target, *input_filename;
   int verbose;
 
-#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+#ifdef HAVE_LC_MESSAGES
   setlocale (LC_MESSAGES, "");
 #endif
-#if defined (HAVE_SETLOCALE)
   setlocale (LC_CTYPE, "");
-#endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 
@@ -1107,7 +1105,7 @@ main (int argc, char **argv)
 
   /* Load the input file and do code page transformations to UTF16.  */
   {
-    unichar *u;
+    unichar *u = NULL;
     rc_uint_type ul;
     char *buff;
     bfd_size_type flen;

@@ -1,6 +1,6 @@
 /* Interface between gdb and its extension languages.
 
-   Copyright (C) 2014-2021 Free Software Foundation, Inc.
+   Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -282,14 +282,13 @@ ext_lang_objfile_script_executor
   return extlang->script_ops->objfile_script_executor;
 }
 
-/* Return non-zero if auto-loading of EXTLANG scripts is enabled.
-   Zero is returned if support for this language isn't compiled in.  */
+/* See extension.h.  */
 
-int
+bool
 ext_lang_auto_load_enabled (const struct extension_language_defn *extlang)
 {
   if (extlang->script_ops == NULL)
-    return 0;
+    return false;
 
   /* The extension language is required to implement this function.  */
   gdb_assert (extlang->script_ops->auto_load_enabled != NULL);
@@ -297,21 +296,47 @@ ext_lang_auto_load_enabled (const struct extension_language_defn *extlang)
   return extlang->script_ops->auto_load_enabled (extlang);
 }
 
+
+/* RAII class used to temporarily return SIG to its default handler.  */
+
+template<int SIG>
+struct scoped_default_signal
+{
+  scoped_default_signal ()
+  { m_old_sig_handler = signal (SIG, SIG_DFL); }
+
+  ~scoped_default_signal ()
+  { signal (SIG, m_old_sig_handler); }
+
+  DISABLE_COPY_AND_ASSIGN (scoped_default_signal);
+
+private:
+  /* The previous signal handler that needs to be restored.  */
+  sighandler_t m_old_sig_handler;
+};
+
+/* Class to temporarily return SIGINT to its default handler.  */
+
+using scoped_default_sigint = scoped_default_signal<SIGINT>;
+
 /* Functions that iterate over all extension languages.
    These only iterate over external extension languages, not including
    GDB's own extension/scripting language, unless otherwise indicated.  */
 
-/* Wrapper to call the extension_language_ops.finish_initialization "method"
-   for each compiled-in extension language.  */
+/* Wrapper to call the extension_language_ops.initialize "method" for each
+   compiled-in extension language.  */
 
 void
-finish_ext_lang_initialization (void)
+ext_lang_initialization (void)
 {
   for (const struct extension_language_defn *extlang : extension_languages)
     {
       if (extlang->ops != nullptr
-	  && extlang->ops->finish_initialization != NULL)
-	extlang->ops->finish_initialization (extlang);
+	  && extlang->ops->initialize != NULL)
+	{
+	  scoped_default_sigint set_sigint_to_default_handler;
+	  extlang->ops->initialize (extlang);
+	}
     }
 }
 
@@ -657,6 +682,12 @@ install_gdb_sigint_handler (struct signal_handler *previous)
     previous->handler_saved = 0;
 }
 
+#if GDB_SELF_TEST
+namespace selftests {
+void (*hook_set_active_ext_lang) () = nullptr;
+}
+#endif
+
 /* Set the currently active extension language to NOW_ACTIVE.
    The result is a pointer to a malloc'd block of memory to pass to
    restore_active_ext_lang.
@@ -683,6 +714,11 @@ install_gdb_sigint_handler (struct signal_handler *previous)
 struct active_ext_lang_state *
 set_active_ext_lang (const struct extension_language_defn *now_active)
 {
+#if GDB_SELF_TEST
+  if (selftests::hook_set_active_ext_lang)
+    selftests::hook_set_active_ext_lang ();
+#endif
+
   struct active_ext_lang_state *previous
     = XCNEW (struct active_ext_lang_state);
 
@@ -868,6 +904,46 @@ ext_lang_colorize (const std::string &filename, const std::string &contents)
   return result;
 }
 
+/* See extension.h.  */
+
+gdb::optional<std::string>
+ext_lang_colorize_disasm (const std::string &content, gdbarch *gdbarch)
+{
+  gdb::optional<std::string> result;
+
+  for (const struct extension_language_defn *extlang : extension_languages)
+    {
+      if (extlang->ops == nullptr
+	  || extlang->ops->colorize_disasm == nullptr)
+	continue;
+      result = extlang->ops->colorize_disasm (content, gdbarch);
+      if (result.has_value ())
+	return result;
+    }
+
+  return result;
+}
+
+/* See extension.h.  */
+
+gdb::optional<int>
+ext_lang_print_insn (struct gdbarch *gdbarch, CORE_ADDR address,
+		     struct disassemble_info *info)
+{
+  for (const struct extension_language_defn *extlang : extension_languages)
+    {
+      if (extlang->ops == nullptr
+	  || extlang->ops->print_insn == nullptr)
+	continue;
+      gdb::optional<int> length
+	= extlang->ops->print_insn (gdbarch, address, info);
+      if (length.has_value ())
+	return length;
+    }
+
+  return {};
+}
+
 /* Called via an observer before gdb prints its prompt.
    Iterate over the extension languages giving them a chance to
    change the prompt.  The first one to change the prompt wins,
@@ -901,5 +977,5 @@ void _initialize_extension ();
 void
 _initialize_extension ()
 {
-  gdb::observers::before_prompt.attach (ext_lang_before_prompt);
+  gdb::observers::before_prompt.attach (ext_lang_before_prompt, "extension");
 }

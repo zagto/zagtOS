@@ -1,6 +1,6 @@
 /* Modula 2 language support definitions for GDB, the GNU debugger.
 
-   Copyright (C) 1992-2021 Free Software Foundation, Inc.
+   Copyright (C) 1992-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -147,24 +147,6 @@ public:
 
   bool range_checking_on_by_default () const override
   { return true; }
-
-  /* See language.h.  */
-
-  const struct exp_descriptor *expression_ops () const override
-  { return &exp_descriptor_modula2; }
-
-  /* See language.h.  */
-
-  const struct op_print *opcode_print_table () const override
-  { return op_print_tab; }
-
-private:
-  /* Table of expression handling functions for use by EXPRESSION_OPS
-     member function.  */
-  static const struct exp_descriptor exp_descriptor_modula2;
-
-  /* Table of opcode data for use by OPCODE_PRINT_TABLE member function.  */
-  static const struct op_print op_print_tab[];
 };
 
 #endif /* M2_LANG_H */

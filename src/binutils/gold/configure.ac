@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl   Copyright (C) 2006-2021 Free Software Foundation, Inc.
+dnl   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ AC_CONFIG_SRCDIR(gold.cc)
 AC_CANONICAL_TARGET
 
 AM_INIT_AUTOMAKE([no-dist parallel-tests])
+AM_SILENT_RULES([yes])
 
 AM_CONFIG_HEADER(config.h:config.in)
 
@@ -636,7 +637,7 @@ case "$ac_cv_search_dlopen" in
 esac
 AC_SUBST(DLOPEN_LIBS)
 
-AC_CHECK_FUNCS(mallinfo posix_fallocate fallocate readv sysconf times mkdtemp)
+AC_CHECK_FUNCS(mallinfo mallinfo2 posix_fallocate fallocate readv sysconf times mkdtemp)
 AC_CHECK_DECLS([basename, ffs, asprintf, vasprintf, snprintf, vsnprintf, strverscmp, strndup, memmem])
 
 # Use of ::std::tr1::unordered_map::rehash causes undefined symbols

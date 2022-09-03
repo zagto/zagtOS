@@ -1,4 +1,4 @@
---  Copyright 2012-2021 Free Software Foundation, Inc.
+--  Copyright 2012-2022 Free Software Foundation, Inc.
 --
 --  This program is free software; you can redistribute it and/or modify
 --  it under the terms of the GNU General Public License as published by
@@ -25,6 +25,10 @@ procedure Foo is
    Multi_Access : Multi_Dimension_Access
      := new Multi_Dimension'(True => (1, 1, 2, 3, 5),
                              False => (8, 13, 21, 34, 55));
+
+   Confused_Array : Confused_Array_Type := (Red => (0, 1, 2),
+                                            Green => (5, 6, 7),
+                                            others => (others => 72));
 
 begin
    Do_Nothing (Full'Address);  -- STOP

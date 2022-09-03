@@ -1,5 +1,5 @@
 /* C-SKY disassembler.
-   Copyright (C) 1988-2021 Free Software Foundation, Inc.
+   Copyright (C) 1988-2022 Free Software Foundation, Inc.
    Contributed by C-SKY Microsystems and Mentor Graphics.
 
    This file is part of the GNU opcodes library.
@@ -22,7 +22,7 @@
 #include "sysdep.h"
 #include "config.h"
 #include <stdio.h>
-#include "bfd_stdint.h"
+#include <stdint.h>
 #include <elf/csky.h>
 #include "disassemble.h"
 #include "elf-bfd.h"
@@ -49,7 +49,7 @@ struct csky_dis_info
   disassemble_info *info;
   /* Opcode information.  */
   struct csky_opcode_info const *opinfo;
-  BFD_HOST_U_64_BIT isa;
+  uint64_t isa;
   /* The value of operand to show.  */
   int value;
   /* Whether to look up/print a symbol name.  */
@@ -100,9 +100,9 @@ get_sym_code_type (struct disassemble_info *info,
       && (name[2] == 0 || name[2] == '.'))
     {
       *sym_type = ((name[1] == 't') ? CUR_TEXT : CUR_DATA);
-      return TRUE;
+      return true;
     }
-  return FALSE;
+  return false;
 }
 
 static int
@@ -200,7 +200,7 @@ csky_find_inst_info (struct csky_opcode_info const **pinfo,
   return NULL;
 }
 
-static bfd_boolean
+static bool
 is_extern_symbol (struct disassemble_info *info, int addr)
 {
   unsigned int rel_count = 0;
@@ -212,24 +212,24 @@ is_extern_symbol (struct disassemble_info *info, int addr)
       struct reloc_cache_entry *pt = info->section->relocation;
       for (; rel_count < info->section->reloc_count; rel_count++, pt++)
 	if ((long unsigned int)addr == pt->address)
-	  return TRUE;
-      return FALSE;
+	  return true;
+      return false;
     }
-  return FALSE;
+  return false;
 }
 
 
 /* Suppress printing of mapping symbols emitted by the assembler to mark
    the beginning of code and data sequences.  */
 
-bfd_boolean
+bool
 csky_symbol_is_valid (asymbol *sym,
 		      struct disassemble_info *info ATTRIBUTE_UNUSED)
 {
   const char *name;
 
   if (sym == NULL)
-    return FALSE;
+    return false;
   name = bfd_asymbol_name (sym);
   return name && *name != '$';
 }
@@ -239,7 +239,7 @@ csky_get_disassembler (bfd *abfd)
 {
   obj_attribute *attr;
   const char *sec_name = NULL;
-  if (!abfd)
+  if (!abfd || bfd_get_flavour (abfd) != bfd_target_elf_flavour)
     dis_info.isa = CSKY_DEFAULT_ISA;
   else
     {
@@ -565,7 +565,7 @@ csky_output_operand (char *str, struct operand const *oprnd,
 				      ? &floatformat_ieee_double_big
 				      : &floatformat_ieee_double_little),
 				     ibytes, &f);
-	    sprintf (buf, "%f", f);
+	    sprintf (buf, "%.7g", f);
 	  }
 	else
 	  {
@@ -645,7 +645,7 @@ csky_output_operand (char *str, struct operand const *oprnd,
 	floatformat_to_double (&floatformat_ieee_double_little, valbytes,
 			       &fvalue);
 
-	sprintf (buf, "%f", fvalue);
+	sprintf (buf, "%.7g", fvalue);
 	strcat (str, buf);
 	break;
       }
@@ -673,7 +673,7 @@ csky_output_operand (char *str, struct operand const *oprnd,
 
 	float f = 0;
 	memcpy (&f, &value, sizeof (float));
-	sprintf (buf, "%f\t// imm9:%4d, imm4:%2d", f, imm8, imm4);
+	sprintf (buf, "%.7g\t// imm9:%4d, imm4:%2d", f, imm8, imm4);
 	strcat (str, buf);
 
 	break;
@@ -702,7 +702,7 @@ csky_output_operand (char *str, struct operand const *oprnd,
 	  }
 	double d = 0;
 	memcpy (&d, &dvalue, sizeof (double));
-	sprintf (buf, "%lf\t// imm9:%4ld, imm4:%2ld", d, (long) imm8, (long) imm4);
+	sprintf (buf, "%.7g\t// imm9:%4ld, imm4:%2ld", d, (long) imm8, (long) imm4);
 	strcat (str, buf);
 
 	break;
@@ -776,7 +776,7 @@ csky_output_operand (char *str, struct operand const *oprnd,
     case OPRND_TYPE_PSR_BITS_LIST:
       {
 	struct psrbit const *bits;
-	int first_oprnd = TRUE;
+	int first_oprnd = true;
 	int i = 0;
 	if (IS_CSKY_V1 (mach_flag))
 	  {
@@ -797,7 +797,7 @@ csky_output_operand (char *str, struct operand const *oprnd,
 		    strcat (str, ", ");
 		  strcat (str, bits[i].name);
 		  value &= ~bits[i].value;
-		  first_oprnd = FALSE;
+		  first_oprnd = false;
 		}
 	      i++;
 	    }
@@ -1049,7 +1049,7 @@ print_insn_csky (bfd_vma memaddr, struct disassemble_info *info)
   int status;
   char str[256];
   unsigned long given;
-  int is_data = FALSE;
+  int is_data = false;
   void (*printer) (bfd_vma, struct disassemble_info *, long);
   unsigned int  size = 4;
 

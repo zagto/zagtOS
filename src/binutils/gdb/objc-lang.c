@@ -1,6 +1,6 @@
 /* Objective-C language support routines for GDB, the GNU debugger.
 
-   Copyright (C) 2002-2021 Free Software Foundation, Inc.
+   Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
    Contributed by Apple Computer, Inc.
    Written by Michael Snyder.
@@ -37,12 +37,13 @@
 #include "gdbcore.h"
 #include "gdbcmd.h"
 #include "frame.h"
-#include "gdb_regex.h"
+#include "gdbsupport/gdb_regex.h"
 #include "regcache.h"
 #include "block.h"
 #include "infcall.h"
 #include "valprint.h"
 #include "cli/cli-utils.h"
+#include "c-exp.h"
 
 #include <ctype.h>
 #include <algorithm>
@@ -95,7 +96,7 @@ lookup_struct_typedef (const char *name, const struct block *block, int noerr)
       else 
 	error (_("No struct type named %s."), name);
     }
-  if (SYMBOL_TYPE (sym)->code () != TYPE_CODE_STRUCT)
+  if (sym->type ()->code () != TYPE_CODE_STRUCT)
     {
       if (noerr)
 	return 0;
@@ -209,115 +210,11 @@ value_nsstring (struct gdbarch *gdbarch, const char *ptr, int len)
   if (sym == NULL)
     type = builtin_type (gdbarch)->builtin_data_ptr;
   else
-    type = lookup_pointer_type(SYMBOL_TYPE (sym));
+    type = lookup_pointer_type(sym->type ());
 
   deprecated_set_value_type (nsstringValue, type);
   return nsstringValue;
 }
-
-/* Objective-C name demangling.  */
-
-char *
-objc_demangle (const char *mangled, int options)
-{
-  char *demangled, *cp;
-
-  if (mangled[0] == '_' &&
-     (mangled[1] == 'i' || mangled[1] == 'c') &&
-      mangled[2] == '_')
-    {
-      cp = demangled = (char *) xmalloc (strlen (mangled) + 2);
-
-      if (mangled[1] == 'i')
-	*cp++ = '-';		/* for instance method */
-      else
-	*cp++ = '+';		/* for class    method */
-
-      *cp++ = '[';		/* opening left brace  */
-      strcpy(cp, mangled+3);	/* Tack on the rest of the mangled name.  */
-
-      while (*cp && *cp == '_')
-	cp++;			/* Skip any initial underbars in class
-				   name.  */
-
-      cp = strchr(cp, '_');
-      if (!cp)	                /* Find first non-initial underbar.  */
-	{
-	  xfree(demangled);	/* not mangled name */
-	  return NULL;
-	}
-      if (cp[1] == '_')		/* Easy case: no category name.    */
-	{
-	  *cp++ = ' ';		/* Replace two '_' with one ' '.   */
-	  strcpy(cp, mangled + (cp - demangled) + 2);
-	}
-      else
-	{
-	  *cp++ = '(';		/* Less easy case: category name.  */
-	  cp = strchr(cp, '_');
-	  if (!cp)
-	    {
-	      xfree(demangled);	/* not mangled name */
-	      return NULL;
-	    }
-	  *cp++ = ')';
-	  *cp++ = ' ';		/* Overwriting 1st char of method name...  */
-	  strcpy(cp, mangled + (cp - demangled));	/* Get it back.  */
-	}
-
-      while (*cp && *cp == '_')
-	cp++;			/* Skip any initial underbars in
-				   method name.  */
-
-      for (; *cp; cp++)
-	if (*cp == '_')
-	  *cp = ':';		/* Replace remaining '_' with ':'.  */
-
-      *cp++ = ']';		/* closing right brace */
-      *cp++ = 0;		/* string terminator */
-      return demangled;
-    }
-  else
-    return NULL;	/* Not an objc mangled name.  */
-}
-
-
-/* Table mapping opcodes into strings for printing operators
-   and precedences of the operators.  */
-
-static const struct op_print objc_op_print_tab[] =
-  {
-    {",",  BINOP_COMMA, PREC_COMMA, 0},
-    {"=",  BINOP_ASSIGN, PREC_ASSIGN, 1},
-    {"||", BINOP_LOGICAL_OR, PREC_LOGICAL_OR, 0},
-    {"&&", BINOP_LOGICAL_AND, PREC_LOGICAL_AND, 0},
-    {"|",  BINOP_BITWISE_IOR, PREC_BITWISE_IOR, 0},
-    {"^",  BINOP_BITWISE_XOR, PREC_BITWISE_XOR, 0},
-    {"&",  BINOP_BITWISE_AND, PREC_BITWISE_AND, 0},
-    {"==", BINOP_EQUAL, PREC_EQUAL, 0},
-    {"!=", BINOP_NOTEQUAL, PREC_EQUAL, 0},
-    {"<=", BINOP_LEQ, PREC_ORDER, 0},
-    {">=", BINOP_GEQ, PREC_ORDER, 0},
-    {">",  BINOP_GTR, PREC_ORDER, 0},
-    {"<",  BINOP_LESS, PREC_ORDER, 0},
-    {">>", BINOP_RSH, PREC_SHIFT, 0},
-    {"<<", BINOP_LSH, PREC_SHIFT, 0},
-    {"+",  BINOP_ADD, PREC_ADD, 0},
-    {"-",  BINOP_SUB, PREC_ADD, 0},
-    {"*",  BINOP_MUL, PREC_MUL, 0},
-    {"/",  BINOP_DIV, PREC_MUL, 0},
-    {"%",  BINOP_REM, PREC_MUL, 0},
-    {"@",  BINOP_REPEAT, PREC_REPEAT, 0},
-    {"-",  UNOP_NEG, PREC_PREFIX, 0},
-    {"!",  UNOP_LOGICAL_NOT, PREC_PREFIX, 0},
-    {"~",  UNOP_COMPLEMENT, PREC_PREFIX, 0},
-    {"*",  UNOP_IND, PREC_PREFIX, 0},
-    {"&",  UNOP_ADDR, PREC_PREFIX, 0},
-    {"sizeof ", UNOP_SIZEOF, PREC_PREFIX, 0},
-    {"++", UNOP_PREINCREMENT, PREC_PREFIX, 0},
-    {"--", UNOP_PREDECREMENT, PREC_PREFIX, 0},
-    {NULL, OP_NULL, PREC_NULL, 0}
-};
 
 /* Class representing the Objective-C language.  */
 
@@ -354,19 +251,18 @@ public:
   }
 
   /* See language.h.  */
-  bool sniff_from_mangled_name (const char *mangled,
-				char **demangled) const override
+  bool sniff_from_mangled_name
+       (const char *mangled, gdb::unique_xmalloc_ptr<char> *demangled)
+       const override
   {
-    *demangled = objc_demangle (mangled, 0);
+    *demangled = demangle_symbol (mangled, 0);
     return *demangled != NULL;
   }
 
   /* See language.h.  */
 
-  char *demangle_symbol (const char *mangled, int options) const override
-  {
-    return objc_demangle (mangled, options);
-  }
+  gdb::unique_xmalloc_ptr<char> demangle_symbol (const char *mangled,
+						 int options) const override;
 
   /* See language.h.  */
 
@@ -374,7 +270,7 @@ public:
 		   struct ui_file *stream, int show, int level,
 		   const struct type_print_options *flags) const override
   {
-    c_print_type (type, varstring, stream, show, level, flags);
+    c_print_type (type, varstring, stream, show, level, la_language, flags);
   }
 
   /* See language.h.  */
@@ -420,12 +316,73 @@ public:
 
   enum macro_expansion macro_expansion () const override
   { return macro_expansion_c; }
-
-  /* See language.h.  */
-
-  const struct op_print *opcode_print_table () const override
-  { return objc_op_print_tab; }
 };
+
+/* See declaration of objc_language::demangle_symbol above.  */
+
+gdb::unique_xmalloc_ptr<char>
+objc_language::demangle_symbol (const char *mangled, int options) const
+{
+  char *demangled, *cp;
+
+  if (mangled[0] == '_'
+      && (mangled[1] == 'i' || mangled[1] == 'c')
+      && mangled[2] == '_')
+    {
+      cp = demangled = (char *) xmalloc (strlen (mangled) + 2);
+
+      if (mangled[1] == 'i')
+	*cp++ = '-';		/* for instance method */
+      else
+	*cp++ = '+';		/* for class    method */
+
+      *cp++ = '[';		/* opening left brace  */
+      strcpy(cp, mangled+3);	/* Tack on the rest of the mangled name.  */
+
+      while (*cp != '\0' && *cp == '_')
+	cp++;			/* Skip any initial underbars in class
+				   name.  */
+
+      cp = strchr(cp, '_');
+      if (cp == nullptr)	/* Find first non-initial underbar.  */
+	{
+	  xfree(demangled);	/* not mangled name */
+	  return nullptr;
+	}
+      if (cp[1] == '_')		/* Easy case: no category name.    */
+	{
+	  *cp++ = ' ';		/* Replace two '_' with one ' '.   */
+	  strcpy(cp, mangled + (cp - demangled) + 2);
+	}
+      else
+	{
+	  *cp++ = '(';		/* Less easy case: category name.  */
+	  cp = strchr(cp, '_');
+	  if (cp == nullptr)
+	    {
+	      xfree(demangled);	/* not mangled name */
+	      return nullptr;
+	    }
+	  *cp++ = ')';
+	  *cp++ = ' ';		/* Overwriting 1st char of method name...  */
+	  strcpy(cp, mangled + (cp - demangled));	/* Get it back.  */
+	}
+
+      while (*cp != '\0' && *cp == '_')
+	cp++;			/* Skip any initial underbars in
+				   method name.  */
+
+      for (; *cp != '\0'; cp++)
+	if (*cp == '_')
+	  *cp = ':';		/* Replace remaining '_' with ':'.  */
+
+      *cp++ = ']';		/* closing right brace */
+      *cp++ = 0;		/* string terminator */
+      return gdb::unique_xmalloc_ptr<char> (demangled);
+    }
+  else
+    return nullptr;	/* Not an objc mangled name.  */
+}
 
 /* Single instance of the class representing the Objective-C language.  */
 
@@ -507,15 +464,20 @@ end_msglist (struct parser_state *ps)
   char *p = msglist_sel;
   CORE_ADDR selid;
 
+  std::vector<expr::operation_up> args = ps->pop_vector (val);
+  expr::operation_up target = ps->pop ();
+
   selname_chain = sel->next;
   msglist_len = sel->msglist_len;
   msglist_sel = sel->msglist_sel;
   selid = lookup_child_selector (ps->gdbarch (), p);
   if (!selid)
     error (_("Can't find selector \"%s\""), p);
-  write_exp_elt_longcst (ps, selid);
+
+  ps->push_new<expr::objc_msgcall_operation> (selid, std::move (target),
+					      std::move (args));
+
   xfree(p);
-  write_exp_elt_longcst (ps, val);	/* Number of args */
   xfree(sel);
 
   return val;
@@ -659,8 +621,8 @@ info_selectors_command (const char *regexp, int from_tty)
     }
   if (matches)
     {
-      printf_filtered (_("Selectors matching \"%s\":\n\n"), 
-		       regexp ? regexp : "*");
+      gdb_printf (_("Selectors matching \"%s\":\n\n"), 
+		  regexp ? regexp : "*");
 
       sym_arr = XALLOCAVEC (struct symbol *, matches);
       matches = 0;
@@ -704,13 +666,13 @@ info_selectors_command (const char *regexp, int from_tty)
 	    *p++ = *name++;
 	  *p++ = '\0';
 	  /* Print in columns.  */
-	  puts_filtered_tabular(asel, maxlen + 1, 0);
+	  puts_tabular(asel, maxlen + 1, 0);
 	}
       begin_line();
     }
   else
-    printf_filtered (_("No selectors matching \"%s\"\n"),
-		     regexp ? regexp : "*");
+    gdb_printf (_("No selectors matching \"%s\"\n"),
+		regexp ? regexp : "*");
 }
 
 /*
@@ -801,8 +763,8 @@ info_classes_command (const char *regexp, int from_tty)
     }
   if (matches)
     {
-      printf_filtered (_("Classes matching \"%s\":\n\n"), 
-		       regexp ? regexp : "*");
+      gdb_printf (_("Classes matching \"%s\":\n\n"), 
+		  regexp ? regexp : "*");
       sym_arr = XALLOCAVEC (struct symbol *, matches);
       matches = 0;
       for (objfile *objfile : current_program_space->objfiles ())
@@ -838,12 +800,12 @@ info_classes_command (const char *regexp, int from_tty)
 	    *p++ = *name++;
 	  *p++ = '\0';
 	  /* Print in columns.  */
-	  puts_filtered_tabular(aclass, maxlen + 1, 0);
+	  puts_tabular(aclass, maxlen + 1, 0);
 	}
       begin_line();
     }
   else
-    printf_filtered (_("No classes matching \"%s\"\n"), regexp ? regexp : "*");
+    gdb_printf (_("No classes matching \"%s\"\n"), regexp ? regexp : "*");
 }
 
 static char * 
@@ -1219,12 +1181,12 @@ print_object_command (const char *args, int from_tty)
     do
       { /* Read and print characters up to EOS.  */
 	QUIT;
-	printf_filtered ("%c", c);
+	gdb_printf ("%c", c);
 	read_memory (string_addr + i++, &c, 1);
       } while (c != 0);
   else
-    printf_filtered(_("<object returns empty description>"));
-  printf_filtered ("\n");
+    gdb_printf(_("<object returns empty description>"));
+  gdb_printf ("\n");
 }
 
 /* The data structure 'methcalls' is used to detect method calls (thru
@@ -1287,7 +1249,7 @@ find_objc_msgsend (void)
 	  continue; 
 	}
 
-      methcalls[i].begin = BMSYMBOL_VALUE_ADDRESS (func);
+      methcalls[i].begin = func.value_address ();
       methcalls[i].end = minimal_symbol_upper_bound (func);
     }
 }
@@ -1359,9 +1321,10 @@ _initialize_objc_language ()
 	    _("All Objective-C selectors, or those matching REGEXP."));
   add_info ("classes", info_classes_command,
 	    _("All Objective-C classes, or those matching REGEXP."));
-  add_com ("print-object", class_vars, print_object_command, 
-	   _("Ask an Objective-C object to print itself."));
-  add_com_alias ("po", "print-object", class_vars, 1);
+  cmd_list_element *print_object_cmd
+    = add_com ("print-object", class_vars, print_object_command,
+	       _("Ask an Objective-C object to print itself."));
+  add_com_alias ("po", print_object_cmd, class_vars, 1);
 }
 
 static void 

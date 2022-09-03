@@ -1,4 +1,4 @@
-# Copyright 2004-2021 Free Software Foundation, Inc.
+# Copyright 2004-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,11 +28,6 @@ set execsrc "${srcdir}/${subdir}/${srcfile}"
 
 remote_exec build "rm -f ${binfile}"
 
-# get the value of gcc_compiled
-if [get_compiler_info] {
-    return -1
-}
-
 if { [gdb_compile_shlib $libsrc $libobj {debug}] != ""
      || [gdb_compile $execsrc ${binfile} executable \
 	     [list debug shlib=${libobj}]] != "" } {
@@ -43,7 +38,6 @@ clean_restart ${binfile}
 gdb_load_shlib ${libobj}
 
 if ![runto_main] then {
-    fail "can't run to main"
     return 0
 }
 

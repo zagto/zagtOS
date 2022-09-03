@@ -1,6 +1,6 @@
 /* TUI display source/assembly window.
 
-   Copyright (C) 1998-2021 Free Software Foundation, Inc.
+   Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
    Contributed by Hewlett-Packard Company.
 
@@ -39,6 +39,7 @@
 #include "tui/tui-winsource.h"
 #include "tui/tui-source.h"
 #include "tui/tui-disasm.h"
+#include "tui/tui-location.h"
 #include "gdb_curses.h"
 
 /* Function to display the "main" routine.  */
@@ -58,7 +59,7 @@ tui_display_main ()
 
 	  tui_update_source_windows_with_addr (gdbarch, addr);
 	  s = find_pc_line_symtab (addr);
-	  tui_update_locator_fullname (s);
+	  tui_location.set_location (s);
 	}
     }
 }
@@ -198,7 +199,7 @@ tui_update_source_windows_with_line (struct symtab_and_line sal)
   if (sal.symtab != nullptr)
     {
       find_line_pc (sal.symtab, sal.line, &sal.pc);
-      gdbarch = SYMTAB_OBJFILE (sal.symtab)->arch ();
+      gdbarch = sal.symtab->compunit ()->objfile ()->arch ();
     }
 
   for (struct tui_source_window_base *win_info : tui_source_windows ())
@@ -291,14 +292,14 @@ tui_source_window_base::tui_source_window_base ()
   m_start_line_or_addr.loa = LOA_ADDRESS;
   m_start_line_or_addr.u.addr = 0;
 
-  gdb::observers::source_styling_changed.attach
+  gdb::observers::styling_changed.attach
     (std::bind (&tui_source_window::style_changed, this),
-     m_observable);
+     m_observable, "tui-winsource");
 }
 
 tui_source_window_base::~tui_source_window_base ()
 {
-  gdb::observers::source_styling_changed.detach (m_observable);
+  gdb::observers::styling_changed.detach (m_observable);
 }
 
 /* See tui-data.h.  */
@@ -456,14 +457,12 @@ tui_source_window_base::update_breakpoint_info
 	 do with it.  Identify enable/disabled breakpoints as well as
 	 those that we already hit.  */
       tui_bp_flags mode = 0;
-      iterate_over_breakpoints ([&] (breakpoint *bp) -> bool
+      for (breakpoint *bp : all_breakpoints ())
 	{
-	  struct bp_location *loc;
-
 	  if (bp == being_deleted)
-	    return false;
+	    continue;
 
-	  for (loc = bp->loc; loc != NULL; loc = loc->next)
+	  for (bp_location *loc : bp->locations ())
 	    {
 	      if (location_matches_p (loc, i))
 		{
@@ -479,8 +478,8 @@ tui_source_window_base::update_breakpoint_info
 		    mode |= TUI_BP_HARDWARE;
 		}
 	    }
-	  return false;
-	});
+	}
+
       if (line->break_mode != mode)
 	{
 	  line->break_mode = mode;

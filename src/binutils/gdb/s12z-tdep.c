@@ -1,5 +1,5 @@
 /* Target-dependent code for the S12Z, for the GDB.
-   Copyright (C) 2018-2021 Free Software Foundation, Inc.
+   Copyright (C) 2018-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -31,6 +31,8 @@
 #include "trad-frame.h"
 #include "remote.h"
 #include "opcodes/s12z-opc.h"
+#include "gdbarch.h"
+#include "disasm.h"
 
 /* Two of the registers included in S12Z_N_REGISTERS are
    the CCH and CCL "registers" which are just views into
@@ -138,31 +140,6 @@ s12z_dwarf_reg_to_regnum (struct gdbarch *gdbarch, int num)
 
 
 /* Support functions for frame handling.  */
-
-/* Copy of gdb_buffered_insn_length_fprintf from disasm.c.  */
-
-static int ATTRIBUTE_PRINTF (2, 3)
-s12z_fprintf_disasm (void *stream, const char *format, ...)
-{
-  return 0;
-}
-
-static struct disassemble_info
-s12z_disassemble_info (struct gdbarch *gdbarch)
-{
-  struct disassemble_info di;
-  init_disassemble_info (&di, &null_stream, s12z_fprintf_disasm);
-  di.arch = gdbarch_bfd_arch_info (gdbarch)->arch;
-  di.mach = gdbarch_bfd_arch_info (gdbarch)->mach;
-  di.endian = gdbarch_byte_order (gdbarch);
-  di.read_memory_func = [](bfd_vma memaddr, gdb_byte *myaddr,
-			   unsigned int len, struct disassemble_info *info)
-    {
-      return target_read_code (memaddr, myaddr, len);
-    };
-  return di;
-}
-
 
 /* A struct (based on mem_read_abstraction_base) to read memory
    through the disassemble_info API.  */
@@ -334,15 +311,14 @@ s12z_frame_cache (struct frame_info *this_frame, void **prologue_cache)
   int frame_size = 0;
   int saved_frame_size = 0;
 
-  struct disassemble_info di = s12z_disassemble_info (gdbarch);
-
+  struct gdb_non_printing_memory_disassembler dis (gdbarch);
 
   struct mem_read_abstraction mra;
   mra.base.read = (int (*)(mem_read_abstraction_base*,
 			   int, size_t, bfd_byte*)) abstract_read_memory;
   mra.base.advance = advance ;
   mra.base.posn = posn;
-  mra.info = &di;
+  mra.info = dis.disasm_info ();
 
   while (this_pc > addr)
     {
@@ -467,6 +443,7 @@ s12z_frame_prev_register (struct frame_info *this_frame,
 
 /* Data structures for the normal prologue-analysis-based unwinder.  */
 static const struct frame_unwind s12z_frame_unwind = {
+  "s12z prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   s12z_frame_this_id,
@@ -481,7 +458,7 @@ constexpr gdb_byte s12z_break_insn[] = {0x00};
 
 typedef BP_MANIPULATION (s12z_break_insn) s12z_breakpoint;
 
-struct gdbarch_tdep
+struct s12z_gdbarch_tdep : gdbarch_tdep
 {
 };
 
@@ -520,28 +497,28 @@ s12z_print_ccw_info (struct gdbarch *gdbarch,
   struct value *v = value_of_register (reg, frame);
   const char *name = gdbarch_register_name (gdbarch, reg);
   uint32_t ccw = value_as_long (v);
-  fputs_filtered (name, file);
+  gdb_puts (name, file);
   size_t len = strlen (name);
   const int stop_1 = 15;
   const int stop_2 = 17;
   for (int i = 0; i < stop_1 - len; ++i)
-    fputc_filtered (' ', file);
-  fprintf_filtered (file, "0x%04x", ccw);
+    gdb_putc (' ', file);
+  gdb_printf (file, "0x%04x", ccw);
   for (int i = 0; i < stop_2 - len; ++i)
-    fputc_filtered (' ', file);
+    gdb_putc (' ', file);
   for (int b = 15; b >= 0; --b)
     {
       if (ccw & (0x1u << b))
 	{
 	  if (ccw_bits[b] == 0)
-	    fputc_filtered ('1', file);
+	    gdb_putc ('1', file);
 	  else
-	    fputc_filtered (ccw_bits[b], file);
+	    gdb_putc (ccw_bits[b], file);
 	}
       else
-	fputc_filtered (tolower (ccw_bits[b]), file);
+	gdb_putc (tolower (ccw_bits[b]), file);
     }
-  fputc_filtered ('\n', file);
+  gdb_putc ('\n', file);
 }
 
 static void
@@ -633,13 +610,13 @@ show_bdccsr_command (const char *args, int from_tty)
   struct string_file output;
   target_rcmd ("bdccsr", &output);
 
-  printf_unfiltered ("The current BDCCSR value is %s\n", output.string().c_str());
+  gdb_printf ("The current BDCCSR value is %s\n", output.string().c_str());
 }
 
 static struct gdbarch *
 s12z_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 {
-  struct gdbarch_tdep *tdep = XNEW (struct gdbarch_tdep);
+  s12z_gdbarch_tdep *tdep = new s12z_gdbarch_tdep;
   struct gdbarch *gdbarch = gdbarch_alloc (&info, tdep);
 
   add_cmd ("bdccsr", class_support, show_bdccsr_command,

@@ -44,6 +44,7 @@ corefile.c
 cpu-aarch64.c
 cpu-aarch64.h
 cpu-alpha.c
+cpu-amdgcn.c
 cpu-arc.c
 cpu-arm.c
 cpu-arm.h
@@ -69,9 +70,8 @@ cpu-ia64.c
 cpu-iamcu.c
 cpu-ip2k.c
 cpu-iq2000.c
-cpu-k1om.c
-cpu-l1om.c
 cpu-lm32.c
+cpu-loongarch.c
 cpu-m10200.c
 cpu-m10300.c
 cpu-m32c.c
@@ -101,6 +101,7 @@ cpu-pj.c
 cpu-powerpc.c
 cpu-pru.c
 cpu-riscv.c
+cpu-riscv.h
 cpu-rl78.c
 cpu-rs6000.c
 cpu-rx.c
@@ -121,7 +122,6 @@ cpu-v850_rh850.c
 cpu-vax.c
 cpu-visium.c
 cpu-wasm32.c
-cpu-xc16x.c
 cpu-xgate.c
 cpu-xstormy16.c
 cpu-xtensa.c
@@ -230,13 +230,13 @@ elf32-v850.h
 elf32-vax.c
 elf32-visium.c
 elf32-wasm32.c
-elf32-xc16x.c
 elf32-xgate.c
 elf32-xstormy16.c
 elf32-xtensa.c
 elf32-z80.c
 elf32.c
 elf64-alpha.c
+elf64-amdgcn.c
 elf64-bpf.c
 elf64-gen.c
 elf64-hppa.c
@@ -261,6 +261,8 @@ elfxx-aarch64.c
 elfxx-aarch64.h
 elfxx-ia64.c
 elfxx-ia64.h
+elfxx-loongarch.c
+elfxx-loongarch.h
 elfxx-mips.c
 elfxx-mips.h
 elfxx-riscv.c
@@ -319,6 +321,7 @@ pe-x86_64.c
 pef-traceback.h
 pef.c
 pef.h
+pei-aarch64.c
 pei-arm-wince.c
 pei-arm.c
 pei-i386.c

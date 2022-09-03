@@ -1,6 +1,6 @@
 /* Python interface to symbols.
 
-   Copyright (C) 2008-2021 Free Software Foundation, Inc.
+   Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -60,7 +60,7 @@ sympy_str (PyObject *self)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  result = PyString_FromString (symbol->print_name ());
+  result = PyUnicode_FromString (symbol->print_name ());
 
   return result;
 }
@@ -72,13 +72,13 @@ sympy_get_type (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  if (SYMBOL_TYPE (symbol) == NULL)
+  if (symbol->type () == NULL)
     {
       Py_INCREF (Py_None);
       return Py_None;
     }
 
-  return type_to_type_object (SYMBOL_TYPE (symbol));
+  return type_to_type_object (symbol->type ());
 }
 
 static PyObject *
@@ -88,10 +88,10 @@ sympy_get_symtab (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  if (!SYMBOL_OBJFILE_OWNED (symbol))
+  if (!symbol->is_objfile_owned ())
     Py_RETURN_NONE;
 
-  return symtab_to_symtab_object (symbol_symtab (symbol));
+  return symtab_to_symtab_object (symbol->symtab ());
 }
 
 static PyObject *
@@ -101,7 +101,7 @@ sympy_get_name (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  return PyString_FromString (symbol->natural_name ());
+  return PyUnicode_FromString (symbol->natural_name ());
 }
 
 static PyObject *
@@ -111,7 +111,7 @@ sympy_get_linkage_name (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  return PyString_FromString (symbol->linkage_name ());
+  return PyUnicode_FromString (symbol->linkage_name ());
 }
 
 static PyObject *
@@ -131,7 +131,7 @@ sympy_get_addr_class (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  return gdb_py_object_from_longest (SYMBOL_CLASS (symbol)).release ();
+  return gdb_py_object_from_longest (symbol->aclass ()).release ();
 }
 
 static PyObject *
@@ -141,7 +141,7 @@ sympy_is_argument (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  return PyBool_FromLong (SYMBOL_IS_ARGUMENT (symbol));
+  return PyBool_FromLong (symbol->is_argument ());
 }
 
 static PyObject *
@@ -152,7 +152,7 @@ sympy_is_constant (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  theclass = SYMBOL_CLASS (symbol);
+  theclass = symbol->aclass ();
 
   return PyBool_FromLong (theclass == LOC_CONST || theclass == LOC_CONST_BYTES);
 }
@@ -165,7 +165,7 @@ sympy_is_function (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  theclass = SYMBOL_CLASS (symbol);
+  theclass = symbol->aclass ();
 
   return PyBool_FromLong (theclass == LOC_BLOCK);
 }
@@ -178,9 +178,9 @@ sympy_is_variable (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  theclass = SYMBOL_CLASS (symbol);
+  theclass = symbol->aclass ();
 
-  return PyBool_FromLong (!SYMBOL_IS_ARGUMENT (symbol)
+  return PyBool_FromLong (!symbol->is_argument ()
 			  && (theclass == LOC_LOCAL || theclass == LOC_REGISTER
 			      || theclass == LOC_STATIC || theclass == LOC_COMPUTED
 			      || theclass == LOC_OPTIMIZED_OUT));
@@ -221,7 +221,7 @@ sympy_line (PyObject *self, void *closure)
 
   SYMPY_REQUIRE_VALID (self, symbol);
 
-  return gdb_py_object_from_longest (SYMBOL_LINE (symbol)).release ();
+  return gdb_py_object_from_longest (symbol->line ()).release ();
 }
 
 /* Implementation of gdb.Symbol.is_valid (self) -> Boolean.
@@ -260,7 +260,7 @@ sympy_value (PyObject *self, PyObject *args)
     }
 
   SYMPY_REQUIRE_VALID (self, symbol);
-  if (SYMBOL_CLASS (symbol) == LOC_TYPEDEF)
+  if (symbol->aclass () == LOC_TYPEDEF)
     {
       PyErr_SetString (PyExc_TypeError, "cannot get the value of a typedef");
       return NULL;
@@ -302,10 +302,10 @@ set_symbol (symbol_object *obj, struct symbol *symbol)
 {
   obj->symbol = symbol;
   obj->prev = NULL;
-  if (SYMBOL_OBJFILE_OWNED (symbol)
-      && symbol_symtab (symbol) != NULL)
+  if (symbol->is_objfile_owned ()
+      && symbol->symtab () != NULL)
     {
-      struct objfile *objfile = symbol_objfile (symbol);
+      struct objfile *objfile = symbol->objfile ();
 
       obj->next = ((symbol_object *)
 		   objfile_data (objfile, sympy_objfile_data_key));
@@ -348,10 +348,10 @@ sympy_dealloc (PyObject *obj)
   if (sym_obj->prev)
     sym_obj->prev->next = sym_obj->next;
   else if (sym_obj->symbol != NULL
-	   && SYMBOL_OBJFILE_OWNED (sym_obj->symbol)
-	   && symbol_symtab (sym_obj->symbol) != NULL)
+	   && sym_obj->symbol->is_objfile_owned ()
+	   && sym_obj->symbol->symtab () != NULL)
     {
-      set_objfile_data (symbol_objfile (sym_obj->symbol),
+      set_objfile_data (sym_obj->symbol->objfile (),
 			sympy_objfile_data_key, sym_obj->next);
     }
   if (sym_obj->next)
@@ -426,8 +426,7 @@ gdbpy_lookup_symbol (PyObject *self, PyObject *args, PyObject *kw)
     }
   PyTuple_SET_ITEM (ret_tuple.get (), 0, sym_obj);
 
-  bool_obj = (is_a_field_of_this.type != NULL) ? Py_True : Py_False;
-  Py_INCREF (bool_obj);
+  bool_obj = PyBool_FromLong (is_a_field_of_this.type != NULL);
   PyTuple_SET_ITEM (ret_tuple.get (), 1, bool_obj);
 
   return ret_tuple.release ();
@@ -560,17 +559,18 @@ gdbpy_lookup_static_symbols (PyObject *self, PyObject *args, PyObject *kw)
     {
       /* Expand any symtabs that contain potentially matching symbols.  */
       lookup_name_info lookup_name (name, symbol_name_match_type::FULL);
-      expand_symtabs_matching (NULL, lookup_name, NULL, NULL, ALL_DOMAIN);
+      expand_symtabs_matching (NULL, lookup_name, NULL, NULL,
+			       SEARCH_GLOBAL_BLOCK | SEARCH_STATIC_BLOCK,
+			       ALL_DOMAIN);
 
       for (objfile *objfile : current_program_space->objfiles ())
 	{
 	  for (compunit_symtab *cust : objfile->compunits ())
 	    {
 	      const struct blockvector *bv;
-	      const struct block *block;
 
-	      bv = COMPUNIT_BLOCKVECTOR (cust);
-	      block = BLOCKVECTOR_BLOCK (bv, STATIC_BLOCK);
+	      bv = cust->blockvector ();
+	      const struct block *block = bv->static_block ();
 
 	      if (block != nullptr)
 		{
@@ -617,17 +617,22 @@ del_objfile_symbols (struct objfile *objfile, void *datum)
     }
 }
 
-int
-gdbpy_initialize_symbols (void)
+void _initialize_py_symbol ();
+void
+_initialize_py_symbol ()
 {
-  if (PyType_Ready (&symbol_object_type) < 0)
-    return -1;
-
   /* Register an objfile "free" callback so we can properly
      invalidate symbol when an object file that is about to be
      deleted.  */
   sympy_objfile_data_key
     = register_objfile_data_with_cleanup (NULL, del_objfile_symbols);
+}
+
+int
+gdbpy_initialize_symbols (void)
+{
+  if (PyType_Ready (&symbol_object_type) < 0)
+    return -1;
 
   if (PyModule_AddIntConstant (gdb_module, "SYMBOL_LOC_UNDEF", LOC_UNDEF) < 0
       || PyModule_AddIntConstant (gdb_module, "SYMBOL_LOC_CONST",
@@ -666,6 +671,8 @@ gdbpy_initialize_symbols (void)
 				  VAR_DOMAIN) < 0
       || PyModule_AddIntConstant (gdb_module, "SYMBOL_STRUCT_DOMAIN",
 				  STRUCT_DOMAIN) < 0
+      || PyModule_AddIntConstant (gdb_module, "SYMBOL_LABEL_DOMAIN",
+				  LABEL_DOMAIN) < 0
       || PyModule_AddIntConstant (gdb_module, "SYMBOL_MODULE_DOMAIN",
 				  MODULE_DOMAIN) < 0
       || PyModule_AddIntConstant (gdb_module, "SYMBOL_COMMON_BLOCK_DOMAIN",

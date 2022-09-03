@@ -1,6 +1,6 @@
 /* DTrace probe support for GDB.
 
-   Copyright (C) 2014-2021 Free Software Foundation, Inc.
+   Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
    Contributed by Oracle, Inc.
 
@@ -32,6 +32,7 @@
 #include "language.h"
 #include "parser-defs.h"
 #include "inferior.h"
+#include "expop.h"
 
 /* The type of the ELF sections where we will find the DOF programs
    with information about probes.  */
@@ -629,20 +630,18 @@ dtrace_probe::build_arg_exprs (struct gdbarch *gdbarch)
 
       /* The argument value, which is ABI dependent and casted to
 	 `long int'.  */
-      gdbarch_dtrace_parse_probe_argument (gdbarch, &builder, argc);
+      expr::operation_up op = gdbarch_dtrace_parse_probe_argument (gdbarch,
+								   argc);
 
       /* Casting to the expected type, but only if the type was
 	 recognized at probe load time.  Otherwise the argument will
 	 be evaluated as the long integer passed to the probe.  */
       if (arg.type != NULL)
-	{
-	  write_exp_elt_opcode (&builder, UNOP_CAST);
-	  write_exp_elt_type (&builder, arg.type);
-	  write_exp_elt_opcode (&builder, UNOP_CAST);
-	}
+	op = expr::make_operation<expr::unop_cast_operation> (std::move (op),
+							      arg.type);
 
+      builder.set_operation (std::move (op));
       arg.expr = builder.release ();
-      prefixify_expression (arg.expr.get ());
       ++argc;
     }
 }
@@ -685,7 +684,7 @@ dtrace_probe::is_enabled () const
 CORE_ADDR
 dtrace_probe::get_relocated_address (struct objfile *objfile)
 {
-  return this->get_address () + objfile->data_section_offset ();
+  return this->get_address () + objfile->text_section_offset ();
 }
 
 /* Implementation of the get_argument_count method.  */
@@ -726,12 +725,9 @@ dtrace_probe::compile_to_ax (struct agent_expr *expr, struct axs_value *value,
 			     unsigned n)
 {
   struct dtrace_probe_arg *arg;
-  union exp_element *pc;
 
   arg = this->get_arg_by_number (n, expr->gdbarch);
-
-  pc = arg->expr->elts;
-  gen_expr (arg->expr.get (), &pc, expr, value);
+  arg->expr->op->generate_ax (arg->expr.get (), expr, value);
 
   require_rvalue (expr, value);
   value->type = arg->type;
@@ -855,7 +851,7 @@ dtrace_static_probe_ops::get_probes
 	  if (bfd_malloc_and_get_section (abfd, sect, &dof) && dof != NULL)
 	    dtrace_process_dof (sect, objfile, probesp,
 				(struct dtrace_dof_hdr *) dof);
-	 else
+	  else
 	    complaint (_("could not obtain the contents of"
 			 "section '%s' in objfile `%s'."),
 		       bfd_section_name (sect), bfd_get_filename (abfd));

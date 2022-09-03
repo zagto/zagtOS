@@ -1,6 +1,6 @@
 /* Target-dependent code for UltraSPARC.
 
-   Copyright (C) 2003-2021 Free Software Foundation, Inc.
+   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -214,10 +214,12 @@ adi_available (void)
     return proc->stat.is_avail;
 
   proc->stat.checked_avail = true;
-  if (target_auxv_search (current_top_target (), AT_ADI_BLKSZ, &value) <= 0)
+  if (target_auxv_search (current_inferior ()->top_target (),
+			  AT_ADI_BLKSZ, &value) <= 0)
     return false;
   proc->stat.blksize = value;
-  target_auxv_search (current_top_target (), AT_ADI_NBITS, &value);
+  target_auxv_search (current_inferior ()->top_target (),
+		      AT_ADI_NBITS, &value);
   proc->stat.nbits = value;
   proc->stat.max_version = (1 << proc->stat.nbits) - 2;
   proc->stat.is_avail = true;
@@ -325,8 +327,8 @@ adi_is_addr_mapped (CORE_ADDR vaddr, size_t cnt)
 	    }
 	}
       }
-    else
-      warning (_("unable to open /proc file '%s'"), filename);
+  else
+    warning (_("unable to open /proc file '%s'"), filename);
 
   return false;
 }
@@ -387,19 +389,19 @@ adi_print_versions (CORE_ADDR vaddr, size_t cnt, gdb_byte *tags)
   while (cnt > 0)
     {
       QUIT;
-      printf_filtered ("%s:\t",
-		       paddress (target_gdbarch (), vaddr * adi_stat.blksize));
+      gdb_printf ("%s:\t",
+		  paddress (target_gdbarch (), vaddr * adi_stat.blksize));
       for (int i = maxelts; i > 0 && cnt > 0; i--, cnt--)
 	{
 	  if (tags[v_idx] == 0xff)    /* no version tag */
-	    printf_filtered ("-");
+	    gdb_printf ("-");
 	  else
-	    printf_filtered ("%1X", tags[v_idx]);
+	    gdb_printf ("%1X", tags[v_idx]);
 	  if (cnt > 1)
-	    printf_filtered (" ");
+	    gdb_printf (" ");
 	  ++v_idx;
 	}
-      printf_filtered ("\n");
+      gdb_printf ("\n");
       vaddr += maxelts;
     }
 }
@@ -532,10 +534,11 @@ _initialize_sparc64_adi_tdep ()
 {
   add_basic_prefix_cmd ("adi", class_support,
 			_("ADI version related commands."),
-			&sparc64adilist, "adi ", 0, &cmdlist);
-  add_cmd ("examine", class_support, adi_examine_command,
-	   _("Examine ADI versions."), &sparc64adilist);
-  add_alias_cmd ("x", "examine", no_class, 1, &sparc64adilist);
+			&sparc64adilist, 0, &cmdlist);
+  cmd_list_element *adi_examine_cmd
+    = add_cmd ("examine", class_support, adi_examine_command,
+	       _("Examine ADI versions."), &sparc64adilist);
+  add_alias_cmd ("x", adi_examine_cmd, no_class, 1, &sparc64adilist);
   add_cmd ("assign", class_support, adi_assign_command,
 	   _("Assign ADI versions."), &sparc64adilist);
 
@@ -645,7 +648,7 @@ sparc64_structure_or_union_p (const struct type *type)
 static struct type *
 sparc64_pstate_type (struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sparc_gdbarch_tdep *tdep = (sparc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   if (!tdep->sparc64_pstate_type)
     {
@@ -672,7 +675,7 @@ sparc64_pstate_type (struct gdbarch *gdbarch)
 static struct type *
 sparc64_ccr_type (struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sparc_gdbarch_tdep *tdep = (sparc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   if (tdep->sparc64_ccr_type == NULL)
     {
@@ -697,7 +700,7 @@ sparc64_ccr_type (struct gdbarch *gdbarch)
 static struct type *
 sparc64_fsr_type (struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sparc_gdbarch_tdep *tdep = (sparc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   if (!tdep->sparc64_fsr_type)
     {
@@ -730,7 +733,7 @@ sparc64_fsr_type (struct gdbarch *gdbarch)
 static struct type *
 sparc64_fprs_type (struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sparc_gdbarch_tdep *tdep = (sparc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   if (!tdep->sparc64_fprs_type)
     {
@@ -1138,6 +1141,7 @@ sparc64_frame_prev_register (struct frame_info *this_frame, void **this_cache,
 
 static const struct frame_unwind sparc64_frame_unwind =
 {
+  "sparc64 prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   sparc64_frame_this_id,
@@ -1263,7 +1267,7 @@ sparc64_store_floating_fields (struct regcache *regcache, struct type *type,
       for (i = 0; i < type->num_fields (); i++)
 	{
 	  struct type *subtype = check_typedef (type->field (i).type ());
-	  int subpos = bitpos + TYPE_FIELD_BITPOS (type, i);
+	  int subpos = bitpos + type->field (i).loc_bitpos ();
 
 	  sparc64_store_floating_fields (regcache, subtype, valbuf,
 					 element, subpos);
@@ -1351,7 +1355,7 @@ sparc64_extract_floating_fields (struct regcache *regcache, struct type *type,
       for (i = 0; i < type->num_fields (); i++)
 	{
 	  struct type *subtype = check_typedef (type->field (i).type ());
-	  int subpos = bitpos + TYPE_FIELD_BITPOS (type, i);
+	  int subpos = bitpos + type->field (i).loc_bitpos ();
 
 	  sparc64_extract_floating_fields (regcache, subtype, valbuf, subpos);
 	}
@@ -1414,7 +1418,7 @@ sparc64_store_arguments (struct regcache *regcache, int nargs,
 		 a problem.  */
 	      sp &= ~0xf;
 
-	      write_memory (sp, value_contents (args[i]), len);
+	      write_memory (sp, value_contents (args[i]).data (), len);
 	      args[i] = value_from_pointer (lookup_pointer_type (type), sp);
 	      num_elements++;
 	    }
@@ -1483,7 +1487,7 @@ sparc64_store_arguments (struct regcache *regcache, int nargs,
 
   for (i = 0; i < nargs; i++)
     {
-      const gdb_byte *valbuf = value_contents (args[i]);
+      const gdb_byte *valbuf = value_contents (args[i]).data ();
       struct type *type = value_type (args[i]);
       int len = TYPE_LENGTH (type);
       int regnum = -1;
@@ -1802,7 +1806,7 @@ sparc64_addr_bits_remove (struct gdbarch *gdbarch, CORE_ADDR addr)
 void
 sparc64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sparc_gdbarch_tdep *tdep = (sparc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   tdep->pc_regnum = SPARC64_PC_REGNUM;
   tdep->npc_regnum = SPARC64_NPC_REGNUM;

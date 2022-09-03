@@ -1,6 +1,6 @@
 /* GNU/Linux/x86-64 specific low level interface, for the remote server
    for GDB.
-   Copyright (C) 2002-2021 Free Software Foundation, Inc.
+   Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -398,6 +398,35 @@ x86_target::low_cannot_fetch_register (int regno)
 }
 
 static void
+collect_register_i386 (struct regcache *regcache, int regno, void *buf)
+{
+  collect_register (regcache, regno, buf);
+
+#ifdef __x86_64__
+  /* In case of x86_64 -m32, collect_register only writes 4 bytes, but the
+     space reserved in buf for the register is 8 bytes.  Make sure the entire
+     reserved space is initialized.  */
+
+  gdb_assert (register_size (regcache->tdesc, regno) == 4);
+
+  if (regno == RAX)
+    {
+      /* Sign extend EAX value to avoid potential syscall restart
+	 problems.
+
+	 See amd64_linux_collect_native_gregset() in
+	 gdb/amd64-linux-nat.c for a detailed explanation.  */
+      *(int64_t *) buf = *(int32_t *) buf;
+    }
+  else
+    {
+      /* Zero-extend.  */
+      *(uint64_t *) buf = *(uint32_t *) buf;
+    }
+#endif
+}
+
+static void
 x86_fill_gregset (struct regcache *regcache, void *buf)
 {
   int i;
@@ -411,32 +440,14 @@ x86_fill_gregset (struct regcache *regcache, void *buf)
 
       return;
     }
-
-  /* 32-bit inferior registers need to be zero-extended.
-     Callers would read uninitialized memory otherwise.  */
-  memset (buf, 0x00, X86_64_USER_REGS * 8);
 #endif
 
   for (i = 0; i < I386_NUM_REGS; i++)
-    collect_register (regcache, i, ((char *) buf) + i386_regmap[i]);
+    collect_register_i386 (regcache, i, ((char *) buf) + i386_regmap[i]);
 
-  collect_register_by_name (regcache, "orig_eax",
-			    ((char *) buf) + ORIG_EAX * REGSIZE);
-
-#ifdef __x86_64__
-  /* Sign extend EAX value to avoid potential syscall restart
-     problems. 
-
-     See amd64_linux_collect_native_gregset() in gdb/amd64-linux-nat.c
-     for a detailed explanation.  */
-  if (register_size (regcache->tdesc, 0) == 4)
-    {
-      void *ptr = ((gdb_byte *) buf
-		   + i386_regmap[find_regno (regcache->tdesc, "eax")]);
-
-      *(int64_t *) ptr = *(int32_t *) ptr;
-    }
-#endif
+  /* Handle ORIG_EAX, which is not in i386_regmap.  */
+  collect_register_i386 (regcache, find_regno (regcache->tdesc, "orig_eax"),
+			 ((char *) buf) + ORIG_EAX * REGSIZE);
 }
 
 static void
@@ -980,7 +991,7 @@ x86_linux_read_description (void)
 void
 x86_target::update_xmltarget ()
 {
-  struct thread_info *saved_thread = current_thread;
+  scoped_restore_current_thread restore_thread;
 
   /* Before changing the register cache's internal layout, flush the
      contents of the current valid caches back to the threads, and
@@ -991,12 +1002,10 @@ x86_target::update_xmltarget ()
     int pid = proc->pid;
 
     /* Look up any thread of this process.  */
-    current_thread = find_any_thread_of_pid (pid);
+    switch_to_thread (find_any_thread_of_pid (pid));
 
     low_arch_setup ();
   });
-
-  current_thread = saved_thread;
 }
 
 /* Process qSupported query, "xmlRegisters=".  Update the buffer size for
@@ -1619,9 +1628,8 @@ add_insns (unsigned char *start, int len)
 {
   CORE_ADDR buildaddr = current_insn_ptr;
 
-  if (debug_threads)
-    debug_printf ("Adding %d bytes of insn at %s\n",
-		  len, paddress (buildaddr));
+  threads_debug_printf ("Adding %d bytes of insn at %s",
+			len, paddress (buildaddr));
 
   append_insns (&buildaddr, len, start);
   current_insn_ptr = buildaddr;
@@ -2208,7 +2216,7 @@ amd64_emit_ge_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-struct emit_ops amd64_emit_ops =
+static emit_ops amd64_emit_ops =
   {
     amd64_emit_prologue,
     amd64_emit_epilogue,
@@ -2877,7 +2885,7 @@ i386_emit_ge_goto (int *offset_p, int *size_p)
     *size_p = 4;
 }
 
-struct emit_ops i386_emit_ops =
+static emit_ops i386_emit_ops =
   {
     i386_emit_prologue,
     i386_emit_epilogue,

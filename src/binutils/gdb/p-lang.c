@@ -1,6 +1,6 @@
 /* Pascal language support routines for GDB, the GNU debugger.
 
-   Copyright (C) 2000-2021 Free Software Foundation, Inc.
+   Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -96,37 +96,37 @@ pascal_is_string_type (struct type *type,int *length_pos, int *length_size,
       /* Old Borland type pascal strings from Free Pascal Compiler.  */
       /* Two fields: length and st.  */
       if (type->num_fields () == 2
-	  && TYPE_FIELD_NAME (type, 0)
-	  && strcmp (TYPE_FIELD_NAME (type, 0), "length") == 0
-	  && TYPE_FIELD_NAME (type, 1)
-	  && strcmp (TYPE_FIELD_NAME (type, 1), "st") == 0)
+	  && type->field (0).name ()
+	  && strcmp (type->field (0).name (), "length") == 0
+	  && type->field (1).name ()
+	  && strcmp (type->field (1).name (), "st") == 0)
 	{
 	  if (length_pos)
-	    *length_pos = TYPE_FIELD_BITPOS (type, 0) / TARGET_CHAR_BIT;
+	    *length_pos = type->field (0).loc_bitpos () / TARGET_CHAR_BIT;
 	  if (length_size)
 	    *length_size = TYPE_LENGTH (type->field (0).type ());
 	  if (string_pos)
-	    *string_pos = TYPE_FIELD_BITPOS (type, 1) / TARGET_CHAR_BIT;
+	    *string_pos = type->field (1).loc_bitpos () / TARGET_CHAR_BIT;
 	  if (char_type)
 	    *char_type = TYPE_TARGET_TYPE (type->field (1).type ());
- 	  if (arrayname)
-	    *arrayname = TYPE_FIELD_NAME (type, 1);
+	  if (arrayname)
+	    *arrayname = type->field (1).name ();
 	 return 2;
 	};
       /* GNU pascal strings.  */
       /* Three fields: Capacity, length and schema$ or _p_schema.  */
       if (type->num_fields () == 3
-	  && TYPE_FIELD_NAME (type, 0)
-	  && strcmp (TYPE_FIELD_NAME (type, 0), "Capacity") == 0
-	  && TYPE_FIELD_NAME (type, 1)
-	  && strcmp (TYPE_FIELD_NAME (type, 1), "length") == 0)
+	  && type->field (0).name ()
+	  && strcmp (type->field (0).name (), "Capacity") == 0
+	  && type->field (1).name ()
+	  && strcmp (type->field (1).name (), "length") == 0)
 	{
 	  if (length_pos)
-	    *length_pos = TYPE_FIELD_BITPOS (type, 1) / TARGET_CHAR_BIT;
+	    *length_pos = type->field (1).loc_bitpos () / TARGET_CHAR_BIT;
 	  if (length_size)
 	    *length_size = TYPE_LENGTH (type->field (1).type ());
 	  if (string_pos)
-	    *string_pos = TYPE_FIELD_BITPOS (type, 2) / TARGET_CHAR_BIT;
+	    *string_pos = type->field (2).loc_bitpos () / TARGET_CHAR_BIT;
 	  /* FIXME: how can I detect wide chars in GPC ??  */
 	  if (char_type)
 	    {
@@ -135,8 +135,8 @@ pascal_is_string_type (struct type *type,int *length_pos, int *length_size,
 	      if ((*char_type)->code () == TYPE_CODE_ARRAY)
 		*char_type = TYPE_TARGET_TYPE (*char_type);
 	    }
- 	  if (arrayname)
-	    *arrayname = TYPE_FIELD_NAME (type, 2);
+	  if (arrayname)
+	    *arrayname = type->field (2).name ();
 	 return 3;
 	};
     }
@@ -152,21 +152,21 @@ pascal_language::print_one_char (int c, struct ui_file *stream,
   if (c == '\'' || ((unsigned int) c <= 0xff && (PRINT_LITERAL_FORM (c))))
     {
       if (!(*in_quotes))
-	fputs_filtered ("'", stream);
+	gdb_puts ("'", stream);
       *in_quotes = 1;
       if (c == '\'')
 	{
-	  fputs_filtered ("''", stream);
+	  gdb_puts ("''", stream);
 	}
       else
-	fprintf_filtered (stream, "%c", c);
+	gdb_printf (stream, "%c", c);
     }
   else
     {
       if (*in_quotes)
-	fputs_filtered ("'", stream);
+	gdb_puts ("'", stream);
       *in_quotes = 0;
-      fprintf_filtered (stream, "#%d", (unsigned int) c);
+      gdb_printf (stream, "#%d", (unsigned int) c);
     }
 }
 
@@ -180,43 +180,9 @@ pascal_language::printchar (int c, struct type *type,
 
   print_one_char (c, stream, &in_quotes);
   if (in_quotes)
-    fputs_filtered ("'", stream);
+    gdb_puts ("'", stream);
 }
 
-
-
-/* Table mapping opcodes into strings for printing operators
-   and precedences of the operators.  */
-
-const struct op_print pascal_language::op_print_tab[] =
-{
-  {",", BINOP_COMMA, PREC_COMMA, 0},
-  {":=", BINOP_ASSIGN, PREC_ASSIGN, 1},
-  {"or", BINOP_BITWISE_IOR, PREC_BITWISE_IOR, 0},
-  {"xor", BINOP_BITWISE_XOR, PREC_BITWISE_XOR, 0},
-  {"and", BINOP_BITWISE_AND, PREC_BITWISE_AND, 0},
-  {"=", BINOP_EQUAL, PREC_EQUAL, 0},
-  {"<>", BINOP_NOTEQUAL, PREC_EQUAL, 0},
-  {"<=", BINOP_LEQ, PREC_ORDER, 0},
-  {">=", BINOP_GEQ, PREC_ORDER, 0},
-  {">", BINOP_GTR, PREC_ORDER, 0},
-  {"<", BINOP_LESS, PREC_ORDER, 0},
-  {"shr", BINOP_RSH, PREC_SHIFT, 0},
-  {"shl", BINOP_LSH, PREC_SHIFT, 0},
-  {"+", BINOP_ADD, PREC_ADD, 0},
-  {"-", BINOP_SUB, PREC_ADD, 0},
-  {"*", BINOP_MUL, PREC_MUL, 0},
-  {"/", BINOP_DIV, PREC_MUL, 0},
-  {"div", BINOP_INTDIV, PREC_MUL, 0},
-  {"mod", BINOP_REM, PREC_MUL, 0},
-  {"@", BINOP_REPEAT, PREC_REPEAT, 0},
-  {"-", UNOP_NEG, PREC_PREFIX, 0},
-  {"not", UNOP_LOGICAL_NOT, PREC_PREFIX, 0},
-  {"^", UNOP_IND, PREC_SUFFIX, 1},
-  {"@", UNOP_ADDR, PREC_PREFIX, 0},
-  {"sizeof", UNOP_SIZEOF, PREC_PREFIX, 0},
-  {NULL, OP_NULL, PREC_PREFIX, 0}
-};
 
 
 /* See language.h.  */
@@ -283,7 +249,7 @@ pascal_language::printstr (struct ui_file *stream, struct type *elttype,
 
   if (length == 0)
     {
-      fputs_filtered ("''", stream);
+      gdb_puts ("''", stream);
       return;
     }
 
@@ -300,7 +266,7 @@ pascal_language::printstr (struct ui_file *stream, struct type *elttype,
 
       if (need_comma)
 	{
-	  fputs_filtered (", ", stream);
+	  gdb_puts (", ", stream);
 	  need_comma = 0;
 	}
 
@@ -321,13 +287,13 @@ pascal_language::printstr (struct ui_file *stream, struct type *elttype,
 	{
 	  if (in_quotes)
 	    {
-	      fputs_filtered ("', ", stream);
+	      gdb_puts ("', ", stream);
 	      in_quotes = 0;
 	    }
 	  printchar (current_char, elttype, stream);
-	  fprintf_filtered (stream, " %p[<repeats %u times>%p]",
-			    metadata_style.style ().ptr (),
-			    reps, nullptr);
+	  gdb_printf (stream, " %p[<repeats %u times>%p]",
+		      metadata_style.style ().ptr (),
+		      reps, nullptr);
 	  i = rep1 - 1;
 	  things_printed += options->repeat_count_threshold;
 	  need_comma = 1;
@@ -336,7 +302,7 @@ pascal_language::printstr (struct ui_file *stream, struct type *elttype,
 	{
 	  if ((!in_quotes) && (PRINT_LITERAL_FORM (current_char)))
 	    {
-	      fputs_filtered ("'", stream);
+	      gdb_puts ("'", stream);
 	      in_quotes = 1;
 	    }
 	  print_one_char (current_char, stream, &in_quotes);
@@ -346,10 +312,10 @@ pascal_language::printstr (struct ui_file *stream, struct type *elttype,
 
   /* Terminate the quotes if necessary.  */
   if (in_quotes)
-    fputs_filtered ("'", stream);
+    gdb_puts ("'", stream);
 
   if (force_ellipses || i < length)
-    fputs_filtered ("...", stream);
+    gdb_puts ("...", stream);
 }
 
 /* Single instance of the Pascal language class.  */

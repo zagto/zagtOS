@@ -1,6 +1,6 @@
 /* Program and address space management, for GDB, the GNU debugger.
 
-   Copyright (C) 2009-2021 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -25,6 +25,7 @@
 #include "gdb_bfd.h"
 #include "gdbsupport/gdb_vecs.h"
 #include "registry.h"
+#include "solist.h"
 #include "gdbsupport/next-iterator.h"
 #include "gdbsupport/safe-iterator.h"
 #include <list>
@@ -40,9 +41,9 @@ struct program_space_data;
 struct address_space_data;
 struct so_list;
 
-typedef std::list<std::shared_ptr<objfile>> objfile_list;
+typedef std::list<std::unique_ptr<objfile>> objfile_list;
 
-/* An iterator that wraps an iterator over std::shared_ptr<objfile>,
+/* An iterator that wraps an iterator over std::unique_ptr<objfile>,
    and dereferences the returned object.  This is useful for iterating
    over a list of shared pointers and returning raw pointers -- which
    helped avoid touching a lot of code when changing how objfiles are
@@ -59,8 +60,8 @@ public:
   typedef typename objfile_list::iterator::iterator_category iterator_category;
   typedef typename objfile_list::iterator::difference_type difference_type;
 
-  unwrapping_objfile_iterator (const objfile_list::iterator &iter)
-    : m_iter (iter)
+  unwrapping_objfile_iterator (objfile_list::iterator iter)
+    : m_iter (std::move (iter))
   {
   }
 
@@ -89,29 +90,7 @@ private:
 
 /* A range that returns unwrapping_objfile_iterators.  */
 
-struct unwrapping_objfile_range
-{
-  typedef unwrapping_objfile_iterator iterator;
-
-  unwrapping_objfile_range (objfile_list &ol)
-    : m_list (ol)
-  {
-  }
-
-  iterator begin () const
-  {
-    return iterator (m_list.begin ());
-  }
-
-  iterator end () const
-  {
-    return iterator (m_list.end ());
-  }
-
-private:
-
-  objfile_list &m_list;
-};
+using unwrapping_objfile_range = iterator_range<unwrapping_objfile_iterator>;
 
 /* A program space represents a symbolic view of an address space.
    Roughly speaking, it holds all the data associated with a
@@ -222,7 +201,7 @@ struct program_space
      a program space.  */
   ~program_space ();
 
-  typedef unwrapping_objfile_range objfiles_range;
+  using objfiles_range = unwrapping_objfile_range;
 
   /* Return an iterable object that can be used to iterate over all
      objfiles.  The basic use is in a foreach, like:
@@ -230,10 +209,12 @@ struct program_space
      for (objfile *objf : pspace->objfiles ()) { ... }  */
   objfiles_range objfiles ()
   {
-    return unwrapping_objfile_range (objfiles_list);
+    return objfiles_range
+      (unwrapping_objfile_iterator (objfiles_list.begin ()),
+       unwrapping_objfile_iterator (objfiles_list.end ()));
   }
 
-  typedef basic_safe_range<objfiles_range> objfiles_safe_range;
+  using objfiles_safe_range = basic_safe_range<objfiles_range>;
 
   /* An iterable object that can be used to iterate over all objfiles.
      The basic use is in a foreach, like:
@@ -244,13 +225,16 @@ struct program_space
      deleted during iteration.  */
   objfiles_safe_range objfiles_safe ()
   {
-    return objfiles_safe_range (objfiles_list);
+    return objfiles_safe_range
+      (objfiles_range
+	 (unwrapping_objfile_iterator (objfiles_list.begin ()),
+	  unwrapping_objfile_iterator (objfiles_list.end ())));
   }
 
   /* Add OBJFILE to the list of objfiles, putting it just before
      BEFORE.  If BEFORE is nullptr, it will go at the end of the
      list.  */
-  void add_objfile (std::shared_ptr<objfile> &&objfile,
+  void add_objfile (std::unique_ptr<objfile> &&objfile,
 		    struct objfile *before);
 
   /* Remove OBJFILE from the list of objfiles.  */
@@ -270,7 +254,8 @@ struct program_space
      program space.  Use it like:
 
      for (so_list *so : pspace->solibs ()) { ... }  */
-  next_adapter<struct so_list> solibs () const;
+  so_list_range solibs () const
+  { return so_list_range (this->so_list); }
 
   /* Close and clear exec_bfd.  If we end up with no target sections
      to read memory from, this unpushes the exec_ops target.  */
@@ -308,6 +293,18 @@ struct program_space
   /* Add the sections of OBJFILE to the current set of target
      sections.  They are given OBJFILE as the "owner".  */
   void add_target_sections (struct objfile *objfile);
+
+  /* Clear all target sections from M_TARGET_SECTIONS table.  */
+  void clear_target_sections ()
+  {
+    m_target_sections.clear ();
+  }
+
+  /* Return a reference to the M_TARGET_SECTIONS table.  */
+  target_section_table &target_sections ()
+  {
+    return m_target_sections;
+  }
 
   /* Unique ID number.  */
   int num = 0;
@@ -357,11 +354,7 @@ struct program_space
   struct objfile *symfile_object_file = NULL;
 
   /* All known objfiles are kept in a linked list.  */
-  std::list<std::shared_ptr<objfile>> objfiles_list;
-
-  /* The set of target sections matching the sections mapped into
-     this program space.  Managed by both exec_ops and solib.c.  */
-  target_section_table target_sections;
+  std::list<std::unique_ptr<objfile>> objfiles_list;
 
   /* List of shared objects mapped into this space.  Managed by
      solib.c.  */
@@ -380,6 +373,11 @@ struct program_space
 
   /* Per pspace data-pointers required by other GDB modules.  */
   REGISTRY_FIELDS {};
+
+private:
+  /* The set of target sections matching the sections mapped into
+     this program space.  Managed by both exec_ops and solib.c.  */
+  target_section_table m_target_sections;
 };
 
 /* An address space.  It is used for comparing if

@@ -1,6 +1,6 @@
 /* Core dump and executable file functions below target vector, for GDB.
 
-   Copyright (C) 1986-2021 Free Software Foundation, Inc.
+   Copyright (C) 1986-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -46,9 +46,12 @@
 #include "gdbsupport/filestuff.h"
 #include "build-id.h"
 #include "gdbsupport/pathstuff.h"
+#include "gdbsupport/scoped_fd.h"
+#include "debuginfod-support.h"
 #include <unordered_map>
 #include <unordered_set>
 #include "gdbcmd.h"
+#include "xml-tdesc.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -153,7 +156,21 @@ private: /* per-core data */
 
 core_target::core_target ()
 {
+  /* Find a first arch based on the BFD.  We need the initial gdbarch so
+     we can setup the hooks to find a target description.  */
   m_core_gdbarch = gdbarch_from_bfd (core_bfd);
+
+  /* If the arch is able to read a target description from the core, it
+     could yield a more specific gdbarch.  */
+  const struct target_desc *tdesc = read_description ();
+
+  if (tdesc != nullptr)
+    {
+      struct gdbarch_info info;
+      info.abfd = core_bfd;
+      info.target_desc = tdesc;
+      m_core_gdbarch = gdbarch_find_by_info (info);
+    }
 
   if (!m_core_gdbarch
       || !gdbarch_iterate_over_regset_sections_p (m_core_gdbarch))
@@ -199,7 +216,7 @@ core_target::build_file_mappings ()
     /* read_core_file_mappings will invoke this lambda for each mapping
        that it finds.  */
     [&] (int num, ULONGEST start, ULONGEST end, ULONGEST file_ofs,
-	 const char *filename)
+	 const char *filename, const bfd_build_id *build_id)
       {
 	/* Architecture-specific read_core_mapping methods are expected to
 	   weed out non-file-backed mappings.  */
@@ -214,6 +231,11 @@ core_target::build_file_mappings ()
 	       canonical) pathname will be provided.  */
 	    gdb::unique_xmalloc_ptr<char> expanded_fname
 	      = exec_file_find (filename, NULL);
+
+	    if (expanded_fname == nullptr && build_id != nullptr)
+	      debuginfod_exec_query (build_id->data, build_id->size,
+				     filename, &expanded_fname);
+
 	    if (expanded_fname == nullptr)
 	      {
 		m_core_unavailable_mappings.emplace_back (start, end - start);
@@ -267,6 +289,17 @@ core_target::build_file_mappings ()
 
 	/* Set target_section fields.  */
 	m_core_file_mappings.emplace_back (start, end, sec);
+
+	/* If this is a bfd of a shared library, record its soname
+	   and build id.  */
+	if (build_id != nullptr)
+	  {
+	    gdb::unique_xmalloc_ptr<char> soname
+	      = gdb_bfd_read_elf_soname (bfd->filename);
+	    if (soname != nullptr)
+	      set_cbfd_soname_build_id (current_program_space->cbfd,
+					soname.get (), build_id);
+	  }
       });
 
   normalize_mem_ranges (&m_core_unavailable_mappings);
@@ -347,7 +380,7 @@ static void
 maybe_say_no_core_file_now (int from_tty)
 {
   if (from_tty)
-    printf_filtered (_("No core file now.\n"));
+    gdb_printf (_("No core file now.\n"));
 }
 
 /* Backward compatibility with old way of specifying core files.  */
@@ -384,6 +417,27 @@ locate_exec_from_corefile_build_id (bfd *abfd, int from_tty)
   gdb_bfd_ref_ptr execbfd
     = build_id_to_exec_bfd (build_id->size, build_id->data);
 
+  if (execbfd == nullptr)
+    {
+      /* Attempt to query debuginfod for the executable.  */
+      gdb::unique_xmalloc_ptr<char> execpath;
+      scoped_fd fd = debuginfod_exec_query (build_id->data, build_id->size,
+					    abfd->filename, &execpath);
+
+      if (fd.get () >= 0)
+	{
+	  execbfd = gdb_bfd_open (execpath.get (), gnutarget);
+
+	  if (execbfd == nullptr)
+	    warning (_("\"%s\" from debuginfod cannot be opened as bfd: %s"),
+		     execpath.get (),
+		     gdb_bfd_errmsg (bfd_get_error (), nullptr).c_str ());
+	  else if (!build_id_verify (execbfd.get (), build_id->size,
+				     build_id->data))
+	    execbfd.reset (nullptr);
+	}
+    }
+
   if (execbfd != nullptr)
     {
       exec_file_attach (bfd_get_filename (execbfd.get ()), from_tty);
@@ -413,15 +467,16 @@ core_target_open (const char *arg, int from_tty)
     }
 
   gdb::unique_xmalloc_ptr<char> filename (tilde_expand (arg));
-  if (!IS_ABSOLUTE_PATH (filename.get ()))
-    filename = gdb_abspath (filename.get ());
+  if (strlen (filename.get ()) != 0
+      && !IS_ABSOLUTE_PATH (filename.get ()))
+    filename = make_unique_xstrdup (gdb_abspath (filename.get ()).c_str ());
 
   flags = O_BINARY | O_LARGEFILE;
   if (write_files)
     flags |= O_RDWR;
   else
     flags |= O_RDONLY;
-  scratch_chan = gdb_open_cloexec (filename.get (), flags, 0);
+  scratch_chan = gdb_open_cloexec (filename.get (), flags, 0).release ();
   if (scratch_chan < 0)
     perror_with_name (filename.get ());
 
@@ -457,7 +512,7 @@ core_target_open (const char *arg, int from_tty)
   if (!current_program_space->exec_bfd ())
     set_gdbarch_from_file (core_bfd);
 
-  push_target (std::move (target_holder));
+  current_inferior ()->push_target (std::move (target_holder));
 
   switch_to_no_thread ();
 
@@ -516,7 +571,7 @@ core_target_open (const char *arg, int from_tty)
 
   p = bfd_core_file_failing_command (core_bfd);
   if (p)
-    printf_filtered (_("Core was generated by `%s'.\n"), p);
+    gdb_printf (_("Core was generated by `%s'.\n"), p);
 
   /* Clearing any previous state of convenience variables.  */
   clear_exit_convenience_vars ();
@@ -538,11 +593,11 @@ core_target_open (const char *arg, int from_tty)
 							       siggy)
 			     : gdb_signal_from_host (siggy));
 
-      printf_filtered (_("Program terminated with signal %s, %s"),
-		       gdb_signal_to_name (sig), gdb_signal_to_string (sig));
+      gdb_printf (_("Program terminated with signal %s, %s"),
+		  gdb_signal_to_name (sig), gdb_signal_to_string (sig));
       if (gdbarch_report_signal_info_p (core_gdbarch))
 	gdbarch_report_signal_info (core_gdbarch, current_uiout, sig);
-      printf_filtered (_(".\n"));
+      gdb_printf (_(".\n"));
 
       /* Set the value of the internal variable $_exitsignal,
 	 which holds the signal uncaught by the inferior.  */
@@ -579,7 +634,7 @@ core_target::detach (inferior *inf, int from_tty)
   /* Note that 'this' is dangling after this call.  unpush_target
      closes the target, and our close implementation deletes
      'this'.  */
-  unpush_target (this);
+  inf->unpush_target (this);
 
   /* Clear the register cache and the frame cache.  */
   registers_changed ();
@@ -705,8 +760,8 @@ core_target::fetch_registers (struct regcache *regcache, int regno)
   if (!(m_core_gdbarch != nullptr
 	&& gdbarch_iterate_over_regset_sections_p (m_core_gdbarch)))
     {
-      fprintf_filtered (gdb_stderr,
-		     "Can't fetch registers from this type of core file\n");
+      gdb_printf (gdb_stderr,
+		  "Can't fetch registers from this type of core file\n");
       return;
     }
 
@@ -927,7 +982,7 @@ core_target::xfer_partial (enum target_object object, const char *annex,
 		return TARGET_XFER_OK;
 	    }
 	}
-      /* FALL THROUGH */
+      return TARGET_XFER_E_IO;
 
     case TARGET_OBJECT_LIBRARIES_AIX:
       if (m_core_gdbarch != nullptr
@@ -948,7 +1003,7 @@ core_target::xfer_partial (enum target_object object, const char *annex,
 		return TARGET_XFER_OK;
 	    }
 	}
-      /* FALL THROUGH */
+      return TARGET_XFER_E_IO;
 
     case TARGET_OBJECT_SIGNAL_INFO:
       if (readbuf)
@@ -1000,6 +1055,29 @@ core_target::thread_alive (ptid_t ptid)
 const struct target_desc *
 core_target::read_description ()
 {
+  /* If the core file contains a target description note then we will use
+     that in preference to anything else.  */
+  bfd_size_type tdesc_note_size = 0;
+  struct bfd_section *tdesc_note_section
+    = bfd_get_section_by_name (core_bfd, ".gdb-tdesc");
+  if (tdesc_note_section != nullptr)
+    tdesc_note_size = bfd_section_size (tdesc_note_section);
+  if (tdesc_note_size > 0)
+    {
+      gdb::char_vector contents (tdesc_note_size + 1);
+      if (bfd_get_section_contents (core_bfd, tdesc_note_section,
+				    contents.data (), (file_ptr) 0,
+				    tdesc_note_size))
+	{
+	  /* Ensure we have a null terminator.  */
+	  contents[tdesc_note_size] = '\0';
+	  const struct target_desc *result
+	    = string_read_description_xml (contents.data ());
+	  if (result != nullptr)
+	    return result;
+	}
+    }
+
   if (m_core_gdbarch && gdbarch_core_read_description_p (m_core_gdbarch))
     {
       const struct target_desc *result;
@@ -1101,20 +1179,20 @@ core_target::info_proc_mappings (struct gdbarch *gdbarch)
 {
   if (!m_core_file_mappings.empty ())
     {
-      printf_filtered (_("Mapped address spaces:\n\n"));
+      gdb_printf (_("Mapped address spaces:\n\n"));
       if (gdbarch_addr_bit (gdbarch) == 32)
 	{
-	  printf_filtered ("\t%10s %10s %10s %10s %s\n",
-			   "Start Addr",
-			   "  End Addr",
-			   "      Size", "    Offset", "objfile");
+	  gdb_printf ("\t%10s %10s %10s %10s %s\n",
+		      "Start Addr",
+		      "  End Addr",
+		      "      Size", "    Offset", "objfile");
 	}
       else
 	{
-	  printf_filtered ("  %18s %18s %10s %10s %s\n",
-			   "Start Addr",
-			   "  End Addr",
-			   "      Size", "    Offset", "objfile");
+	  gdb_printf ("  %18s %18s %10s %10s %s\n",
+		      "Start Addr",
+		      "  End Addr",
+		      "      Size", "    Offset", "objfile");
 	}
     }
 
@@ -1126,19 +1204,19 @@ core_target::info_proc_mappings (struct gdbarch *gdbarch)
       const char *filename = bfd_get_filename (tsp.the_bfd_section->owner);
 
       if (gdbarch_addr_bit (gdbarch) == 32)
-	printf_filtered ("\t%10s %10s %10s %10s %s\n",
-			 paddress (gdbarch, start),
-			 paddress (gdbarch, end),
-			 hex_string (end - start),
-			 hex_string (file_ofs),
-			 filename);
+	gdb_printf ("\t%10s %10s %10s %10s %s\n",
+		    paddress (gdbarch, start),
+		    paddress (gdbarch, end),
+		    hex_string (end - start),
+		    hex_string (file_ofs),
+		    filename);
       else
-	printf_filtered ("  %18s %18s %10s %10s %s\n",
-			 paddress (gdbarch, start),
-			 paddress (gdbarch, end),
-			 hex_string (end - start),
-			 hex_string (file_ofs),
-			 filename);
+	gdb_printf ("  %18s %18s %10s %10s %s\n",
+		    paddress (gdbarch, start),
+		    paddress (gdbarch, end),
+		    hex_string (end - start),
+		    hex_string (file_ofs),
+		    filename);
     }
 }
 

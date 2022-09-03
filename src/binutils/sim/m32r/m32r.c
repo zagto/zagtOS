@@ -1,5 +1,5 @@
 /* m32r simulator support code
-   Copyright (C) 1996-2021 Free Software Foundation, Inc.
+   Copyright (C) 1996-2022 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
    This file is part of GDB, the GNU debugger.
@@ -17,12 +17,16 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+/* This must come before any other includes.  */
+#include "defs.h"
+
 #define WANT_CPU m32rbf
 #define WANT_CPU_M32RBF
 
 #include "sim-main.h"
 #include "cgen-mem.h"
 #include "cgen-ops.h"
+#include <stdlib.h>
 
 /* Return the size of REGNO in bytes.  */
 

@@ -1,6 +1,6 @@
 /* Target-dependent code for NetBSD/sparc64.
 
-   Copyright (C) 2002-2021 Free Software Foundation, Inc.
+   Copyright (C) 2002-2022 Free Software Foundation, Inc.
    Based on code contributed by Wasabi Systems, Inc.
 
    This file is part of GDB.
@@ -139,7 +139,7 @@ sparc64nbsd_sigcontext_saved_regs (CORE_ADDR sigcontext_addr,
 
 	addr = saved_regs[SPARC_I7_REGNUM].addr ();
 	i7 = get_frame_memory_unsigned (this_frame, addr, 8);
-	trad_frame_set_value (saved_regs, SPARC_I7_REGNUM, i7 ^ wcookie);
+	saved_regs[SPARC_I7_REGNUM].set_value (i7 ^ wcookie);
       }
   }
 
@@ -225,6 +225,7 @@ sparc64nbsd_sigtramp_frame_sniffer (const struct frame_unwind *self,
 
 static const struct frame_unwind sparc64nbsd_sigcontext_frame_unwind =
 {
+  "sparc64 netbsd sigcontext",
   SIGTRAMP_FRAME,
   default_frame_unwind_stop_reason,
   sparc64nbsd_sigcontext_frame_this_id,
@@ -247,7 +248,7 @@ static const struct regset sparc64nbsd_fpregset =
 static void
 sparc64nbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sparc_gdbarch_tdep *tdep = (sparc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   nbsd_init_abi (info, gdbarch);
 

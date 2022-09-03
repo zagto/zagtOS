@@ -1,6 +1,6 @@
 /* An optional object.
 
-   Copyright (C) 2017-2021 Free Software Foundation, Inc.
+   Copyright (C) 2017-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -200,8 +200,20 @@ private:
   }
 
   /* The get operations have m_instantiated as a precondition.  */
-  T &get () noexcept { return m_item; }
-  constexpr const T &get () const noexcept { return m_item; }
+  T &get () noexcept
+  {
+#if defined(_GLIBCXX_DEBUG)
+    gdb_assert (this->has_value ());
+#endif
+    return m_item;
+  }
+  constexpr const T &get () const noexcept
+  {
+#if defined(_GLIBCXX_DEBUG)
+    gdb_assert (this->has_value ());
+#endif
+    return m_item;
+  }
 
   /* The object.  */
   union

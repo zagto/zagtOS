@@ -1,6 +1,6 @@
 /* BSD user-level threads support.
 
-   Copyright (C) 2005-2021 Free Software Foundation, Inc.
+   Copyright (C) 2005-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -29,7 +29,7 @@
 #include "symfile.h"
 #include "target.h"
 
-#include "gdb_obstack.h"
+#include "gdbsupport/gdb_obstack.h"
 
 #include "bsd-uthread.h"
 
@@ -163,7 +163,7 @@ bsd_uthread_lookup_address (const char *name, struct objfile *objfile)
 
   sym = lookup_minimal_symbol (name, NULL, objfile);
   if (sym.minsym)
-    return BMSYMBOL_VALUE_ADDRESS (sym);
+    return sym.value_address ();
 
   return 0;
 }
@@ -231,7 +231,7 @@ bsd_uthread_activate (struct objfile *objfile)
   bsd_uthread_thread_ctx_offset =
     bsd_uthread_lookup_offset ("_thread_ctx_offset", objfile);
 
-  push_target (&bsd_uthread_ops);
+  current_inferior ()->push_target (&bsd_uthread_ops);
   bsd_uthread_active = 1;
   return 1;
 }
@@ -259,7 +259,7 @@ bsd_uthread_deactivate (void)
   if (!bsd_uthread_active)
     return;
 
-  unpush_target (&bsd_uthread_ops);
+  current_inferior ()->unpush_target (&bsd_uthread_ops);
 }
 
 static void
@@ -389,8 +389,8 @@ bsd_uthread_target::wait (ptid_t ptid, struct target_waitstatus *status,
 
   /* If the process is no longer alive, there's no point in figuring
      out the thread ID.  It will fail anyway.  */
-  if (status->kind == TARGET_WAITKIND_SIGNALLED
-      || status->kind == TARGET_WAITKIND_EXITED)
+  if (status->kind () == TARGET_WAITKIND_SIGNALLED
+      || status->kind () == TARGET_WAITKIND_EXITED)
     return ptid;
 
   /* Fetch the corresponding thread ID, and augment the returned
@@ -538,8 +538,9 @@ std::string
 bsd_uthread_target::pid_to_str (ptid_t ptid)
 {
   if (ptid.tid () != 0)
-    return string_printf ("process %d, thread 0x%lx",
-			  ptid.pid (), ptid.tid ());
+    return string_printf ("process %d, thread 0x%s",
+			  ptid.pid (),
+			  phex_nz (ptid.tid (), sizeof (ULONGEST)));
 
   return normal_pid_to_str (ptid);
 }
@@ -550,7 +551,10 @@ _initialize_bsd_uthread ()
 {
   bsd_uthread_data = gdbarch_data_register_pre_init (bsd_uthread_init);
 
-  gdb::observers::inferior_created.attach (bsd_uthread_inferior_created);
-  gdb::observers::solib_loaded.attach (bsd_uthread_solib_loaded);
-  gdb::observers::solib_unloaded.attach (bsd_uthread_solib_unloaded);
+  gdb::observers::inferior_created.attach (bsd_uthread_inferior_created,
+					   "bsd-uthread");
+  gdb::observers::solib_loaded.attach (bsd_uthread_solib_loaded,
+				       "bsd-uthread");
+  gdb::observers::solib_unloaded.attach (bsd_uthread_solib_unloaded,
+					 "bsd-uthread");
 }

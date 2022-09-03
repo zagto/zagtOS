@@ -1,6 +1,6 @@
 /* Target-dependent code for Renesas Super-H, for GDB.
 
-   Copyright (C) 1993-2021 Free Software Foundation, Inc.
+   Copyright (C) 1993-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -432,7 +432,7 @@ sh_sw_breakpoint_from_kind (struct gdbarch *gdbarch, int kind, int *size)
   *size = kind;
 
   /* For remote stub targets, trapa #20 is used.  */
-  if (strcmp (target_shortname, "remote") == 0)
+  if (strcmp (target_shortname (), "remote") == 0)
     {
       static unsigned char big_remote_breakpoint[] = { 0xc3, 0x20 };
       static unsigned char little_remote_breakpoint[] = { 0x20, 0xc3 };
@@ -923,12 +923,12 @@ sh_justify_value_in_reg (struct gdbarch *gdbarch, struct value *val, int len)
     {
       /* value gets right-justified in the register or stack word.  */
       if (gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG)
-	memcpy (valbuf + (4 - len), value_contents (val), len);
+	memcpy (valbuf + (4 - len), value_contents (val).data (), len);
       else
-	memcpy (valbuf, value_contents (val), len);
+	memcpy (valbuf, value_contents (val).data (), len);
       return valbuf;
     }
-  return value_contents (val);
+  return value_contents (val).data ();
 }
 
 /* Helper function to eval number of bytes to allocate on stack.  */
@@ -1406,8 +1406,8 @@ sh_return_value_nofpu (struct gdbarch *gdbarch, struct value *function,
 {
   struct type *func_type = function ? value_type (function) : NULL;
 
-  if (sh_use_struct_convention_nofpu (
-  	sh_is_renesas_calling_convention (func_type), type))
+  if (sh_use_struct_convention_nofpu
+	(sh_is_renesas_calling_convention (func_type), type))
     return RETURN_VALUE_STRUCT_CONVENTION;
   if (writebuf)
     sh_store_return_value_nofpu (type, regcache, writebuf);
@@ -1490,7 +1490,7 @@ sh_default_register_type (struct gdbarch *gdbarch, int reg_nr)
    TODO: sh2a and dsp registers.  */
 static int
 sh_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
-			struct reggroup *reggroup)
+			const struct reggroup *reggroup)
 {
   if (gdbarch_register_name (gdbarch, regnum) == NULL
       || *gdbarch_register_name (gdbarch, regnum) == '\0')
@@ -1554,7 +1554,7 @@ sh_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
 static struct type *
 sh_littlebyte_bigword_type (struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sh_gdbarch_tdep *tdep = (sh_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   if (tdep->sh_littlebyte_bigword_type == NULL)
     tdep->sh_littlebyte_bigword_type
@@ -1968,6 +1968,7 @@ sh_frame_this_id (struct frame_info *this_frame, void **this_cache,
 }
 
 static const struct frame_unwind sh_frame_unwind = {
+  "sh prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   sh_frame_this_id,
@@ -2034,6 +2035,7 @@ sh_stub_unwind_sniffer (const struct frame_unwind *self,
 
 static const struct frame_unwind sh_stub_unwind =
 {
+  "sh stub",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   sh_stub_this_id,
@@ -2144,7 +2146,7 @@ sh_corefile_supply_regset (const struct regset *regset,
 			   int regnum, const void *regs, size_t len)
 {
   struct gdbarch *gdbarch = regcache->arch ();
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sh_gdbarch_tdep *tdep = (sh_gdbarch_tdep *) gdbarch_tdep (gdbarch);
   const struct sh_corefile_regmap *regmap = (regset == &sh_corefile_gregset
 					     ? tdep->core_gregmap
 					     : tdep->core_fpregmap);
@@ -2170,7 +2172,7 @@ sh_corefile_collect_regset (const struct regset *regset,
 			    int regnum, void *regs, size_t len)
 {
   struct gdbarch *gdbarch = regcache->arch ();
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sh_gdbarch_tdep *tdep = (sh_gdbarch_tdep *) gdbarch_tdep (gdbarch);
   const struct sh_corefile_regmap *regmap = (regset == &sh_corefile_gregset
 					     ? tdep->core_gregmap
 					     : tdep->core_fpregmap);
@@ -2208,7 +2210,7 @@ sh_iterate_over_regset_sections (struct gdbarch *gdbarch,
 				 void *cb_data,
 				 const struct regcache *regcache)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  sh_gdbarch_tdep *tdep = (sh_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   if (tdep->core_gregmap != NULL)
     cb (".reg", tdep->sizeof_gregset, tdep->sizeof_gregset,
@@ -2235,7 +2237,6 @@ static struct gdbarch *
 sh_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 {
   struct gdbarch *gdbarch;
-  struct gdbarch_tdep *tdep;
 
   /* If there is already a candidate, use it.  */
   arches = gdbarch_list_lookup_by_info (arches, &info);
@@ -2244,7 +2245,7 @@ sh_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* None found, create a new architecture from the information
      provided.  */
-  tdep = XCNEW (struct gdbarch_tdep);
+  sh_gdbarch_tdep *tdep = new sh_gdbarch_tdep;
   gdbarch = gdbarch_alloc (&info, tdep);
 
   set_gdbarch_short_bit (gdbarch, 2 * TARGET_CHAR_BIT);
@@ -2414,10 +2415,11 @@ _initialize_sh_tdep ()
 {
   gdbarch_register (bfd_arch_sh, sh_gdbarch_init, NULL);
 
-  add_basic_prefix_cmd ("sh", no_class, "SH specific commands.",
-			&setshcmdlist, "set sh ", 0, &setlist);
-  add_show_prefix_cmd ("sh", no_class, "SH specific commands.",
-		       &showshcmdlist, "show sh ", 0, &showlist);
+  add_setshow_prefix_cmd ("sh", no_class,
+			  _("SH specific commands."),
+			  _("SH specific commands."),
+			  &setshcmdlist, &showshcmdlist,
+			  &setlist, &showlist);
   
   add_setshow_enum_cmd ("calling-convention", class_vars, sh_cc_enum,
 			&sh_active_calling_convention,

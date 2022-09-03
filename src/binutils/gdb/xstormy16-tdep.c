@@ -1,6 +1,6 @@
 /* Target-dependent code for the Sanyo Xstormy16a (LC590000) processor.
 
-   Copyright (C) 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -257,7 +257,7 @@ xstormy16_push_dummy_call (struct gdbarch *gdbarch,
 	break;
 
       /* Put argument into registers wordwise.  */
-      const gdb_byte *val = value_contents (args[i]);
+      const gdb_byte *val = value_contents (args[i]).data ();
       for (j = 0; j < typelen; j += xstormy16_reg_size)
 	{
 	  ULONGEST regval;
@@ -275,7 +275,7 @@ xstormy16_push_dummy_call (struct gdbarch *gdbarch,
      wordaligned.  */
   for (j = nargs - 1; j >= i; j--)
     {
-      const gdb_byte *bytes = value_contents (args[j]);
+      const gdb_byte *bytes = value_contents (args[j]).data ();
 
       typelen = TYPE_LENGTH (value_enclosing_type (args[j]));
       slacklen = typelen & 1;
@@ -562,8 +562,8 @@ xstormy16_find_jmp_table_entry (struct gdbarch *gdbarch, CORE_ADDR faddr)
 	{
 	  CORE_ADDR addr, endaddr;
 
-	  addr = obj_section_addr (osect);
-	  endaddr = obj_section_endaddr (osect);
+	  addr = osect->addr ();
+	  endaddr = osect->endaddr ();
 
 	  for (; addr < endaddr; addr += 2 * xstormy16_inst_size)
 	    {
@@ -736,6 +736,7 @@ xstormy16_frame_base_address (struct frame_info *this_frame, void **this_cache)
 }
 
 static const struct frame_unwind xstormy16_frame_unwind = {
+  "xstormy16 prologue",
   NORMAL_FRAME,
   default_frame_unwind_stop_reason,
   xstormy16_frame_this_id,

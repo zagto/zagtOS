@@ -1,4 +1,4 @@
-#   Copyright 2011-2021 Free Software Foundation, Inc.
+#   Copyright 2011-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ mi_gdb_test "-gdb-set mi-async 1" ".*"
 mi_detect_async
 
 if { [mi_runto_main] < 0 } {
-    continue
+    return
 }
 
 # Set a watchpoint.

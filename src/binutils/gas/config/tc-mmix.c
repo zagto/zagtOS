@@ -1,5 +1,5 @@
 /* tc-mmix.c -- Assembler for Don Knuth's MMIX.
-   Copyright (C) 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -2287,7 +2287,7 @@ md_atof (int type, char *litP, int *sizeP)
      The testsuite wants it, and it's customary.
      We'll deal with the real problems when they come; we share the
      problem with most other ports.  */
-  return ieee_md_atof (type, litP, sizeP, TRUE);
+  return ieee_md_atof (type, litP, sizeP, true);
 }
 
 /* Convert variable-sized frags into one or more fixups.  */
@@ -3171,7 +3171,7 @@ mmix_handle_mmixal (void)
     }
   else if (s[0] == 'G'
 	   && s[1] == 'R'
-	   && strncmp (s, "GREG", 4) == 0
+	   && startswith (s, "GREG")
 	   && (ISSPACE (s[4]) || is_end_of_line[(unsigned char) s[4]]))
     {
       input_line_pointer = s + 4;
@@ -3742,8 +3742,7 @@ mmix_frob_file (void)
       /* This case isn't doable in general anyway, methinks.  */
       if (fixP->fx_subsy != NULL)
 	{
-	  as_bad_where (fixP->fx_file, fixP->fx_line,
-			_("GREG expression too complicated"));
+	  as_bad_subtract (fixP);
 	  continue;
 	}
 

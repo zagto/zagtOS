@@ -1,6 +1,6 @@
 /* Target-dependent code for GNU/Linux running on PA-RISC, for GDB.
 
-   Copyright (C) 2004-2021 Free Software Foundation, Inc.
+   Copyright (C) 2004-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -174,9 +174,7 @@ hppa_linux_sigtramp_find_sigcontext (struct gdbarch *gdbarch, CORE_ADDR pc)
 	  sp = pc - pcoffs[attempt];
 	}
       else
-      {
 	return 0;
-      }
     }
 
   /* sp + sfoffs[try] points to a struct rt_sigframe, which contains
@@ -311,6 +309,7 @@ hppa_linux_sigtramp_frame_sniffer (const struct frame_unwind *self,
 }
 
 static const struct frame_unwind hppa_linux_sigtramp_frame_unwind = {
+  "hppa linux sigtramp",
   SIGTRAMP_FRAME,
   default_frame_unwind_stop_reason,
   hppa_linux_sigtramp_frame_this_id,
@@ -373,8 +372,8 @@ hppa_linux_find_global_pointer (struct gdbarch *gdbarch,
 	{
 	  CORE_ADDR addr, endaddr;
 
-	  addr = obj_section_addr (osect);
-	  endaddr = obj_section_endaddr (osect);
+	  addr = osect->addr ();
+	  endaddr = osect->endaddr ();
 
 	  while (addr < endaddr)
 	    {
@@ -385,7 +384,7 @@ hppa_linux_find_global_pointer (struct gdbarch *gdbarch,
 	      status = target_read_memory (addr, buf, sizeof (buf));
 	      if (status != 0)
 		break;
-	      tag = extract_signed_integer (buf, sizeof (buf), byte_order);
+	      tag = extract_signed_integer (buf, byte_order);
 
 	      if (tag == DT_PLTGOT)
 		{
@@ -477,7 +476,7 @@ hppa_linux_iterate_over_regset_sections (struct gdbarch *gdbarch,
 					 void *cb_data,
 					 const struct regcache *regcache)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  hppa_gdbarch_tdep *tdep = (hppa_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   cb (".reg", 80 * tdep->bytes_per_address, 80 * tdep->bytes_per_address,
       &hppa_linux_regset, NULL, cb_data);
@@ -487,7 +486,7 @@ hppa_linux_iterate_over_regset_sections (struct gdbarch *gdbarch,
 static void
 hppa_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  hppa_gdbarch_tdep *tdep = (hppa_gdbarch_tdep *) gdbarch_tdep (gdbarch);
 
   linux_init_abi (info, gdbarch, 0);
 
@@ -502,7 +501,7 @@ hppa_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   /* GNU/Linux uses SVR4-style shared libraries.  */
   set_solib_svr4_fetch_link_map_offsets
-    (gdbarch, svr4_ilp32_fetch_link_map_offsets);
+    (gdbarch, linux_ilp32_fetch_link_map_offsets);
 
   tdep->in_solib_call_trampoline = hppa_in_solib_call_trampoline;
   set_gdbarch_skip_trampoline_code (gdbarch, hppa_skip_trampoline_code);

@@ -1,6 +1,6 @@
 /* Work with executable files, for GDB, the GNU debugger.
 
-   Copyright (C) 2003-2021 Free Software Foundation, Inc.
+   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -34,12 +34,11 @@ struct objfile;
 
 extern target_section_table build_section_table (struct bfd *);
 
-/* The current inferior is a child vforked and its program space is
-   shared with its parent.  This pushes the exec target on the
-   current/child inferior's target stack if there are sections in the
-   program space's section table.  */
+/* VFORK_CHILD is a child vforked and its program space is shared with its
+   parent.  This pushes the exec target on that inferior's target stack if
+   there are sections in the program space's section table.  */
 
-extern void exec_on_vfork ();
+extern void exec_on_vfork (inferior *vfork_child);
 
 /* Read from mappable read-only sections of BFD executable files.
    Return TARGET_XFER_OK, if read is successful.  Return
@@ -96,7 +95,7 @@ extern void exec_set_section_address (const char *, int, CORE_ADDR);
    special cased --- it's filename is omitted; if it is the executable
    file, its entry point is printed.  */
 
-extern void print_section_info (target_section_table *table,
+extern void print_section_info (const target_section_table *table,
 				bfd *abfd);
 
 /* Helper function that attempts to open the symbol file at EXEC_FILE_HOST.

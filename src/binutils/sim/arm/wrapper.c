@@ -1,5 +1,5 @@
 /* run front end support for arm
-   Copyright (C) 1995-2021 Free Software Foundation, Inc.
+   Copyright (C) 1995-2022 Free Software Foundation, Inc.
 
    This file is part of ARM SIM.
 
@@ -20,15 +20,17 @@
    run.c and gdb (when the simulator is linked with gdb).
    All simulator interaction should go through this file.  */
 
-#include "config.h"
+/* This must come before any other includes.  */
+#include "defs.h"
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <bfd.h>
 #include <signal.h>
-#include "gdb/callback.h"
-#include "gdb/remote-sim.h"
+#include "sim/callback.h"
+#include "sim/sim.h"
 #include "sim-main.h"
 #include "sim-options.h"
 #include "armemu.h"
@@ -62,8 +64,21 @@ int trace_funcs = 0;
 static struct disassemble_info  info;
 static char opbuf[1000];
 
-static int
-op_printf (char *buf, char *fmt, ...)
+static int ATTRIBUTE_PRINTF (2, 3)
+op_printf (char *buf, const char *fmt, ...)
+{
+  int ret;
+  va_list ap;
+
+  va_start (ap, fmt);
+  ret = vsprintf (opbuf + strlen (opbuf), fmt, ap);
+  va_end (ap);
+  return ret;
+}
+
+static int ATTRIBUTE_PRINTF (3, 4)
+op_styled_printf (char *buf, enum disassembler_style style,
+		  const char *fmt, ...)
 {
   int ret;
   va_list ap;
@@ -319,7 +334,7 @@ sim_create_inferior (SIM_DESC sd ATTRIBUTE_UNUSED,
     }
 
   memset (& info, 0, sizeof (info));
-  INIT_DISASSEMBLE_INFO (info, stdout, op_printf);
+  INIT_DISASSEMBLE_INFO (info, stdout, op_printf, op_styled_printf);
   info.read_memory_func = sim_dis_read;
   info.arch = bfd_get_arch (abfd);
   info.mach = bfd_get_mach (abfd);
@@ -799,8 +814,11 @@ sim_open (SIM_OPEN_KIND kind,
   SIM_DESC sd = sim_state_alloc (kind, cb);
   SIM_ASSERT (STATE_MAGIC (sd) == SIM_MAGIC_NUMBER);
 
+  /* Set default options before parsing user options.  */
+  current_alignment = STRICT_ALIGNMENT;
+
   /* The cpu data is kept in a separately allocated chunk of memory.  */
-  if (sim_cpu_alloc_all (sd, 1, /*cgen_cpu_max_extra_bytes ()*/0) != SIM_RC_OK)
+  if (sim_cpu_alloc_all (sd, 1) != SIM_RC_OK)
     {
       free_state (sd);
       return 0;
@@ -820,10 +838,7 @@ sim_open (SIM_OPEN_KIND kind,
     }
 
   /* Check for/establish the a reference program image.  */
-  if (sim_analyze_program (sd,
-			   (STATE_PROG_ARGV (sd) != NULL
-			    ? *STATE_PROG_ARGV (sd)
-			    : NULL), abfd) != SIM_RC_OK)
+  if (sim_analyze_program (sd, STATE_PROG_FILE (sd), abfd) != SIM_RC_OK)
     {
       free_state (sd);
       return 0;

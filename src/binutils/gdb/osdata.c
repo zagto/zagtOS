@@ -1,6 +1,6 @@
 /* Routines for handling XML generic OS data provided by target.
 
-   Copyright (C) 2008-2021 Free Software Foundation, Inc.
+   Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -273,8 +273,7 @@ info_osdata (const char *type)
 		 continue;
 
 	       snprintf (col_name, 32, "col%d", ix_cols);
-	       uiout->field_string (col_name,
-				    item.columns[ix_cols].value.c_str ());
+	       uiout->field_string (col_name, item.columns[ix_cols].value);
 	     }
 	 }
 

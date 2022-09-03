@@ -1,5 +1,5 @@
 /* x86-specific ELF linker support between ld and bfd.
-   Copyright (C) 2019-2021 Free Software Foundation, Inc.
+   Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -60,6 +60,9 @@ struct elf_linker_x86_params
 
   /* TRUE if --dynamic-linker is passed at command-line.  */
   unsigned int has_dynamic_linker : 1;
+
+  /* Report relative relocations.  */
+  unsigned int report_relative_reloc : 1;
 
   /* X86-64 ISA level needed.  */
   unsigned int isa_level;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2021 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2022 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GDB.
@@ -69,12 +69,9 @@ aarch64_decode_adr (CORE_ADDR addr, uint32_t insn, int *is_adrp,
       else
 	*offset = (immhi | immlo);
 
-      if (aarch64_debug)
-	{
-	  debug_printf ("decode: 0x%s 0x%x %s x%u, #?\n",
-			core_addr_to_string_nz (addr), insn,
-			*is_adrp ?  "adrp" : "adr", *rd);
-	}
+      aarch64_debug_printf ("decode: 0x%s 0x%x %s x%u, #?",
+			    core_addr_to_string_nz (addr), insn,
+			    *is_adrp ?  "adrp" : "adr", *rd);
       return 1;
     }
   return 0;

@@ -1,6 +1,6 @@
 /* Target-dependent code for NetBSD/powerpc.
 
-   Copyright (C) 2002-2021 Free Software Foundation, Inc.
+   Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
    Contributed by Wasabi Systems, Inc.
 
@@ -33,7 +33,7 @@
 #include "solib-svr4.h"
 
 /* Register offsets from <machine/reg.h>.  */
-struct ppc_reg_offsets ppcnbsd_reg_offsets;
+static ppc_reg_offsets ppcnbsd_reg_offsets;
 
 
 /* Core file support.  */
@@ -102,7 +102,7 @@ ppcnbsd_sigtramp_cache_init (const struct tramp_frame *self,
 			     CORE_ADDR func)
 {
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
-  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  ppc_gdbarch_tdep *tdep = (ppc_gdbarch_tdep *) gdbarch_tdep (gdbarch);
   CORE_ADDR addr, base;
   int i;
 
