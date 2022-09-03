@@ -8,7 +8,7 @@ int __clock_nanosleep(clockid_t clk, int flags, const struct timespec *req, stru
         errno = EINVAL;
         return -1;
     }
-    zagtos_syscall(SYS_CLOCK_NANOSLEEP, flags & TIMER_ABSTIME, clk, req);
+    zagtos_syscall(SYS_CLOCK_NANOSLEEP, flags, clk, req, rem);
     return 0;
 }
 
