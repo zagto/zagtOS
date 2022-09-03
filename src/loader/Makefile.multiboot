@@ -20,9 +20,6 @@ ASM_REGULER_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJ
 
 
 SOFILE = $(PLATFORM_MULTIBOOT_BUILD_DIR)/loader.so
-ifeq ($(ARCH),x86_64)
-    EFIFILE = $(PLATFORM_MULTIBOOT_BUILD_DIR)/BOOTX64.EFI
-endif
 
 TARGET = $(PLATFORM_MULTIBOOT_BUILD_DIR)/zagtos-multiboot-loader
 
@@ -38,7 +35,6 @@ all-multiboot: $(TARGET)
 $(TARGET): $(CXX_OBJS) $(ASM_OBJS)
 	mkdir -p $(dir $@)
 	$(CXX) $(LDFLAGS) -o $@ $^
-	#$(LD) $(LDFLAGS) -o $@ $(CRTBEGIN_OBJ) $(CRTI_OBJ) $(C_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(CRTEND_OBJ) $(CRTN_OBJ)
 
 $(PLATFORM_MULTIBOOT_BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)
