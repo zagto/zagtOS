@@ -19,7 +19,9 @@ private:
     threadList::List<&Thread::ownerReceptor> timerThreads[ClockID::COUNT];
     Processor *processor;
 
+    void addUnlocked(Thread *thread, bool online) noexcept;
     void add(Thread *thread, bool online) noexcept;
+    void updateTimer() noexcept;
 
 public:
     SpinLock lock;

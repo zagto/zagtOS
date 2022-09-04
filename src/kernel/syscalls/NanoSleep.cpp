@@ -20,8 +20,8 @@ optional<uint64_t> convertTimespec(timespec ts) {
 size_t NanoSleep(const shared_ptr<Process> &process,
                  size_t flags,
                  size_t clockID,
-                 size_t timespecAddress,
-                 size_t,
+                 size_t requestedTimespecAddress,
+                 size_t remainingTimespecAddress,
                  size_t) {
     //constexpr size_t TIMER_ABSTIME = 1;
 
@@ -30,22 +30,24 @@ size_t NanoSleep(const shared_ptr<Process> &process,
         throw BadUserSpace(process);
     }
 
-    if (clockID != ClockID::MONOTONIC) {
-        cout << "Not implemented: clock id " << clockID << " in NanoSleep" << endl;
-        assert(false);
+    UserSpaceObject<timespec, USOOperation::READ> uso(requestedTimespecAddress);
+    optional<uint64_t> interval = convertTimespec(uso.object);
+    if (!interval) {
+        cout << "NanoSleep: timespec value too large to be represented in a 64-but nanosecond "
+             << "value or invalid" << endl;
+        throw BadUserSpace(process);
     }
 
-    UserSpaceObject<timespec, USOOperation::READ> uso(timespecAddress);
-
+    if (remainingTimespecAddress) {
+        UserSpaceObject<timespec, USOOperation::WRITE> uso2(remainingTimespecAddress);
+        /* return 0 time remaining for successful completion */
+        uso2.object = {0, 0};
+        uso2.writeOut();
+    }
+    CurrentThread()->kernelStack->userRegisterState()->setSyscallResult(0);
 
     if (flags == 0) {
-        uint64_t now = readTimerValue();
-        optional<uint64_t> interval = convertTimespec(uso.object);
-        if (!interval) {
-            cout << "NanoSleep: timespec value too large to be represented in a 64-but nanosecond "
-                 << "value or invalid" << endl;
-            throw BadUserSpace(process);
-        }
+        uint64_t now = CurrentSystem.time.getClockValue(clockID);
         if (*interval + now < now) {
             cout << "NanoSleep: interval too large" << endl;
             throw BadUserSpace(process);

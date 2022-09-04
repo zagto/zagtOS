@@ -1,7 +1,6 @@
 #pragma once
 
 #include <common/common.hpp>
-#include <time/APICTimer.hpp>
 
 #include <interrupts/APICEnum.hpp>
 #include <interrupts/Interrupts.hpp>
@@ -45,9 +44,6 @@ protected:
     uint32_t readRegister(Register reg) noexcept;
 
 public:
-    APICTimer timer;
-
-    LocalAPIC() noexcept;
     ~LocalAPIC();
 
     void initialize(PhysicalAddress base);

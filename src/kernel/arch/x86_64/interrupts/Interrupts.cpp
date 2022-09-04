@@ -141,6 +141,8 @@ void handleUserException(RegisterState *registerState) {
                 if (ipis & IPI::CheckScheduler) {
                     processor->scheduler.checkChanges();
                 }
+            } else if (registerState->intNr == StaticInterrupt::TIMER) {
+                processor->scheduler.checkChanges();
             } else if (DynamicInterruptRegion.contains(registerState->intNr)) {
                 cout << "Dynamic Interrupt " << registerState->intNr << " occured" << endl;
                 /* EOI first, occur may wake threads on other Processors, which may trigger the

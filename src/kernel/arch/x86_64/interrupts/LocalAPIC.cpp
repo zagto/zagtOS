@@ -61,9 +61,6 @@ void LocalAPIC::endOfInterrupt() noexcept {
     writeRegister(Register::END_OF_INTERRUPT, 0);
 }
 
-LocalAPIC::LocalAPIC() noexcept :
-        timer(this) {
-}
 
 void LocalAPIC::initialize(PhysicalAddress base) {
     setupMap(base);
@@ -87,6 +84,14 @@ void LocalAPIC::initialize(PhysicalAddress base) {
 
     writeRegister(Register::LVT_REGULAR_INTTERRUPTS, 0x08040);
     writeRegister(Register::LVT_NON_MASKABLE_INTERRUPTS, 0x0040c);
+
+    /* initialize timer */
+    constexpr int32_t TIMER_TSC_DEADLINE = 1u<<18;
+    writeRegister(LocalAPIC::Register::DIVIDE_CONFIGURATION, 0);
+    writeRegister(LocalAPIC::Register::INITIAL_COUNT, 0);
+    writeRegister(
+                LocalAPIC::Register::LVT_TIMER,
+                TIMER_TSC_DEADLINE | static_cast<int32_t>(StaticInterrupt::TIMER));
 }
 
 LocalAPIC::~LocalAPIC() {

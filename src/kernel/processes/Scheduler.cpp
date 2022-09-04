@@ -17,12 +17,10 @@ Scheduler::Scheduler(CommonProcessor *_processor)
     idleThread->currentProcessor(processor);
 }
 
-void Scheduler::add(Thread *thread, bool online) noexcept {
+void Scheduler::addUnlocked(Thread *thread, bool online) noexcept {
     // TODO: ensure current processor
     assert(thread->currentProcessor() == nullptr);
 
-    scoped_lock sl1(KernelInterruptsLock);
-    scoped_lock sl(lock);
     if (online) {
         assert(processor->activeThread() != nullptr);
     }
@@ -39,12 +37,28 @@ void Scheduler::add(Thread *thread, bool online) noexcept {
     }
 }
 
+void Scheduler::add(Thread *thread, bool online) noexcept {
+    scoped_lock sl1(KernelInterruptsLock);
+    scoped_lock sl(lock);
+    addUnlocked(thread, online);
+}
+
 void Scheduler::checkChanges() {
     /* should already be locked here - but hold it a second time for DiscardStateAndSchedule */
     scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl2(lock);
 
     Thread *activeThread = processor->activeThread();
+
+    for (size_t clockID = 0; clockID < ClockID::COUNT; clockID++) {
+        uint64_t now = CurrentSystem.time.getClockValue(clockID);
+        while (!timerThreads[clockID].empty()
+               && timerThreads[clockID].begin()->state().time() <= now) {
+            Thread *thread = timerThreads[clockID].pop();
+            addUnlocked(thread, true);
+            cout << "woke up thread " << thread << " waiting for timer" << endl;
+        }
+    }
 
     for (size_t prio = Thread::NUM_PRIORITIES-1; prio > activeThread->currentPriority(); prio--) {
         if (!readyThreads[prio].empty()) {
@@ -61,6 +75,8 @@ void Scheduler::checkChanges() {
     scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl2(lock);
 
+    cout << "setTimer" << timestamp << endl;
+
     Thread *activeThread = processor->activeThread();
 
     removeActiveThread();
@@ -71,10 +87,10 @@ void Scheduler::checkChanges() {
             break;
         }
     }
-    if (it == timerThreads->end()) {
-        timerThreads->append(activeThread);
+    if (it == timerThreads[clockID].end()) {
+        timerThreads[clockID].append(activeThread);
     } else {
-        timerThreads->insertBefore(it.get(), activeThread);
+        timerThreads[clockID].insertBefore(it.get(), activeThread);
     }
     activeThread->setState(Thread::State::Timer(clockID, timestamp));
 
@@ -114,6 +130,22 @@ void Scheduler::removeActiveThread() {
     processor->activeThread(nullptr);
 }
 
+void Scheduler::updateTimer() noexcept {
+    uint64_t minTime = -1ull;
+    for (size_t clockID = 0; clockID < ClockID::COUNT; clockID++) {
+        if (!timerThreads[clockID].empty()) {
+            optional<uint64_t> threadTime = CurrentSystem.time.nanoSecondsToSystemClock(
+                        clockID, timerThreads[clockID].begin()->state().time());
+            if (threadTime) {
+                minTime = min(minTime, *threadTime);
+            }
+        }
+    }
+    if (minTime != -1ull) {
+        ::setTimer(minTime);
+    }
+}
+
 [[noreturn]]
 void Scheduler::scheduleNext() noexcept {
     assert(!processor->activeThread());
@@ -139,6 +171,7 @@ void Scheduler::scheduleNext() noexcept {
             }
 
             assert(newActiveThread->currentProcessor() == processor);
+            updateTimer();
             newActiveThread->kernelStack->switchToKernelEntry(newActiveThread->kernelEntry, newActiveThread->kernelEntryData);
         }
     }

@@ -18,6 +18,7 @@ enum class StaticInterrupt : uint8_t {
     PIC2_SPURIOUS = 0x21,
     APIC_SPURIOUS = 0x22,
     IPI = 0x31,
+    TIMER = 0x32,
 };
 
 static inline bool operator==(uint64_t a, StaticInterrupt b) {
@@ -25,7 +26,7 @@ static inline bool operator==(uint64_t a, StaticInterrupt b) {
 }
 
 static constexpr Region X86ExceptionRegion{0x00, 0x20};
-static constexpr Region DynamicInterruptRegion{0x32, 0xFE + 1 - 0x32};
+static constexpr Region DynamicInterruptRegion{0x33, 0xFE + 1 - 0x33};
 
 extern "C" void basicEnableInterrupts();
 extern "C" void basicDisableInterrupts();
