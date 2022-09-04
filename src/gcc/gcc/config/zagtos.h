@@ -20,11 +20,14 @@
 #undef  TARGET_OS_CPP_BUILTINS
 #define TARGET_OS_CPP_BUILTINS() \
     do { \
-      builtin_define ("__zagtos__"); \
-      builtin_define ("__unix__");      \
+      builtin_define ("__zagtos__");      \
+      builtin_define ("__unix__");        \
       builtin_assert ("system=zagtos");   \
-      builtin_assert ("system=unix");   \
-      builtin_assert ("system=posix");   \
+      builtin_assert ("system=unix");     \
+      builtin_assert ("system=posix");    \
+      /* GNU libstdc++ requires this */   \
+      if (c_dialect_cxx ())               \
+          builtin_define ("_GNU_SOURCE"); \
     } \
     while (0);
 
@@ -33,4 +36,3 @@
 
 #undef LINK_SPEC
 #define LINK_SPEC "-z max-page-size=0x1000"
-
