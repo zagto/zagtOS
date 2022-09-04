@@ -12,8 +12,9 @@ SpinLock FrameManagement.lock> SpinLock KernelPageAllocator.lock
 
 SpinLock InterruptManager::lock > SpinLock BoundInterrupt::lock
 
-SpinLock BoundInterrupt::lock > Scheduler::lock
-SpinLock Scheduler::lock > Thread::stateLock
+SpinLock BoundInterrupt::lock > SpinLock Scheduler::lock
+SpinLock Scheduler::lock > SpinLock Thread::stateLock
+SpinLock Scheduler::lock > SpinLock Time::offsetLock
 
 after owner:
 Thread::stateLock (only do one at a time - a scheduler may lock one second one)
