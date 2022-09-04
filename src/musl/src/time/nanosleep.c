@@ -3,5 +3,5 @@
 
 int nanosleep(const struct timespec *req, struct timespec *rem)
 {
-    return zagtos_syscall(SYS_CLOCK_NANOSLEEP, TIMER_ABSTIME, CLOCK_MONOTONIC, req, rem);
+    return zagtos_syscall(SYS_CLOCK_NANOSLEEP, 0, CLOCK_MONOTONIC, req);
 }
