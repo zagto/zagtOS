@@ -142,6 +142,7 @@ void handleUserException(RegisterState *registerState) {
                     processor->scheduler.checkChanges();
                 }
             } else if (registerState->intNr == StaticInterrupt::TIMER) {
+                processor->endOfInterrupt();
                 processor->scheduler.checkChanges();
             } else if (DynamicInterruptRegion.contains(registerState->intNr)) {
                 cout << "Dynamic Interrupt " << registerState->intNr << " occured" << endl;
