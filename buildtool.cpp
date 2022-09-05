@@ -79,7 +79,8 @@ std::filesystem::file_time_type lastModifiedDir(std::string path) {
                 && filename.substr(filename.length() - 6) != ".files"
                 && filename.substr(filename.length() - 9) != ".includes"
                 && filename.substr(filename.length() - 7) != ".cflags"
-                && filename.substr(filename.length() - 9) != ".cxxflags") {
+                && filename.substr(filename.length() - 9) != ".cxxflags"
+                && filename.substr(0, 1) != ".") {
 
             result = max(result, entry.last_write_time());
         }
