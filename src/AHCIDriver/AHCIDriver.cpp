@@ -18,7 +18,7 @@ using namespace zagtos;
 
 int main() {
     std::cout << "Hello from AHCI" << std::endl;
-    auto [controllerID, environemntPort, tuple] =
+    auto [controllerID, environementPort, tuple] =
           decodeRunMessage<std::tuple<zagtos::UUID, RemotePort, std::tuple<RemotePort, pci::Device>>>(driver::MSG_START);
     assert(controllerID == driver::CONTROLLER_TYPE_PCI);
     auto [controllerPort, dev] = std::move(tuple);
@@ -38,8 +38,16 @@ int main() {
     auto interrupt = irqSetupPort.receiveMessage<Interrupt>(pci::MSG_ALLOCATE_MSI_IRQ_RESULT);
     interrupt.subscribe();
 
-    Controller controller(*abar);
+    ControllerType type;
+    if (dev.vendorID() == 0x8086) {
+        std::cout << "AHCI controller is Intel type" << std::endl;
+        type = ControllerType::INTEL;
+    } else {
+        std::cout << "AHCI controller is Standard type (vendor " <<dev.vendorID() <<")" << std::endl;
+        type = ControllerType::STANDARD;
+    }
 
+    Controller controller(*abar, type, controllerPort);
     std::cout << "Controller initialization OK" << std::endl;
 
     while (true) {

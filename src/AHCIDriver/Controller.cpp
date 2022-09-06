@@ -1,7 +1,10 @@
 #define _GNU_SOURCE 1 /* for nanosleep */
 #include <iostream>
 #include <limits>
-#include <ctime>
+#include <chrono>
+#include <thread>
+#include <zagtos/Messaging.hpp>
+#include <zagtos/protocols/Pci.hpp>
 #include "Controller.hpp"
 
 size_t MaximumDMAAddress;
@@ -18,8 +21,7 @@ void Controller::BIOSHandoff() {
         /* busy wait for BOS to clear */
     }
 
-    timespec ts{0, 25000};
-    nanosleep(&ts, nullptr);
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
     while (regs.BOHC.BB()) {
         /* busy wait for BB to clear */
@@ -27,7 +29,71 @@ void Controller::BIOSHandoff() {
     std::cout << "BIOS Handoff finished" << std::endl;
 }
 
-Controller::Controller(ABAR &abar) :
+void Controller::reset() {
+    /* backup capability registers */
+    int32_t capBackup = regs.CAP();
+    int32_t piBackup = regs.PI();
+
+    /* enable AHCI */
+    regs.GHC.AE(1);
+
+    /* reset controller */
+    regs.GHC.HR(1);
+    while (regs.GHC.HR()) {
+        /* busy wait for HR to clear */
+    }
+    std::cout << "did HR" << std::endl;
+    regs.GHC.AE(1);
+    std::cout << "did AE" << std::endl;
+
+    regs.CAP(capBackup);
+    regs.PI(piBackup);
+
+    if (type == ControllerType::INTEL) {
+        /* Intel controllers need an additional register in the PCI configuration space set to
+         * work. Based on:
+         * https://github.com/haiku/haiku/blob/17569c02ff5fdcb1feea243be687fc83568e206a/src/add-ons/kernel/busses/scsi/ahci/ahci_controller.cpp#L338 */
+        std::cout << "Intel controller, setting PCS register" << std::endl;
+
+        uint32_t numPorts = std::max<uint32_t>(
+                    __builtin_popcount(regs.PI()),
+                    regs.CAP.NP());
+        if (numPorts > 8) {
+            std::cout << "Applying Intel fix, but it does not support more than 8 AHCI ports and "
+                      << "this controller has " << numPorts << std::endl;
+            numPorts = 8;
+        }
+
+        static constexpr uint32_t PCS_REGISTER_INDEX = 36;
+        zagtos::Port responsePort;
+        pciControllerPort.sendMessage(
+                    zagtos::pci::MSG_READ_CONFIG_SPACE,
+                    zbon::encodeObject(responsePort,
+                                       PCS_REGISTER_INDEX));
+        auto readResult = responsePort.receiveMessage<std::optional<uint32_t>>(
+                    zagtos::pci::MSG_READ_CONFIG_SPACE_RESULT);
+        if (!readResult) {
+            throw std::runtime_error("unable to read Intel PCS register");
+        }
+
+        uint32_t pcsRegister = *readResult | (((1u << numPorts) - 1) << 16);
+
+        pciControllerPort.sendMessage(
+                    zagtos::pci::MSG_WRITE_CONFIG_SPACE,
+                    zbon::encodeObject(responsePort,
+                                       PCS_REGISTER_INDEX,
+                                       pcsRegister));
+        bool writeResult = responsePort.receiveMessage<bool>(
+                    zagtos::pci::MSG_WRITE_CONFIG_SPACE_RESULT);
+        if (!writeResult) {
+            throw std::runtime_error("unable to write Intel PCS register");
+        }
+    }
+}
+
+Controller::Controller(ABAR &abar, ControllerType type, zagtos::RemotePort &pciControllerPort) :
+    type{type},
+    pciControllerPort{pciControllerPort},
     regs{abar.controller} {
 
     /* enable AHCI */
@@ -35,9 +101,7 @@ Controller::Controller(ABAR &abar) :
 
     BIOSHandoff();
 
-    /* reset controller */
-    regs.GHC.HR(1);
-    regs.GHC.AE(1);
+    reset();
 
     if (regs.CAP.S64A() && sizeof(size_t) > 4) {
         MaximumDMAAddress = std::numeric_limits<uint64_t>::max();
@@ -52,15 +116,20 @@ Controller::Controller(ABAR &abar) :
             ports.emplace_back(abar.ports[portID]);
         }
     }
+    /* wait for devices to be detected */
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     for (Port &port: ports) {
         port.detectDevice();
     }
 
     /* Setup interrupts */
-    regs.IS(0);
     for (Port &port: ports) {
-        port.enableInterrupts();
+        port.enableInterrupts1();
+    }
+    regs.IS(0xffffffff);
+    for (Port &port: ports) {
+        port.enableInterrupts2();
     }
     regs.GHC.IE(1);
 }

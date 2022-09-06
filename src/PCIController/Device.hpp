@@ -42,4 +42,6 @@ public:
     zbon::EncodedData driverRunMessage();
     zagtos::Port &driverPort();
     zagtos::Interrupt allocateMSIInterrupt();
+    int32_t readConfigSpace(uint32_t index);
+    void writeConfigSpace(uint32_t index, uint32_t value);
 };

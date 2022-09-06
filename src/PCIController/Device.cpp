@@ -92,7 +92,7 @@ Device::Device(ConfigSpace *configSpace) :
     uint64_t combinedID = static_cast<uint64_t>(configSpace->vendorID())
             | (static_cast<uint64_t>(configSpace->deviceID()) << 16)
             | (static_cast<uint64_t>(configSpace->classCodeProgIFRevisionID()) << 32);
-    info.deviceID = combinedID;
+    info.combinedID = combinedID;
 
     detectBARs();
 
@@ -110,7 +110,7 @@ Device::Device(ConfigSpace *configSpace) :
 }
 
 uint64_t Device::combinedID() const {
-    return info.deviceID;
+    return info.combinedID;
 }
 
 zbon::EncodedData Device::driverRunMessage() {
@@ -119,4 +119,14 @@ zbon::EncodedData Device::driverRunMessage() {
 
 zagtos::Port &Device::driverPort() {
     return _driverPort;
+}
+
+int32_t Device::readConfigSpace(uint32_t index) {
+    assert(index < ConfigSpace::NUM_REGISERS);
+    return configSpace->atIndex(index);
+}
+
+void Device::writeConfigSpace(uint32_t index, uint32_t value) {
+    assert(index < ConfigSpace::NUM_REGISERS);
+    configSpace->atIndex(index, value);
 }

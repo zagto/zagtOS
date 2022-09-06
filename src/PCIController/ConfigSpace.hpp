@@ -45,7 +45,10 @@ struct MSIXTableEntry {
 };
 
 struct ConfigSpace {
-    REGISTERSI(0x1000/4,
+    /* number of 32-bit registers ingoring logical layout */
+    static constexpr size_t NUM_REGISERS = 0x1000/4;
+
+    REGISTERSI(NUM_REGISERS,
                BITSI(vendorID,0,0,16) BITSI(deviceID,0,16,16)
                /* command */
                BITI(IOSpaceEnable,1,0) BITI(memorySpaceEnable,1,10) BITI(busMasterEnable,1,2) BITI(interruptDisable,1,0) BITI(hasCapabilitiesList,1,20)

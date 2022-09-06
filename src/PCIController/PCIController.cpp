@@ -60,10 +60,40 @@ int main() {
             }
 
             size_t portIndex = messageInfo->portIndex;
-            std::cerr << "register interrupt for device " << portIndex << std::endl;
             auto interrupt = devices[portIndex].allocateMSIInterrupt();
-
             responsePort.sendMessage(pci::MSG_ALLOCATE_MSI_IRQ_RESULT, zbon::encode(interrupt));
+        } else if (messageInfo->type == pci::MSG_READ_CONFIG_SPACE) {
+            std::tuple<zagtos::RemotePort, uint32_t> message;
+            try {
+                zbon::decode(messageInfo->data, message);
+            } catch (zbon::DecoderException *e) {
+                std::cerr << "received malformed MSG_READ_CONFIG_SPACE message from driver" << std::endl;
+                continue;
+            }
+
+            auto [responsePort, registerIndex] = std::move(message);
+            size_t portIndex = messageInfo->portIndex;
+            std::optional<uint32_t> result;
+            if (registerIndex < ConfigSpace::NUM_REGISERS) {
+                result = devices[portIndex].readConfigSpace(registerIndex);
+            }
+            responsePort.sendMessage(pci::MSG_READ_CONFIG_SPACE_RESULT, zbon::encode(result));
+        } else if (messageInfo->type == pci::MSG_WRITE_CONFIG_SPACE) {
+            std::tuple<zagtos::RemotePort, uint32_t, uint32_t> message;
+            try {
+                zbon::decode(messageInfo->data, message);
+            } catch (zbon::DecoderException *e) {
+                std::cerr << "received malformed MSG_WRITE_CONFIG_SPACE message from driver" << std::endl;
+                continue;
+            }
+
+            auto [responsePort, registerIndex, value] = std::move(message);
+            size_t portIndex = messageInfo->portIndex;
+            bool ok = registerIndex < ConfigSpace::NUM_REGISERS;
+            if (ok) {
+                devices[portIndex].writeConfigSpace(registerIndex, value);
+            }
+            responsePort.sendMessage(pci::MSG_WRITE_CONFIG_SPACE_RESULT, zbon::encode(ok));
         } else {
             std::cerr << "received unknown message type from driver" << std::endl;
         }
