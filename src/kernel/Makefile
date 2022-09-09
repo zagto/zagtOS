@@ -43,7 +43,7 @@ $(TARGET): $(SHBUILD_BUILD_DIR)/kernel.elf
 	$(CONVERTELF) $< $@ --no-add-stack
 
 $(SHBUILD_BUILD_DIR)/kernel.elf: $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(LIBSUPCXX_OBJS)
-	$(CXX) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(C_OBJS) $(LIBSUPCXX_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(SHBUILD_BUILD_DIR)/../gcc/kernel-x86_64/gcc/libgcc.a $(CRTEND_OBJ) $(CRTN_OBJ)
+	$(CXX) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(C_OBJS) $(LIBSUPCXX_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(SHBUILD_ROOT)/out/toolchain/kernel-$(ARCH)/lib/gcc/$(ARCH)-elf/12.2.0/libgcc.a $(CRTEND_OBJ) $(CRTN_OBJ)
 
 $(SHBUILD_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
 	mkdir -p $(dir $@)
