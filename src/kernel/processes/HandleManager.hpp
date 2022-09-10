@@ -8,6 +8,7 @@
 #include <processes/Port.hpp>
 #include <processes/Thread.hpp>
 #include <processes/MemoryArea.hpp>
+#include <processes/UserApi.hpp>
 #include <processes/InterruptManager.hpp>
 
 /* simple object that a Process can hold via a handle so it can access I/O ports */
@@ -20,9 +21,6 @@ namespace handleManager {
 
 using Type = hos_v1::HandleType;
 
-/* FUTEX_LOCK_PI wants to or a bit with a handle so make sure upmost bit is reserved */
-static const uint32_t HANDLE_FIRST = 1;
-static const uint32_t HANDLE_END = 0x3fffffff;
 
 struct AbstractElement {
     virtual ~AbstractElement() = default;
@@ -104,7 +102,7 @@ public:
     }
     template<typename T> T lookup(uint32_t handle) {
         scoped_lock sl(lock);
-        if (handle < HANDLE_FIRST || handle >= numAllocated) {
+        if (handle >= numAllocated) {
             throw BadUserSpace(sharedProcess());
         }
         auto result = dynamic_cast<PointerElement<T> *>(at(handle));

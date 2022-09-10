@@ -11,8 +11,8 @@ HandleManager::HandleManager(Process &process)  :
     numAllocated = 2;
     data = DLMallocGlue.allocate(numAllocated * ELEMENT_SIZE, 0).asPointer<uint8_t>();
 
-    nextFreeHandle = HANDLE_END;
-    for (size_t handle = HANDLE_FIRST; handle < numAllocated; handle++) {
+    nextFreeHandle = userApi::ZAGTOS_INVALID_HANDLE;
+    for (size_t handle = 0; handle < numAllocated; handle++) {
         new (at(handle)) FreeElement(nextFreeHandle);
         nextFreeHandle = handle;
     }
@@ -37,8 +37,7 @@ HandleManager::HandleManager(Process &process,
 
     for (size_t index = 0; index < handOver.numHandles; index++) {
         hos_v1::Handle hosHandle = handOver.handles[index];
-        assert(hosHandle.handle >= HANDLE_FIRST);
-        assert(hosHandle.handle < HANDLE_END);
+        assert(hosHandle.handle < userApi::ZAGTOS_MAX_HANDLES);
 
         uint32_t handle = hosHandle.handle;
         /* Elements become invalid type on contruction, make sure we don't try to use anything
@@ -74,8 +73,8 @@ HandleManager::HandleManager(Process &process,
     }
 
     /* Convert remaining elements to FREE type */
-    nextFreeHandle = HANDLE_END;
-    for (size_t handle = HANDLE_FIRST; handle < numAllocated; handle++) {
+    nextFreeHandle = userApi::ZAGTOS_INVALID_HANDLE;
+    for (size_t handle = 0; handle < numAllocated; handle++) {
         if (!initialized[handle]) {
             new (at(handle)) FreeElement(nextFreeHandle);
             nextFreeHandle = handle;
@@ -88,7 +87,6 @@ shared_ptr<Process> HandleManager::sharedProcess() const noexcept {
 }
 
 AbstractElement *HandleManager::at(uint32_t handle) const noexcept {
-    assert(handle >= HANDLE_FIRST);
     assert(handle < numAllocated);
     return reinterpret_cast<AbstractElement *>(data + handle * ELEMENT_SIZE);
 }
@@ -96,12 +94,12 @@ AbstractElement *HandleManager::at(uint32_t handle) const noexcept {
 uint32_t HandleManager::grabFreeNumber() {
     assert(lock.isLocked());
     /* should go out of kernel memory before this happens */
-    assert(numAllocated < HANDLE_END);
-    static_assert (KERNEL_HEAP_SIZE / ELEMENT_SIZE < HANDLE_END);
+    assert(numAllocated <= userApi::ZAGTOS_MAX_HANDLES);
+    static_assert (KERNEL_HEAP_SIZE / ELEMENT_SIZE < userApi::ZAGTOS_MAX_HANDLES);
     /* TODO: maybe introduce a second limit for security, otherwise everyone can kill a process
      * by sending too many handles */
 
-    if (nextFreeHandle == HANDLE_END) {
+    if (nextFreeHandle == userApi::ZAGTOS_INVALID_HANDLE) {
         /* This is assuming that memcopying a smart pointer element is equivalent to using its move
          * conytructor, which is the case in our implementation. */
         data = DLMallocGlue.resize(data, numAllocated * 2 * ELEMENT_SIZE).asPointer<uint8_t>();
@@ -149,9 +147,8 @@ void HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThr
 }
 
 bool HandleManager::handleValid(uint32_t handle) const noexcept {
-    return handle >= HANDLE_FIRST
-            && handle < numAllocated
-            && dynamic_cast<AbstractPointerElement *>(at(handle));
+    assert(lock.isLocked());
+    return handle < numAllocated && dynamic_cast<AbstractPointerElement *>(at(handle));
 }
 
 /* creates handles in destination for all objects referenced by the initial values handleValues.
@@ -205,7 +202,7 @@ void HandleManager::transferHandles(vector<uint32_t> &handleValues,
 }
 
 void HandleManager::insertAllProcessPointersAfterKernelHandover(const shared_ptr<Process> &process) noexcept {
-    for (size_t handle = HANDLE_FIRST; handle < numAllocated; handle++) {
+    for (size_t handle = 0; handle < numAllocated; handle++) {
         auto threadElement = dynamic_cast<PointerElement<shared_ptr<Thread>> *>(at(handle));
         if (threadElement) {
             threadElement->pointer->process = process;
