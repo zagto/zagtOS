@@ -1,1 +1,1 @@
-../../zagtos++/zagtos/ProgramBinary.hpp
+#include <../zagtos++/zagtos/ProgramBinary.hpp>

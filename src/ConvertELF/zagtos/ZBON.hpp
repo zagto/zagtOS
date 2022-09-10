@@ -1,1 +1,1 @@
-../../zagtos++/zagtos/ZBON.hpp
+#include <../zagtos++/zagtos/ZBON.hpp>
