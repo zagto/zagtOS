@@ -1,1 +1,1 @@
-../binutils/check-toolchains.sh
+. ../binutils/check-toolchains.sh
