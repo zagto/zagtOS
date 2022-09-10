@@ -1,5 +1,6 @@
 #include <MemoryMap.hpp>
 #include <Multiboot.hpp>
+#include <iostream>
 
 namespace memoryMap {
 

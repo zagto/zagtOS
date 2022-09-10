@@ -1,5 +1,6 @@
 #include <syscalls/Log.hpp>
 #include <processes/Process.hpp>
+#include <log/BasicLog.hpp>
 
 size_t Log(const shared_ptr<Process> &process,
                    size_t _address,
@@ -26,18 +27,18 @@ size_t Log(const shared_ptr<Process> &process,
     process->addressSpace.copyFrom(&buffer[0], address, length);
     /* do not print program name for small invisible stuff */
     if (!(length == 0 || (length == 1 && buffer[0] <= ' '))) {
-        cout.setProgramNameColor();
+        basicLog::write(basicLog::PROGRAM_NAME_COLOR);
         for (uint8_t character: process->logName) {
             cout << static_cast<char>(character);
         }
-        cout.setProgramColor();
+        basicLog::write(basicLog::PROGRAM_COLOR);
         cout << ": ";
     } else {
-        cout.setProgramColor();
+        basicLog::write(basicLog::PROGRAM_COLOR);
     }
     for (uint8_t character: buffer) {
         cout << static_cast<char>(character);
     }
-    cout.setKernelColor();
+    basicLog::write(basicLog::KERNEL_COLOR);
     return 0;
 }

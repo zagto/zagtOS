@@ -5,6 +5,7 @@
 #include <memory/PhysicalMemory.hpp> // SecondaryProcessorEntry
 #include <exit.hpp>
 #include <ACPI.hpp>
+#include <iostream>
 
 static size_t startingID = 0;
 static size_t startingHardwareID = 0;

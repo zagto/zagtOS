@@ -66,7 +66,7 @@ Process::Process(Process &sourceProcess,
 Process::~Process() {
     cout << "destroying Process";
     for (auto c : logName) {
-        cout.output(c);
+        cout << static_cast<char>(c);
     }
     cout << "..." << endl;
 

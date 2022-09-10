@@ -3,6 +3,7 @@
 #include <system/System.hpp>
 #include <processes/MappedArea.hpp>
 #include <processes/Process.hpp>
+#include <log/BasicLog.hpp>
 
 struct Identification {
     uint8_t magic[4];
@@ -204,7 +205,7 @@ void ProcessAddressSpace::coreDump(Thread *crashedThread) {
     assert(dumpFile.size() == dataOffset + 12 + 8 + sizeof(PRStatus));
 
     vector<uint8_t> &logName = crashedThread->process->logName;
-    cout.sendCoreDump(logName.size(), logName.data(), dumpFile.size(), dumpFile.data());
+    basicLog::sendCoreDump(logName.size(), logName.data(), dumpFile.size(), dumpFile.data());
 
     cout << "End core dump" << endl;
 }

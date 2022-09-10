@@ -1,6 +1,6 @@
 #include <memory/VirtualMemory.hpp>
 #include <Paging.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 #include <memory/ArchRegions.hpp>
 #include <MemoryMap.hpp>
 #include <memory/PhysicalMemory.hpp>
@@ -41,6 +41,7 @@ void MapFramebufferMemory(hos_v1::FramebufferInfo &framebufferInfo) {
     size_t numPages = (lastAddress - firstAddress - 1) / PAGE_SIZE + 1;
     size_t index;
 
+    /* front buffer for kernel */
     for (index = 0; index < numPages; index++) {
         MapAddress(PagingContext::GLOBAL,
                    FramebufferRegion.start + index * PAGE_SIZE,
@@ -50,7 +51,18 @@ void MapFramebufferMemory(hos_v1::FramebufferInfo &framebufferInfo) {
                    false,
                    CacheType::CACHE_WRITE_COMBINING);
     }
+    /* front buffer for loader */
+    for (index = 0; index < numPages; index++) {
+        MapAddress(PagingContext::HANDOVER,
+                   firstAddress + index * PAGE_SIZE,
+                   firstAddress + index * PAGE_SIZE,
+                   true,
+                   false,
+                   false,
+                   CacheType::CACHE_WRITE_COMBINING);
+    }
 
+    /* back buffer for kernel */
     for (index = numPages; index < numPages * 2; index++) {
         MapAddress(PagingContext::GLOBAL,
                    FramebufferRegion.start + index * PAGE_SIZE,

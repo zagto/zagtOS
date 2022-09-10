@@ -1,10 +1,10 @@
-.PHONY: clean install libsupcxx_setup
+.PHONY: clean install libsupcxx_setup kernel-loader-common
 
 CXX_SOURCES = $(shell find -L . -type f -name '*.cpp' -follow -not -path './arch/*')
-CXX_HEADERS = $(shell find -L . -type f -name '*.hpp' -follow -not -path './arch/*')
+CXX_HEADERS = $(shell find -L . ../kernel-loader-common -type f -name '*.hpp' -follow -not -path './arch/*')
 CXX_SOURCES += $(shell find -L arch/$(ARCH) -type f -name '*.cpp' -follow)
-CXX_HEADERS += $(shell find -L arch/$(ARCH) -type f -name '*.hpp' -follow)
-CXX_HEADERS += $(shell find stdlib -type f -follow)
+CXX_HEADERS += $(shell find -L arch/$(ARCH) ../kernel-loader-common/arch/$(ARCH) -type f -name '*.hpp' -follow)
+CXX_HEADERS += $(shell find stdlib ../kernel-loader-common/stdlib -type f -follow)
 CXX_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(CXX_SOURCES:.cpp=.o))
 
 C_SOURCES = memory/dlmalloc.c
@@ -15,17 +15,18 @@ LIBSUPCXX_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/libsupc++/, $(notdir $(LIBSUPC
 
 ASM_SOURCES = $(shell find arch/$(ARCH) -type f -name '*.asm')
 ASM_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(ASM_SOURCES:.asm=.o))
-CRTI_OBJ = $(SHBUILD_BUILD_DIR)/arch/$(ARCH)/lib/crt/crti.o
-CRTN_OBJ = $(SHBUILD_BUILD_DIR)/arch/$(ARCH)/lib/crt/crtn.o
+CRTI_OBJ = $(SHBUILD_BUILD_DIR)/arch/$(ARCH)/crt/crti.o
+CRTN_OBJ = $(SHBUILD_BUILD_DIR)/arch/$(ARCH)/crt/crtn.o
 ASM_REGULER_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJS)))
 
 TARGET = $(SHBUILD_BUILD_DIR)/ZAGTKERN.ZBN
 
-COMMON_FLAGS = -Os -g  -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -fsanitize=undefined -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/stdlib
+COMMON_FLAGS = -Os -g  -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -fsanitize=undefined -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/ -I$(PWD)/../kernel-loader-common/arch/$(ARCH) -I$(PWD)/stdlib -I$(PWD)/../kernel-loader-common -I$(PWD)/../kernel-loader-common/stdlib
 COMMON_FLAGS += $(KERNEL_CFLAGS_$(ARCH))
 
 CFLAGS = $(COMMON_FLAGS) -std=c99 -Wno-expansion-to-defined
 CXXFLAGS = $(COMMON_FLAGS) -std=c++2a
+export CXXFLAGS
 
 LDFLAGS = -O2 -ffreestanding -nostdlib -static -L$(PWD)/arch/$(ARCH)/lib/crt -z max-page-size=0x1000 -Wl,--build-id=none -T arch/$(ARCH)/linker.ld -nostdlib
 
@@ -42,8 +43,8 @@ CRTEND_OBJ:=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtend.o)
 $(TARGET): $(SHBUILD_BUILD_DIR)/kernel.elf
 	$(CONVERTELF) $< $@ --no-add-stack
 
-$(SHBUILD_BUILD_DIR)/kernel.elf: $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(LIBSUPCXX_OBJS)
-	$(CXX) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(C_OBJS) $(LIBSUPCXX_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(SHBUILD_ROOT)/out/toolchain/kernel-$(ARCH)/lib/gcc/$(ARCH)-elf/12.2.0/libgcc.a $(CRTEND_OBJ) $(CRTN_OBJ)
+$(SHBUILD_BUILD_DIR)/kernel.elf: $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(LIBSUPCXX_OBJS) kernel-loader-common
+	$(CXX) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(C_OBJS) $(LIBSUPCXX_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(SHBUILD_BUILD_DIR)/kernel-loader-common.a $(SHBUILD_ROOT)/out/toolchain/kernel-$(ARCH)/lib/gcc/$(ARCH)-elf/12.2.0/libgcc.a $(CRTEND_OBJ) $(CRTN_OBJ)
 
 $(SHBUILD_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
 	mkdir -p $(dir $@)
@@ -57,6 +58,8 @@ $(SHBUILD_BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)
 	nasm -f elf64 -o $@ $<
 
+kernel-loader-common:
+	make -C ../kernel-loader-common BUILD_DIR=$(SHBUILD_BUILD_DIR)
 
 # detect libsupc++ by .cc extension
 

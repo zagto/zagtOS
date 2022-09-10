@@ -1,6 +1,6 @@
 #include <Paging.hpp>
 #include <memory/PhysicalMemory.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 
 PageTable *HandOverMasterPageTable{nullptr};
 

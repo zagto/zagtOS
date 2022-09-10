@@ -1,6 +1,6 @@
 #include <exit.hpp>
 #include <Paging.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 
 #define TEMPORY_STACK_SIZE 128 // in size_ts
 

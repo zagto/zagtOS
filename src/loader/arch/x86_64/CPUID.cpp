@@ -1,6 +1,7 @@
 #include <CPUID.hpp>
 #include <cpuid.h>
 #include <common/common.hpp>
+#include <iostream>
 
 namespace cpuid {
 

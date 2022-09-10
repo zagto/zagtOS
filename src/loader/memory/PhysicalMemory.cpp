@@ -1,6 +1,6 @@
 #include <memory/PhysicalMemory.hpp>
 #include <MemoryMap.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 #include <Paging.hpp>
 #include <common/utils.hpp>
 

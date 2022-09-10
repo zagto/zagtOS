@@ -1,9 +1,10 @@
 #include <Multiboot.hpp>
 #include <Framebuffer.hpp>
 #include <memory/ArchRegions.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 #include <setup/HandOverState.hpp>
 
+static bool framebufferInitialized{false};
 static hos_v1::FramebufferInfo info;
 
 hos_v1::FramebufferInfo &InitFramebuffer(void) {
@@ -55,5 +56,11 @@ hos_v1::FramebufferInfo &InitFramebuffer(void) {
         Panic();
     }
 
+    framebufferInitialized = true;
+    return info;
+}
+
+hos_v1::FramebufferInfo &GetFramebuffer() {
+    assert(framebufferInitialized);
     return info;
 }

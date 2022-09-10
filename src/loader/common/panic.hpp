@@ -1,1 +1,0 @@
-../../kernel/common/panic.hpp

@@ -10,8 +10,8 @@ static size_t nextProcessorID = 0;
 
 CommonProcessor::CommonProcessor() :
         self{this},
-        logBufferIndex{0},
         activeTLBContextID{CurrentSystem.tlbContextsPerProcessor * nextProcessorID},
+        logBufferIndex{0},
         invalidateQueue{*this},
         id{nextProcessorID++},
         scheduler(this) {

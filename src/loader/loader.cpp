@@ -1,5 +1,5 @@
 #include <exit.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 #include <Framebuffer.hpp>
 #include <Files.hpp>
 #include <MemoryMap.hpp>
@@ -11,6 +11,7 @@
 #include <Firmware.hpp>
 #include <smp/SMP.hpp>
 #include <Time.hpp>
+#include <log/BasicLog.hpp>
 
 
 /* converts pointers to physical memory for use in kernel where the identity mapping is offset at
@@ -51,6 +52,7 @@ void isort(hos_v1::MappedArea *mappedAreas, size_t len) {
 extern "C" void LoaderMain() {
     cout << "Initializing..." << endl;
     hos_v1::FramebufferInfo &framebufferInfo = InitFramebuffer();
+    basicLog::init();
 
     detectTimerFrequency();
 

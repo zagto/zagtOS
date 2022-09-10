@@ -1,5 +1,6 @@
 #include <Firmware.hpp>
 #include <Multiboot.hpp>
+#include <iostream>
 
 PhysicalAddress GetFirmwareRoot() {
     NewACPITag *newTag = MultibootInfo->getTag<NewACPITag>(0);

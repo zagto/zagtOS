@@ -1,6 +1,7 @@
 #include <Time.hpp>
 #include <CPUID.hpp>
 #include <common/ModelSpecificRegister.hpp>
+#include <iostream>
 
 uint64_t timerFrequency = 0;
 

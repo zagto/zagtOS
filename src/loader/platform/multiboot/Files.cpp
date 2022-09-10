@@ -1,5 +1,6 @@
 #include <Files.hpp>
 #include <Multiboot.hpp>
+#include <iostream>
 
 void *LoadKernelImage() {
     ModuleTag *mod = MultibootInfo->getTag<ModuleTag>(0);

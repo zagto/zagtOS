@@ -1,5 +1,5 @@
 #include <memory/DLMallocGlue.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 #include <bits/gthr.h>
 #include <mutex>
 #include <interrupts/KernelInterruptsLock.hpp>

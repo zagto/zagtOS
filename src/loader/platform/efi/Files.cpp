@@ -1,6 +1,6 @@
 #include <EFI.hpp>
 #include <Files.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 #include <common/panic.hpp>
 
 using namespace efi;

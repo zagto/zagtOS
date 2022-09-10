@@ -1,7 +1,7 @@
 #include <common/inttypes.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 #include <EFI.hpp>
-#include <Output.hpp>
+#include <log/BasicLog.hpp>
 #include <MemoryMap.hpp>
 
 using namespace efi;
@@ -98,7 +98,7 @@ void freezeAndExitFirmware() {
         } else {
             map = memoryMap;
 
-            OutputExitBootServices();
+            basicLog::exitBootServices();
 
             /* mapSize should now hold the size of the memory map, so we can find out
              * how many descriptors it holds */

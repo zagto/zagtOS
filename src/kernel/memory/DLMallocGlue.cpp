@@ -2,7 +2,7 @@
 #include <memory/DLMallocGlue.hpp>
 #include <memory/KernelPageAllocator.hpp>
 #include <interrupts/KernelInterruptsLock.hpp>
-
+#include <iostream>
 
 extern "C" {
     int init_mparams(void);

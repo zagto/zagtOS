@@ -1,10 +1,11 @@
 #include <EFI.hpp>
 #include <Framebuffer.hpp>
 #include <memory/ArchRegions.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 
 using namespace efi;
 
+static bool framebufferInitialized{false};
 static hos_v1::FramebufferInfo framebufferInfo;
 
 static EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *getMode(EFI_GRAPHICS_OUTPUT_PROTOCOL *graphicsOutput,
@@ -100,7 +101,7 @@ static void generateFramebufferInfo(EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode) {
 }
 
 
-hos_v1::FramebufferInfo &InitFramebuffer(void) {
+hos_v1::FramebufferInfo &InitFramebuffer() {
     EFI_STATUS status;
     EFI_GRAPHICS_OUTPUT_PROTOCOL *graphicsOutput;
 
@@ -118,5 +119,11 @@ hos_v1::FramebufferInfo &InitFramebuffer(void) {
 
     setBestMode(graphicsOutput);
     generateFramebufferInfo(graphicsOutput->Mode);
+    framebufferInitialized = true;
+    return framebufferInfo;
+}
+
+hos_v1::FramebufferInfo &GetFramebuffer() {
+    assert(framebufferInitialized);
     return framebufferInfo;
 }

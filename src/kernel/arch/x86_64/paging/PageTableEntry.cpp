@@ -1,6 +1,7 @@
 #include <common/common.hpp>
 #include <paging/PageTableEntry.hpp>
 #include <paging/PageTable.hpp>
+#include <iostream>
 
 
 PageTableEntry::PageTableEntry(size_t data):

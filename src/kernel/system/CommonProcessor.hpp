@@ -25,11 +25,6 @@ protected:
     /* to quickly find the stack in ContextSwitch. Updated when setting activeThread. */
     RegisterState *userRegisterState;
 
-    friend class Logger;
-    static const size_t LOG_BUFFER_SIZE = 500;
-    char logBuffer[LOG_BUFFER_SIZE];
-    size_t logBufferIndex;
-
     friend class TLBContext;
     friend class PageOutContext;
     SpinLock tlbContextsLock;
@@ -44,6 +39,10 @@ protected:
     uint32_t ipiFlags;
 
 public:
+    static constexpr size_t LOG_BUFFER_SIZE = 512;
+    char logBuffer[LOG_BUFFER_SIZE];
+    size_t logBufferIndex;
+
     shared_ptr<KernelStack> kernelStack;
 
     size_t hardwareID;

@@ -3,20 +3,20 @@
 PLATFORM_MULTIBOOT_BUILD_DIR=$(SHBUILD_BUILD_DIR)/multiboot
 
 CXX_SOURCES = $(shell find -L . -type f -name '*.cpp' -not -path './arch/*' -not -path './platform/*')
-CXX_HEADERS = $(shell find -L . -type f -name '*.hpp' -not -path './arch/*' -not -path './platform/*')
+CXX_HEADERS = $(shell find -L . ../kernel-loader-common -type f -name '*.hpp' -follow -not -path './arch/*')
 CXX_SOURCES += $(shell find -L arch/$(ARCH) -type f -name '*.cpp')
-CXX_HEADERS += $(shell find -L arch/$(ARCH) -type f -name '*.hpp')
+CXX_HEADERS += $(shell find -L arch/$(ARCH) ../kernel-loader-common/arch/$(ARCH) -type f -name '*.hpp' -follow)
 CXX_SOURCES += $(shell find -L platform/multiboot -type f -name '*.cpp')
 CXX_HEADERS += $(shell find -L platform/multiboot -type f -name '*.hpp')
-CXX_HEADERS += $(shell find -L stdlib -type f)
+CXX_HEADERS += $(shell find -L stdlib ../kernel-loader-common/stdlib -type f)
 CXX_OBJS = $(addprefix $(PLATFORM_MULTIBOOT_BUILD_DIR)/, $(CXX_SOURCES:.cpp=.o))
 
 ASM_SOURCES = $(shell find -L arch/$(ARCH) -type f -name '*.asm')
 ASM_SOURCES += $(shell find -L platform/multiboot -type f -name '*.asm')
 ASM_OBJS = $(addprefix $(PLATFORM_MULTIBOOT_BUILD_DIR)/, $(ASM_SOURCES:.asm=.o))
-CRTI_OBJ = $(PLATFORM_MULTIBOOT_BUILD_DIR)/arch/$(ARCH)/lib/crt/crti.o
-CRTN_OBJ = $(PLATFORM_MULTIBOOT_BUILD_DIR)/arch/$(ARCH)/lib/crt/crtn.o
-ASM_REGULER_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJS)))
+CRTI_OBJ = $(PLATFORM_MULTIBOOT_BUILD_DIR)/arch/$(ARCH)/crt/crti.o
+CRTN_OBJ = $(PLATFORM_MULTIBOOT_BUILD_DIR)/arch/$(ARCH)/crt/crtn.o
+ASM_REGULAR_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJS)))
 
 
 SOFILE = $(PLATFORM_MULTIBOOT_BUILD_DIR)/loader.so
@@ -26,15 +26,16 @@ TARGET = $(PLATFORM_MULTIBOOT_BUILD_DIR)/zagtos-multiboot-loader
 CXX = $(ARCH)-elf-g++
 LD = $(ARCH)-elf-ld
 
-CXXFLAGS = -Os -ffreestanding -fno-rtti -fno-exceptions -fno-stack-protector -mno-red-zone -Wall -Wextra -Werror $(KERNEL_CFLAGS_$(ARCH)) -I$(PWD) -I$(PWD)/stdlib -I$(PWD)/arch/$(ARCH) -I$(PWD)/platform/multiboot -DZAGTOS_LOADER
+CXXFLAGS = -Os -ffreestanding -fno-rtti -fno-exceptions -fno-stack-protector -mno-red-zone -Wall -Wextra -Werror $(KERNEL_CFLAGS_$(ARCH)) -I$(PWD) -I$(PWD)/stdlib -I$(PWD)/arch/$(ARCH) -I$(PWD)/platform/multiboot -I$(PWD)/../kernel-loader-common -I$(PWD)/../kernel-loader-common/stdlib -I$(PWD)/../kernel-loader-common/arch/$(ARCH) -DZAGTOS_LOADER
+export CXXFLAGS
 
 LDFLAGS = -Os -nostdlib -static -z max-page-size=0x1000 -T platform/multiboot/linker.ld
 
 all-multiboot: $(TARGET)
 
-$(TARGET): $(CXX_OBJS) $(ASM_OBJS)
+$(TARGET): $(CXX_OBJS) $(ASM_OBJS) kernel-loader-common
 	mkdir -p $(dir $@)
-	$(CXX) $(LDFLAGS) -o $@ $^
+	$(CXX) $(LDFLAGS) -o $@ -Wl,--start-group $(CRTI_OBJ) $(PLATFORM_MULTIBOOT_BUILD_DIR)/kernel-loader-common.a $(CXX_OBJS) $(ASM_REGULAR_OBJS) $(CRTN_OBJ) -Wl,--end-group
 
 $(PLATFORM_MULTIBOOT_BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)
@@ -43,6 +44,10 @@ $(PLATFORM_MULTIBOOT_BUILD_DIR)/%.o: %.asm
 $(PLATFORM_MULTIBOOT_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
 	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+kernel-loader-common:
+	make -C ../kernel-loader-common BUILD_DIR=$(PLATFORM_MULTIBOOT_BUILD_DIR)
+
 
 clean:
 	rm -f $(CXX_OBJS) $(ASM_OBJS) $(EFIFILE) $(SOFILE)

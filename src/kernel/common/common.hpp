@@ -5,5 +5,3 @@
 #include <common/panic.hpp>
 #include <common/utils.hpp>
 #include <common/random.hpp>
-#include <log/Logger.hpp>
-

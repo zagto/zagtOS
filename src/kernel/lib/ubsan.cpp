@@ -1,4 +1,5 @@
 #include <common/common.hpp>
+#include <iostream>
 
 struct SourceLocation {
     const char *file;

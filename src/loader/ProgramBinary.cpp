@@ -1,5 +1,5 @@
 #include <ProgramBinary.hpp>
-#include <log/Logger.hpp>
+#include <iostream>
 #include <Paging.hpp>
 #include <memory/PhysicalMemory.hpp>
 #include <common/utils.hpp>

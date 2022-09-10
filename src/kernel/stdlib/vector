@@ -2,11 +2,10 @@
 
 #include <common/common.hpp>
 #include <memory/FrameManagement.hpp>
-#include <log/Logger.hpp>
 #include <lib/Exception.hpp>
 #include <memory/DLMallocGlue.hpp>
 #include <memory>
-
+#include <iostream>
 
 template<typename ElementType> class vector {
 public:

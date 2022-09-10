@@ -4,6 +4,7 @@
 #include <vector>
 #include <processes/Process.hpp>
 #include <system/Processor.hpp>
+#include <log/BasicLog.hpp>
 
 
 extern "C" void _init();
@@ -18,6 +19,8 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
     if (processorID == 0) {
         /* glocal constructor for System and cout needs this */
         _HandOverSystem = handOver;
+
+        basicLog::init();
 
         /* Call global constructors */
         _init();

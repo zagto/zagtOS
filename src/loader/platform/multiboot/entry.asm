@@ -133,8 +133,10 @@ MultibootFramebuferTag:
     dw 5                ; tag type
     dw 0                ; flags
     dd (MultibootEndTag - MultibootFramebuferTag)
-    dd 3840
-    dd 2160
+    ; request a "safe" resolution. If a resultion is only available in 16bits, GRUB will choose
+    ; 16bit over lower resolution. But our log output does not support 16bit
+    dd 1024
+    dd 768
     dd 32
     align 8
 
