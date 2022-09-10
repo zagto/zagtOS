@@ -21,7 +21,7 @@ ASM_REGULER_OBJS = $(filter-out $(CRTI_OBJ), $(filter-out $(CRTN_OBJ), $(ASM_OBJ
 
 TARGET = $(SHBUILD_BUILD_DIR)/ZAGTKERN.ZBN
 
-COMMON_FLAGS = -Os -g  -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -fsanitize=undefined -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/ -I$(PWD)/../kernel-loader-common/arch/$(ARCH) -I$(PWD)/stdlib -I$(PWD)/../kernel-loader-common -I$(PWD)/../kernel-loader-common/stdlib
+COMMON_FLAGS = -Os -g  -ffreestanding -fno-stack-protector -Wall -Wextra -Wpedantic -Werror -fsanitize=undefined -I$(PWD)/arch/$(ARCH) -I$(PWD) -I$(PWD)/ -I$(PWD)/../kernel-loader-common/arch/$(ARCH) -I$(PWD)/stdlib -I$(PWD)/../kernel-loader-common -I$(PWD)/../kernel-loader-common/stdlib -DZAGTOS_KERNEL=1
 COMMON_FLAGS += $(KERNEL_CFLAGS_$(ARCH))
 
 CFLAGS = $(COMMON_FLAGS) -std=c99 -Wno-expansion-to-defined

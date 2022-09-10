@@ -4,6 +4,7 @@
 #include <memory/PhysicalMemory.hpp>
 #include <common/utils.hpp>
 #include <memory/ArchRegions.hpp>
+#include <processes/UserApi.hpp>
 
 /* Rather inefficient but fully in-place parsing for ZBON ProgramBinaries. We can't use the regular
  * user-spave implementation because it needs dynamic allocation due to the nature of the binary
@@ -223,24 +224,17 @@ void ProgramBinary::load(PagingContext pagingContext,
     /* if this is a user-space program, load run message */
     if (pagingContext == PagingContext::PROCESS) {
         PhysicalAddress physicalAddress = AllocatePhysicalFrame();
-        struct UserMessageInfo {
-            size_t portIndex;
-            alignas(16) uint8_t type[16];
-            size_t address;
-            size_t length;
-            size_t numHandles;
-            /* externally for user = kernel */
-            bool allocatedExternally;
-        };
-        UserMessageInfo *msgInfo = reinterpret_cast<UserMessageInfo *>(physicalAddress.value());
-        *msgInfo = {
+        auto *msgInfo = reinterpret_cast<userApi::ZoMessageInfo *>(physicalAddress.value());
+        *msgInfo = userApi::ZoMessageInfo{
             .portIndex = 0,
-            .type = {0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
-                     0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55}, /* MSG_BE_INIT */
-            .address = runMessageAddress().value(),
-            .length = 0,
-            .numHandles = 0,
-            .allocatedExternally = true
+            .type = UUID(0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
+                     0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55), /* MSG_BE_INIT */
+            .data = {
+                .data = reinterpret_cast<uint8_t *>(runMessageAddress().value()),
+                .size = 0,
+                .numHandles = 0,
+                .allocatedExternally = true,
+            },
         };
 
         frames[frameIndex] = hos_v1::Frame{

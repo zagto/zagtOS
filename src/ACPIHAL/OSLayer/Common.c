@@ -11,8 +11,8 @@
 #include <semaphore.h>
 #include <limits.h>
 #include <sys/mman.h>
-#include <zagtos/acpi.h>
-#include <zagtos/Messaging.h>
+#include <zagtos/Acpi.h>
+#include <zagtos/SharedMemory.h>
 #include <acpi.h>
 
 
@@ -33,7 +33,7 @@ ACPI_STATUS AcpiOsInitialize(void) {
 }
 
 ACPI_PHYSICAL_ADDRESS AcpiOsGetRootPointer(void) {
-    return zagtos_get_acpi_root();
+    return ZoGetAcpiRoot();
 }
 
 ACPI_STATUS AcpiOsPredefinedOverride(const ACPI_PREDEFINED_NAMES *PredefinedObject,

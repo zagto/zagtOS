@@ -3,18 +3,8 @@
 #include <errno.h>
 #include <stdint.h>
 #include <limits.h>
-#include <zagtos/unixcompat.h>
+#include <zagtos/KernelApi.h>
 #include "syscall.h"
-
-struct mmap_args {
-    void *start_address;
-    size_t length;
-    uint32_t flags;
-    size_t offset;
-    void *result;
-    uint32_t handle;
-    uint32_t protection;
-};
 
 void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 {
@@ -22,9 +12,8 @@ void *__mmap(void *start, size_t len, int prot, int flags, int fd, off_t off)
 		errno = ENOMEM;
 		return MAP_FAILED;
     }
-
-    struct mmap_args args = {
-        .start_address = start,
+    struct ZoMmapArguments args = {
+        .startAddress = start,
         .offset = off,
         .length = len,
         .protection  = prot,

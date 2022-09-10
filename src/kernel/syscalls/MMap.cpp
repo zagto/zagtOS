@@ -2,16 +2,9 @@
 #include <syscalls/MappingOperation.hpp>
 #include <syscalls/ErrorCodes.hpp>
 #include <syscalls/UserSpaceObject.hpp>
+#include <processes/UserApi.hpp>
 
-struct MMapStruct {
-    size_t startAddress;
-    size_t length;
-    uint32_t flags;
-    size_t offset;
-    size_t result;
-    uint32_t handle;
-    uint32_t protection;
-
+struct MMapStruct : userApi::ZoMmapArguments {
     size_t perform(const shared_ptr<Process> &process);
 };
 
@@ -81,7 +74,7 @@ size_t MMapStruct::perform(const shared_ptr<Process> &process) {
         return EINVAL;
     }
 
-    Region passedRegion(startAddress, length);
+    Region passedRegion(reinterpret_cast<size_t>(startAddress), length);
     shared_ptr<MemoryArea> memoryArea;
 
     if ((flags & MAP_ANONYMOUS)) {
@@ -118,7 +111,7 @@ size_t MMapStruct::perform(const shared_ptr<Process> &process) {
                                                           memoryArea,
                                                           permissions,
                                                           flags & MAP_FIXED);
-    this->result = result.value();
+    this->result = reinterpret_cast<void *>(result.value());
     return 0;
 }
 

@@ -1,6 +1,7 @@
 #include <vector>
 #include <processes/Message.hpp>
 #include <processes/Process.hpp>
+#include <processes/UserApi.hpp>
 #include <lib/Exception.hpp>
 
 
@@ -79,7 +80,7 @@ void Message::prepareMemoryArea() {
 
     /* The message metadata needs to be passed along with the run message, so for our purposes the
      * required size is the combined size of both. */
-    size_t messageRegionSize = numBytes + sizeof(UserMessageInfo);
+    size_t messageRegionSize = numBytes + sizeof(userApi::ZoMessageInfo);
 
     try {
         /* Holds the address of the message info (UserMessageInfo class) in the destination address
@@ -94,10 +95,10 @@ void Message::prepareMemoryArea() {
 
 /* Writes the UserMessageInfo structure in the destination process. */
 void Message::transferMessageInfo() {
-    UserMessageInfo msgInfo = {
+    userApi::ZoMessageInfo msgInfo = {
         0, /* filled in later */
         messageType,
-        destinationAddress().value(),
+        reinterpret_cast<uint8_t*>(destinationAddress().value()),
         numBytes,
         numHandles,
         true,
@@ -105,7 +106,7 @@ void Message::transferMessageInfo() {
 
    return destinationProcess->addressSpace.copyTo(infoAddress.value(),
                                                   reinterpret_cast<uint8_t *>(&msgInfo),
-                                                  sizeof(UserMessageInfo),
+                                                  sizeof(userApi::ZoMessageInfo),
                                                   false);
 }
 
@@ -176,7 +177,7 @@ size_t Message::simpleDataSize() const noexcept {
 /* Returns the address of the message itself (not message info) in the destination address space. */
 UserVirtualAddress Message::destinationAddress() const noexcept {
     /* Message follows directly after message info. */
-    return infoAddress.value() + sizeof(UserMessageInfo);
+    return infoAddress.value() + sizeof(userApi::ZoMessageInfo);
 }
 
 /* Allow setting destination process later on because on SpawnProcess syscalls it does not exist at

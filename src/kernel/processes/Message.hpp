@@ -51,17 +51,3 @@ public:
     void transfer();
     void setDestinationProcess(Process *process) noexcept;
 };
-
-/* when changing this struct also change it in loader/ProgramBinary.hpp */
-struct UserMessageInfo {
-    /* index into the ports array of a ReceiveMessage call */
-    size_t portIndex;
-    /* Was already 16-aligned but do it explicitly to show it is important. This struct is part
-     * of the user space ABI */
-    alignas(16) UUID type;
-    size_t address;
-    size_t length;
-    size_t numHandles;
-    /* externally for user = kernel */
-    bool allocatedExternally;
-};
