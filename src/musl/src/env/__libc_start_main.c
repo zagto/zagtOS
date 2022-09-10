@@ -5,12 +5,12 @@
 #include "syscall.h"
 #include "atomic.h"
 #include "libc.h"
-#include <zagtos/Messaging.h>
+#include <zagtos/KernelApi.h>
 #include <zagtos/unixcompat.h>
 
 extern weak hidden void (*const __init_array_start)(void), (*const __init_array_end)(void);
 
-extern struct ZoMessageInfo *__run_message;
+struct ZoProcessStartupInfo *__process_startup_info;
 
 static char *dummy_environ = NULL;
 static char *dummy_pn = "/run";
@@ -67,15 +67,16 @@ typedef int lsm2_fn(int (*)(int,char **,char **), int, char **);
 static lsm2_fn libc_start_main_stage2;
 
 int __libc_start_main(int (*main)(int,char **,char **),
-                      struct ZoMessageInfo *run_msg)
+                      struct ZoProcessStartupInfo *startup_info)
 {
     int argc;
     char **argv;
     char **envp;
 
-    __run_message = run_msg;
+    __process_startup_info = startup_info;
 
-    if (!uuid_compare(run_msg->type, ZAGTOS_MSG_UNIX_RUN)) {
+    /* TODO: Unix compatibility
+      if (!uuid_compare(run_msg->type, ZAGTOS_MSG_UNIX_RUN)) {
         ZUnixRun *urun = (ZUnixRun *)run_msg;
         argc = urun->argc;
         argv = calloc(argc, sizeof(char *));
@@ -106,14 +107,14 @@ int __libc_start_main(int (*main)(int,char **,char **),
         envp[urun->environ_count] = NULL;
 
         // TODO: stdin/out
-    } else {
+    } else {*/
         argc = 1;
         argv = &dummy_pn;
         envp = &dummy_environ;
         zagtos_init_file_descriptor(0, &syslog_fd);
         zagtos_init_file_descriptor(1, &syslog_fd);
         zagtos_init_file_descriptor(2, &syslog_fd);
-    }
+    //}
 
     struct TLSInfo *tlsInfo = (struct TLSInfo *)0x7FFFFFDF5800;
 

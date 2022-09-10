@@ -5,12 +5,9 @@
 
 
 int main();
-_Noreturn int __libc_start_main(int (*)(), void *, size_t, size_t, size_t);
+_Noreturn int __libc_start_main(int (*)(), void *);
 
-void _start(void *msg, size_t tls_base, size_t master_tls_base, size_t tls_size)
+void _start(void *startupInfo)
 {
-	int argc = 0;
-	char *av = 0;
-	char **argv = &av;
-    __libc_start_main(main, msg, tls_base, master_tls_base, tls_size);
+    __libc_start_main(main, startupInfo);
 }

@@ -65,7 +65,8 @@ namespace zagtos {
     template<typename T> T decodeRunMessage(UUID type) {
         const MessageInfo &msgInfo = receiveRunMessageInfo();
         if (type != msgInfo.type) {
-            std::cerr << "invalid run message type" << std::endl;
+            std::cerr << "invalid run message type: wanted " << type << " got "  << msgInfo.type
+                      << std::endl;
             exit(1);
         }
         T result;

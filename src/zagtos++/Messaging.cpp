@@ -1,4 +1,5 @@
 #include <zagtos/syscall.h>
+#include <zagtos/KernelApi.h>
 #include <zagtos/Messaging.hpp>
 #include <cassert>
 #include <sys/mman.h>
@@ -54,16 +55,18 @@ void RemotePort::sendMessage(UUID messageTypeID, zbon::EncodedData message) cons
                     message.numHandles());
 }
 
-extern "C" MessageInfo *__run_message;
+extern "C" ZoProcessStartupInfo *__process_startup_info;
+
 
 const MessageInfo &receiveRunMessageInfo() {
-    return *__run_message;
+    return *reinterpret_cast<MessageInfo *>(&__process_startup_info->runMessage);
 }
 
 void receiveRunMessage(UUID type) {
-    if (type != __run_message->type) {
+    auto messageInfo = reinterpret_cast<MessageInfo *>(&__process_startup_info->runMessage);
+    if (type != messageInfo->type) {
         std::cout << "invalid run message type wanted: " << type << " got "
-                  << __run_message->type << std::endl;
+                  << messageInfo->type << std::endl;
         exit(1);
     }
 }

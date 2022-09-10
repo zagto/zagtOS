@@ -19,11 +19,16 @@ private:
     size_t numBytes{0};
     size_t numHandles{0};
     bool transferred{false};
+    bool isRunMessage;
+    /* run message only */
+    uint32_t threadHandle = -1u;
+    uint32_t messageQueueHandle = -1u;
 
     void prepareMemoryArea();
     void transferMessageInfo();
     void transferHandles();
     void transferData();
+    size_t infoStructSize() const noexcept;
     UserVirtualAddress destinationAddress() const noexcept;
     size_t handlesSize() const noexcept;
     size_t simpleDataSize() const noexcept;
@@ -38,16 +43,19 @@ public:
             UserVirtualAddress sourceAddress,
             UUID messageType,
             size_t numBytes,
-            size_t numHandles) noexcept :
+            size_t numHandles,
+            bool isRunMessage) noexcept :
         sourceProcess{sourceProcess},
         destinationProcess{destinationProcess},
         sourceAddress{sourceAddress},
         messageType{messageType},
         numBytes{numBytes},
-        numHandles{numHandles} {}
+        numHandles{numHandles},
+        isRunMessage{isRunMessage} {}
     Message(const hos_v1::Message &handOver) noexcept :
         infoAddress{handOver.infoAddress} {}
 
     void transfer();
     void setDestinationProcess(Process *process) noexcept;
+    void setStartupInfo(uint32_t threadHandle, uint32_t messageQueueHandle) noexcept;
 };

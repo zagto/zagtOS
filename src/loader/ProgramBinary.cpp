@@ -224,16 +224,20 @@ void ProgramBinary::load(PagingContext pagingContext,
     /* if this is a user-space program, load run message */
     if (pagingContext == PagingContext::PROCESS) {
         PhysicalAddress physicalAddress = AllocatePhysicalFrame();
-        auto *msgInfo = reinterpret_cast<userApi::ZoMessageInfo *>(physicalAddress.value());
-        *msgInfo = userApi::ZoMessageInfo{
-            .portIndex = 0,
-            .type = UUID(0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
-                     0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55), /* MSG_BE_INIT */
-            .data = {
-                .data = reinterpret_cast<uint8_t *>(runMessageAddress().value()),
-                .size = 0,
-                .numHandles = 0,
-                .allocatedExternally = true,
+        auto *startupInfo = reinterpret_cast<userApi::ZoProcessStartupInfo *>(physicalAddress.value());
+        *startupInfo = userApi::ZoProcessStartupInfo{
+            .threadHandle = 0,
+            .messageQueueHandle = 1,
+            .runMessage = {
+                .portIndex = 0,
+                .type = UUID(0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
+                         0xba, 0xbd, 0x0b, 0xf3, 0xfb, 0x79, 0x8e, 0x55), /* MSG_BE_INIT */
+                .data = {
+                    .data = reinterpret_cast<uint8_t *>(runMessageAddress().value()),
+                    .size = 0,
+                    .numHandles = 0,
+                    .allocatedExternally = true,
+                },
             },
         };
 

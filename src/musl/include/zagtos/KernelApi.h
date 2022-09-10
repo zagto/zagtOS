@@ -1,7 +1,14 @@
 #if defined(ZAGTOS_KERNEL) || defined(ZAGTOS_LOADER)
 #else
 #include <stdint.h>
+#include <stddef.h>
 #include <uuid/uuid.h>
+#endif
+
+#ifdef __cplusplus
+#define _Bool bool
+#define _Alignas alignas
+extern "C" {
 #endif
 
 #ifndef __ZAGTOS_KERNEL_API_H_MESSAGE_DATA
@@ -61,3 +68,9 @@ struct ZoMmapArguments {
 #endif /* __ZAGTOS_KERNEL_API_H */
 #endif /* KERNEL_API_ONLY_MESSAGE_INFO */
 #endif /* KERNEL_API_ONLY_MESSAGE_DATA */
+
+#ifdef __cplusplus
+} /* extern "C" */
+#undef _Bool
+#undef _Alignas
+#endif

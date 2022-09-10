@@ -80,10 +80,10 @@ void Message::prepareMemoryArea() {
 
     /* The message metadata needs to be passed along with the run message, so for our purposes the
      * required size is the combined size of both. */
-    size_t messageRegionSize = numBytes + sizeof(userApi::ZoMessageInfo);
+    size_t messageRegionSize = numBytes + infoStructSize();
 
     try {
-        /* Holds the address of the message info (UserMessageInfo class) in the destination address
+        /* Holds the address of the message info (ZoMessageInfo class) in the destination address
          * space. */
         infoAddress = destinationProcess->addressSpace.addAnonymous(messageRegionSize,
                                                                     Permissions::READ_WRITE);
@@ -104,10 +104,22 @@ void Message::transferMessageInfo() {
         true,
     };
 
-   return destinationProcess->addressSpace.copyTo(infoAddress.value(),
-                                                  reinterpret_cast<uint8_t *>(&msgInfo),
-                                                  sizeof(userApi::ZoMessageInfo),
-                                                  false);
+   if (isRunMessage) {
+       userApi::ZoProcessStartupInfo startupInfo {
+           threadHandle,
+           messageQueueHandle,
+           msgInfo,
+       };
+       return destinationProcess->addressSpace.copyTo(infoAddress.value(),
+                                                      reinterpret_cast<uint8_t *>(&startupInfo),
+                                                      sizeof(userApi::ZoProcessStartupInfo),
+                                                      false);
+   } else {
+       return destinationProcess->addressSpace.copyTo(infoAddress.value(),
+                                                      reinterpret_cast<uint8_t *>(&msgInfo),
+                                                      sizeof(userApi::ZoMessageInfo),
+                                                      false);
+   }
 }
 
 /* creates a handle on destination side for each resource that was sent with the message and writes
@@ -154,16 +166,20 @@ void Message::transferData() {
     if (simpleDataSize() == 0) {
         return;
     }
-    /* The run message to the initial Process is sent by the kernel (i.e. sourceProcess is null),
-     * but does not contain data. */
-    assert(sourceProcess);
-
     /* the directly copyable data is after the handles */
     destinationProcess->addressSpace.copyFromOhter(destinationAddress().value() + handlesSize(),
                                                    sourceProcess->addressSpace,
                                                    sourceAddress.value() + handlesSize(),
                                                    simpleDataSize(),
                                                    false);
+}
+
+size_t Message::infoStructSize() const noexcept {
+    if (isRunMessage) {
+        return sizeof(userApi::ZoProcessStartupInfo);
+    } else {
+        return sizeof(userApi::ZoMessageInfo);
+    }
 }
 
 size_t Message::handlesSize() const noexcept {
@@ -177,7 +193,7 @@ size_t Message::simpleDataSize() const noexcept {
 /* Returns the address of the message itself (not message info) in the destination address space. */
 UserVirtualAddress Message::destinationAddress() const noexcept {
     /* Message follows directly after message info. */
-    return infoAddress.value() + sizeof(userApi::ZoMessageInfo);
+    return infoAddress.value() + infoStructSize();
 }
 
 /* Allow setting destination process later on because on SpawnProcess syscalls it does not exist at
@@ -187,3 +203,8 @@ void Message::setDestinationProcess(Process *const process) noexcept {
     destinationProcess = process;
 }
 
+void Message::setStartupInfo(uint32_t threadHandle, uint32_t messageQueueHandle) noexcept {
+    assert(isRunMessage);
+    this->threadHandle = threadHandle;
+    this->messageQueueHandle = messageQueueHandle;
+}

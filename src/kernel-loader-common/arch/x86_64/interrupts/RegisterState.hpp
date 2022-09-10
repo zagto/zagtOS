@@ -27,23 +27,23 @@ public:
     uint64_t intNr, errorCode;
     uint64_t rip, cs, rflags, rsp, ss;
 
-    RegisterState();
+    RegisterState() noexcept;
     RegisterState(UserVirtualAddress entry,
                   UserVirtualAddress stackPointer,
-                  size_t entryArgument);
+                  size_t entryArgument) noexcept;
     RegisterState(KernelVirtualAddress entry,
-                  KernelVirtualAddress stackPointer);
+                  KernelVirtualAddress stackPointer) noexcept;
 
-    inline size_t stackPointer() const {
+    inline size_t stackPointer() const noexcept {
         return rsp;
     }
-    inline void setSyscallResult(size_t value) {
+    inline void setSyscallResult(size_t value) noexcept {
         rax = value;
     }
-    inline void setThreadHandle(uint32_t value) {
-        r8 = value;
+    inline void setEntryArgument(uint32_t value) noexcept {
+        rdi = value;
     }
-    bool interruptsFlagSet() const {
+    bool interruptsFlagSet() const noexcept {
         return rflags & FLAG_INTERRUPTS;
     }
 };

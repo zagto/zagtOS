@@ -22,7 +22,8 @@ size_t SendMessage(const shared_ptr<Process> &process,
                                         messageAddress,
                                         messageType.object,
                                         messageSize,
-                                        numMessageHandles);
+                                        numMessageHandles,
+                                        false);
     message->transfer();
     port->addMessage(move(message));
     return 0;

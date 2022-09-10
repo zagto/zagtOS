@@ -156,7 +156,6 @@ void Thread::setHandle(uint32_t handle) noexcept {
     assert(handle != INVALID_HANDLE);
 
     _handle = handle;
-    kernelStack->userRegisterState()->setThreadHandle(handle);
 }
 
 Processor *Thread::currentProcessor() const noexcept {

@@ -3,13 +3,13 @@
 #include <memory/ArchRegions.hpp>
 
 
-RegisterState::RegisterState() {
+RegisterState::RegisterState() noexcept {
     memset(this, 0, sizeof(RegisterState));
 }
 
 RegisterState::RegisterState(UserVirtualAddress entry,
                              UserVirtualAddress stackPointer,
-                             size_t entryArgument)
+                             size_t entryArgument) noexcept
     : RegisterState() {
 
     rsp = stackPointer.value();

@@ -2,6 +2,7 @@
 #define __ZAGTOS_SHARED_MEMORY_H
 
 #include <zagtos/HandleObject.h>
+#include <stddef.h>
 
 int ZoCreateDMASharedMemory(size_t deviceMax, size_t length, size_t *deviceAddresses);
 int ZoCreatePhysicalSharedMemory(size_t physicalAddress, size_t length);

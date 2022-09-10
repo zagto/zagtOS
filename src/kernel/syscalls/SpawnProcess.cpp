@@ -86,7 +86,8 @@ size_t SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
                        messageAddress,
                        messageType,
                        messageSize,
-                       numMessageHandles);
+                       numMessageHandles,
+                       true);
 
     new Process(*process,
                 sections,

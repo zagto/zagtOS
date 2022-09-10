@@ -45,9 +45,6 @@ Process::Process(Process &sourceProcess,
                                    false);
     }
 
-    runMessage.setDestinationProcess(this);
-    runMessage.transfer();
-
     shared_ptr<Process> sharedProcess = shared_ptr<Process>(this);
     self = sharedProcess;
 
@@ -56,10 +53,15 @@ Process::Process(Process &sourceProcess,
                                           initialPrioriy,
                                           /* ensure valid UserVirtualAddress */
                                           UserSpaceRegion.end() - 1,
-                                          runMessage.infoAddress.value(),
+                                          /* entry argument is set later to startup info */ 0,
                                           tlsPointer);
     uint32_t handle = handleManager.add(mainThread);
     mainThread->setHandle(handle);
+
+    runMessage.setDestinationProcess(this);
+    runMessage.setStartupInfo(handle, 0);
+    runMessage.transfer();
+    mainThread->kernelStack->userRegisterState()->setEntryArgument(runMessage.infoAddress.value());
     Scheduler::schedule(mainThread.get(), true);
 }
 

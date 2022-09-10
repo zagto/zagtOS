@@ -125,12 +125,6 @@ public:
            UserVirtualAddress stackPointer,
            size_t entryArgument,
            size_t tlsPointer);
-    /* shorter constructor for non-first threads, which don't want to know info about master TLS */
-    Thread(shared_ptr<Process> process,
-           UserVirtualAddress entry,
-           Priority priority,
-           UserVirtualAddress stackPointer,
-           UserVirtualAddress tlsBase);
     /* for kernel-only threads: */
     Thread(void (*entry)(void *),
            Priority priority);
