@@ -1,5 +1,6 @@
 #include <common/inttypes.hpp>
 #include <log/SerialBackend.hpp>
+#include <log/BasicLog.hpp>
 #include <portio.hpp>
 
 using namespace portio;
@@ -41,7 +42,7 @@ bool SerialBackend::isTransmitEmpty() {
     return InB(SERIAL_PORT + 5) & 0x20;
 }
 
-void SerialBackend::write(char character) {
+void SerialBackend::writeCharacter(char character) {
     while (!isTransmitEmpty());
     OutB(SERIAL_PORT, static_cast<uint8_t>(character));
 }
@@ -68,4 +69,20 @@ void SerialBackend::setProgramColor() {
     write('3');
     write('0');
     write('m');
+}
+
+void SerialBackend::write(char character) {
+    switch (character) {
+    case basicLog::ControlCharacter::KERNEL_COLOR:
+        setKernelColor();
+        break;
+    case basicLog::ControlCharacter::PROGRAM_NAME_COLOR:
+        setProgramNameColor();
+        break;
+    case basicLog::ControlCharacter::PROGRAM_COLOR:
+        setProgramColor();
+        break;
+    default:
+        writeCharacter(character);
+    }
 }
