@@ -125,9 +125,6 @@ void FramebufferBackend::write(char character) {
     case basicLog::ControlCharacter::PROGRAM_COLOR:
         foregroundColor = {0, 0, 0};
         break;
-    case basicLog::ControlCharacter::LOADER_COLOR:
-        foregroundColor = {255, 255, 0};
-        break;
     default:
         writeCharacter(character);
     }

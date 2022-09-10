@@ -5,7 +5,7 @@
 namespace basicLog {
 
 enum ControlCharacter {
-    KERNEL_COLOR = 1, PROGRAM_NAME_COLOR, PROGRAM_COLOR, LOADER_COLOR
+    KERNEL_COLOR = 1, PROGRAM_NAME_COLOR, PROGRAM_COLOR
 };
 
 void init();
