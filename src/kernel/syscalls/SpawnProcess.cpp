@@ -82,7 +82,8 @@ size_t SpawnProcessStruct::perform(const shared_ptr<Process> &process) {
         }
     }
     Message runMessage(process.get(),
-                       nullptr,
+                       /* destination process is inserted later */ nullptr,
+                       /* event tag */ 0,
                        messageAddress,
                        messageType,
                        messageSize,

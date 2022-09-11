@@ -26,7 +26,7 @@ public:
     void writeOut() {
         static_assert(op != USOOperation::READ, "read-only USOs cannot be written out");
         CurrentProcess()->addressSpace.copyTo(address,
-                                              reinterpret_cast<uint8_t *>(&object),
+                                              reinterpret_cast<const uint8_t *>(&object),
                                               sizeof(T),
                                               true);
     }

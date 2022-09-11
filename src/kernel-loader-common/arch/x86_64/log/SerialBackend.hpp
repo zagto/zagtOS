@@ -6,9 +6,9 @@ private:
     void setKernelColor();
     void setProgramNameColor();
     void setProgramColor();
-    void writeCharacter(char character);
 
 public:
     void init();
+    void writeCharacter(char character);
     void write(char character);
 };

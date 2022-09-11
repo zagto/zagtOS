@@ -3,7 +3,6 @@
 #include <memory/ArchRegions.hpp>
 #include <processes/Process.hpp>
 #include <processes/MappedArea.hpp>
-#include <processes/Port.hpp>
 #include <processes/Message.hpp>
 #include <processes/Scheduler.hpp>
 #include <system/Processor.hpp>
@@ -12,9 +11,10 @@
 Process::Process(const hos_v1::Process &handOver,
                  const vector<shared_ptr<Thread>> &allThreads,
                  const vector<shared_ptr<Port>> &allPorts,
-                 const vector<shared_ptr<MemoryArea> > &allMemoryAreas) :
+                 const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
+                 const vector<shared_ptr<EventQueue>> &allEventQueues) :
         addressSpace(handOver, allMemoryAreas),
-        handleManager(*this, handOver, allThreads, allPorts, allMemoryAreas),
+        handleManager(*this, handOver, allThreads, allPorts, allMemoryAreas, allEventQueues),
         futexManager(handOver.localFutexes, handOver.numLocalFutexes, allThreads) {
 
     logName.resize(handOver.numLogNameChars);
@@ -55,11 +55,13 @@ Process::Process(Process &sourceProcess,
                                           UserSpaceRegion.end() - 1,
                                           /* entry argument is set later to startup info */ 0,
                                           tlsPointer);
-    uint32_t handle = handleManager.add(mainThread);
-    mainThread->setHandle(handle);
+    uint32_t threadHandle = handleManager.add(mainThread);
+    mainThread->setHandle(threadHandle);
+    auto eventQueue = make_shared<EventQueue>(sharedProcess);
+    uint32_t eventQueueHandle = handleManager.add(eventQueue);
 
     runMessage.setDestinationProcess(this);
-    runMessage.setStartupInfo(handle, 0);
+    runMessage.setStartupInfo(threadHandle, eventQueueHandle);
     runMessage.transfer();
     mainThread->kernelStack->userRegisterState()->setEntryArgument(runMessage.infoAddress.value());
     Scheduler::schedule(mainThread.get(), true);

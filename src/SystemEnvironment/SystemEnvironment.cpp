@@ -31,10 +31,9 @@ struct DeviceMatch {
 class Driver;
 struct RunningDriver {
     std::shared_ptr<Driver> driver;
-    std::unique_ptr<Port> port;
+    Port port;
 };
 std::vector<RunningDriver> RunningDrivers;
-std::vector<std::reference_wrapper<Port>> AllPorts;
 
 struct Driver {
     const ExternalBinary &binary;
@@ -80,11 +79,9 @@ std::vector<std::shared_ptr<Driver>> DriverRegistry;
 void StartDriver(std::shared_ptr<Driver> driver,
                  UUID onController,
                  const zbon::EncodedData &message) {
-    auto port = std::make_unique<Port>();
-    auto runMessage = zbon::encodeObject(onController, *port, message);
+    Port port(DefaultEventQueue, reinterpret_cast<size_t>(driver.get()));
+    auto runMessage = zbon::encodeObject(onController, port, message);
     environmentSpawn(driver->binary, Priority::BACKGROUND, driver::MSG_START, runMessage);
-
-    AllPorts.push_back(*port);
     RunningDrivers.push_back({std::move(driver), std::move(port)});
 }
 
@@ -112,7 +109,7 @@ void registerEmbeddedDrivers() {
 }
 
 int main() {
-    receiveRunMessage(MSG_BE_INIT);
+    CheckRunMessageType(MSG_BE_INIT);
 
     std::cout << "Setup..." << std::endl;
 
@@ -123,29 +120,28 @@ int main() {
     StartDriver(DriverRegistry[0], driver::CONTROLLER_TYPE_ROOT, zbon::encode(0));
 
     while (true) {
-        std::unique_ptr<MessageInfo> msgInfo = Port::receiveMessage(
-                    std::vector<std::reference_wrapper<Port>>(AllPorts.begin(), AllPorts.end()));
-        RunningDriver &sender = RunningDrivers[msgInfo->portIndex];
-        std::cout << "Message from " << sender.driver->name() << " (" << msgInfo->portIndex << ")" << std::endl;
+        Event event = DefaultEventQueue.waitForEvent();
+        Driver *sender = reinterpret_cast<Driver *>(event.tag());
+        std::cout << "Message from " << sender->name() << std::endl;
 
-        if (msgInfo->type == driver::MSG_START_RESULT) {
+        if (event.messageType() == driver::MSG_START_RESULT) {
             bool result;
             try {
-                zbon::decode(msgInfo->data, result);
+                zbon::decode(event.messageData(), result);
             } catch(zbon::DecoderException &e) {
                 std::cout << "Received malformed MSG_START_RESULT message." << std::endl;
                 continue;
             }
 
             if (result) {
-                std::cout << sender.driver->name() << " startup complete. TODO: what's next?" << std::endl;
+                std::cout << sender->name() << " startup complete. TODO: what's next?" << std::endl;
             } else {
-                std::cout << sender.driver->name() << " startup failed." << std::endl;
+                std::cout << sender->name() << " startup failed." << std::endl;
             }
-        } else if (msgInfo->type == driver::MSG_FOUND_DEVICE) {
+        } else if (event.messageType() == driver::MSG_FOUND_DEVICE) {
             std::tuple<UUID, uint64_t, zbon::EncodedData> msg;
             try {
-                zbon::decode(msgInfo->data, msg);
+                zbon::decode(event.messageData(), msg);
             } catch(zbon::DecoderException &e) {
                 std::cout << "Received malformed MSG_FOUND_DEVICE message." << std::endl;
                 continue;
@@ -155,15 +151,15 @@ int main() {
             uint64_t deviceID = std::get<1>(msg);
             auto driverMessage = std::move(std::get<2>(msg));
 
-            if (!sender.driver->canProvideController(controllerType)) {
-                std::cout << sender.driver->name() << " found a device on a controller it is not allowed to provide" << std::endl;
+            if (!sender->canProvideController(controllerType)) {
+                std::cout << sender->name() << " found a device on a controller it is not allowed to provide" << std::endl;
                 continue;
             }
 
             for (auto &driver: DriverRegistry) {
                 if (driver->matchesDevice(controllerType, deviceID)) {
                     Port port;
-                    std::cout << "starting driver " << driver->name() << " for device found by " << sender.driver->name() << std::endl;
+                    std::cout << "starting driver " << driver->name() << " for device found by " << sender->name() << std::endl;
                     StartDriver(driver, controllerType, driverMessage);
                     break;
                 }

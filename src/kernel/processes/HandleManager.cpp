@@ -1,5 +1,6 @@
 #include <common/common.hpp>
 #include <processes/HandleManager.hpp>
+#include <processes/HandleManager.hpp>
 #include <processes/Process.hpp>
 
 namespace handleManager {
@@ -22,7 +23,8 @@ HandleManager::HandleManager(Process &process,
                              const hos_v1::Process &handOver,
                              const vector<shared_ptr<Thread>> &allThreads,
                              const vector<shared_ptr<Port>> &allPorts,
-                             const vector<shared_ptr<MemoryArea> > &allMemoryAreas) :
+                             const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
+                             const vector<shared_ptr<EventQueue>> &allEventQueues) :
         process{process} {
 
     uint32_t maxHandle = 0;
@@ -66,8 +68,11 @@ HandleManager::HandleManager(Process &process,
         case Type::MEMORY_AREA:
             new (at(handle)) PointerElement(allMemoryAreas[hosHandle.objectID]);
             break;
+        case Type::EVENT_QUEUE:
+            new (at(handle)) PointerElement(allEventQueues[hosHandle.objectID]);
+            break;
         default:
-            /* Could never ever reach this */
+            cout << "HandleManager: got unknown type form handover" << endl;
             Panic();
         }
     }
@@ -207,9 +212,9 @@ void HandleManager::insertAllProcessPointersAfterKernelHandover(const shared_ptr
         if (threadElement) {
             threadElement->pointer->process = process;
         }
-        auto portElement = dynamic_cast<PointerElement<shared_ptr<Port>> *>(at(handle));
-        if (portElement) {
-            portElement->pointer->process = process;
+        auto eventQueueElement = dynamic_cast<PointerElement<shared_ptr<EventQueue>> *>(at(handle));
+        if (eventQueueElement) {
+            eventQueueElement->pointer->process = process;
         }
     }
 }

@@ -1,5 +1,4 @@
-#if defined(ZAGTOS_KERNEL) || defined(ZAGTOS_LOADER)
-#else
+#if !(defined(ZAGTOS_KERNEL) || defined(ZAGTOS_LOADER))
 #include <stdint.h>
 #include <stddef.h>
 #include <uuid/uuid.h>
@@ -8,6 +7,10 @@
 #ifdef __cplusplus
 #define _Bool bool
 #define _Alignas alignas
+#if !(defined(ZAGTOS_KERNEL) || defined(ZAGTOS_LOADER))
+namespace zagtos {
+namespace cApi {
+#endif
 extern "C" {
 #endif
 
@@ -31,8 +34,6 @@ struct ZoMessageData {
 #define __ZAGTOS_KERNEL_API_H_MESSAGE_INFO
 
 struct ZoMessageInfo {
-    /* index into the ports array of a ReceiveMessage call */
-    size_t portIndex;
 #if defined(ZAGTOS_KERNEL) || defined(ZAGTOS_LOADER)
     _Alignas(16) UUID type;
 #else
@@ -40,6 +41,18 @@ struct ZoMessageInfo {
 #endif
     struct ZoMessageData data;
 };
+
+static const size_t ZAGTOS_EVENT_MESSAGE = 1;
+static const size_t ZAGTOS_EVENT_INTERRUPT = 2;
+
+struct ZoEventInfo {
+    size_t type;
+    size_t tag;
+    union {
+        struct ZoMessageInfo messageInfo;
+    };
+};
+
 
 #endif /* __ZAGTOS_KERNEL_API_H_MESSAGE_INFO */
 
@@ -51,7 +64,7 @@ struct ZoMessageInfo {
 
 struct ZoProcessStartupInfo {
     uint32_t threadHandle;
-    uint32_t messageQueueHandle;
+    uint32_t eventQueueHandle;
     struct ZoMessageInfo runMessage;
 };
 
@@ -75,6 +88,10 @@ static const uint32_t ZAGTOS_INVALID_HANDLE = 0xffffffff;
 
 #ifdef __cplusplus
 } /* extern "C" */
+#if !(defined(ZAGTOS_KERNEL) || defined(ZAGTOS_LOADER))
+} /* namespace cApi */
+} /* namespace zagtos */
+#endif
 #undef _Bool
 #undef _Alignas
 #endif

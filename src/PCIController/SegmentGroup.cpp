@@ -36,7 +36,8 @@ void SegmentGroup::detectDevices(std::vector<Device> &allDevices) {
                 if (configSpace->vendorID() != 0xffff) {
                     if (configSpace->headerType() == 0) {
                         /* regular device */
-                        allDevices.emplace_back(configSpace);
+                        size_t deviceID = allDevices.size();
+                        allDevices.emplace_back(configSpace, deviceID);
                     }
                 }
             }

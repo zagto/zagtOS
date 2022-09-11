@@ -14,25 +14,25 @@ void HandleObject::ZBONEncode(zbon::Encoder &encoder) const {
 }
 
 void HandleObject::ZBONDecode(zbon::Decoder &decoder) {
-    assert(_handle == INVALID_HANDLE);
+    assert(_handle == cApi::ZAGTOS_INVALID_HANDLE);
 
     decoder.decodeHandle(_handle);
 }
 
 HandleObject::HandleObject(HandleObject &&other) {
     _handle = other._handle;
-    other._handle = INVALID_HANDLE;
+    other._handle = cApi::ZAGTOS_INVALID_HANDLE;
 }
 
 HandleObject &HandleObject::operator=(HandleObject &&other) {
     this->~HandleObject();
     _handle = other._handle;
-    other._handle = INVALID_HANDLE;
+    other._handle = cApi::ZAGTOS_INVALID_HANDLE;
     return *this;
 }
 
 HandleObject::~HandleObject() {
-    if (_handle != INVALID_HANDLE) {
+    if (_handle != cApi::ZAGTOS_INVALID_HANDLE) {
         zagtos_syscall1(SYS_DELETE_HANDLE, _handle);
     }
 }

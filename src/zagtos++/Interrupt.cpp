@@ -1,5 +1,6 @@
 #include <zagtos/Interrupt.hpp>
 #include <zagtos/syscall.h>
+#include <zagtos/EventQueue.hpp>
 #include <memory>
 
 namespace zagtos {
@@ -23,16 +24,12 @@ Interrupt &Interrupt::operator=(Interrupt &&other) {
     return *this;
 }
 
-void Interrupt::subscribe() {
-    zagtos_syscall1(SYS_SUBSCRIBE_INTERRUPT, _handle);
+void Interrupt::subscribe(EventQueue &eventQueue, size_t eventTag) {
+    zagtos_syscall3(SYS_SUBSCRIBE_INTERRUPT, _handle, eventQueue._handle, eventTag);
 }
 
 void Interrupt::unsubscribe() {
     zagtos_syscall1(SYS_UNSUBSCRIBE_INTERRUPT, _handle);
-}
-
-bool Interrupt::wait() {
-    return zagtos_syscall1(SYS_WAIT_INTERRUPT, _handle);
 }
 
 void Interrupt::processed() {

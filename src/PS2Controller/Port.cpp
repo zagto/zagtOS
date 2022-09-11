@@ -1,5 +1,4 @@
 #include <chrono>
-#include <mutex>
 #include <optional>
 #include "Port.hpp"
 #include "Controller.hpp"
@@ -12,7 +11,6 @@ Port::Port(Controller &controller, zagtos::Interrupt interrupt, size_t portIndex
     interrupt{std::move(interrupt)} {}
 
 void Port::sendToDevice(uint8_t value) {
-    std::scoped_lock sl(controller.lock);
     if (portIndex == 1) {
         controller.command(Controller::Command::DataToSecondPort);
     }
@@ -27,13 +25,12 @@ void Port::handler() {
     std::vector<uint8_t> data;
 
     while (true) {
-        interrupt.wait();
+        //interrupt.wait();
         std::cout << "Got interrupt " << portIndex << std::endl;
 
         std::optional<uint8_t> byte;
 
         {
-            std::scoped_lock sl(controller.lock);
             if (controller.statusBit(Controller::Status::OutputBufferFull)) {
                 std::cout << "got byte" << std::endl;
                 byte = controller.data();

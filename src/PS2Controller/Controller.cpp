@@ -1,5 +1,6 @@
 #include <chrono>
 #include <unistd.h>
+#include <zagtos/EventQueue.hpp>
 #include "Controller.hpp"
 
 namespace ps2controller {
@@ -47,8 +48,8 @@ Controller::Controller(zagtos::RemotePort &_environmentPort,
         ports[1].works = commandWithResult(Command::TestFirstPort) == 0;
     }
 
-    ports[0].interrupt.subscribe();
-    ports[1].interrupt.subscribe();
+    ports[0].interrupt.subscribe(zagtos::DefaultEventQueue, 0);
+    ports[1].interrupt.subscribe(zagtos::DefaultEventQueue, 1);
 
     if (ports[0].works) {
         command(Command::EnableFirstPort);

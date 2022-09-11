@@ -20,6 +20,7 @@ private:
 
     zagtos::pci::Device info;
     ConfigSpace *configSpace;
+    size_t id;
     zagtos::Port _driverPort;
 
     MSICapability *MSI = nullptr;
@@ -36,7 +37,7 @@ private:
     void detectCapablities();
 
 public:
-    Device(ConfigSpace *configSpace);
+    Device(ConfigSpace *configSpace, size_t id);
 
     uint64_t combinedID() const;
     zbon::EncodedData driverRunMessage();

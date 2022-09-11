@@ -57,7 +57,8 @@ size_t IOAPIC::numEntries() noexcept {
 
 void IOAPIC::bindInterrutpt(BoundInterrupt &boundInterrupt) noexcept {
     assert(isForGSI(boundInterrupt.typeData));
-    scoped_lock sl(lock);
+    scoped_lock sl1(KernelInterruptsLock);
+    scoped_lock sl2(lock);
 
     uint32_t low = static_cast<uint32_t>(boundInterrupt._processorInterrupt.vectorNumber)
             | (static_cast<uint32_t>(DeliveryMode::FIXED) << 8)
@@ -74,7 +75,8 @@ void IOAPIC::bindInterrutpt(BoundInterrupt &boundInterrupt) noexcept {
 
 void IOAPIC::unbindInterrutpt(BoundInterrupt &boundInterrupt) noexcept {
     assert(isForGSI(boundInterrupt.typeData));
-    scoped_lock sl(lock);
+    scoped_lock sl1(KernelInterruptsLock);
+    scoped_lock sl2(lock);
 
     writeRegister(REG_FIRST_ENTRY + 2 * (boundInterrupt.typeData - gsiBase), 0);
     writeRegister(REG_FIRST_ENTRY + 2 * (boundInterrupt.typeData - gsiBase) + 1, 0);

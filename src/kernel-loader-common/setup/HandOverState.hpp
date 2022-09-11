@@ -2,6 +2,7 @@
 
 #include <common/inttypes.hpp>
 #include <interrupts/RegisterState.hpp>
+#include <processes/UserApi.hpp>
 
 namespace hos_v1 {
 
@@ -26,7 +27,7 @@ enum FirmwareType : uint32_t {
 };
 
 enum class HandleType : uint32_t {
-    INVALID, FREE, PORT, REMOTE_PORT, THREAD, MEMORY_AREA, INTERRUPT
+    INVALID, FREE, PORT, REMOTE_PORT, THREAD, MEMORY_AREA, INTERRUPT, EVENT_QUEUE
 };
 
 /* TODO: other architectures */
@@ -79,15 +80,16 @@ struct Handle {
     size_t objectID;
 };
 
-struct Message {
-    size_t infoAddress;
+struct EventQueue {
+    size_t numWaitingThreads;
+    size_t *waitingThreadIDs;
+    size_t numEvents;
+    userApi::ZoEventInfo *events;
 };
 
 struct Port {
-    bool threadWaits;
-    size_t waitingThreadID;
-    size_t numMessages;
-    Message *messages;
+    size_t tag;
+    size_t eventQueueID;
 };
 
 struct Process {
@@ -140,6 +142,8 @@ struct System {
     MemoryArea *memoryAreas;
     size_t numFrames;
     Frame *frames;
+    size_t numEventQueues;
+    EventQueue *eventQueues;
 
     uint64_t timerFrequency;
 

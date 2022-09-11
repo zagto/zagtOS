@@ -86,8 +86,10 @@ void Device::detectCapablities() {
     }
 }
 
-Device::Device(ConfigSpace *configSpace) :
-    configSpace{configSpace} {
+Device::Device(ConfigSpace *configSpace, size_t id) :
+    configSpace{configSpace},
+    id{id},
+    _driverPort(zagtos::DefaultEventQueue, id) {
 
     uint64_t combinedID = static_cast<uint64_t>(configSpace->vendorID())
             | (static_cast<uint64_t>(configSpace->deviceID()) << 16)

@@ -12,6 +12,7 @@ template class shared_ptr<Port>;
 template class shared_ptr<MappedArea>;
 template class shared_ptr<MemoryArea>;
 template class shared_ptr<BoundInterrupt>;
+template class shared_ptr<EventQueue>;
 
 template<typename T>
 shared_ptr<T>::InternalPointer::~InternalPointer() noexcept {

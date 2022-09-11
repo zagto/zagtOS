@@ -5,7 +5,7 @@
 #include <optional>
 #include <mutex>
 #include <memory>
-#include <processes/Port.hpp>
+#include <processes/EventQueue.hpp>
 #include <processes/Thread.hpp>
 #include <processes/MemoryArea.hpp>
 #include <processes/UserApi.hpp>
@@ -16,6 +16,12 @@ struct IOPortRange {
     uint16_t start;
     uint16_t max;
 };
+
+struct Port {
+    const shared_ptr<EventQueue> eventQueue;
+    size_t eventTag;
+};
+
 
 namespace handleManager {
 
@@ -59,6 +65,7 @@ template struct PointerElement<shared_ptr<Thread>>;
 template struct PointerElement<shared_ptr<MemoryArea>>;
 template struct PointerElement<shared_ptr<BoundInterrupt>>;
 template struct PointerElement<IOPortRange>;
+template struct PointerElement<shared_ptr<EventQueue>>;
 static constexpr size_t ELEMENT_SIZE = sizeof(PointerElement<shared_ptr<Port>>);
 static constexpr size_t ELEMENT_ALIGN = alignof(PointerElement<shared_ptr<Port>>);
 static_assert(sizeof(PointerElement<weak_ptr<Port>>) == ELEMENT_SIZE);
@@ -93,7 +100,8 @@ public:
                   const hos_v1::Process &handOver,
                   const vector<shared_ptr<Thread>> &allThreads,
                   const vector<shared_ptr<Port>> &allPorts,
-                  const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
+                  const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
+                  const vector<shared_ptr<EventQueue>> &allEventQueues);
     HandleManager(HandleManager &) = delete;
 
     template<typename T> uint32_t add(T pointer) noexcept {
@@ -103,10 +111,12 @@ public:
     template<typename T> T lookup(uint32_t handle) {
         scoped_lock sl(lock);
         if (handle >= numAllocated) {
+            cout << "handle " << handle << " is out of range" << endl;
             throw BadUserSpace(sharedProcess());
         }
         auto result = dynamic_cast<PointerElement<T> *>(at(handle));
         if (!result) {
+            cout << "handle " << handle << " does not point to an object of right type" << endl;
             throw BadUserSpace(sharedProcess());
         }
         return result->pointer;

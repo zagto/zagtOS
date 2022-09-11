@@ -109,6 +109,16 @@ void handleUserException(RegisterState *registerState) {
     Thread *thread = CurrentThread();
     assert(thread || (X86ExceptionRegion.contains(registerState->intNr) && !fromUserSpace));
 
+    if (registerState->intNr == StaticInterrupt::IPI
+            || registerState->intNr == StaticInterrupt::TIMER
+            || DynamicInterruptRegion.contains(registerState->intNr)) {
+        /* EOI first, occur may wake threads on other Processors, which may trigger the
+         * next interrupt, which we don't want to lose (edge-triggered).
+         * We do the EOI before the exception loop, so it is not done twice in case of RETRY
+         * exception handling */
+        processor->endOfInterrupt();
+    }
+
     Exception::Action action;
     do {
         action = Exception::Action::CONTINUE;
@@ -129,9 +139,8 @@ void handleUserException(RegisterState *registerState) {
                 /* Dispensing the spurious-interrupt vector does not affect the ISR, so the
                  * handler for this vector should return without an EOI.
                  *  - Intel Manual Vol.1 10.9 Spurious Interrupt */
-                processor->endOfInterrupt();
+                //processor->endOfInterrupt();
             } else if (registerState->intNr == StaticInterrupt::IPI) {
-                processor->endOfInterrupt();
 
                 uint32_t ipis = __atomic_exchange_n(&processor->ipiFlags, 0, __ATOMIC_SEQ_CST);
 
@@ -142,13 +151,9 @@ void handleUserException(RegisterState *registerState) {
                     processor->scheduler.checkChanges();
                 }
             } else if (registerState->intNr == StaticInterrupt::TIMER) {
-                processor->endOfInterrupt();
                 processor->scheduler.checkChanges();
             } else if (DynamicInterruptRegion.contains(registerState->intNr)) {
                 cout << "Dynamic Interrupt " << registerState->intNr << " occured" << endl;
-                /* EOI first, occur may wake threads on other Processors, which may trigger the
-                 * next interrupt, which we don't want to lose (edge-triggered) */
-                processor->endOfInterrupt();
                 InterruptManager.occur({processor->id, registerState->intNr});
             } else {
                 cout << "Unknown Interrupt " << registerState->intNr << endl;

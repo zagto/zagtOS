@@ -70,7 +70,7 @@ void Controller::reset() {
                     zagtos::pci::MSG_READ_CONFIG_SPACE,
                     zbon::encodeObject(responsePort,
                                        PCS_REGISTER_INDEX));
-        auto readResult = responsePort.receiveMessage<std::optional<uint32_t>>(
+        auto readResult = responsePort.waitForMessage<std::optional<uint32_t>>(
                     zagtos::pci::MSG_READ_CONFIG_SPACE_RESULT);
         if (!readResult) {
             throw std::runtime_error("unable to read Intel PCS register");
@@ -83,7 +83,7 @@ void Controller::reset() {
                     zbon::encodeObject(responsePort,
                                        PCS_REGISTER_INDEX,
                                        pcsRegister));
-        bool writeResult = responsePort.receiveMessage<bool>(
+        bool writeResult = responsePort.waitForMessage<bool>(
                     zagtos::pci::MSG_WRITE_CONFIG_SPACE_RESULT);
         if (!writeResult) {
             throw std::runtime_error("unable to write Intel PCS register");

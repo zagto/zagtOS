@@ -1,72 +1,49 @@
-#include <vector>
+#include <map>
 #include <mutex>
-#include <memory>
-#include <thread>
 #include <iostream>
-#include <algorithm>
 #include <zagtos/Interrupt.hpp>
+#include <zagtos/EventQueue.hpp>
 extern "C" {
     #include <acpi.h>
 }
 
-struct Handler {
-    uint32_t number;
+struct InstalledHandler {
     ACPI_OSD_HANDLER callback;
     void *context;
-    std::unique_ptr<std::thread> thread;
     zagtos::Interrupt interrupt;
 };
 
-std::vector<std::unique_ptr<Handler>> handlers;
-std::mutex handlersLock;
+static std::map<int32_t, InstalledHandler> handlers;
+static std::mutex handlersLock;
 
-static void handlerThread(Handler &info) {
-    std::cout << "start handler Thread for interrupt " << info.number << std::endl;
+void HandleInterrupt(int32_t number) {
+    std::scoped_lock sl(handlersLock);
 
-    while (true) {
-        if (info.interrupt.wait()) {
-            info.callback(info.context);
-            info.interrupt.processed();
-        } else {
-            /* unsubscribed */
-            return;
-        }
+    if (!handlers.contains(number)) {
+        std::cout << "OSLayer: ACPI interrupt " << number << " triggered while no handler "
+                  << "registered" << std::endl;
+    } else {
+        InstalledHandler &handler = handlers[number];
+        handler.callback(handler.context);
+        handler.interrupt.processed();
     }
 }
 
 extern "C"
 ACPI_STATUS AcpiOsInstallInterruptHandler(uint32_t number, ACPI_OSD_HANDLER callback, void *context) {
     std::scoped_lock sl(handlersLock);
-
-    auto handler = std::make_unique<Handler>();
-    handler->number = number;
-    handler->callback = callback;
-    handler->context = context;
-
-    handler->interrupt = zagtos::Interrupt(number, zagtos::TriggerMode::RISING_EDGE);
-    handler->interrupt.subscribe();
-
-    handler->thread = std::make_unique<std::thread>(handlerThread, std::ref(*handler));
-    handlers.push_back(std::move(handler));
-
+    zagtos::Interrupt interrupt(number, zagtos::TriggerMode::RISING_EDGE);
+    interrupt.subscribe(zagtos::DefaultEventQueue, number);
+    handlers[number] = {callback, context, std::move(interrupt)};
+    std::cout << "OSLayer: installed interrupt handler for " << number << std::endl;
     return AE_OK;
 }
 
 extern "C"
-ACPI_STATUS AcpiOsRemoveInterruptHandler(uint32_t number, ACPI_OSD_HANDLER callback) {
+ACPI_STATUS AcpiOsRemoveInterruptHandler(uint32_t number, ACPI_OSD_HANDLER) {
     std::scoped_lock sl(handlersLock);
-
-    auto iterator = std::find_if(handlers.begin(),
-                                 handlers.end(),
-                                 [number, callback](auto &handler) {
-        return handler->number == number && handler->callback == callback;
-    });
-    assert(iterator != handlers.end());
-
-    (*iterator)->interrupt.unsubscribe();
-    handlers.erase(iterator);
-
-    std::cout << "removed interrupt handler for " << number << std::endl;
+    handlers.erase(number);
+    std::cout << "OSLayer: removed interrupt handler for " << number << std::endl;
     return AE_OK;
 }
 

@@ -1,73 +1,77 @@
 #include <zagtos/syscall.h>
 #include <zagtos/KernelApi.h>
 #include <zagtos/Messaging.hpp>
+#include <zagtos/ZBON.hpp>
 #include <cassert>
 #include <sys/mman.h>
 
 namespace zagtos {
 
-void *MessageInfo::operator new(std::size_t) {
-    throw std::logic_error("MessageInfo objects should only be allocated by the kernel");
+MessageData::MessageData(MessageData &&other) {
+    data = other.data;
+    size = other.size;
+    numHandles = other.numHandles;
+    allocatedExternally = other.allocatedExternally;
+    other.data = nullptr;
+    other.size = 0;
+    other.numHandles = 0;
+    other.allocatedExternally = false;
 }
 
-void *MessageInfo::operator new[](std::size_t) {
-    throw std::logic_error("MessageInfo objects should only be allocated by the kernel");
+MessageData::~MessageData() {
+    if (data != nullptr && !allocatedExternally) {
+        delete[] data;
+    }
 }
 
-void MessageInfo::operator delete(void *object) {
-    MessageInfo *msgInfo = reinterpret_cast<MessageInfo *>(object);
-    size_t munmapSize = reinterpret_cast<size_t>(msgInfo->data.data())
-            + msgInfo->data.size()
-            - reinterpret_cast<size_t>(msgInfo);
-    int result = munmap(object, munmapSize);
-    assert(result == 0);
+zbon::Size MessageData::ZBONSize() const {
+    return {size - numHandles * zbon::HANDLE_SIZE, numHandles};
 }
 
+Port::Port(EventQueue &eventQueue, size_t tag) {
+    size_t result = zagtos_syscall2(SYS_CREATE_PORT, eventQueue._handle, tag);
+    _handle = static_cast<uint32_t>(result);
+}
 
 Port::Port() {
-    _handle = {static_cast<uint32_t>(zagtos_syscall0(SYS_CREATE_PORT))};
+    /* TODO: this could become a single combined syscall if performance-relevant */
+    privateEventQueue.emplace();
+    size_t result = zagtos_syscall2(SYS_CREATE_PORT, privateEventQueue->_handle, 0);
+    _handle = static_cast<uint32_t>(result);
 }
 
-std::unique_ptr<MessageInfo> Port::receiveMessage() {
-    /* will be overwritten by result index, so don't use the member variable directly */
-    size_t tempHandle = _handle;
-    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(&tempHandle), 1);
-    assert(reinterpret_cast<MessageInfo *>(result)->portIndex == 0);
-    return std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result));
-}
-
-std::unique_ptr<MessageInfo>
-Port::receiveMessage(std::vector<std::reference_wrapper<Port>> ports) {
-    std::vector<uint32_t> handles(ports.size());
-    for (size_t index = 0; index < ports.size(); index++) {
-        handles[index] = ports[index].get()._handle;
+Event Port::waitForMessage() {
+    if (!privateEventQueue) {
+        throw std::logic_error("Do not use Port::receiveMessage on ports that use a shared event "
+                               "queue. Use EventQueue::waitForEvent");
     }
-    size_t result = zagtos_syscall2(SYS_RECEIVE_MESSAGE, reinterpret_cast<size_t>(handles.data()), handles.size());
-    return std::unique_ptr<MessageInfo>(reinterpret_cast<MessageInfo *>(result));
+    return privateEventQueue->waitForEvent();
 }
 
-void RemotePort::sendMessage(UUID messageTypeID, zbon::EncodedData message) const {
+void RemotePort::sendMessage(UUID messageTypeID, MessageData messageData) const {
     zagtos_syscall5(SYS_SEND_MESSAGE,
                     _handle,
                     reinterpret_cast<size_t>(&messageTypeID),
-                    reinterpret_cast<size_t>(message.data()),
-                    message.size(),
-                    message.numHandles());
+                    reinterpret_cast<size_t>(messageData.data),
+                    messageData.size,
+                    messageData.numHandles);
 }
 
-extern "C" ZoProcessStartupInfo *__process_startup_info;
+extern "C" cApi::ZoProcessStartupInfo *__process_startup_info;
 
-
-const MessageInfo &receiveRunMessageInfo() {
-    return *reinterpret_cast<MessageInfo *>(&__process_startup_info->runMessage);
+const MessageData &RunMessageData() {
+    return static_cast<MessageData &>(__process_startup_info->runMessage.data);
 }
 
-void receiveRunMessage(UUID type) {
-    auto messageInfo = reinterpret_cast<MessageInfo *>(&__process_startup_info->runMessage);
-    if (type != messageInfo->type) {
+const UUID RunMessageType() {
+    return UUID(__process_startup_info->runMessage.type);
+}
+
+void CheckRunMessageType(UUID type) {
+    if (RunMessageType() != type) {
         std::cout << "invalid run message type wanted: " << type << " got "
-                  << messageInfo->type << std::endl;
-        exit(1);
+                  << RunMessageType() << std::endl;
+        abort();
     }
 }
 

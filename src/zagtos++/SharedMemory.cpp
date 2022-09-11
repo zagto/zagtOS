@@ -49,15 +49,15 @@ SharedMemory SharedMemory::Standard(size_t length) {
 }
 
 void SharedMemory::operator=(SharedMemory &&other) {
-    if (_handle != INVALID_HANDLE) {
+    if (_handle != cApi::ZAGTOS_INVALID_HANDLE) {
         zagtos_syscall1(SYS_DELETE_HANDLE, _handle);
     }
     _handle = other._handle;
-    other._handle = INVALID_HANDLE;
+    other._handle = cApi::ZAGTOS_INVALID_HANDLE;
 }
 
 void *SharedMemory::_map(int protection) {
-    assert(_handle != INVALID_HANDLE);
+    assert(_handle != cApi::ZAGTOS_INVALID_HANDLE);
     return mmap(nullptr, 0, protection, MAP_SHARED|MAP_WHOLE, _handle, 0);
 }
 

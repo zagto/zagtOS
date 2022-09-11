@@ -35,8 +35,8 @@ int main() {
 
     zagtos::Port irqSetupPort;
     controllerPort.sendMessage(pci::MSG_ALLOCATE_MSI_IRQ, zbon::encode(irqSetupPort));
-    auto interrupt = irqSetupPort.receiveMessage<Interrupt>(pci::MSG_ALLOCATE_MSI_IRQ_RESULT);
-    interrupt.subscribe();
+    auto interrupt = irqSetupPort.waitForMessage<Interrupt>(pci::MSG_ALLOCATE_MSI_IRQ_RESULT);
+    interrupt.subscribe(DefaultEventQueue, 0);
 
     ControllerType type;
     if (dev.vendorID() == 0x8086) {
@@ -51,8 +51,12 @@ int main() {
     std::cout << "Controller initialization OK" << std::endl;
 
     while (true) {
-        interrupt.wait();
-        std::cout << "Got AHCI interrupt" << std::endl;
-        interrupt.processed();
+        Event event = DefaultEventQueue.waitForEvent();
+        if (event.isInterrupt()) {
+            std::cout << "Got AHCI interrupt" << std::endl;
+            interrupt.processed();
+        } else if (event.isMessage()) {
+            std::cout << "Got Message" << std::endl;
+        }
     }
 }

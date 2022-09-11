@@ -8,7 +8,3 @@ UUID::UUID(const uint8_t *id) {
         memcpy(data, id, 16);
     }
 }
-
-UUID::UUID() {
-    memset(data, 0, 16);
-}

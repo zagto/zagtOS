@@ -4,6 +4,8 @@
 
 namespace zagtos {
 
+class EventQueue;
+
 enum class TriggerMode : size_t {
     LEVEL_LOW, LEVEL_HIGH, FALLING_EDGE, RISING_EDGE
 };
@@ -27,9 +29,8 @@ public:
     Interrupt &operator=(Interrupt &other) = delete;
     Interrupt &operator=(Interrupt &&other);
 
-    void subscribe();
+    void subscribe(EventQueue &eventQueue, size_t eventTag);
     void unsubscribe();
-    bool wait();
     void processed();
 };
 

@@ -42,7 +42,8 @@ public:
     Process(const hos_v1::Process &handOver,
             const vector<shared_ptr<Thread>> &allThreads,
             const vector<shared_ptr<Port>> &allPorts,
-            const vector<shared_ptr<MemoryArea>> &allMemoryAreas);
+            const vector<shared_ptr<MemoryArea>> &allMemoryAreas,
+            const vector<shared_ptr<EventQueue>> &allEventQueues);
     Process(Process &sourceProcess,
             vector<SpawnProcessSection> &sections,
             UserVirtualAddress entryAddress,

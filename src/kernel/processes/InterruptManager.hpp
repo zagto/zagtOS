@@ -22,20 +22,22 @@ private:
     friend class interruptManager::Manager;
 
     struct Subscription {
-        shared_ptr<Process> process;
+        shared_ptr<EventQueue> eventQueue;
+        size_t eventTag;
+        uint64_t deliveredOccurence{0};
         uint64_t processedOccurence{0};
     };
 
-    SpinLock lock;
+    mutex lock;
     ProcessorInterrupt _processorInterrupt;
 
     InterruptType type;
     size_t typeData;
     TriggerMode triggerMode;
 
-    uint64_t occurence{0};
+    uint64_t startedOccurence{0};
+    uint64_t completedOccurence{0};
     size_t processingSubscribers{0};
-    threadList::List<&Thread::interruptReceptor> waitingThreads;
     vector<Subscription> subscriptions;
 
     vector<Subscription>::Iterator findSubscription(shared_ptr<Process> process);
@@ -46,12 +48,11 @@ public:
     ~BoundInterrupt() noexcept;
     BoundInterrupt(BoundInterrupt &) = delete;
 
-    void subscribe();
+    void subscribe(shared_ptr<EventQueue> eventQueue, size_t eventTag);
     void unsubscribe();
     void removeWaiting() noexcept;
     void processed();
-    void wait();
-    void occur() noexcept;
+    void occur() ;
     void checkFullyProcessed() noexcept;
     const ProcessorInterrupt &processorInterrupt() const noexcept;
 };
@@ -62,7 +63,7 @@ class Manager {
     private:
         static constexpr size_t vectorOffset = DynamicInterruptRegion.start;        
 
-        SpinLock lock;
+        mutex lock;
         vector<vector<BoundInterrupt *>> allInterrupts;
 
         PlatformInterrupt findFree() noexcept;

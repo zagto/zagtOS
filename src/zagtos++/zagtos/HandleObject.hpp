@@ -2,13 +2,15 @@
 
 #include <cstdint>
 #include <zagtos/ZBON.hpp>
+#include <zagtos/KernelApi.h>
 
 namespace zagtos {
     class HandleObject {
     protected:
-        static constexpr uint32_t INVALID_HANDLE{static_cast<uint32_t>(-1)};
-
-        uint32_t _handle{INVALID_HANDLE};
+        /* port and Interrupt need to pass an EventQueue handle */
+        friend class Interrupt;
+        friend class Port;
+        uint32_t _handle{cApi::ZAGTOS_INVALID_HANDLE};
 
         HandleObject(const uint32_t handle);
 

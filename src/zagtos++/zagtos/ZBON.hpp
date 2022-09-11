@@ -10,6 +10,39 @@
 #include <limits>
 #include <iostream>
 
+#ifdef __zagtos__
+/* MessageData type */
+#include <zagtos/MessageData.hpp>
+namespace zbon {
+using EncodedData = zagtos::MessageData;
+}
+#else
+namespace zbon {
+struct EncodedData {
+    uint8_t *data;
+    size_t size;
+    size_t numHandles;
+    bool allocatedExternally;
+
+    constexpr EncodedData(const uint8_t *data,
+                          size_t size,
+                          size_t numHandles,
+                          bool allocatedExternally = false) :
+        data{data},
+        size{size},
+        numHandles{numHandles},
+        allocatedExternally{allocatedExternally} {}
+    EncodedData(const MessageData &other) = delete;
+    EncodedData(MessageData &&other) = default;
+    ~EncodedData() {
+        if (data != nullptr && !allocatedExternally) {
+            delete[] data;
+        }
+    }
+};
+}
+#endif
+
 namespace zbon {
 
 enum class Type : uint8_t {
@@ -241,65 +274,6 @@ static Size sizeForBinary(size_t length) {
 }
 
 
-class Encoder;
-class Decoder;
-
-class EncodedData {
-protected:
-    friend class Encoder;
-    friend class Decoder;
-
-    const uint8_t *_data;
-    size_t _size;
-    size_t _numHandles;
-    bool allocatedExternally;
-
-public:
-    constexpr EncodedData(const uint8_t *data, size_t size, size_t numHandles, bool _allocatedExternally = false):
-        _data{data},
-        _size{size},
-        _numHandles{numHandles},
-        allocatedExternally{_allocatedExternally} {}
-    EncodedData():
-        _data{nullptr},
-        _size{0},
-        _numHandles{0},
-        allocatedExternally{false} {}
-    EncodedData(EncodedData &other) = delete;
-    EncodedData(EncodedData &&other):
-            _data{other._data},
-            _size{other._size},
-            _numHandles{other._numHandles},
-            allocatedExternally{other.allocatedExternally} {
-        other._data = nullptr;
-        other._size = 0;
-        other._numHandles = 0;
-        other.allocatedExternally = false;
-    }
-    ~EncodedData() {
-        if (_data != nullptr && !allocatedExternally) {
-            delete[] _data;
-        }
-    }
-    const uint8_t *data() const {
-        return _data;
-    }
-    size_t size() const {
-        return _size;
-    }
-    size_t numHandles() const {
-        return _numHandles;
-    }
-    void ensureVerified() const {
-        assert(_size > 0);
-        // TODO
-    }
-
-    Size ZBONSize() const {
-        return {_size - _numHandles * HANDLE_SIZE, _numHandles};
-    }
-};
-
 void copyConvertEndianness(void *destination, const void *source, size_t length);
 
 class DecoderException : public std::exception {
@@ -467,7 +441,7 @@ public:
             encodeType(Type::NOTHING);
         }
     }
-    void encodeValue(const zbon::EncodedData &value);
+    void encodeValue(const EncodedData &value);
 
     void encodeHandle(const uint32_t handle) {
         encodeType(Type::HANDLE);
@@ -532,14 +506,14 @@ private:
     size_t handlePosition;
 
     void ensureEnoughLeft(size_t numBytes) {
-        if (!(position < encodedData._size && encodedData._size - position >= numBytes)) {
-            std::cerr << "ZBON: Unexpected End of Data at " << encodedData._size << std::endl;
+        if (!(position < encodedData.size && encodedData.size - position >= numBytes)) {
+            std::cerr << "ZBON: Unexpected End of Data at " << encodedData.size << std::endl;
             throw DecoderException();
         }
     }
 
     void ensureEnoughHandlesLeft(uint64_t numHandles) {
-        if (!(handlePosition / HANDLE_SIZE + numHandles <= encodedData.numHandles()
+        if (!(handlePosition / HANDLE_SIZE + numHandles <= encodedData.numHandles
               && handlePosition / HANDLE_SIZE + numHandles >= numHandles)) {
             std::cerr << "ZBON: Unexpectedly lagre amount of handles" << std::endl;
             throw DecoderException();
@@ -549,7 +523,7 @@ private:
     void decodeType(Type &result) {
         ensureEnoughLeft(1);
 
-        uint8_t value = encodedData._data[position];
+        uint8_t value = encodedData.data[position];
         if (value > 0 && value < static_cast<uint8_t>(Type::TYPES_END)) {
             result = static_cast<Type>(value);
             position++;
@@ -562,7 +536,7 @@ private:
     template<typename T>
     void decodeNumber(T &result, size_t &position) {
         ensureEnoughLeft(sizeof(T));
-        copyConvertEndianness(&result, &encodedData._data[position], sizeof(T));
+        copyConvertEndianness(&result, &encodedData.data[position], sizeof(T));
         position += sizeof(T);
     }
 
@@ -681,7 +655,7 @@ public:
         decodeVerifyType(Type::BOOLEAN);
         ensureEnoughLeft(1);
 
-        result = static_cast<bool>(encodedData._data[position]);
+        result = static_cast<bool>(encodedData.data[position]);
         position++;
     }
 
@@ -736,7 +710,7 @@ public:
     void decodeHandle(uint32_t &result) {
         decodeVerifyType(Type::HANDLE);
         ensureEnoughHandlesLeft(1);
-        copyConvertEndianness(&result, &encodedData._data[handlePosition], HANDLE_SIZE);
+        copyConvertEndianness(&result, &encodedData.data[handlePosition], HANDLE_SIZE);
         handlePosition += HANDLE_SIZE;
     }
 
@@ -797,7 +771,7 @@ public:
 
         ensureEnoughLeft(numElements);
         for (size_t index = 0; index < numElements; index++) {
-            result[index] = encodedData._data[position + index];
+            result[index] = encodedData.data[position + index];
         }
         position += numElements;
     }
@@ -827,28 +801,28 @@ public:
 
     Decoder(const EncodedData &encodedData) :
         encodedData{encodedData},
-        position{encodedData._numHandles * HANDLE_SIZE},
+        position{encodedData.numHandles * HANDLE_SIZE},
         handlePosition{0} {}
 
     template<typename T>
     void decode(T &result) {
-        uint64_t handlesSize = encodedData._numHandles * HANDLE_SIZE;
+        uint64_t handlesSize = encodedData.numHandles * HANDLE_SIZE;
 
         assert(position == handlesSize);
         decodeValue(result);
 
-        if ((position != encodedData._size)
+        if ((position != encodedData.size)
                 || (handlePosition != handlesSize)) {
-            std::cerr << "ZBON: EncodedData object has size value of " << encodedData._size
-                      << "(" << encodedData._numHandles << " handles), but is actually "
+            std::cerr << "ZBON: EncodedData object has size value of " << encodedData.size
+                      << "(" << encodedData.numHandles << " handles), but is actually "
                       << position << "(" << (handlePosition/HANDLE_SIZE) << " handles) bytes big."
                       << std::endl;
-            std::cerr << "_size: " << encodedData._size << std::endl
+            std::cerr << "size: " << encodedData.size << std::endl
                       << "position: " << position << std::endl
-                      << "_numHandles:" << encodedData._numHandles << std::endl
+                      << "numHandles:" << encodedData.numHandles << std::endl
                       << "handlePosition:" << handlePosition << std::endl
                       << "handlesSize: " << handlesSize << std::endl
-                      << "A: " << (position != encodedData._size) << std::endl
+                      << "A: " << (position != encodedData.size) << std::endl
                       << "B: " << (handlePosition != handlesSize) << std::endl;
             throw DecoderException();
         }

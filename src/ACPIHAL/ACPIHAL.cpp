@@ -5,6 +5,7 @@
 #include <PCI.hpp>
 #include <IOAPIC.hpp>
 #include <LegacyDevices.hpp>
+#include <OSLayer/Interrupts.hpp>
 extern "C" {
     #include <acpi.h>
 }
@@ -60,9 +61,14 @@ int main() {
     std::cout << "ACPI HAL initialized" << std::endl;
 
     envPort.sendMessage(zagtos::driver::MSG_START_RESULT, zbon::encode(true));
-    std::cout << "ACPI HAL EXIT" << std::endl;
+    std::cout << "ACPI HAL UP" << std::endl;
 
-    zagtos::Port dummy;
-    dummy.receiveMessage();
+    while (true) {
+        zagtos::Event event = zagtos::DefaultEventQueue.waitForEvent();
+        if (!event.isInterrupt()) {
+            std::cout << "Unexpected non-interrupt event" << std::endl;
+        }
+        HandleInterrupt(static_cast<int32_t>(event.tag()));
+    }
 }
 

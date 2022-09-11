@@ -61,19 +61,21 @@ extern "C" void LoaderMain() {
     ProgramBinary process = LoadProcessImage();
 
     /* sections, run message */
-    size_t numMappings = process.numSections() + 1;
-    size_t numFrames = process.loadedUserFrames();
+    const size_t numMappings = process.numSections() + 1;
+    const size_t numFrames = process.loadedUserFrames();
+    const size_t numHandles = 2;
 
     size_t handOverSize = sizeof(hos_v1::System)
             + sizeof(hos_v1::Process)
             + sizeof(hos_v1::Thread)
-            + sizeof(hos_v1::Handle)
+            + numHandles * sizeof(hos_v1::Handle)
             + 17 /* SystemEnvironment string */
             + numMappings * sizeof(hos_v1::MappedArea)
             + numMappings * sizeof(hos_v1::MemoryArea)
             + numFrames * sizeof(hos_v1::Frame)
             /* handover frame ids, futex frame ids */
-            + 2 * numFrames * sizeof(size_t);
+            + 2 * numFrames * sizeof(size_t)
+            + sizeof(hos_v1::EventQueue);
     uint8_t *pointer = memoryMap::allocateHandOver(handOverSize / PAGE_SIZE + 1);
     auto handOverSystem = reinterpret_cast<hos_v1::System *>(pointer);
     pointer += sizeof (hos_v1::System);
@@ -81,8 +83,8 @@ extern "C" void LoaderMain() {
     pointer += sizeof (hos_v1::Process);
     auto handOverThread = reinterpret_cast<hos_v1::Thread *>(pointer);
     pointer += sizeof (hos_v1::Thread);
-    auto handOverHandle = reinterpret_cast<hos_v1::Handle *>(pointer);
-    pointer += sizeof (hos_v1::Handle);
+    auto handOverHandles = reinterpret_cast<hos_v1::Handle *>(pointer);
+    pointer += numHandles * sizeof (hos_v1::Handle);
     auto handOverMappedAreas = reinterpret_cast<hos_v1::MappedArea *>(pointer);
     pointer += numMappings * sizeof(hos_v1::MappedArea);
     auto handOverMemoryAreas = reinterpret_cast<hos_v1::MemoryArea *>(pointer);
@@ -93,6 +95,8 @@ extern "C" void LoaderMain() {
     pointer += numFrames * sizeof(size_t);
     auto futexFramesIDs = reinterpret_cast<size_t *>(pointer);
     pointer += numFrames * sizeof(size_t);
+    auto handOverEventQueue = reinterpret_cast<hos_v1::EventQueue *>(pointer);
+    pointer += sizeof(hos_v1::EventQueue);
     auto handOverString = reinterpret_cast<char *>(pointer);
 
     cout << "Getting Memory Map..." << endl;
@@ -142,6 +146,8 @@ extern "C" void LoaderMain() {
         .memoryAreas = handOverMemoryAreas,
         .numFrames = numFrames,
         .frames = handOverFrames,
+        .numEventQueues = 1,
+        .eventQueues = convertPointer(handOverEventQueue),
         .timerFrequency = timerFrequency,
         .numProcessors = numProcessors,
         .numFutexes = 0,
@@ -163,8 +169,8 @@ extern "C" void LoaderMain() {
         .mappedAreas = convertPointer(handOverMappedAreas),
         .numLocalFutexes = 0,
         .localFutexes = nullptr,
-        .numHandles = 1,
-        .handles = convertPointer(handOverHandle),
+        .numHandles = numHandles,
+        .handles = convertPointer(handOverHandles),
         .numLogNameChars = 17,
         .logName = convertPointer(handOverString)
     };
@@ -174,8 +180,13 @@ extern "C" void LoaderMain() {
         .currentPriority = hos_v1::ThreadPriority::BACKGROUND,
         .ownPriority = hos_v1::ThreadPriority::BACKGROUND,
     };
-    *handOverHandle = hos_v1::Handle{
+    handOverHandles[0] = hos_v1::Handle{
         .type = hos_v1::HandleType::THREAD,
+        .handle = 0,
+        .objectID = 0
+    };
+    handOverHandles[1] = hos_v1::Handle{
+        .type = hos_v1::HandleType::EVENT_QUEUE,
         .handle = 1,
         .objectID = 0
     };
@@ -214,6 +225,12 @@ extern "C" void LoaderMain() {
         .isShared = false,
         .permissions = hos_v1::Permissions::READ_WRITE_EXECUTE,
         .length = PAGE_SIZE
+    };
+    *handOverEventQueue = hos_v1::EventQueue{
+        .numWaitingThreads = 0,
+        .waitingThreadIDs = nullptr,
+        .numEvents = 0,
+        .events = nullptr,
     };
     frameIndex++;
     assert(frameIndex == numFrames);

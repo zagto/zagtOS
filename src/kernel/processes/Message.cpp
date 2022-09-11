@@ -26,7 +26,7 @@
  *                  | simple data     | --     copy    -->  | simple data     |
  *                  +-----------------+                     +-----------------+
  */
-void Message::transfer() {
+unique_ptr<Event> Message::transfer() {
     /* a message should not be transferred more than once */
     assert(!transferred);
     /* destination process may be null at first, but must exist now (see setDestinationProcess)*/
@@ -35,9 +35,18 @@ void Message::transfer() {
     /* TODO: find a way to deal with bad user space here. It currently simply kills the source thread */
 
     prepareMemoryArea();
-
+    unique_ptr<Event> result;
     try {
-        transferMessageInfo();
+        event.eventInfo.messageInfo = {
+            messageType,
+            reinterpret_cast<uint8_t*>(destinationAddress().value()),
+            numBytes,
+            numHandles,
+            (numBytes > 0 || isRunMessage) ? true : false,
+        };
+        result = make_unique<Event>(event);
+
+        transferStartupInfo();
         transferData();
         /* handles transfer should happen last - if something after it would fail, we leak the handles
          * in destination process */
@@ -69,6 +78,7 @@ void Message::transfer() {
     numHandles = 0;
 
     transferred = true;
+    return result;
 }
 
 /* Adds a MappedArea to the destination Process where the message+info will be written to. */
@@ -82,6 +92,9 @@ void Message::prepareMemoryArea() {
      * required size is the combined size of both. */
     size_t messageRegionSize = numBytes + infoStructSize();
 
+    if (messageRegionSize == 0) {
+        return;
+    }
     try {
         /* Holds the address of the message info (ZoMessageInfo class) in the destination address
          * space. */
@@ -93,31 +106,17 @@ void Message::prepareMemoryArea() {
     }
 }
 
-/* Writes the UserMessageInfo structure in the destination process. */
-void Message::transferMessageInfo() {
-    userApi::ZoMessageInfo msgInfo = {
-        0, /* filled in later */
-        messageType,
-        reinterpret_cast<uint8_t*>(destinationAddress().value()),
-        numBytes,
-        numHandles,
-        true,
-    };
-
+/* Writes the ZoProcessStartupInfo structure in the destination process. */
+void Message::transferStartupInfo() {
    if (isRunMessage) {
        userApi::ZoProcessStartupInfo startupInfo {
            threadHandle,
-           messageQueueHandle,
-           msgInfo,
+           eventQueueHandle,
+           event.eventInfo.messageInfo,
        };
        return destinationProcess->addressSpace.copyTo(infoAddress.value(),
                                                       reinterpret_cast<uint8_t *>(&startupInfo),
                                                       sizeof(userApi::ZoProcessStartupInfo),
-                                                      false);
-   } else {
-       return destinationProcess->addressSpace.copyTo(infoAddress.value(),
-                                                      reinterpret_cast<uint8_t *>(&msgInfo),
-                                                      sizeof(userApi::ZoMessageInfo),
                                                       false);
    }
 }
@@ -178,7 +177,7 @@ size_t Message::infoStructSize() const noexcept {
     if (isRunMessage) {
         return sizeof(userApi::ZoProcessStartupInfo);
     } else {
-        return sizeof(userApi::ZoMessageInfo);
+        return 0;
     }
 }
 
@@ -203,8 +202,8 @@ void Message::setDestinationProcess(Process *const process) noexcept {
     destinationProcess = process;
 }
 
-void Message::setStartupInfo(uint32_t threadHandle, uint32_t messageQueueHandle) noexcept {
+void Message::setStartupInfo(uint32_t threadHandle, uint32_t eventQueueHandle) noexcept {
     assert(isRunMessage);
     this->threadHandle = threadHandle;
-    this->messageQueueHandle = messageQueueHandle;
+    this->eventQueueHandle = eventQueueHandle;
 }

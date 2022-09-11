@@ -18,13 +18,14 @@ size_t SendMessage(const shared_ptr<Process> &process,
     UserSpaceObject<UUID, USOOperation::READ> messageType(messageTypeAddress);
 
     auto message = make_unique<Message>(process.get(),
-                                        port->process.get(),
+                                        port->eventQueue->process.get(),
+                                        port->eventTag,
                                         messageAddress,
                                         messageType.object,
                                         messageSize,
                                         numMessageHandles,
                                         false);
-    message->transfer();
-    port->addMessage(move(message));
+    unique_ptr<Event> event = message->transfer();
+    port->eventQueue->addEvent(move(event));
     return 0;
 }

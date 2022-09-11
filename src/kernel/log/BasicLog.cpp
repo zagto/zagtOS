@@ -63,18 +63,18 @@ void sendCoreDump(size_t nameLength,
     scoped_lock lg1(KernelInterruptsLock);
     scoped_lock lg(logLock);
     /* core dump marker */
-    serialBackend.write(static_cast<char>(0xf2));
+    serialBackend.writeCharacter(static_cast<char>(0xf2));
     for (size_t i = 0; i < 8; i++) {
-        serialBackend.write((nameLength >> i * 8) & 0xff);
+        serialBackend.writeCharacter((nameLength >> i * 8) & 0xff);
     }
     for (size_t i = 0; i < nameLength; i++) {
-        serialBackend.write(name[i]);
+        serialBackend.writeCharacter(name[i]);
     }
     for (size_t i = 0; i < 8; i++) {
-        serialBackend.write((dataLength >> i * 8) & 0xff);
+        serialBackend.writeCharacter((dataLength >> i * 8) & 0xff);
     }
     for (size_t i = 0; i < dataLength; i++) {
-        serialBackend.write(data[i]);
+        serialBackend.writeCharacter(data[i]);
     }
 }
 

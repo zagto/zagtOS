@@ -60,11 +60,11 @@ Size sizeFor(std::string string) {
 }
 
 void Encoder::encodeValue(const zbon::EncodedData &value) {
-    value.ensureVerified();
-    size_t handleSize = value.numHandles() * HANDLE_SIZE;
-    size_t numRegularBytes = value._size - handleSize;
-    memcpy(data + position, value._data + handleSize, numRegularBytes);
-    memcpy(data + handlePosition, value._data, handleSize);
+    /* TODO: esure value is valid ZBON */
+    size_t handleSize = value.numHandles * HANDLE_SIZE;
+    size_t numRegularBytes = value.size - handleSize;
+    memcpy(data + position, value.data + handleSize, numRegularBytes);
+    memcpy(data + handlePosition, value.data, handleSize);
     position += numRegularBytes;
     handlePosition += handleSize;
 }
@@ -77,7 +77,7 @@ void Encoder::encodeBinary(const uint8_t *value, size_t length) {
 }
 
 void Decoder::decodeValue(zbon::EncodedData &value) {
-    assert(value._data == nullptr && value._size == 0);
+    assert(value.data == nullptr && value.size == 0);
 
     size_t headerPosition = position;
 
@@ -136,14 +136,14 @@ void Decoder::decodeValue(zbon::EncodedData &value) {
     ensureEnoughLeft(length);
     ensureEnoughHandlesLeft(numHandles);
 
-    value._size = numHandles * HANDLE_SIZE + dataLength;
-    uint8_t *newData = new uint8_t[value._size];
-    value._numHandles = numHandles;
+    value.size = numHandles * HANDLE_SIZE + dataLength;
+    uint8_t *newData = new uint8_t[value.size];
+    value.numHandles = numHandles;
     value.allocatedExternally = false;
 
-    memcpy(newData, encodedData._data + handlePosition, numHandles * HANDLE_SIZE);
-    memcpy(newData + numHandles * HANDLE_SIZE, encodedData._data + headerPosition, dataLength);
-    value._data = newData;
+    memcpy(newData, encodedData.data + handlePosition, numHandles * HANDLE_SIZE);
+    memcpy(newData + numHandles * HANDLE_SIZE, encodedData.data + headerPosition, dataLength);
+    value.data = newData;
 
     position += length;
     handlePosition += numHandles * HANDLE_SIZE;
@@ -160,7 +160,7 @@ void Decoder::decodeBinary(uint8_t *buffer, size_t length) {
     }
 
     ensureEnoughLeft(length);
-    memcpy(buffer, encodedData._data + position, length);
+    memcpy(buffer, encodedData.data + position, length);
     position += length;
 }
 

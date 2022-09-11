@@ -11,13 +11,14 @@ class Scheduler;
 class Process;
 class Port;
 class FutexManager;
+class EventQueue;
 
 
 class Thread {
 public:
     using Priority = hos_v1::ThreadPriority;
     enum {
-        ACTIVE, READY, MESSAGE, FUTEX, INTERRUPT, TRANSITION, TERMINATED, TIMER
+        ACTIVE, READY, FUTEX, EVENT, TRANSITION, TERMINATED, TIMER
     };
     class State {
     private:
@@ -37,14 +38,11 @@ public:
         static State Ready(Processor *processor) noexcept {
             return State(Thread::READY, reinterpret_cast<size_t>(processor));
         }
-        static State WaitMessage() noexcept {
-            return State(Thread::MESSAGE);
-        }
         static State Futex(FutexManager *manager, uint64_t futexID) noexcept {
             return State(Thread::FUTEX, reinterpret_cast<size_t>(manager), futexID);
         }
-        static State Interrupt(BoundInterrupt *interrupt) noexcept {
-            return State(Thread::INTERRUPT, reinterpret_cast<size_t>(interrupt));
+        static State Event(EventQueue *eventQueue, size_t eventInfoAddress) noexcept {
+            return State(Thread::EVENT, reinterpret_cast<size_t>(eventQueue), eventInfoAddress);
         }
         static State Transition() noexcept {
             return State(Thread::TRANSITION);
@@ -74,6 +72,14 @@ public:
             assert(_kind == TIMER);
             return relatedObject2;
         }
+        EventQueue *eventQueue() const {
+            assert(_kind == EVENT);
+            return reinterpret_cast<EventQueue *>(relatedObject);
+        }
+        size_t eventInfoAddress() const {
+            assert(_kind == EVENT);
+            return relatedObject2;
+        }
     };
 
     /* Owners:
@@ -99,6 +105,7 @@ protected:
     friend class Scheduler;
     friend class Process;
     friend class BoundInterrupt;
+    friend class EventQueue;
     template <threadList::Receptor Thread::*>
     friend class threadList::List;
 

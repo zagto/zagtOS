@@ -6,8 +6,6 @@
 #include <zagtos/IOPortRange.hpp>
 #include <zagtos/protocols/Controller.hpp>
 #include <zagtos/Topology.hpp>
-#include <mutex>
-#include <thread>
 #include <chrono>
 #include "Controller.hpp"
 
@@ -22,6 +20,7 @@ void handlerThreadEntry(ps2controller::Port &port) {
 }
 
 int main() {
+    exit(0);
     using MsgType = std::tuple<zagtos::UUID,
                                zagtos::RemotePort,
                                std::tuple<zagtos::Interrupt,
@@ -42,19 +41,5 @@ int main() {
         throw std::runtime_error("No working ports!");
     }
 
-    std::array<std::thread, 2> threads;
 
-    for (size_t portIndex = 0; portIndex < 2; portIndex++) {
-        if (controller.ports[portIndex].works) {
-            std::cout << "Port " << portIndex << " works" << std::endl;
-            threads[portIndex] = std::thread(&handlerThreadEntry,
-                                             std::ref(controller.ports[portIndex]));
-        }
-    }
-
-    for (size_t portIndex = 0; portIndex < 2; portIndex++) {
-        if (controller.ports[portIndex].works) {
-            threads[portIndex].join();
-        }
-    }
 }

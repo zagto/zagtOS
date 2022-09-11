@@ -2,17 +2,15 @@
 #include <processes/Process.hpp>
 #include <system/Processor.hpp>
 #include <processes/Scheduler.hpp>
-#include <syscalls/WaitInterrupt.hpp>
 #include <algorithm>
 
 BoundInterrupt::BoundInterrupt(InterruptType type,
                                size_t typeData,
                                TriggerMode triggerMode) :
-    type{type},
-    typeData{typeData},
-    triggerMode{triggerMode} {
+        type{type},
+        typeData{typeData},
+        triggerMode{triggerMode} {
 
-    scoped_lock sl(KernelInterruptsLock);
     /* don't lock ourselves here - nothing is really happening with the data at this point and
      * our lock before InterruptManager would violate the lock order. */
 
@@ -30,18 +28,15 @@ BoundInterrupt::BoundInterrupt(InterruptType type,
 }
 
 BoundInterrupt::~BoundInterrupt() noexcept {
-    scoped_lock sl(KernelInterruptsLock);
     InterruptManager.unbind(this);
     CurrentSystem.unbindInterrupt(*this);
 
-    scoped_lock sl2(lock);
+    scoped_lock sl(lock);
 
     while (subscriptions.size() != 0) {
         unsubscribe(subscriptions.begin() + (subscriptions.size() - 1));
     }
     assert(processingSubscribers == 0);
-    assert(waitingThreads.empty());
-
 }
 
 vector<BoundInterrupt::Subscription>::Iterator
@@ -50,45 +45,30 @@ BoundInterrupt::findSubscription(shared_ptr<Process> process) {
                    subscriptions.end(),
                    [&process](Subscription &sub) {
 
-                return sub.process == process;
+                return sub.eventQueue->process == process;
         });
 }
 
-void BoundInterrupt::subscribe() {
-    scoped_lock sl(KernelInterruptsLock);
-    scoped_lock sl2(lock);
+void BoundInterrupt::subscribe(shared_ptr<EventQueue> eventQueue, size_t eventTag) {
+    scoped_lock sl(lock);
 
-    shared_ptr<Process> process = CurrentProcess();
+    assert(eventQueue->process == CurrentProcess());
 
-    auto findResult = findSubscription(process);
+    auto findResult = findSubscription(eventQueue->process);
     if (findResult != subscriptions.end()) {
         cout << "BoundInterrupt::subscribe: Process is already subscribed" << endl;
-        throw BadUserSpace(process);
+        throw BadUserSpace(eventQueue->process);
     }
 
-    subscriptions.push_back({process, occurence});
+    subscriptions.push_back({move(eventQueue), eventTag, startedOccurence, startedOccurence});
 }
 
 void BoundInterrupt::unsubscribe(vector<Subscription>::Iterator subscription) noexcept {
     assert(lock.isLocked());
 
-    assert(subscription->processedOccurence <= occurence);
-    assert(processingSubscribers >= occurence - subscription->processedOccurence);
-    processingSubscribers -= occurence - subscription->processedOccurence;
-
-    /* If another thread from the current Process is currently, waiting, cacncel that */
-    for (auto thread: waitingThreads) {
-        if (thread->process == subscription->process) {
-            waitingThreads.remove(thread);
-
-            assert(thread->state().kind() == Thread::INTERRUPT);
-            thread->setState(Thread::State::Transition());
-            thread->kernelStack->userRegisterState()->setSyscallResult(WAIT_INTERRUPT_CANCELED);
-            Scheduler::schedule(thread, true);
-            break;
-        }
-    }
-
+    assert(subscription->processedOccurence <= startedOccurence);
+    assert(processingSubscribers >= startedOccurence - subscription->processedOccurence);
+    processingSubscribers -= startedOccurence - subscription->processedOccurence;
     subscriptions.erase(subscription);
 
     /* the unsubscribed Process might be the last one not having fully processed */
@@ -96,7 +76,6 @@ void BoundInterrupt::unsubscribe(vector<Subscription>::Iterator subscription) no
 }
 
 void BoundInterrupt::unsubscribe() {
-    scoped_lock sl(KernelInterruptsLock);
     scoped_lock sl2(lock);
 
     auto subscription = findSubscription(CurrentProcess());
@@ -110,8 +89,7 @@ void BoundInterrupt::unsubscribe() {
 
 
 void BoundInterrupt::processed() {
-    scoped_lock sl(KernelInterruptsLock);
-    scoped_lock sl2(lock);
+    scoped_lock sl(lock);
 
     auto process = CurrentProcess();
     auto subscription = findSubscription(process);
@@ -120,11 +98,11 @@ void BoundInterrupt::processed() {
         throw BadUserSpace(CurrentProcess());
     }
 
-    if (subscription->processedOccurence == occurence) {
+    if (subscription->processedOccurence == completedOccurence) {
         cout << "Thread sent interrupt processed for occurence it already processed" << endl;
         throw BadUserSpace(CurrentProcess());
     }
-    assert(subscription->processedOccurence < occurence);
+    assert(subscription->processedOccurence < completedOccurence);
     subscription->processedOccurence++;
     assert(processingSubscribers > 0);
     processingSubscribers--;
@@ -138,58 +116,34 @@ void BoundInterrupt::checkFullyProcessed() noexcept {
     }
 }
 
-void BoundInterrupt::wait() {
-    scoped_lock sl(KernelInterruptsLock);
-    scoped_lock sl2(lock);
+void BoundInterrupt::occur() {
+    scoped_lock sl(lock);
 
-    auto process = CurrentProcess();
-    auto subscription = findSubscription(process);
-    if (subscription == subscriptions.end()) {
-        cout << "Thread sent interrupt processed but was not subscribed" << endl;
-        throw BadUserSpace(process);
+    /* this method may be retried multiple times after exceptions. make sure to not deliver
+     * an event for an occurence we already delivered */
+    if (startedOccurence == completedOccurence) {
+        /* each subscriber now has to process once more */
+        processingSubscribers += subscriptions.size();
+        startedOccurence++;
     }
 
-    if (subscription->processedOccurence < occurence) {
-        /* there is already a new occurence not processed by this Thread */
-        return;
+    for (Subscription& sub: subscriptions) {
+        /* this method may be retried multiple times after exceptions. make sure to not deliver
+         * an event for an occurence we already delivered */
+        if (sub.deliveredOccurence < startedOccurence) {
+            assert(sub.deliveredOccurence == startedOccurence - 1);
+            userApi::ZoEventInfo eventInfo = {
+                userApi::ZAGTOS_EVENT_INTERRUPT,
+                sub.eventTag,
+                {},
+            };
+            sub.eventQueue->addEvent(make_unique<Event>(eventInfo));
+            sub.deliveredOccurence = startedOccurence;
+        }
     }
 
-    /* the Thread should have processed all occurences so far - make it wait */
-    assert(subscription->processedOccurence == occurence);
-
-    Thread *thread = CurrentThread();
-    waitingThreads.append(thread);
-
-    /* Asymmetric lock/unlock: These two locks will not be unlocked once this
-     * method leaves, but once the thread state is discarded. */
-    Scheduler &scheduler = CurrentProcessor()->scheduler;
-    scoped_lock sl3(scheduler.lock);
-
-    scheduler.removeActiveThread();
-    thread->setState(Thread::State::Interrupt(this));
-
-    throw DiscardStateAndSchedule(thread, move(sl), move(sl3));
-}
-
-void BoundInterrupt::occur() noexcept {
-    scoped_lock sl(KernelInterruptsLock);
-    scoped_lock sl2(lock);
-
-    /* each subscriber now has to process once more */
-    processingSubscribers += subscriptions.size();
-
-    occurence++;
-
-    cout << "occurence " << occurence << endl;
-
-    while (!waitingThreads.empty()) {
-        Thread *thread = waitingThreads.pop();
-
-        assert(thread->state().kind() == Thread::INTERRUPT);
-        thread->setState(Thread::State::Transition());
-        thread->kernelStack->userRegisterState()->setSyscallResult(WAIT_INTERRUPT_SUCCESS);
-        Scheduler::schedule(thread, true);
-    }
+    completedOccurence++;
+    assert(completedOccurence == startedOccurence);
 }
 
 const ProcessorInterrupt &BoundInterrupt::processorInterrupt() const noexcept {

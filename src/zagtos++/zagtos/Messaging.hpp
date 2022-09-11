@@ -5,72 +5,68 @@
 #include <memory>
 #include <zagtos/UUID.hpp>
 #include <zagtos/HandleObject.hpp>
-#include <functional>
+#include <zagtos/KernelApi.h>
+#include <zagtos/EventQueue.hpp>
+#include <zagtos/MessageData.hpp>
+#include <optional>
 
+namespace zbon{
+class Encoder;
+class Decoder;
+
+}
 
 namespace zagtos {
-    class RemotePort : public HandleObject {
-    public:
-        RemotePort() {}
-        RemotePort(RemotePort &) = delete;
-        RemotePort(RemotePort &&other) : HandleObject(std::move(other)) {}
 
-        void sendMessage(const UUID messageType,
-                         zbon::EncodedData message) const;
-    };
+class RemotePort : public HandleObject {
+public:
+    RemotePort() {}
+    RemotePort(RemotePort &) = delete;
+    RemotePort(RemotePort &&other) : HandleObject(std::move(other)) {}
 
-    struct MessageInfo {
-        /* index into the ports array of a ReceiveMessage call */
-        size_t portIndex;
-        alignas(16) UUID type;
-        zbon::EncodedData data;
+    void sendMessage(const UUID messageType,
+                     MessageData messageData) const;
+};
 
-        static void *operator new(std::size_t);
-        static void *operator new[](std::size_t);
-        static void operator delete(void *object);
-    };
+class invalid_message : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+};
 
-    class invalid_message : public std::runtime_error {
-        using std::runtime_error::runtime_error;
-    };
+class Port : public HandleObject {
+private:
+    std::optional<EventQueue> privateEventQueue;
 
-    class Port : public HandleObject {
-    public:
-        Port();
-        Port(Port &) = delete;
-        Port(Port &&other) : HandleObject(std::move(other)) {}
+public:
+    Port(EventQueue &eventQueue, size_t tag);
+    Port();
+    Port(Port &) = delete;
+    Port(Port &&other) : HandleObject(std::move(other)) {}
 
-        bool ZBONDecode(zbon::Decoder &) = delete;
+    bool ZBONDecode(zbon::Decoder &) = delete;
 
-        std::unique_ptr<MessageInfo> receiveMessage();
-        template<typename T> T receiveMessage(UUID type) {
-            while (true) {
-                T result;
-                std::unique_ptr<MessageInfo> msgInfo = receiveMessage();
-                if (type != msgInfo->type) {
-                    throw invalid_message("receiveMessage: invalid message type");
-                }
-                zbon::decode(msgInfo->data, result);
-                return result;
-            }
-        }
-        static std::unique_ptr<MessageInfo> receiveMessage(std::vector<std::reference_wrapper<Port>> ports);
-    };
-
-
-    extern "C" void exit(int);
-
-    const MessageInfo &receiveRunMessageInfo();
-    void receiveRunMessage(UUID type);
-    template<typename T> T decodeRunMessage(UUID type) {
-        const MessageInfo &msgInfo = receiveRunMessageInfo();
-        if (type != msgInfo.type) {
-            std::cerr << "invalid run message type: wanted " << type << " got "  << msgInfo.type
-                      << std::endl;
-            exit(1);
-        }
+    Event waitForMessage();
+    template<typename T> T waitForMessage(UUID type) {
         T result;
-        zbon::decode(msgInfo.data, result);
+        Event event = waitForMessage();
+        if (event.messageType() != type) {
+            throw invalid_message("waitForMessage: unexpected message type");
+        }
+        zbon::decode(event.messageData(), result);
         return result;
     }
+};
+
+
+extern "C" void exit(int);
+
+const MessageData &RunMessageData();
+const UUID RunMessageType();
+void CheckRunMessageType(UUID type);
+template<typename T> T decodeRunMessage(UUID type) {
+    CheckRunMessageType(type);
+    T result;
+    zbon::decode(RunMessageData(), result);
+    return result;
+}
+
 }

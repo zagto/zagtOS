@@ -4,8 +4,8 @@
 #include <processes/Process.hpp>
 
 size_t CreatePort(const shared_ptr<Process> &process,
-                          uint64_t,
-                          uint64_t,
-                          uint64_t,
-                          uint64_t,
-                          uint64_t);
+                  size_t eventQueueHandle,
+                  size_t,
+                  size_t,
+                  size_t,
+                  size_t);

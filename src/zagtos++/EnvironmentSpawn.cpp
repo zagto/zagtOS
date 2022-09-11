@@ -54,9 +54,9 @@ void zagtos::environmentSpawn(const ExternalBinary &binary,
         .tlsPointer = program.tlsPointer,
         .priority = priority,
         .messageType = messageType, /* inserted below */
-        .messageAddress = runMessage.data(),
-        .messageSize = runMessage.size(),
-        .numMessageHandles = static_cast<uint32_t>(runMessage.numHandles()),
+        .messageAddress = runMessage.data,
+        .messageSize = runMessage.size,
+        .numMessageHandles = static_cast<uint32_t>(runMessage.numHandles),
         .logName = binary.logName(),
         .logNameSize = strlen(binary.logName()),
     };

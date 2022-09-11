@@ -1,11 +1,12 @@
 #include <syscalls/Log.hpp>
 #include <syscalls/Exit.hpp>
 #include <syscalls/SendMessage.hpp>
-#include <syscalls/ReceiveMessage.hpp>
+#include <syscalls/WaitForEvent.hpp>
 #include <syscalls/CreatePort.hpp>
 #include <syscalls/DeleteHandle.hpp>
 #include <syscalls/Random.hpp>
 #include <syscalls/Crash.hpp>
+#include <syscalls/CreateEventQueue.hpp>
 #include <syscalls/MProtect.hpp>
 #include <syscalls/MMap.hpp>
 #include <syscalls/MUnmap.hpp>
@@ -22,7 +23,6 @@
 #include <syscalls/SubscribeInterrupt.hpp>
 #include <syscalls/UnsubscribeInterrupt.hpp>
 #include <syscalls/ProcessedInterrupt.hpp>
-#include <syscalls/WaitInterrupt.hpp>
 #include <syscalls/SpawnProcess.hpp>
 #include <syscalls/PinThread.hpp>
 #include <system/System.hpp>
@@ -37,12 +37,12 @@ static SyscallFunction *syscallFunctions[] = {
     &Log,
     &Exit,
     &SendMessage,
-    &ReceiveMessage,
+    &WaitForEvent,
     &CreatePort,
     &DeleteHandle,
     &Random,
     &Crash,
-    nullptr,
+    &CreateEventQueue,
 
     /* 10 */
     &MProtect,
@@ -90,7 +90,7 @@ static SyscallFunction *syscallFunctions[] = {
     &SubscribeInterrupt,
     &UnsubscribeInterrupt,
     &ProcessedInterrupt,
-    &WaitInterrupt,
+    nullptr,
 
     /* 50 */
     &SpawnProcess,

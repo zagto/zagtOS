@@ -205,6 +205,7 @@ void Thread::terminate() noexcept {
                 if (state() == localState) {
                     scheduler.removeOtherThread(this);
                     scheduler.lock.unlock();
+                    setState(State::Terminated());
                     return;
                 }
             }
