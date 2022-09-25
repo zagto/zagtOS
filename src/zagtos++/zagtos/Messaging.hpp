@@ -20,9 +20,7 @@ namespace zagtos {
 
 class RemotePort : public HandleObject {
 public:
-    RemotePort() {}
-    RemotePort(RemotePort &) = delete;
-    RemotePort(RemotePort &&other) : HandleObject(std::move(other)) {}
+    using HandleObject::HandleObject;
 
     void sendMessage(const UUID messageType,
                      MessageData messageData) const;
@@ -41,6 +39,12 @@ public:
     Port();
     Port(Port &) = delete;
     Port(Port &&other) : HandleObject(std::move(other)) {}
+    Port &operator=(Port &&other) {
+        _handle = other._handle;
+        other._handle = cApi::ZAGTOS_INVALID_HANDLE;
+        privateEventQueue = std::move(other.privateEventQueue);
+        return *this;
+    }
 
     bool ZBONDecode(zbon::Decoder &) = delete;
 

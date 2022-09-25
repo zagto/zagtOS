@@ -28,10 +28,9 @@ public:
 
 class EventQueue : public HandleObject {
 public:
+    using HandleObject::HandleObject;
     EventQueue();
     EventQueue(cApi::ZoProcessStartupInfo *startupInfo);
-    EventQueue(EventQueue &) = delete;
-    EventQueue(EventQueue &&other) : HandleObject(std::move(other)) {}
     Event waitForEvent();
 };
 

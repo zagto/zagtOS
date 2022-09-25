@@ -2,6 +2,7 @@
 #include <thread>
 #include <tuple>
 #include <vector>
+#include <set>
 #include <zagtos/ZBON.hpp>
 #include <zagtos/Messaging.hpp>
 #include <zagtos/protocols/Pci.hpp>
@@ -27,13 +28,6 @@ struct DeviceMatch {
 
     static constexpr uint64_t EXACT_MASK = -1;
 };
-
-class Driver;
-struct RunningDriver {
-    std::shared_ptr<Driver> driver;
-    Port port;
-};
-std::vector<RunningDriver> RunningDrivers;
 
 struct Driver {
     const ExternalBinary &binary;
@@ -73,17 +67,119 @@ struct Driver {
     }
 };
 
-
 std::vector<std::shared_ptr<Driver>> DriverRegistry;
 
-void StartDriver(std::shared_ptr<Driver> driver,
-                 UUID onController,
-                 const zbon::EncodedData &message) {
-    Port port(DefaultEventQueue, reinterpret_cast<size_t>(driver.get()));
-    auto runMessage = zbon::encodeObject(onController, port, message);
-    environmentSpawn(driver->binary, Priority::BACKGROUND, driver::MSG_START, runMessage);
-    RunningDrivers.push_back({std::move(driver), std::move(port)});
-}
+struct ClassDevice;
+
+struct DeviceClass {
+    UUID id;
+    std::vector<RemotePort> consumers;
+    std::set<ClassDevice *> instances;
+
+    DeviceClass(UUID id) :
+        id{id} {}
+};
+
+std::vector<std::shared_ptr<DeviceClass>> DeviceClassRegistry;
+
+struct ClassDevice {
+    std::shared_ptr<DeviceClass> deviceClass;
+    RemotePort consumerPort;
+
+    ClassDevice(std::shared_ptr<DeviceClass> deviceClass_, RemotePort consumerPort) :
+        deviceClass{std::move(deviceClass_)},
+        consumerPort{std::move(consumerPort)} {
+
+        deviceClass->instances.insert(this);
+    }
+    ~ClassDevice() {
+        deviceClass->instances.erase(this);
+    }
+    ClassDevice(const ClassDevice &) = delete;
+};
+
+class Device {
+private:
+    std::vector<std::unique_ptr<Device>> children;
+    std::vector<std::unique_ptr<ClassDevice>> classDevices;
+    std::shared_ptr<Driver> driver;
+    Port port;
+
+public:
+    /* root device */
+    Device(std::shared_ptr<Driver> halDriver) :
+        driver{halDriver},
+        port(DefaultEventQueue, reinterpret_cast<size_t>(this)) {
+
+        auto runMessage = zbon::encode(port);
+        environmentSpawn(driver->binary, Priority::BACKGROUND, driver::MSG_START_HAL, runMessage);
+    }
+
+    Device(UUID controllerType,
+           uint64_t deviceID,
+           const zagtos::MessageData &driverMessage) {
+        for (auto &driver: DriverRegistry) {
+            if (driver->matchesDevice(controllerType, deviceID)) {
+                std::cout << "starting driver " << driver->name() << " for device" << std::endl;
+                this->driver = driver;
+                break;
+            }
+        }
+
+        if (driver) {
+            port = Port(DefaultEventQueue, reinterpret_cast<size_t>(this));
+            auto runMessage = zbon::encodeObject(controllerType, port, driverMessage);
+            environmentSpawn(driver->binary, Priority::BACKGROUND, driver::MSG_START, runMessage);
+        }
+    }
+
+    void addChild(std::unique_ptr<Device> child) {
+        children.push_back(std::move(child));
+    }
+
+    void foundChildDevice(UUID controllerType,
+                          uint64_t deviceID,
+                          const zagtos::MessageData &driverMessage) {
+        if (!driver->canProvideController(controllerType)) {
+            std::cout << driver->name() << " found a device on a controller it is not allowed to provide" << std::endl;
+            return;
+        }
+
+        auto childDevice = std::make_unique<Device>(
+                    controllerType,
+                    deviceID,
+                    driverMessage);
+        children.push_back(std::move(childDevice));
+    }
+
+    void foundClassDevice(UUID deviceClassID, RemotePort consumerPort) {
+        if (!driver->canProvideDeviceClass(deviceClassID)) {
+            std::cout << driver->name() << " found a class device by driver that is not "
+                      << "allowed provide it" << std::endl;
+            return;
+        }
+
+        for (std::shared_ptr<DeviceClass> &deviceClass: DeviceClassRegistry) {
+            if (deviceClass->id == deviceClassID) {
+                auto classDevice = std::make_unique<ClassDevice>(deviceClass,
+                                                                 std::move(consumerPort));
+                //for (RemotePort &consumerPort : deviceClass->consumers) {
+                    // TODO: send message
+                //}
+                classDevices.push_back(std::move(classDevice));
+                return;
+            }
+        }
+
+        std::cout << "Unsupported device class: " << deviceClassID << std::endl;
+    }
+
+    const char *name() {
+        return driver->name();
+    }
+};
+
+std::unique_ptr<Device> DeviceTree;
 
 void registerEmbeddedDrivers() {
     DriverRegistry.push_back(std::make_shared<Driver>(Driver{
@@ -104,8 +200,10 @@ void registerEmbeddedDrivers() {
     DriverRegistry.push_back(std::make_shared<Driver>(Driver{
         AHCIDriver,
         {{driver::CONTROLLER_TYPE_PCI, 0x0106'0000'0000'0000, 0xffff'0000'0000'0000}},
-        {},
+        {driver::DEVICE_CLASS_BLOCK_STORAGE},
         {}}));
+
+    DeviceClassRegistry.push_back(std::make_shared<DeviceClass>(driver::DEVICE_CLASS_BLOCK_STORAGE));
 }
 
 int main() {
@@ -117,11 +215,12 @@ int main() {
 
     std::cout << "Starting HAL..." << std::endl;
 
-    StartDriver(DriverRegistry[0], driver::CONTROLLER_TYPE_ROOT, zbon::encode(0));
+    /* create root device (ACPIHAL) */
+    DeviceTree = std::make_unique<Device>(DriverRegistry[0]);
 
     while (true) {
         Event event = DefaultEventQueue.waitForEvent();
-        Driver *sender = reinterpret_cast<Driver *>(event.tag());
+        Device *sender = reinterpret_cast<Device *>(event.tag());
         std::cout << "Message from " << sender->name() << std::endl;
 
         if (event.messageType() == driver::MSG_START_RESULT) {
@@ -146,24 +245,19 @@ int main() {
                 std::cout << "Received malformed MSG_FOUND_DEVICE message." << std::endl;
                 continue;
             }
-
-            UUID controllerType = std::get<0>(msg);
-            uint64_t deviceID = std::get<1>(msg);
-            auto driverMessage = std::move(std::get<2>(msg));
-
-            if (!sender->canProvideController(controllerType)) {
-                std::cout << sender->name() << " found a device on a controller it is not allowed to provide" << std::endl;
+            sender->foundChildDevice(std::get<0>(msg),
+                                     std::get<1>(msg),
+                                     std::move(std::get<2>(msg)));
+        } else if (event.messageType() == driver::MSG_FOUND_CLASS_DEVICE) {
+            std::tuple<UUID, RemotePort> msg;
+            try {
+                zbon::decode(event.messageData(), msg);
+            } catch(zbon::DecoderException &e) {
+                std::cout << "Received malformed MSG_FOUND_CLASS_DEVICE message." << std::endl;
                 continue;
             }
-
-            for (auto &driver: DriverRegistry) {
-                if (driver->matchesDevice(controllerType, deviceID)) {
-                    Port port;
-                    std::cout << "starting driver " << driver->name() << " for device found by " << sender->name() << std::endl;
-                    StartDriver(driver, controllerType, driverMessage);
-                    break;
-                }
-            }
+            auto [deviceClass, consumerPort] = std::move(msg);
+            sender->foundClassDevice(deviceClass, std::move(consumerPort));
         } else {
             std::cout << "Got message of unknown type from HAL" << std::endl;
         }

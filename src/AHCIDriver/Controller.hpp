@@ -27,4 +27,5 @@ private:
 public:
     Controller(ABAR &, ControllerType type, zagtos::RemotePort &pciControllerPort);
     void handleInterrupt();
+    std::vector<const Device *> allDevices() const;
 };

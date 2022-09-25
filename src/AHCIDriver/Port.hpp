@@ -1,9 +1,12 @@
 #pragma once
 
+#include <optional>
+#include <memory>
 #include "Registers.hpp"
 #include "PortStructures.hpp"
 
 class Command;
+class Device;
 
 class Port {
 private:
@@ -13,7 +16,6 @@ private:
     RFISClass *rfis;
     UFISClass *ufis;
     std::array<bool, MAX_NUM_COMMAND_SLOTS> slotInUse{false};
-    bool devicePresent;
 
     void ensureNotRunning();
     void waitWhileBusy();
@@ -29,6 +31,8 @@ protected:
     void freeCommandSlot(size_t);
 
 public:
+    std::unique_ptr<Device> device;
+
     /* called after initizalization by the contoller it cleared IS.IPS. This sequence is
      * recommended by section 10.1.2 System Software Specific Initialization in the AHCI spec. */
     void enableInterrupts1();

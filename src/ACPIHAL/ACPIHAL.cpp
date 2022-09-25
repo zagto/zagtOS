@@ -14,10 +14,8 @@ extern "C" {
 int main() {
     std::cout << "Hello from ACPI" << std::endl;
 
-    auto runMessage = zagtos::decodeRunMessage<std::tuple<zagtos::UUID, zagtos::RemotePort, zbon::EncodedData>>(
-                zagtos::driver::MSG_START);
-
-    auto envPort = std::move(std::get<1>(runMessage));
+    auto envPort = zagtos::decodeRunMessage<zagtos::RemotePort>(
+                zagtos::driver::MSG_START_HAL);
 
     std::cout << "Decoded handle" << std::endl;
 

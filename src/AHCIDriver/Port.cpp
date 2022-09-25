@@ -1,16 +1,14 @@
-#define _GNU_SOURCE 1 /* for nanosleep */
 #include <iostream>
 #include <array>
 #include <sys/mman.h>
-#include <ctime>
 #include <zagtos/Messaging.hpp>
 #include <chrono>
 #include <thread>
 #include "Port.hpp"
 #include "Command.hpp"
+#include "Device.hpp"
 
 
-#include <ctime>
 void Port::ensureNotRunning() {
     std::cout << "ensureNotRunning" << std::endl;
     if (regs.CMD.ST()) {
@@ -86,10 +84,8 @@ void Port::detectDevice() {
 
         if (regs.SIG() == SIG_SATA) {
 
-            if (!devicePresent) {
+            if (!device) {
                 std::cout << "detected SATA device" << std::endl;
-                devicePresent = true;
-
 
                 Command cmd(*this, ATACommand::IDENTIFY_DEVICE, 512, false);
                 executeCommand(cmd);
@@ -102,18 +98,27 @@ void Port::detectDevice() {
                     sectorSize = 512;
                 }
 
+                uint64_t numSectors = 0;
                 if ((identify->supportedCommandSets & SupportedCommandSet::LBA48) && identify->maxLBA48) {
                     std::cout << "device has " << identify->maxLBA48 << " LBA48 sectors of size " << sectorSize << std::endl;
+                    numSectors = identify->maxLBA48;
                 } else if (identify->maxLBA28 != 0) {
                     std::cout << "device has " << identify->maxLBA28 << " LBA28 sectors of size " << sectorSize << std::endl;
+                    numSectors = identify->maxLBA28;
                 }
 
+                if (numSectors == 0) {
+                    std::cout << "Ignoring device that does not support LBA addressing"
+                              << std::endl;
+                    return;
+                }
+                device = std::make_unique<Device>(sectorSize, numSectors);
             }
         }
     } else {
-        if (devicePresent) {
+        if (device) {
             std::cout << "lost SATA device" << std::endl;
-            devicePresent = false;
+            device = {};
         }
     }
 }
@@ -139,8 +144,7 @@ void Port::enableInterrupts2() {
 }
 
 Port::Port(PortRegisters &regs):
-    regs{regs},
-    devicePresent{false} {
+    regs{regs} {
 
     ensureNotRunning();
 

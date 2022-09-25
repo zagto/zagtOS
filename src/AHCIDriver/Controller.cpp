@@ -6,6 +6,7 @@
 #include <zagtos/Messaging.hpp>
 #include <zagtos/protocols/Pci.hpp>
 #include "Controller.hpp"
+#include "Device.hpp"
 
 size_t MaximumDMAAddress;
 size_t NumCommandSlots;
@@ -132,4 +133,14 @@ Controller::Controller(ABAR &abar, ControllerType type, zagtos::RemotePort &pciC
         port.enableInterrupts2();
     }
     regs.GHC.IE(1);
+}
+
+std::vector<const Device *> Controller::allDevices() const {
+    std::vector<const Device *> result;
+    for (const Port &port: ports) {
+        if (port.device != nullptr) {
+            result.push_back(port.device.get());
+        }
+    }
+    return result;
 }

@@ -12,6 +12,7 @@
 #include <zagtos/Interrupt.hpp>
 #include "Registers.hpp"
 #include "Controller.hpp"
+#include "Device.hpp"
 
 using namespace zagtos;
 
@@ -49,6 +50,12 @@ int main() {
 
     Controller controller(*abar, type, controllerPort);
     std::cout << "Controller initialization OK" << std::endl;
+
+    for (const Device *device: controller.allDevices()) {
+        environementPort.sendMessage(
+                    driver::MSG_FOUND_CLASS_DEVICE,
+                    zbon::encodeObject(driver::DEVICE_CLASS_BLOCK_STORAGE, device->port));
+    }
 
     while (true) {
         Event event = DefaultEventQueue.waitForEvent();
