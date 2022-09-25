@@ -7,8 +7,8 @@ function check_toolchain() {
     NOHEADERS="$3"
     TARGET_CFLAGS="$4"
 
-    TOOLCHAIN_DIR="$SHBUILD_ROOT/out/toolchain/$NAME"
-    GCC_BUILD_DIR="$SHBUILD_ROOT/build/gcc/$NAME"
+    TOOLCHAIN_DIR="$SHBUILD_ROOT/out/$ARCH/toolchain/$NAME"
+    GCC_BUILD_DIR="$SHBUILD_ROOT/build/$ARCH/gcc/$NAME"
     GCC_SOURCE_DIR="$PWD"
 
     pushd "$GCC_BUILD_DIR"

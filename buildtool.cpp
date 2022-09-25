@@ -95,7 +95,7 @@ Module::Module(std::string moduleName, uint32_t _id) :
         dependenciesUpdated{false} {
     buildDir = BuildRoot;
     srcDir = BuildRoot;
-    buildDir += "/build/" + name;
+    buildDir += "/build/" + TargetArchitecture + "/" + name;
     srcDir += "/src/" + name;
 
     detectType();
@@ -125,7 +125,8 @@ Module::Module(std::string moduleName, uint32_t _id) :
     }
 
     try {
-        lastBuilt = std::filesystem::last_write_time("build/" + name + "/timestamp");
+        lastBuilt = std::filesystem::last_write_time(
+                    "build/" + TargetArchitecture + "/" + name + "/timestamp");
     }  catch (std::filesystem::filesystem_error) {
         lastBuilt = std::filesystem::file_time_type::min();
     }
@@ -290,20 +291,21 @@ void prepareEnvironment() {
     ParallelJobsString = std::to_string(ParallelJobs);
     setenv("PARALLEL_JOBS", ParallelJobsString.c_str(), 1);
 
-    PathString = BuildRootString + "/out/toolchain/kernel-" + TargetArchitecture + "/bin:"
-            + BuildRootString + "/out/toolchain/system-" + TargetArchitecture + "/bin:"
+    PathString = BuildRootString + "/out/" + TargetArchitecture + "/toolchain/kernel/bin:"
+            + BuildRootString + "/out/" + TargetArchitecture + "/toolchain/system/bin:"
             + getenv("PATH");
     setenv("PATH", PathString.c_str(), 1);
 
-    SysrootString = BuildRootString + "/out/toolchain/sysroot-" + TargetArchitecture;
+    SysrootString = BuildRootString + "/out/" + TargetArchitecture + "/toolchain/sysroot";
     setenv("SYSROOT", SysrootString.c_str(), 1);
 
     setenv("KERNEL_CFLAGS_x86_64", "-mgeneral-regs-only -mcmodel=large -mno-red-zone -ffixed-r15 -D _ZAGTOS_KERNEL=1", 1);
+    setenv("KERNEL_CFLAGS_aarch64", "-mgeneral-regs-only -mcmodel=large -D _ZAGTOS_KERNEL=1", 1);
 
     setenv("ARCH", TargetArchitecture.c_str(), 1);
 
     try {
-        std::filesystem::remove_all("out/esp");
+        std::filesystem::remove_all("out/" + TargetArchitecture + "/esp");
     }  catch (std::filesystem::filesystem_error) {
         std::cerr << "unable to clear out/" << std::endl;
         exit(1);
@@ -312,8 +314,11 @@ void prepareEnvironment() {
 
 
 void createBootImage() {
-    if (system("./create-boot-image.sh")) {
-        std::cerr << "buildtool: error during create-boot-image.sh" << std::endl;
+    if (system((std::string("./create-boot-image-")
+                + TargetArchitecture
+                + std::string(".sh")).c_str())) {
+        std::cerr << "buildtool: error during create-boot-image-" << TargetArchitecture << ".sh"
+                  << std::endl;
         exit(1);
     }
 }
@@ -454,8 +459,9 @@ void loadConfig() {
             }
             parallelJobs = true;
         } else if (key == "ARCH" && !architecture) {
-            if (value != "x86_64") {
-                std::cerr << "config.ini: ARCH must be one of the following: x86_64." << std::endl;
+            if (value != "x86_64" && value != "aarch64") {
+                std::cerr << "config.ini: ARCH must be one of the following: x86_64, aarch64."
+                          << std::endl;
                 exit(1);
             }
             TargetArchitecture = value;
