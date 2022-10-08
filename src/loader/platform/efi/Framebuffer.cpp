@@ -97,6 +97,7 @@ static void generateFramebufferInfo(EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode) {
         .format = mode->Info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor
                 ? hos_v1::FramebufferFormat::RGB
                 : hos_v1::FramebufferFormat::BGR,
+        .scaleFactor = 1,
     };
 }
 

@@ -8,7 +8,7 @@
 /* in the bootloader, we want to use the framebuffer before memory management is initialized. So we
  * can't allocate a back buffer of the exact size needed. Instead here is 50MB of memory to use. */
 #ifdef ZAGTOS_LOADER
-static constexpr size_t STATIC_BACK_BUFFER_SIZE = 50*1024*1024;
+static constexpr size_t STATIC_BACK_BUFFER_SIZE = 0x1700000; //50*1024*1024;
 static uint8_t staticBackBuffer[STATIC_BACK_BUFFER_SIZE];
 #endif
 
@@ -26,7 +26,7 @@ void FramebufferBackend::writePixel(uint32_t x, uint32_t y, Color color) {
         pixel[2] = color.red;
         break;
     }
-    pixel[3] = 0;
+    //pixel[3] = 0x00;
 }
 
 
@@ -40,7 +40,7 @@ void FramebufferBackend::clear() {
 
 
 void FramebufferBackend::clearLine(uint32_t line) {
-    for (uint32_t y = line * Font::characterHeight; y < (line + 1) * Font::characterHeight; y++) {
+    for (uint32_t y = line * characterHeightPixels; y < (line + 1) * characterHeightPixels; y++) {
         for (uint32_t x = 0; x < width; x++) {
             writePixel(x, y, backgroundColor);
         }
@@ -53,6 +53,7 @@ void FramebufferBackend::init(const hos_v1::FramebufferInfo &framebufferInfo) {
     width = framebufferInfo.width;
     bytesPerLine = framebufferInfo.bytesPerLine;
     bytesPerPixel = framebufferInfo.bytesPerPixel;
+    scaleFactor = framebufferInfo.scaleFactor;
     frontBuffer = framebufferInfo.frontBuffer;
 #ifdef ZAGTOS_LOADER
     backBuffer = staticBackBuffer;
@@ -63,8 +64,10 @@ void FramebufferBackend::init(const hos_v1::FramebufferInfo &framebufferInfo) {
 #endif
     format = static_cast<FramebufferFormat>(framebufferInfo.format);
 
-    numColumns = width / Font::characterWidth;
-    numLines = height / Font::characterHeight;
+    characterWidthPixels = Font::characterWidth * scaleFactor;
+    characterHeightPixels = Font::characterHeight * scaleFactor;
+    numColumns = width / characterWidthPixels;
+    numLines = height / characterHeightPixels;
     currentColumn = 0;
     currentLine = 0;
 
@@ -99,17 +102,21 @@ void FramebufferBackend::writeCharacter(char character) {
         return;
     }
     for (uint32_t y = 0; y < Font::characterHeight; y++) {
-        for (uint32_t x = 0; x < Font::characterWidth; x++) {
-            writePixel(currentColumn * Font::characterWidth + x,
-                       currentLine * Font::characterHeight + y,
-                       Font::getPixel(character, x, y) ? foregroundColor : backgroundColor);
+        for (uint32_t yPixel = 0; yPixel < scaleFactor; yPixel++) {
+            for (uint32_t x = 0; x < Font::characterWidth; x++) {
+                for (uint32_t xPixel = 0; xPixel < scaleFactor; xPixel++) {
+                    writePixel((currentColumn * Font::characterWidth + x) * scaleFactor + xPixel,
+                               (currentLine * Font::characterHeight + y) * scaleFactor + yPixel,
+                               Font::getPixel(character, x, y) ? foregroundColor : backgroundColor);
+                }
+            }
         }
     }
     increasePosition();
 }
 
 void FramebufferBackend::flip() {
-    size_t offset = currentLine * Font::characterHeight;
+    size_t offset = currentLine * characterHeightPixels;
     memcpy(frontBuffer, backBuffer + offset * bytesPerLine, (height - offset) * bytesPerLine);
     memcpy(frontBuffer + (height - offset) * bytesPerLine, backBuffer, offset * bytesPerLine);
 }

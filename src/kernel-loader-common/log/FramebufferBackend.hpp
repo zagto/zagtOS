@@ -16,7 +16,7 @@ struct Color {
 class FramebufferBackend {
 private:
     constexpr static const Color backgroundColor{0xff, 0xff, 0xff};
-    Color foregroundColor;
+    Color foregroundColor{0, 0, 0};
 
     uint8_t *frontBuffer;
     uint8_t *backBuffer;
@@ -29,6 +29,9 @@ private:
     uint32_t numLines;
     uint32_t currentColumn;
     uint32_t currentLine;
+    uint32_t scaleFactor;
+    uint32_t characterWidthPixels;
+    uint32_t characterHeightPixels;
 
     void clear();
     void clearLine(uint32_t line);

@@ -1,7 +1,5 @@
-[bits 64]
-
-section .init
+.section ".init"
     ret
 
-section .fini
+.section ".fini"
     ret

@@ -1,17 +1,54 @@
 #pragma once
 
 #include <common/panic.hpp>
+#include <common/addresses.hpp>
+#include <common/PlacementNew.hpp>
 
 template<typename T> class optional {
 private:
     bool hasValue{false};
-    T _value{};
+    union {
+        uint8_t dummy[sizeof(T)];
+        T _value;
+    };
 
 public:
-    constexpr optional() {}
-    optional(T value):
-        hasValue{true},
-        _value{value} {}
+    constexpr optional() {
+        clearDummy();
+    }
+    optional(const T &value):
+            hasValue{true} {
+        new (&_value) T(value);
+    }
+    optional(const optional &other) {
+        if (other.hasValue) {
+            new (&_value) T(other._value);
+        } else {
+            clearDummy();
+        }
+        hasValue = other.hasValue;
+    }
+    optional &operator=(const optional &other) {
+        if (hasValue) {
+            _value.~T();
+        }
+        if (other.hasValue) {
+            new (&_value) T(other._value);
+        } else {
+            clearDummy();
+        }
+        hasValue = other.hasValue;
+        return *this;
+    }
+    ~optional() {
+        if (hasValue) {
+            _value.~T();
+        }
+    }
+    const T *operator->() const {
+        assert(hasValue);
+        return &_value;
+    }
     T *operator->() {
         assert(hasValue);
         return &_value;
@@ -22,5 +59,10 @@ public:
     }
     operator bool() const {
         return hasValue;
+    }
+    void clearDummy() {
+        for (uint8_t &byte: dummy) {
+            byte = 0xff;
+        }
     }
 };

@@ -24,7 +24,8 @@ hos_v1::FramebufferInfo &InitFramebuffer(void) {
         .height = mboot->height,
         .bytesPerPixel = mboot->bpp / 8u,
         .bytesPerLine = mboot->pitch,
-        .format = 0 /* inserted below */
+        .format = 0, /* inserted below */
+        .scaleFactor = 1,
     };
 
     if (mboot->bpp >= 24 && mboot->bpp % 8 == 0

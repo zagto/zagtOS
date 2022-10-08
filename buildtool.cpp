@@ -302,6 +302,9 @@ void prepareEnvironment() {
     setenv("KERNEL_CFLAGS_x86_64", "-mgeneral-regs-only -mcmodel=large -mno-red-zone -ffixed-r15 -D _ZAGTOS_KERNEL=1", 1);
     setenv("KERNEL_CFLAGS_aarch64", "-mgeneral-regs-only -mcmodel=large -D _ZAGTOS_KERNEL=1", 1);
 
+    setenv("AS_x86_64", "nasm -f elf", 1);
+    setenv("AS_aarch64", "aarch64-elf-as", 1);
+
     setenv("ARCH", TargetArchitecture.c_str(), 1);
 
     try {

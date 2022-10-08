@@ -17,7 +17,7 @@ TARGET = $(BUILD_DIR)/kernel-loader-common.a
 
 PWD = $(shell pwd)
 
-# CXXFLGS should be exported when calling this Makefile
+# CXXFLAGS should be exported when calling this Makefile
 
 CXX = $(ARCH)-elf-g++
 AR = $(ARCH)-elf-gcc-ar
@@ -33,7 +33,7 @@ $(BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
 
 $(BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)
-	nasm -f elf64 -o $@ $<
+	$(AS_$(ARCH)) -o $@ $<
 
 clean:
 	rm -f $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(TARGET)

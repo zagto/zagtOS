@@ -5,11 +5,11 @@
 #include <mutex>
 #include <memory/DLMallocGlue.hpp>
 #include <interrupts/KernelInterruptsLock.hpp>
+#include <common/PlacementNew.hpp>
 
 namespace std {
     enum class align_val_t: size_t {};
 }
-void *operator new(size_t, KernelVirtualAddress address);
 
 template<typename T> class unique_ptr {
 private:

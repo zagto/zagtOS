@@ -9,10 +9,10 @@
 #include <ProgramBinary.hpp>
 #include <common/utils.hpp>
 #include <Firmware.hpp>
-#include <smp/SMP.hpp>
-#include <Time.hpp>
+/*#include <smp/SMP.hpp>
+#include <Time.hpp>*/
 #include <log/BasicLog.hpp>
-
+#include <DeviceTree.hpp>
 
 /* converts pointers to physical memory for use in kernel where the identity mapping is offset at
  * an address in high kernel memory */
@@ -50,18 +50,50 @@ void isort(hos_v1::MappedArea *mappedAreas, size_t len) {
 }
 
 extern "C" void LoaderMain() {
-    cout << "Initializing..." << endl;
-    hos_v1::FramebufferInfo &framebufferInfo = InitFramebuffer();
+    //cout << "Initializing..." << endl;
+    /*hos_v1::FramebufferInfo &framebufferInfo =*/ InitFramebuffer();
     basicLog::init();
+    cout << "Hello from C++" << endl;
+    deviceTree::Tree tree;
+    cout << "Device Tree initialized" << endl;
+    deviceTree::Node reservedMemoryNode = *tree.rootNode.findChildNode("reserved-memory");
+    cout << "reservedMemoryNode constructed" << endl;
+    deviceTree::Node continousSplashNode = *reservedMemoryNode.findChildNode("cont_splash_region");
+    cout << "continousSplashNode constructed" << endl;
+    Region region = continousSplashNode.getRegionProperty();
+    cout << "region start: " << region.start << endl << endl;
 
-    detectTimerFrequency();
+    deviceTree::Node socNode = *tree.rootNode.findChildNode("soc");
+    cout << "socNode constructed" << endl;
+    //deviceTree::Node displayNode = *tree.rootNode.findChildNode("qcom,dsi-display");
+    deviceTree::Node displayNode = *socNode.findChildWithProperty("qcom,dsi-display", "qcom,dsi-display-active");
+    cout << "displayNode constructed" << endl;
+    deviceTree::Property panelHandleProp = *displayNode.findProperty("qcom,dsi-panel");
+    cout << "panelHandle: " << panelHandleProp.getUInt32() << endl;
+
+    deviceTree::Node panelNode = *tree.rootNode.findNodeByPHandle(panelHandleProp.getUInt32());
+    cout << "panelNode!!!" << endl;
+    deviceTree::Node timingsNode = *panelNode.findChildNode("qcom,mdss-dsi-display-timings");
+    cout << "timingNode" << endl;
+    /* simply take the first timing node. Hopefully all timings have the same resolution */
+    deviceTree::Node timingNode = *timingsNode.findChildNode({});
+    cout << "timingNode" << endl;
+    cout << "\n\n\n\n\n";
+
+    Halt();
+
+   /* detectTimerFrequency();
+    *
+    * */
 
     cout << "Detecting Images..." << endl;
+    Halt();
+    /*
     ProgramBinary kernel = LoadKernelImage();
-    ProgramBinary process = LoadProcessImage();
+    ProgramBinary process = LoadProcessImage();*/
 
     /* sections, run message */
-    const size_t numMappings = process.numSections() + 1;
+    /*const size_t numMappings = process.numSections() + 1;
     const size_t numFrames = process.loadedUserFrames();
     const size_t numHandles = 2;
 
@@ -69,12 +101,12 @@ extern "C" void LoaderMain() {
             + sizeof(hos_v1::Process)
             + sizeof(hos_v1::Thread)
             + numHandles * sizeof(hos_v1::Handle)
-            + 17 /* SystemEnvironment string */
+            + 17*/ /* SystemEnvironment string */ /*
             + numMappings * sizeof(hos_v1::MappedArea)
             + numMappings * sizeof(hos_v1::MemoryArea)
-            + numFrames * sizeof(hos_v1::Frame)
+            + numFrames * sizeof(hos_v1::Frame)*/
             /* handover frame ids, futex frame ids */
-            + 2 * numFrames * sizeof(size_t)
+            /*+ 2 * numFrames * sizeof(size_t)
             + sizeof(hos_v1::EventQueue);
     uint8_t *pointer = memoryMap::allocateHandOver(handOverSize / PAGE_SIZE + 1);
     auto handOverSystem = reinterpret_cast<hos_v1::System *>(pointer);
@@ -114,9 +146,9 @@ extern "C" void LoaderMain() {
 
     size_t frameIndex = 0;
     cout << "Setting up address space for kernel..." << endl;
-    kernel.load(PagingContext::GLOBAL, nullptr, frameIndex);
+    kernel.load(PagingContext::GLOBAL, nullptr, frameIndex);*/
     /* loadring to GLOBAL context should map directly and not fill in frames */
-    assert(frameIndex == 0);
+    /*assert(frameIndex == 0);
 
     cout << "Setting up address space for initial process..." << endl;
     process.load(PagingContext::PROCESS, handOverFrames, frameIndex);
@@ -125,15 +157,15 @@ extern "C" void LoaderMain() {
     cout << "Preparing handover structures..." << endl;
 
     RegisterState regState(process.entryAddress(),
-                           UserSpaceRegion.end() - 1, /* ensure valid UserVirtualAddress */
+                           UserSpaceRegion.end() - 1,*/ /* ensure valid UserVirtualAddress */ /*
                            process.runMessageAddress().value());
 
     *handOverSystem = hos_v1::System{
         .version = 1,
         .framebufferInfo = framebufferInfo,
-        .freshFrameStack = {}, /* correct data will be filled in later */
-        .usedFrameStack = {},  /* correct data will be filled in later */
-        .handOverPagingContext = reinterpret_cast<size_t>(HandOverMasterPageTable),
+        .freshFrameStack = {},*/ /* correct data will be filled in later */
+        /*.usedFrameStack = {}, */ /* correct data will be filled in later */
+        /*.handOverPagingContext = reinterpret_cast<size_t>(HandOverMasterPageTable),
         .firmwareType = GetFirmwareType(),
         .firmwareRoot = GetFirmwareRoot(),
         .numProcesses = 1,
@@ -209,9 +241,9 @@ extern "C" void LoaderMain() {
             .length = process.sectionSizeInMemory(offset),
         };
         frameIndex += process.sectionSizeInMemory(offset) / PAGE_SIZE;
-    }
+    }*/
     /* run message */
-    handOverMappedAreas[process.numSections()] = hos_v1::MappedArea{
+    /*handOverMappedAreas[process.numSections()] = hos_v1::MappedArea{
         .memoryAreaID = process.numSections(),
         .offset = 0,
         .start = process.runMessageAddress().value(),
@@ -256,7 +288,7 @@ extern "C" void LoaderMain() {
     cout << "Releasing secondary Processors to Kernel..." << endl;
     releaseSecondaryProcessorsToKernel();
     cout << "Exiting to Kernel..." << endl;
-    ExitToKernel(0, BootProcessorHardwareID);
+    ExitToKernel(0, BootProcessorHardwareID);*/
 }
 
 void* __dso_handle = nullptr;

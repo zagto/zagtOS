@@ -111,6 +111,7 @@ struct FramebufferInfo {
     uint32_t bytesPerPixel;
     uint32_t bytesPerLine;
     uint32_t format;
+    uint32_t scaleFactor;
 };
 
 struct FrameStack {

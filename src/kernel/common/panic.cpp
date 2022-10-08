@@ -19,7 +19,7 @@ __attribute__((noreturn)) void Panic() {
     /* ensure Interrupts disabled */
     KernelInterruptsLock.lock();
 
-    cout << "Kernel Panic. System will Halt";
+    cout << "Kernel Panic. System will Halt" << endl;
     Halt();
 }
 

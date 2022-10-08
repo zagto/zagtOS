@@ -32,7 +32,7 @@ EFI_LDS = $(SHBUILD_ROOT)/src/gnu-efi/gnuefi/elf_$(ARCH)_efi.lds
 CXX = $(ARCH)-elf-g++
 LD = $(ARCH)-elf-ld
 
-CXXFLAGS = $(EFI_INCLUDES) -Os -ffreestanding -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -Wextra -Werror -I$(PWD) -I$(PWD)/stdlib -I$(PWD)/arch/$(ARCH) -I$(PWD)/platform/efi -I$(PWD)/../kernel-loader-common -I$(PWD)/../kernel-loader-common/stdlib -I$(PWD)/../kernel-loader-common/arch/$(ARCH) -DZAGTOS_LOADER
+CXXFLAGS = $(EFI_INCLUDES) -Os -ffreestanding -fno-stack-protector -fpic -fshort-wchar -mno-red-zone -Wall -Wextra -Werror -I$(PWD) -I$(PWD)/stdlib -I$(PWD)/arch/$(ARCH) -I$(PWD)/platform/efi -I$(PWD)/../kernel-loader-common -I$(PWD)/../kernel-loader-common/stdlib -I$(PWD)/../kernel-loader-common/arch/$(ARCH) -DZAGTOS_LOADER -DZAGTOS_LOADER_EFI
 ifeq ($(ARCH),x86_64)
     CXXFLAGS += -DEFI_FUNCTION_WRAPPER
 endif

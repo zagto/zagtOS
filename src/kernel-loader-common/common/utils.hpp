@@ -52,7 +52,7 @@ struct timespec {
 
 /* Loader may be linked against GNU EFI, which also contains these symbols. These macros avoid this
  * conflict by renaming them. */
-#ifdef ZAGTOS_LOADER
+#ifdef ZAGTOS_LOADER_EFI
 #define memset loader_memset
 #define memcpy loader_memcpy
 #endif

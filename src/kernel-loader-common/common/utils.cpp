@@ -32,10 +32,14 @@ bool operator<=(Permissions a, Permissions b) {
     return a == b || a < b;
 }
 
+#pragma GCC push_options
+#pragma GCC optimize ("-O3")
+#pragma GCC optimize ("-fno-tree-loop-distribute-patterns")
+
 void *memset(void *pointer, int value, size_t len)
 {
     for (size_t i = 0; i < len; i++) {
-        static_cast<char *>(pointer)[i] = static_cast<char>(value);
+        static_cast<uint8_t *>(pointer)[i] = static_cast<uint8_t>(value);
     }
     return pointer;
 }
@@ -72,6 +76,7 @@ int memcmp(const void *_a, const void *_b, size_t length) {
     return 0;
 }
 
+#pragma GCC pop_options
 
 size_t align(size_t address, size_t alignment, AlignDirection direction) {
     if (direction == AlignDirection::UP) {

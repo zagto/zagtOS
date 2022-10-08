@@ -6,7 +6,7 @@ __attribute__((noreturn)) void Halt() {
 }
 
 __attribute__((noreturn)) void Panic() {
-    cout << "Loader Panic. System will Halt";
+    cout << "Loader Panic. System will Halt" << endl;
     Halt();
 }
 
