@@ -4,6 +4,6 @@
 
 extern "C" uint64_t readTimerValue();
 
-extern uint64_t timerFrequency;
-void detectTimerFrequency();
-void delayMilliseconds(uint64_t ms);
+extern uint64_t TimerFrequency;
+extern "C" void detectTimerFrequency();
+extern "C" void delayMilliseconds(uint64_t ms);

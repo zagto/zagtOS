@@ -3,8 +3,9 @@
 #include <common/ModelSpecificRegister.hpp>
 #include <iostream>
 
-uint64_t timerFrequency = 0;
+uint64_t TimerFrequency = 0;
 
+extern "C"
 void detectTimerFrequency() {
     auto model = cpuid::getModel();
 
@@ -26,7 +27,7 @@ void detectTimerFrequency() {
              * 18.18.3 Determining the Processor Base Frequency */
             if (model.frequencyInfo) {
                 cpuid::CrystalInfo freq = *model.frequencyInfo;
-                timerFrequency = (static_cast<uint64_t>(freq.crystal) * freq.crystalTSCRatio1)
+                TimerFrequency = (static_cast<uint64_t>(freq.crystal) * freq.crystalTSCRatio1)
                         / freq.crystalTSCRatio2;
 
                 methodName = "CPUID 15h";
@@ -39,10 +40,10 @@ void detectTimerFrequency() {
 
                 uint64_t busFrequency = (readModelSpecificRegister(MSR::PLATFORM_INFO) >> 8) & 0xff;
                 if (model.isIntelNehalem()) {
-                    timerFrequency = busFrequency * 133'330'000;
+                    TimerFrequency = busFrequency * 133'330'000;
                     methodName = "PLATFORM_INFO MSR (Nehalem)";
                 } else {
-                    timerFrequency = busFrequency * 100'000'000;
+                    TimerFrequency = busFrequency * 100'000'000;
                     methodName = "PLATFORM_INFO MSR (Sandy Bridge or greater)";
                 }
             } else if (model.isIntelSilvermont() || model.isIntelAirmont()) {
@@ -55,7 +56,7 @@ void detectTimerFrequency() {
                     busFreqency = readModelSpecificRegister(MSR::FSB_FREQ) & 0xf;
                     methodName = "PLARFORM_ID/FSB_FREQ MSRs (Airmont)";
                 }
-                timerFrequency = busFreqency * busRatio;
+                TimerFrequency = busFreqency * busRatio;
             } else {
                 cout << "Unsupported CPU Model for Frequency detection: Family " << model.familyID << " model "
                      << model.modelID << endl;
@@ -72,25 +73,26 @@ void detectTimerFrequency() {
                  << "supported." << endl;
             Panic();
         } else {
-            timerFrequency = static_cast<uint64_t>(model.hypervisorTSCKHz) * 1000;
+            TimerFrequency = static_cast<uint64_t>(model.hypervisorTSCKHz) * 1000;
             methodName = "Hypervisor";
         }
     }
 
 
 
-    cout << "Detected TSC timer frequency using " << methodName << ": " << (timerFrequency/(1000000)) << "MHz" << endl;
+    cout << "Detected TSC timer frequency using " << methodName << ": " << (TimerFrequency/(1000000)) << "MHz" << endl;
     //assert(timerFrequency != 0);
-    if (timerFrequency == 0) {
-        timerFrequency = 1'000'000'000;
+    if (TimerFrequency == 0) {
+        TimerFrequency = 1'000'000'000;
     }
 }
 
+extern "C"
 void delayMilliseconds(uint64_t ms) {
-    assert(timerFrequency != 0);
+    assert(TimerFrequency != 0);
 
     uint64_t startValue = readTimerValue();
-    uint64_t endValue = startValue + (timerFrequency * ms) / 1000;
+    uint64_t endValue = startValue + (TimerFrequency * ms) / 1000;
     uint64_t now = startValue;
     while (now < endValue) {
         now = readTimerValue();

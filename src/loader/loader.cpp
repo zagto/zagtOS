@@ -9,10 +9,9 @@
 #include <ProgramBinary.hpp>
 #include <common/utils.hpp>
 #include <Firmware.hpp>
-/*#include <smp/SMP.hpp>
-#include <Time.hpp>*/
+/*#include <smp/SMP.hpp>*/
+#include <Time.hpp>
 #include <log/BasicLog.hpp>
-#include <DeviceTree.hpp>
 
 /* converts pointers to physical memory for use in kernel where the identity mapping is offset at
  * an address in high kernel memory */
@@ -54,37 +53,10 @@ extern "C" void LoaderMain() {
     /*hos_v1::FramebufferInfo &framebufferInfo =*/ InitFramebuffer();
     basicLog::init();
     cout << "Hello from C++" << endl;
-    deviceTree::Tree tree;
-    cout << "Device Tree initialized" << endl;
-    deviceTree::Node reservedMemoryNode = *tree.rootNode.findChildNode("reserved-memory");
-    cout << "reservedMemoryNode constructed" << endl;
-    deviceTree::Node continousSplashNode = *reservedMemoryNode.findChildNode("cont_splash_region");
-    cout << "continousSplashNode constructed" << endl;
-    Region region = continousSplashNode.getRegionProperty();
-    cout << "region start: " << region.start << endl << endl;
 
-    deviceTree::Node socNode = *tree.rootNode.findChildNode("soc");
-    cout << "socNode constructed" << endl;
-    //deviceTree::Node displayNode = *tree.rootNode.findChildNode("qcom,dsi-display");
-    deviceTree::Node displayNode = *socNode.findChildWithProperty("qcom,dsi-display", "qcom,dsi-display-active");
-    cout << "displayNode constructed" << endl;
-    deviceTree::Property panelHandleProp = *displayNode.findProperty("qcom,dsi-panel");
-    cout << "panelHandle: " << panelHandleProp.getUInt32() << endl;
+    detectTimerFrequency();
 
-    deviceTree::Node panelNode = *tree.rootNode.findNodeByPHandle(panelHandleProp.getUInt32());
-    cout << "panelNode!!!" << endl;
-    deviceTree::Node timingsNode = *panelNode.findChildNode("qcom,mdss-dsi-display-timings");
-    cout << "timingNode" << endl;
-    /* simply take the first timing node. Hopefully all timings have the same resolution */
-    deviceTree::Node timingNode = *timingsNode.findChildNode({});
-    cout << "timingNode" << endl;
-    cout << "\n\n\n\n\n";
-
-    Halt();
-
-   /* detectTimerFrequency();
-    *
-    * */
+    cout << "Got timer frequency: " << TimerFrequency << endl;
 
     cout << "Detecting Images..." << endl;
     Halt();

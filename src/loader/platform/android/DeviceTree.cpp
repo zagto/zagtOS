@@ -34,14 +34,14 @@ String::String(const char *data):
 
     size_t index = 0;
     for (index = 0; data[index] != 0; index++) {}
-    length = index;
+    _length = index;
 }
 
 bool String::operator==(const String &other) const {
-    if (length != other.length) {
+    if (_length != other._length) {
         return false;
     }
-    for (size_t index = 0; index < length; index++) {
+    for (size_t index = 0; index < _length; index++) {
         if (data[index] != other.data[index]) {
             return false;
         }
@@ -50,7 +50,7 @@ bool String::operator==(const String &other) const {
 }
 
 Logger &operator<<(Logger &logger, String string) {
-    for (size_t index = 0; index < string.length; index++) {
+    for (size_t index = 0; index < string._length; index++) {
         logger << string.data[index];
     }
     return logger;
@@ -86,6 +86,7 @@ Node::Node(const deviceTree::Tree &tree,
 
 const Token *Node::parse(ParseAction action,
                          optional<String> searchName,
+                         optional<uint32_t> searchNameOffset,
                          const Token *startPoint) const {
     /* startPoint parameter is optional, if absent start at the first token */
     const Token *currentToken = startPoint != nullptr ? startPoint : firstInnerToken;
@@ -107,7 +108,7 @@ const Token *Node::parse(ParseAction action,
         } else if (*currentToken == PROPERTY) {
             Property property(tree, currentToken);
             if (action == ParseAction::FIND_PROPERTY) {
-                if (nestingLevel == 1 && *searchName == property.name()) {
+                if (nestingLevel == 1 && *searchNameOffset == property.nameOffset()) {
                     return currentToken;
                 }
             }
@@ -135,7 +136,7 @@ const Token *Node::findFollowingToken() const {
 }
 
 optional<Node> Node::findNodeByPHandle(uint32_t phandle) const {
-    optional<Property> phandleProperty = findProperty("phandle");
+    optional<Property> phandleProperty = findProperty(tree.phandleStringOffset());
     if (phandleProperty && phandleProperty->getUInt32() == phandle) {
         return *this;
     }
@@ -151,9 +152,13 @@ optional<Node> Node::findNodeByPHandle(uint32_t phandle) const {
 }
 
 optional<Node> Node::findChildWithProperty(optional<String> nodeName, String propertyName) const {
+    optional<uint32_t> nameOffset = tree.getStringOffset(propertyName);
+    if (!nameOffset) {
+        return {};
+    }
     optional<Node> childNode = findChildNode(nodeName);
     while (childNode) {
-        if (childNode->findProperty(propertyName)) {
+        if (childNode->findProperty(*nameOffset)) {
             return childNode;
         }
         childNode = findChildNode(nodeName, childNode->findFollowingToken());
@@ -162,17 +167,17 @@ optional<Node> Node::findChildWithProperty(optional<String> nodeName, String pro
 }
 
 optional<Node> Node::findChildNode(optional<String> name, const Token *startPoint) const {
-    const Token *token = parse(ParseAction::FIND_CHILD, name, startPoint);
+    const Token *token = parse(ParseAction::FIND_CHILD, name, {}, startPoint);
     if (token == nullptr) {
         return {};
     }
     uint32_t childAddressCells = DEFAULT_NUM_ADDRESS_CELLS;
     uint32_t childSizeCells = DEFAULT_NUM_SIZE_CELLS;
-    optional<Property> addressCellsPropery = findProperty("#address-cells");
+    optional<Property> addressCellsPropery = findProperty(tree.addressCellsStringOffset());
     if (addressCellsPropery) {
         childAddressCells = addressCellsPropery->getUInt32();
     }
-    optional<Property> sizeCellsPropery = findProperty("#size-cells");
+    optional<Property> sizeCellsPropery = findProperty(tree.sizeCellsStringOffset());
     if (sizeCellsPropery) {
         childSizeCells = sizeCellsPropery->getUInt32();
     }
@@ -180,7 +185,16 @@ optional<Node> Node::findChildNode(optional<String> name, const Token *startPoin
 }
 
 optional<Property> Node::findProperty(String name) const {
-    const Token *token = parse(ParseAction::FIND_PROPERTY, name);
+    optional<uint32_t> offset = tree.getStringOffset(name);
+    if (offset) {
+        return findProperty(*offset);
+    } else {
+        return {};
+    }
+}
+
+optional<Property> Node::findProperty(uint32_t nameOffset) const {
+    const Token *token = parse(ParseAction::FIND_PROPERTY, {}, nameOffset);
     if (token == nullptr) {
         return {};
     }
@@ -188,7 +202,7 @@ optional<Property> Node::findProperty(String name) const {
 }
 
 Region Node::getRegionProperty() const {
-    const optional<Property> property = findProperty("reg");
+    const optional<Property> property = findProperty(tree.regStringOffset());
     assert(property);
     assert(numAddressCells <= PLATFORM_BITS / 32);
     assert(numSizeCells <= PLATFORM_BITS / 32);
@@ -203,13 +217,19 @@ Region Node::getRegionProperty() const {
     return result;
 }
 
-Property::Property(const Tree &tree, const Token *token) {
+Property::Property(const Tree &tree, const Token *token) :
+        tree{tree} {
     assert(*token == PROPERTY);
     const PropertyHeader *header = reinterpret_cast<const PropertyHeader *>(token + 1);
-    _name = tree.getString(header->nameOffset);
+    _nameOffset = header->nameOffset;
     _length = header->innerLength;
     _data = reinterpret_cast<const uint8_t *>(header) + sizeof(PropertyHeader);
 }
+
+const String Property::name() const {
+    return tree.getString(_nameOffset);
+}
+
 
 const Token *Property::followingToken() const {
     size_t endAddress = reinterpret_cast<size_t>(_data) + _length;
@@ -221,11 +241,16 @@ uint32_t Property::getUInt32(size_t index, size_t totalNumElements) const {
     const size_t expected_length = sizeof(uint32_t) * totalNumElements;
     assert(_length >= totalNumElements);
     if (_length < totalNumElements) {
-        cout << "warning: DeviceTree property " << _name << " larger than expected: " << _length
+        cout << "warning: DeviceTree property " << name() << " larger than expected: " << _length
              << "bytes, while expecting only " << expected_length << "bytes" << endl;
     }
     return reinterpret_cast<const BigEndian<uint32_t> *>(_data)[index];
 }
+
+String Property::getString() const {
+    return String(reinterpret_cast<const char *>(_data), _length);
+}
+
 
 Tree::Tree() :
     header{reinterpret_cast<TreeHeader *>(DeviceTreeAddress)},
@@ -233,11 +258,29 @@ Tree::Tree() :
 
     assert(header->magic == 0xd00dfeed);
     stringBuffer = reinterpret_cast<char *>(DeviceTreeAddress + header->stringsOffset);
+    stringBufferSize = header->stringsLength;
+    _phandleStringOffset = *getStringOffset("phandle");
+    _addressCellsStringOffset = *getStringOffset("#address-cells");
+    _sizeCellsStringOffset = *getStringOffset("#size-cells");
+    _regStringOffset = *getStringOffset("reg");
 }
 
 String Tree::getString(uint32_t offset) const {
     assert(offset < header->stringsLength);
     return String(stringBuffer + offset);
+}
+
+optional<uint32_t> Tree::getStringOffset(String string) const {
+    uint32_t startOffset = 0;
+    while (startOffset < stringBufferSize) {
+        String currentString = String(stringBuffer + startOffset);
+        if (currentString == string) {
+            return startOffset;
+        }
+        startOffset += currentString.length() + 1;
+    }
+    cout << "could not find offset for: " << string << endl;
+    return {};
 }
 
 }

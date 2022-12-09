@@ -15,18 +15,21 @@ struct TreeHeader;
 
 class String {
 private:
-    size_t length;
+    size_t _length;
     const char *data;
 
 public:
     String():
-        length{0}, data{nullptr} {}
+        _length{0}, data{nullptr} {}
     String(const char *data, size_t length):
-        length{length}, data{data} {}
+        _length{length}, data{data} {}
     String(const char *data);
     bool operator==(const String &other) const;
     bool operator!=(const String &other) const {
         return !(*this == other);
+    }
+    size_t length() const {
+        return _length;
     }
     friend Logger &operator<<(Logger &logger, String string);
 };
@@ -35,14 +38,16 @@ Logger &operator<<(Logger &logger, String string);
 
 class Property {
 private:
-    String _name;
+    const Tree& tree;
+    uint32_t _nameOffset;
     size_t _length;
     const uint8_t *_data;
 
 public:
     Property(const Tree &tree, const Token *token);
-    const String &name() const {
-        return _name;
+    const String name() const;
+    uint32_t nameOffset() const {
+        return _nameOffset;
     }
     size_t length() const {
         return _length;
@@ -52,6 +57,7 @@ public:
     }
     const Token *followingToken() const;
     uint32_t getUInt32(size_t index = 0, size_t totalNumElements = 1) const;
+    String getString() const;
 };
 
 class Node {
@@ -70,6 +76,7 @@ private:
 
     const Token *parse(ParseAction action,
                        optional<String> searchName = {},
+                       optional<uint32_t> searchNameOffset = {},
                        const Token *startPoint = nullptr) const;
 
 public:
@@ -88,9 +95,13 @@ public:
     optional<Node> findChildNode(const char *name) const {
         return findChildNode(String(name));
     }
+    optional<Node> findChildNode() const {
+        return findChildNode(optional<String>());
+    }
     optional<Node> findChildWithProperty(const char *nodeName, String propertyName) const {
         return findChildWithProperty(String(nodeName), propertyName);
     }
+    optional<Property> findProperty(uint32_t nameOffset) const;
     optional<Property> findProperty(String name) const;
     Region getRegionProperty() const;
 };
@@ -105,6 +116,11 @@ class Tree {
 private:
     TreeHeader *header;
     const char *stringBuffer;
+    size_t stringBufferSize;
+    uint32_t _phandleStringOffset;
+    uint32_t _addressCellsStringOffset;
+    uint32_t _sizeCellsStringOffset;
+    uint32_t _regStringOffset;
 
 public:
     const Node rootNode;
@@ -112,6 +128,19 @@ public:
     Tree();
     Tree(const Tree &other) = delete;
     String getString(uint32_t offset) const;
+    optional<uint32_t> getStringOffset(String string) const;
+    uint32_t phandleStringOffset() const {
+        return _phandleStringOffset;
+    }
+    uint32_t addressCellsStringOffset() const {
+        return _addressCellsStringOffset;
+    }
+    uint32_t sizeCellsStringOffset() const {
+        return _sizeCellsStringOffset;
+    }
+    uint32_t regStringOffset() const {
+        return _regStringOffset;
+    }
 };
 
 }
