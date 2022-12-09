@@ -1,7 +1,5 @@
 #include <system/System.hpp>
 #include <time/Time.hpp>
-#include <time/Time.hpp>
-#include <common/ModelSpecificRegister.hpp>
 
 Time::Time(uint64_t timerFrequency) noexcept:
     timerFrequency{timerFrequency} {
@@ -73,8 +71,4 @@ void Time::delayMilliseconds(uint64_t ms) const noexcept {
     while (now < endValue) {
         now = readTimerValue();
     }
-}
-
-void setTimer(uint64_t value) noexcept {
-    writeModelSpecificRegister(MSR::TSC_DEADLINE, value);
 }

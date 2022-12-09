@@ -1,4 +1,6 @@
 #include <syscalls/IOPortRead.hpp>
+
+#ifdef SYSTEM_X86_64
 #include <portio.hpp>
 
 size_t IOPortRead(const shared_ptr<Process> &process,
@@ -19,3 +21,17 @@ size_t IOPortRead(const shared_ptr<Process> &process,
 
     return portio::read(static_cast<uint16_t>(port), size);
 }
+
+#else
+
+size_t IOPortRead(const shared_ptr<Process> &process,
+                  size_t,
+                  size_t,
+                  size_t,
+                  size_t,
+                  size_t) {
+    cout << "IOPortRead syscall on non-x86 system" << endl;
+    throw BadUserSpace(process);
+}
+
+#endif

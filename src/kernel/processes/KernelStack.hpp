@@ -14,7 +14,12 @@ private:
     /* x86_64 expects a mis-aligned by 8 stack pointer */
     static constexpr size_t INITIAL_KERNEL_STACK_POINTER_OFFSET = USER_STATE_OFFSET - 8;
 #else
+#ifdef SYSTEM_AARCH64
+    /* x86_64 expects a mis-aligned by 8 stack pointer */
+    static constexpr size_t INITIAL_KERNEL_STACK_POINTER_OFFSET = USER_STATE_OFFSET;
+#else
 #error "add your system architecture here"
+#endif
 #endif
 
     void *data{nullptr};

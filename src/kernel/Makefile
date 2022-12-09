@@ -34,7 +34,7 @@ LDFLAGS = -O2 -ffreestanding -nostdlib -static -L$(PWD)/arch/$(ARCH)/lib/crt -z 
 CXX = $(ARCH)-elf-g++
 CC = $(ARCH)-elf-gcc
 export STRIP = $(ARCH)-elf-strip
-CONVERTELF = $(SHBUILD_ROOT)/build/ConvertELF/ConvertELF
+CONVERTELF = $(SHBUILD_ROOT)/build/$(ARCH)/ConvertELF/ConvertELF
 
 
 CRTBEGIN_OBJ:=$(shell $(CXX) $(CXXFLAGS) -print-file-name=crtbegin.o)
@@ -44,7 +44,7 @@ $(TARGET): $(SHBUILD_BUILD_DIR)/kernel.elf
 	$(CONVERTELF) $< $@ --no-add-stack
 
 $(SHBUILD_BUILD_DIR)/kernel.elf: $(CXX_OBJS) $(C_OBJS) $(ASM_OBJS) $(LIBSUPCXX_OBJS) kernel-loader-common
-	$(CXX) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(C_OBJS) $(LIBSUPCXX_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(SHBUILD_BUILD_DIR)/kernel-loader-common.a $(SHBUILD_ROOT)/out/toolchain/kernel-$(ARCH)/lib/gcc/$(ARCH)-elf/12.2.0/libgcc.a $(CRTEND_OBJ) $(CRTN_OBJ)
+	$(CXX) $(LDFLAGS) -o $@ $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(C_OBJS) $(LIBSUPCXX_OBJS) $(CXX_OBJS) $(ASM_REGULER_OBJS) $(SHBUILD_BUILD_DIR)/kernel-loader-common.a $(SHBUILD_ROOT)/out/$(ARCH)/toolchain/kernel/lib/gcc/$(ARCH)-elf/12.2.0/libgcc.a $(CRTEND_OBJ) $(CRTN_OBJ)
 
 $(SHBUILD_BUILD_DIR)/%.o: %.cpp $(CXX_HEADERS)
 	mkdir -p $(dir $@)
@@ -56,7 +56,7 @@ $(SHBUILD_BUILD_DIR)/%.o: %.c $(CXX_HEADERS)
 
 $(SHBUILD_BUILD_DIR)/%.o: %.asm
 	mkdir -p $(dir $@)
-	nasm -f elf64 -o $@ $<
+	$(AS_$(ARCH)) -o $@ $^
 
 kernel-loader-common:
 	make -C ../kernel-loader-common BUILD_DIR=$(SHBUILD_BUILD_DIR)

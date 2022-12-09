@@ -4,7 +4,6 @@
 #include <interrupts/InterruptDescriptorTable.hpp>
 #include <interrupts/GlobalDescriptorTable.hpp>
 #include <interrupts/RegisterState.hpp>
-#include <interrupts/TriggerMode.hpp>
 
 class RegisterState;
 

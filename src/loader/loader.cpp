@@ -59,10 +59,10 @@ extern "C" void LoaderMain() {
     cout << "Got timer frequency: " << TimerFrequency << endl;
 
     cout << "Detecting Images..." << endl;
-    Halt();
-    /*
-    ProgramBinary kernel = LoadKernelImage();
-    ProgramBinary process = LoadProcessImage();*/
+
+    /*ProgramBinary kernel =*/ LoadKernelImage();
+    /*ProgramBinary process =*/ LoadProcessImage();
+    cout << "load kernel/process images" << endl;
 
     /* sections, run message */
     /*const size_t numMappings = process.numSections() + 1;

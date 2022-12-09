@@ -35,7 +35,7 @@ hos_v1::FramebufferInfo &InitFramebuffer(void) {
         cout << "could not find qcom,dsi-panel property" << endl;
         Panic();
     }
-    auto panelNode = tree.rootNode.findNodeByPHandle(panelHandleProperty->getUInt32());
+    auto panelNode = tree.rootNode.findNodeByPHandle(panelHandleProperty->getInt<uint32_t>());
     if (!panelNode) {
         cout << "could not find panel node" << endl;
         Panic();
@@ -70,10 +70,10 @@ hos_v1::FramebufferInfo &InitFramebuffer(void) {
     info = hos_v1::FramebufferInfo{
         .frontBuffer = reinterpret_cast<uint8_t *>(region.start),
         .backBuffer = nullptr, /* inserted by mapFrameBuffer */
-        .width = widthProperty->getUInt32(),
-        .height = heightProperty->getUInt32(),
+        .width = widthProperty->getInt<uint32_t>(),
+        .height = heightProperty->getInt<uint32_t>(),
         .bytesPerPixel = 4,
-        .bytesPerLine = widthProperty->getUInt32() * 4,
+        .bytesPerLine = widthProperty->getInt<uint32_t>() * 4,
         .format = hos_v1::FramebufferFormat::BGR,
         .scaleFactor = 3,
     };

@@ -23,6 +23,7 @@ public:
     const size_t numProcessors;
     /* initialized by arch-specific constructor */
     size_t tlbContextsPerProcessor{0};
+    PhysicalAddress firmwareRoot;
 
     CommonSystem(const hos_v1::System &handOver);
 

@@ -95,7 +95,11 @@ void ProcessAddressSpace::coreDump(Thread *crashedThread) {
 #ifdef SYSTEM_X86_64
         .machine = 62,
 #else
-    #error "unknown architecture"
+#ifdef SYSTEM_AARCH64
+        .machine = 183,
+#else
+#error "unknown architecture"
+#endif
 #endif
         .version = 1,
         .entry = 0,

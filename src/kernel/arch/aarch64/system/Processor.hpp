@@ -1,13 +1,8 @@
 #pragma once
 
 #include <system/CommonProcessor.hpp>
-#include <interrupts/LocalAPIC.hpp>
 
 class Processor : public CommonProcessor {
-private:
-    TaskStateSegment tss;
-    apic::LocalAPIC localAPIC;
-
 public:
     Processor();
 
@@ -21,5 +16,5 @@ public:
 };
 
 extern "C" Processor *CurrentProcessor();
-void InitCurrentProcessorPointer(Processor *processor);
+extern "C" void InitCurrentProcessorPointer(Processor *processor);
 extern bool ProcessorsInitialized;

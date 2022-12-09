@@ -6,8 +6,11 @@
 #include <system/Processor.hpp>
 #include <log/BasicLog.hpp>
 
+using InitArrayItem = void (*)();
 
 extern "C" void _init();
+extern "C" InitArrayItem _init_array;
+extern "C" InitArrayItem _init_array_end;
 
 void KernelEntry2(void *handOver);
 
@@ -23,7 +26,15 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
         basicLog::init();
 
         /* Call global constructors */
+#if defined(SYSTEM_X86_64)
         _init();
+#elif defined(SYSTEM_AARCH64)
+        for (InitArrayItem *item = &_init_array; item != &_init_array_end; item++) {
+            (**item)();
+        }
+#else
+#error "Unknown architecture"
+#endif
 
         cout << "ZagtOS kernel starting" << endl;
 

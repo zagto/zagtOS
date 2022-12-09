@@ -8,7 +8,7 @@ size_t GetFirmwareRoot(const shared_ptr<Process> &process,
                                size_t,
                                size_t) {
     if (process->canAccessPhysicalMemory()) {
-        return CurrentSystem.ACPIRoot.value();
+        return CurrentSystem.firmwareRoot.value();
     } else {
         throw BadUserSpace(process);
     }

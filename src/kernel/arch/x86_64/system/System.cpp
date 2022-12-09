@@ -11,8 +11,7 @@ hos_v1::System *_HandOverSystem;
 
 System::System() :
         CommonSystem(*_HandOverSystem),
-        gdt(),
-        ACPIRoot{_HandOverSystem->firmwareRoot} {
+        gdt() {
     /* TODO: support for Intel PCIDs could be added here */
     tlbContextsPerProcessor = 1;
 

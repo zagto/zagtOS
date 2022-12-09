@@ -1,6 +1,5 @@
 #include <processes/Scheduler.hpp>
 #include <system/System.hpp>
-#include <interrupts/util.hpp>
 #include <processes/Process.hpp>
 #include <processes/KernelThreadEntry.hpp>
 #include <system/Processor.hpp>

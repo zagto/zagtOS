@@ -1,6 +1,7 @@
 #pragma once
 
 #include <interrupts/Interrupts.hpp>
+#include <interrupts/TriggerMode.hpp>
 #include <processes/ThreadList.hpp>
 #include <processes/Thread.hpp>
 #include <vector>
@@ -18,7 +19,9 @@ class Manager;
 class BoundInterrupt {
 private:
     friend class System;
+#ifdef ZAGTOS_ARCH_X86_64
     friend class apic::IOAPIC;
+#endif
     friend class interruptManager::Manager;
 
     struct Subscription {
@@ -65,8 +68,6 @@ class Manager {
 
         mutex lock;
         vector<vector<BoundInterrupt *>> allInterrupts;
-
-        PlatformInterrupt findFree() noexcept;
 
     public:
         Manager();

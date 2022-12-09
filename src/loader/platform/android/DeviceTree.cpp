@@ -137,7 +137,7 @@ const Token *Node::findFollowingToken() const {
 
 optional<Node> Node::findNodeByPHandle(uint32_t phandle) const {
     optional<Property> phandleProperty = findProperty(tree.phandleStringOffset());
-    if (phandleProperty && phandleProperty->getUInt32() == phandle) {
+    if (phandleProperty && phandleProperty->getInt<uint32_t>() == phandle) {
         return *this;
     }
     optional<Node> childNode = findChildNode(optional<String>() );
@@ -175,11 +175,11 @@ optional<Node> Node::findChildNode(optional<String> name, const Token *startPoin
     uint32_t childSizeCells = DEFAULT_NUM_SIZE_CELLS;
     optional<Property> addressCellsPropery = findProperty(tree.addressCellsStringOffset());
     if (addressCellsPropery) {
-        childAddressCells = addressCellsPropery->getUInt32();
+        childAddressCells = addressCellsPropery->getInt<uint32_t>();
     }
     optional<Property> sizeCellsPropery = findProperty(tree.sizeCellsStringOffset());
     if (sizeCellsPropery) {
-        childSizeCells = sizeCellsPropery->getUInt32();
+        childSizeCells = sizeCellsPropery->getInt<uint32_t>();
     }
     return Node(tree, token, childAddressCells, childSizeCells);
 }
@@ -209,10 +209,10 @@ Region Node::getRegionProperty() const {
     const size_t totalNumCells = numAddressCells + numSizeCells;
     Region result{0, 0};
     for (size_t index = 0; index < numAddressCells; index++) {
-        result.start = (result.start << 32) | property->getUInt32(index, totalNumCells);
+        result.start = (result.start << 32) | property->getInt<uint32_t>(index, totalNumCells);
     }
     for (size_t index = numAddressCells; index < totalNumCells; index++) {
-        result.length = (result.length << 32) | property->getUInt32(index, totalNumCells);
+        result.length = (result.length << 32) | property->getInt<uint32_t>(index, totalNumCells);
     }
     return result;
 }
@@ -237,15 +237,19 @@ const Token *Property::followingToken() const {
     return reinterpret_cast<const Token *>(endAddress);
 }
 
-uint32_t Property::getUInt32(size_t index, size_t totalNumElements) const {
-    const size_t expected_length = sizeof(uint32_t) * totalNumElements;
+template<typename T>
+T Property::getInt(size_t index, size_t totalNumElements) const {
+    const size_t expected_length = sizeof(T) * totalNumElements;
     assert(_length >= totalNumElements);
     if (_length < totalNumElements) {
         cout << "warning: DeviceTree property " << name() << " larger than expected: " << _length
              << "bytes, while expecting only " << expected_length << "bytes" << endl;
     }
-    return reinterpret_cast<const BigEndian<uint32_t> *>(_data)[index];
+    return reinterpret_cast<const BigEndian<T> *>(_data)[index];
 }
+
+template uint32_t Property::getInt<uint32_t>(size_t index, size_t totalNumElements) const;
+template uint64_t Property::getInt<uint64_t>(size_t index, size_t totalNumElements) const;
 
 String Property::getString() const {
     return String(reinterpret_cast<const char *>(_data), _length);

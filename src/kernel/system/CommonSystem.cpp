@@ -7,7 +7,8 @@ CommonSystem::CommonSystem(const hos_v1::System &handOver):
     nextFutexFrameID{handOver.nextFutexFrameID},
     time{handOver.timerFrequency},
     kernelOnlyPagingContext(handOver.handOverPagingContext),
-    numProcessors{handOver.numProcessors} {}
+    numProcessors{handOver.numProcessors},
+    firmwareRoot{_HandOverSystem->firmwareRoot} {}
 
 void CommonSystem::initProcessorsAndTLB() {
     TLBContexts = new TLBContext[numProcessors * tlbContextsPerProcessor];

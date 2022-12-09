@@ -1,4 +1,6 @@
 #include <syscalls/IOPortWrite.hpp>
+
+#ifdef SYSTEM_X86_64
 #include <portio.hpp>
 
 size_t IOPortWrite(const shared_ptr<Process> &process,
@@ -20,4 +22,18 @@ size_t IOPortWrite(const shared_ptr<Process> &process,
     portio::write(static_cast<uint16_t>(port), size, value);
     return 0;
 }
+
+#else
+
+size_t IOPortWrite(const shared_ptr<Process> &process,
+                   size_t,
+                   size_t,
+                   size_t,
+                   size_t,
+                   size_t) {
+    cout << "IOPortWrite syscall on non-x86 system" << endl;
+    throw BadUserSpace(process);
+}
+
+#endif
 

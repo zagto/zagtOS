@@ -62,6 +62,16 @@ void *memmove(void *dest, const void *src, size_t len) {
     return dest;
 }
 
+char *strchr(const char *s, int c) {
+    while (*s != '\0') {
+        if (*s == c) {
+            return const_cast<char *>(s);
+        }
+        s++;
+    }
+    return nullptr;
+}
+
 int memcmp(const void *_a, const void *_b, size_t length) {
     const uint8_t *a = reinterpret_cast<const uint8_t *>(_a);
     const uint8_t *b = reinterpret_cast<const uint8_t *>(_b);

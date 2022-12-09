@@ -56,7 +56,8 @@ public:
         return _data;
     }
     const Token *followingToken() const;
-    uint32_t getUInt32(size_t index = 0, size_t totalNumElements = 1) const;
+    template<typename T>
+    T getInt(size_t index = 0, size_t totalNumElements = 1) const;
     String getString() const;
 };
 

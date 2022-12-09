@@ -6,7 +6,6 @@
 .extern _init_array
 .extern _init_array_end
 .extern LoaderMain
-.extern HelloC
 
 .global _start
 .global __cxa_atexit

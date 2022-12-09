@@ -43,3 +43,35 @@ struct BigEndian {
         return static_cast<T>(*this) != other;
     }
 };
+
+template<typename T>
+struct LittleEndian {
+    T littleEndianValue;
+    LittleEndian() = default;
+    LittleEndian(T platformValue) {
+#ifdef PLATFORM_LITTLE_ENDIAN
+        littleEndianValue = ByteSwap(platformValue);
+#else
+#error "Unsupported Endianness"
+#endif
+    }
+    operator T() const {
+#ifdef PLATFORM_LITTLE_ENDIAN
+        return littleEndianValue;
+#else
+#error "Unsupported Endianness"
+#endif
+    }
+    bool operator==(const LittleEndian &other) const {
+        return littleEndianValue == other.bigEndianValue;
+    }
+    bool operator!=(const LittleEndian &other) const {
+        return littleEndianValue != other.bigEndianValue;
+    }
+    bool operator==(const T &other) const {
+        return static_cast<T>(*this) == other;
+    }
+    bool operator!=(const T &other) const {
+        return static_cast<T>(*this) != other;
+    }
+};

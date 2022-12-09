@@ -12,6 +12,12 @@ class TLBContext;
 class PagingContext;
 class Processor;
 
+enum IPI {
+    CheckScheduler = 1u << 0,
+    InvalidateQueueProcessing = 1u << 1,
+    HaltProcessor = 1u << 2
+};
+
 class CommonProcessor {
 protected:
     /* self variable since the pointer to the current Processor may be saved in a register (gs on
