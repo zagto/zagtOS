@@ -39,4 +39,10 @@ public:
         assert(newEnd > start);
         length = newEnd - start;
     }
+    bool operator==(const Region &other) const {
+        return start == other.start && length == other.length;
+    }
+    bool operator!=(const Region &other) const {
+        return !(*this == other);
+    }
 };

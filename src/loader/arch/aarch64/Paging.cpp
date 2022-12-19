@@ -2,21 +2,37 @@
 #include <memory/PhysicalMemory.hpp>
 #include <iostream>
 
-PageTable *HandOverMasterPageTable{nullptr};
+PageTable *LowPagingRoot{nullptr};
+PageTable *HighPagingRoot{nullptr};
 
-#define PAGE_PRESENT        0x0000000000000001
-#define PAGE_WRITEABLE      0x0000000000000002
-#define PAGE_USER           0x0000000000000004
-#define PAGE_PAT_LOW        0x0000000000000008
-#define PAGE_PAT_MID        0x0000000000000010
-#define PAGE_LARGE_2MIB     0x0000000000000080
-#define PAGE_GLOBAL         0x0000000000000100
-#define PAGE_NON_EXECUTABLE 0x8000000000000000
+constexpr uint64_t PAGE_PRESENT = 1;
+/* not a block in terms of ARM paging, i.e. not a large page */
+constexpr uint64_t PAGE_NOT_BLOCK = 1ul << 1;
+constexpr uint64_t PAGE_ATTRIBUTES_INDEX_SHIFT = 2;
+constexpr uint64_t PAGE_NON_SECURE = (1ul << 5);
+constexpr uint64_t PAGE_USER = (1ul << 6);
+constexpr uint64_t PAGE_READ_ONLY = (1ul << 7);
+constexpr uint64_t PAGE_ACCESSED = (1ul << 10);
+constexpr uint64_t PAGE_OUTER_SHARABLE = (0b10ul << 8);
+constexpr uint64_t PAGE_INNER_SHARABLE = (0b11ul << 8);
+constexpr uint64_t PAGE_NOT_GLOBAL = (1ul<<11);
 
-#define PAGE_ADDRESS_MASK   0x000ffffffffff000
+constexpr uint64_t PAGE_NO_PRIVILEGED_EXECUTION = (1ul << 53);
+constexpr uint64_t PAGE_NO_UNPRIVILEGED_EXECUTION = (1ul << 54);
 
-#define NUM_PAGE_TABLE_LEVELS 4
+constexpr uint64_t TABLE_NON_SECURE = (1ul << 63);
 
+
+#define PAGE_ADDRESS_MASK   0x0007fffffffff000
+
+#define NUM_PAGE_TABLE_LEVELS 3
+
+void InitPaging() {
+    LowPagingRoot = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
+    HighPagingRoot = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
+    ClearPageTable(LowPagingRoot);
+    ClearPageTable(HighPagingRoot);
+}
 
 void ClearPageTable(PageTable *pageTable) {
     size_t index;
@@ -25,23 +41,8 @@ void ClearPageTable(PageTable *pageTable) {
     }
 }
 
-
-void CreateGlobalMasterPageTableEntries() {
-    /* upper half is global area */
-    PageTable *newPageTable;
-    size_t index;
-    for (index = ENTRIES_PER_PAGE_TABLE / 2; index < ENTRIES_PER_PAGE_TABLE; index++) {
-        newPageTable = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
-        ClearPageTable(newPageTable);
-        (*HandOverMasterPageTable)[index] =
-                reinterpret_cast<uint64_t>(newPageTable) | PAGE_PRESENT | PAGE_WRITEABLE;
-    }
-}
-
-
 #define ADDRESS_PAGE_SHIFT 12
 #define PAGE_LEVEL_SHIFT 9
-#define ADDRESS_PART_MASK ((1 << PAGE_LEVEL_SHIFT) - 1)
 static PageTableEntry *getPageTableEntry(PageTable *pageTable,
                                          VirtualAddress virtualAddress,
                                          size_t level) {
@@ -49,7 +50,6 @@ static PageTableEntry *getPageTableEntry(PageTable *pageTable,
             & (ENTRIES_PER_PAGE_TABLE - 1);
     return &(*pageTable)[index];
 }
-
 
 void MapAddress(PagingContext pagingContext,
                 VirtualAddress virtualAddress,
@@ -59,16 +59,19 @@ void MapAddress(PagingContext pagingContext,
                 bool large,
                 CacheType cacheType) {
     size_t level = NUM_PAGE_TABLE_LEVELS - 1;
-    PageTable *pageTable = HandOverMasterPageTable;
+    PageTable *pageTable;
     if (virtualAddress.isKernel()) {
         assert(pagingContext == PagingContext::GLOBAL);
+        pageTable = HighPagingRoot;
     } else {
         assert(pagingContext == PagingContext::HANDOVER);
+        pageTable = LowPagingRoot;
     }
     PageTableEntry *entry;
     PageTable *newPageTable;
 
-    size_t userFlag = pagingContext == PagingContext::PROCESS ? PAGE_USER : 0;
+    assert(!(writeable && executable));
+
     size_t targetLevel = large ? 1 : 0;
 
     while (level > targetLevel) {
@@ -77,8 +80,8 @@ void MapAddress(PagingContext pagingContext,
         if (!(*entry & PAGE_PRESENT)) {
             newPageTable = reinterpret_cast<PageTable *>(AllocatePhysicalFrame().value());
             ClearPageTable(newPageTable);
-            *entry = reinterpret_cast<uint64_t>(newPageTable) | PAGE_PRESENT | PAGE_WRITEABLE
-                    | userFlag;
+            *entry = reinterpret_cast<uint64_t>(newPageTable) | PAGE_PRESENT | PAGE_NOT_BLOCK |
+                    TABLE_NON_SECURE | PAGE_ACCESSED;
         }
         pageTable = (PageTable *)(*entry & PAGE_ADDRESS_MASK);
         level--;
@@ -92,20 +95,29 @@ void MapAddress(PagingContext pagingContext,
         Halt();
     }
 
-    *entry = physicalAddress.value() | PAGE_PRESENT | userFlag;
-    if (writeable) {
-        *entry |= PAGE_WRITEABLE;
+    *entry = physicalAddress.value() | PAGE_PRESENT | PAGE_NON_SECURE | PAGE_ACCESSED
+            | PAGE_NO_UNPRIVILEGED_EXECUTION;
+    if (!writeable) {
+        *entry |= PAGE_READ_ONLY;
     }
     if (!executable) {
-        *entry |= PAGE_NON_EXECUTABLE;
+        /* in the bootloader we never map pages that will be executed in EL0 */
+        *entry |= PAGE_NO_PRIVILEGED_EXECUTION;
     }
-    if (virtualAddress.value() >= 0xffff800000000000) {
-        *entry |= PAGE_GLOBAL;
+    if (!virtualAddress.isKernel()) {
+        *entry |= PAGE_NOT_GLOBAL;
     }
-    if (large) {
-        *entry |= PAGE_LARGE_2MIB;
+    if (!large) {
+        *entry |= PAGE_NOT_BLOCK;
     }
     if (cacheType) {
-        *entry |= cacheType * PAGE_PAT_LOW;
+        *entry |= cacheType << PAGE_ATTRIBUTES_INDEX_SHIFT;
     }
+}
+
+hos_v1::PagingContext GetPagingContext() {
+    return {
+        .lowRoot = reinterpret_cast<size_t>(LowPagingRoot),
+        .highRoot = reinterpret_cast<size_t>(HighPagingRoot),
+    };
 }

@@ -15,7 +15,7 @@ C_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(C_SOURCES:.c=.o))
 ASM_SOURCES = $(shell find arch/$(ARCH) -type f -name '*.asm')
 ASM_OBJS = $(addprefix $(SHBUILD_BUILD_DIR)/, $(ASM_SOURCES:.asm=.o))
 
-EMBEDDED_BINARIES = $(SHBUILD_ROOT)/build/ACPIHAL/ACPIHAL $(SHBUILD_ROOT)/build/PCIController/PCIController $(SHBUILD_ROOT)/build/AHCIDriver/AHCIDriver $(SHBUILD_ROOT)/build/PS2Controller/PS2Controller
+EMBEDDED_BINARIES = $(SHBUILD_ROOT)/build/$(ARCH)/ACPIHAL/ACPIHAL $(SHBUILD_ROOT)/build/$(ARCH)/PCIController/PCIController $(SHBUILD_ROOT)/build/$(ARCH)/AHCIDriver/AHCIDriver $(SHBUILD_ROOT)/build/$(ARCH)/PS2Controller/PS2Controller
 BINARY_OBJS = $(SHBUILD_BUILD_DIR)/binaries.o
 
 TARGET = $(SHBUILD_BUILD_DIR)/SYSENV.ZBN
@@ -33,7 +33,7 @@ CXX = $(ARCH)-zagto-zagtos-g++
 CC = $(ARCH)-zagto-zagtos-gcc
 LD = $(ARCH)-zagto-zagtos-ld
 export STRIP = $(ARCH)-zagto-zagtos-strip
-CONVERTELF = $(SHBUILD_ROOT)/build/ConvertELF/ConvertELF
+CONVERTELF = $(SHBUILD_ROOT)/build/$(ARCH)/ConvertELF/ConvertELF
 
 
 $(TARGET): $(SHBUILD_BUILD_DIR)/SystemEnvironment.elf

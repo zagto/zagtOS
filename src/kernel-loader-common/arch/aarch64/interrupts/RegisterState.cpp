@@ -1,6 +1,7 @@
 #include <common/utils.hpp>
 #include <interrupts/RegisterState.hpp>
 #include <memory/ArchRegions.hpp>
+#include <iostream>
 
 
 RegisterState::RegisterState() noexcept {
@@ -12,22 +13,38 @@ RegisterState::RegisterState(UserVirtualAddress entry,
                              size_t entryArgument) noexcept
     : RegisterState() {
 
-    rsp = stackPointer.value();
-    /* stack-pointer needs to be misaligned on x86_64 */
-    while (rsp % 16 != 8) {
-        rsp--;
+    sp = stackPointer.value();
+    /* stack-pointer needs to be aligned on aarch64 */
+    while (sp % 16 != 0) {
+        sp--;
     }
-    rdi = entryArgument;
-    r8 = 1;
+    x[0] = entryArgument;
 
     if (entry.isKernel()) {
-        cs = 0x08;
-        ss = 0x10;
+        fromUser = true;
     } else {
-        cs = 0x20 | 3;
-        ss = 0x18 | 3;
-        rflags = FLAG_USER_IOPL;
+        pstate = FLAG_EL1;
     }
-    rip = entry.value();
-    rflags |= FLAG_INTERRUPTS;
+    pc = entry.value();
+    pstate |= FLAG_INTERRUPTS;
+}
+
+Logger &operator<<(Logger &logger, const RegisterState &regs) {
+    logger << "[" << endl
+           << "\tPC=" << regs.pc << ", SP=" << regs.sp << endl
+           << "\tPSTATE=" << regs.pstate << endl;
+
+    for (size_t index = 0; index < 10; index += 2) {
+        logger << "\tX" << ('0'+index) << "=" << regs.x[index]
+               << ", X" << ('1'+index) << "=" << regs.x[index+1] << endl;
+    }
+    for (size_t index = 10; index < 30; index += 2) {
+        logger << "\tX" << ('0'+index/10) << ('0'+index%10) << "=" << regs.x[index]
+               << ", X" << ('0'+index/10) << ('1'+index%10) << "=" << regs.x[index+1] << endl;
+    }
+
+    logger << "\texception type: " << regs.exceptionType << ", exception syndrome: "
+           << regs.exceptionSyndrome << endl
+           << "]";
+    return logger;
 }

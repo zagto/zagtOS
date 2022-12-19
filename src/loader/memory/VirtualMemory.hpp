@@ -3,7 +3,6 @@
 #include <common/addresses.hpp>
 #include <setup/HandOverState.hpp>
 
-void InitPaging();
 void MapLoaderMemory();
 void MapFramebufferMemory(hos_v1::FramebufferInfo &framebufferInfo);
 void CreateIdentityMap(PhysicalAddress maxPhysicalAddress);

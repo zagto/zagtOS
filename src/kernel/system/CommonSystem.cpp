@@ -8,7 +8,11 @@ CommonSystem::CommonSystem(const hos_v1::System &handOver):
     time{handOver.timerFrequency},
     kernelOnlyPagingContext(handOver.handOverPagingContext),
     numProcessors{handOver.numProcessors},
-    firmwareRoot{_HandOverSystem->firmwareRoot} {}
+    firmwareRoot{_HandOverSystem->firmwareRoot} {
+    // TODO: initialize FutexManager?
+    cout << "CommonSystem()" << endl;
+
+}
 
 void CommonSystem::initProcessorsAndTLB() {
     TLBContexts = new TLBContext[numProcessors * tlbContextsPerProcessor];

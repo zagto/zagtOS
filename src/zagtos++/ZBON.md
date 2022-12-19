@@ -108,13 +108,12 @@ Byte Sizes of an Element always include sub-Elements.
 
 ## Header
 
-A ZBON File begins with one byte to specify the type of the root element. This is followed by the size in Bytes of the root element (which is also the size of the rest of the File - all non-Root elements are contained in the Root - a lot like JSON).
+A ZBON File begins with one byte to specify the type of the root element. This is followed directly by the root element itself (which is also the rest of the File - all non-Root elements are contained in the Root - a lot like JSON).
 
 Offset | Size | Description
 -------|------|-------------
 0 | 1 | Type of Root Element
-1 | 8 | rootSize - Size in Bytes of Root Element
-9 | rootSize | Root Element
+1 | rootSize | Root Element
 
 
 ## Booleans

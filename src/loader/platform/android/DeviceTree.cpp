@@ -201,18 +201,32 @@ optional<Property> Node::findProperty(uint32_t nameOffset) const {
     return Property(tree, token);
 }
 
-Region Node::getRegionProperty() const {
+size_t Node::getNumRegions() const {
+    const optional<Property> property = findProperty(tree.regStringOffset());
+    if (!property) {
+        return 0;
+    }
+    const size_t cellsPerRegion = numAddressCells + numSizeCells;
+    const size_t bytesPerCell = 4;
+    assert(property->length() % (cellsPerRegion * bytesPerCell) == 0);
+    return property->length() / (cellsPerRegion * bytesPerCell);
+}
+
+Region Node::getRegionProperty(size_t regionIndex) const {
     const optional<Property> property = findProperty(tree.regStringOffset());
     assert(property);
     assert(numAddressCells <= PLATFORM_BITS / 32);
     assert(numSizeCells <= PLATFORM_BITS / 32);
-    const size_t totalNumCells = numAddressCells + numSizeCells;
+    const size_t cellsPerRegion = numAddressCells + numSizeCells;
+    const size_t totalCells = cellsPerRegion * getNumRegions();
     Region result{0, 0};
     for (size_t index = 0; index < numAddressCells; index++) {
-        result.start = (result.start << 32) | property->getInt<uint32_t>(index, totalNumCells);
+        result.start = (result.start << 32) | property->getInt<uint32_t>(
+                    regionIndex * cellsPerRegion + index, totalCells);
     }
-    for (size_t index = numAddressCells; index < totalNumCells; index++) {
-        result.length = (result.length << 32) | property->getInt<uint32_t>(index, totalNumCells);
+    for (size_t index = numAddressCells; index < cellsPerRegion; index++) {
+        result.length = (result.length << 32) | property->getInt<uint32_t>(
+                    regionIndex * cellsPerRegion + index, totalCells);
     }
     return result;
 }
@@ -286,5 +300,23 @@ optional<uint32_t> Tree::getStringOffset(String string) const {
     cout << "could not find offset for: " << string << endl;
     return {};
 }
+
+Region Tree::memoryRegion() const {
+    return Region(reinterpret_cast<size_t>(header), header->totalSize);
+}
+
+struct ReservationBlockEntry {
+    BigEndian<uint64_t> start;
+    BigEndian<uint64_t> length;
+};
+
+Region Tree::reservationBlockEntry(size_t index) const {
+    const size_t headerAddress = reinterpret_cast<size_t>(header);
+    assert(headerAddress % sizeof(size_t) == 0);
+    const ReservationBlockEntry *entries = reinterpret_cast<const ReservationBlockEntry *>(
+                headerAddress + header->memoryReservationBlockOffset);
+    return Region(entries[index].start, entries[index].length);
+}
+
 
 }

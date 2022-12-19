@@ -104,13 +104,8 @@ public:
     }
     optional<Property> findProperty(uint32_t nameOffset) const;
     optional<Property> findProperty(String name) const;
-    Region getRegionProperty() const;
-};
-
-struct NodeIterator {
-    bool isEnd = true;
-    Tree *tree;
-    Node currentNode;
+    size_t getNumRegions() const;
+    Region getRegionProperty(size_t regionIndex = 0) const;
 };
 
 class Tree {
@@ -142,6 +137,8 @@ public:
     uint32_t regStringOffset() const {
         return _regStringOffset;
     }
+    Region memoryRegion() const;
+    Region reservationBlockEntry(size_t index) const;
 };
 
 }

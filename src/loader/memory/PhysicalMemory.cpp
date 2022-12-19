@@ -10,14 +10,17 @@ static frameStack::Node *const FRAMESTACK_NULL =
 FrameStack DirtyFrameStack[hos_v1::DMAZone::COUNT];
 FrameStack CleanFrameStack[hos_v1::DMAZone::COUNT];
 
+/* Some structures need to be placed at the beginning of memory to make secondary Processor start
+ * possible on x86_64. */
+#ifdef __x86_64__
 PhysicalAddress SecondaryProcessorEntry{PhysicalAddress::Null};
+extern PageTable *HandOverMasterPageTable;
 static bool secondaryProcessorEntryFound{false};
 static bool handOvermasterPageTableFound{false};
 
-/* Some structures need to be placed at the beginning of memory to make secondary Processor start
- * possible on x86_64. */
 static const size_t PROCESSOR_ENTRY_MAX{1ul << 16};
 static const size_t HAND_OVER_MASTER_PAGE_TABLE_MAX{1ul << 32};
+#endif
 
 /* returns the maximum physical address that is part of usable memory */
 PhysicalAddress InitPhysicalFrameManagement() {
@@ -56,6 +59,7 @@ PhysicalAddress InitPhysicalFrameManagement() {
         }
 
         while (address < region->end()) {
+#ifdef __x86_64__
             /* HandOverMasterPageTable and SecondaryProcessorEntry have special physical location
              * requirements to be usable in the real mode entry code.
              * Reserve suitable frames for these */
@@ -68,6 +72,9 @@ PhysicalAddress InitPhysicalFrameManagement() {
             } else {
                 FreePhysicalFrame(address);
             }
+#else
+            FreePhysicalFrame(address);
+#endif
             address += PAGE_SIZE;
         }
 
@@ -78,10 +85,12 @@ PhysicalAddress InitPhysicalFrameManagement() {
         }
     }
 
+#ifdef __x86_64__
     if (!secondaryProcessorEntryFound) {
         cout << "Unable to find frame for secondary processor entry code" << endl;
         Halt();
     }
+#endif
     return maxPhysicalAddress;
 }
 

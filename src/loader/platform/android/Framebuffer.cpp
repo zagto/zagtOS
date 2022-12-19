@@ -7,64 +7,67 @@
 static bool framebufferInitialized{false};
 static hos_v1::FramebufferInfo info;
 
-hos_v1::FramebufferInfo &InitFramebuffer(void) {
-    deviceTree::Tree tree;
+bool findQualcommFramenbuffer(const deviceTree::Tree &tree) {
     auto reservedMemoryNode = tree.rootNode.findChildNode("reserved-memory");
     if (!reservedMemoryNode) {
-        cout << "could not find reserved-memory node" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find reserved-memory node" << endl;
+        return false;
     }
     auto continousSplashNode = reservedMemoryNode->findChildNode("cont_splash_region");
     if (!continousSplashNode) {
-        cout << "could not find cont_splash_region node" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find cont_splash_region node" << endl;
+        return false;
     }
     Region region = continousSplashNode->getRegionProperty();
     auto socNode = tree.rootNode.findChildNode("soc");
     if (!socNode) {
-        cout << "could not find soc node" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find soc node" << endl;
+        return false;
     }
     auto displayNode = socNode->findChildWithProperty("qcom,dsi-display", "qcom,dsi-display-active");
     if (!displayNode) {
-        cout << "could not find active qcom,dsi-display node" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find active qcom,dsi-display node" << endl;
+        return false;
     }
     auto panelHandleProperty = displayNode->findProperty("qcom,dsi-panel");
     if (!panelHandleProperty) {
-        cout << "could not find qcom,dsi-panel property" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find qcom,dsi-panel property" << endl;
+        return false;
     }
     auto panelNode = tree.rootNode.findNodeByPHandle(panelHandleProperty->getInt<uint32_t>());
     if (!panelNode) {
-        cout << "could not find panel node" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find panel node" << endl;
+        return false;
     }
     auto timingsNode = panelNode->findChildNode("qcom,mdss-dsi-display-timings");
     if (!timingsNode) {
-        cout << "could not find qcom,mdss-dsi-display-timings node" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find qcom,mdss-dsi-display-timings node" << endl;
+        return false;
     }
     /* simply take the first timing node. Hopefully all timings have the same resolution */
     auto timingNode = timingsNode->findChildNode();
     if (!timingNode) {
-        cout << "could not find qcom,mdss-dsi-display-timings child node" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find qcom,mdss-dsi-display-timings child node"
+             << endl;
+        return false;
     }
     auto widthProperty = timingNode->findProperty("qcom,mdss-dsi-panel-width");
     if (!widthProperty) {
-        cout << "could not find qcom,mdss-dsi-panel-width property" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find qcom,mdss-dsi-panel-width property"
+             << endl;
+        return false;
     }
     auto heightProperty = timingNode->findProperty("qcom,mdss-dsi-panel-height");
     if (!heightProperty) {
-        cout << "could not find qcom,mdss-dsi-panel-height property" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find qcom,mdss-dsi-panel-height property"
+             << endl;
+        return false;
     }
     auto colorOrderProperty = panelNode->findProperty("qcom,mdss-dsi-color-order");
     if (!colorOrderProperty) {
-        cout << "could not find qcom,mdss-dsi-color-order property" << endl;
-        Panic();
+        cout << "No Qualcomm framebuffer: could not find qcom,mdss-dsi-color-order property"
+             << endl;
+        return false;
     }
 
     info = hos_v1::FramebufferInfo{
@@ -77,8 +80,17 @@ hos_v1::FramebufferInfo &InitFramebuffer(void) {
         .format = hos_v1::FramebufferFormat::BGR,
         .scaleFactor = 3,
     };
+    return true;
+}
 
-    framebufferInitialized = true;
+hos_v1::FramebufferInfo &InitFramebuffer(void) {
+    deviceTree::Tree tree;
+    if (findQualcommFramenbuffer(tree)) {
+        cout << "Detected framebuffer type: Qualcomm" << endl;
+        framebufferInitialized = true;
+    } else {
+        cout << "No framebuffer found" << endl;
+    }
     return info;
 }
 

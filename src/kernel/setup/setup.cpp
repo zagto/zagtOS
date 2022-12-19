@@ -24,6 +24,7 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
         _HandOverSystem = handOver;
 
         basicLog::init();
+        cout << "Hello from Kernel" << endl;
 
         /* Call global constructors */
 #if defined(SYSTEM_X86_64)
@@ -53,6 +54,8 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
     InitCurrentProcessorPointer(&Processors[processorID]);
     CurrentProcessor()->hardwareID = hardwareID;
     assert(CurrentProcessor()->id == processorID);
+
+    cout << "switching to initial process" << endl;
 
     CurrentProcessor()->kernelStack->switchToKernelEntry(KernelEntry2, handOver);
 }

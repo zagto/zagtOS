@@ -72,6 +72,7 @@ void FramebufferBackend::init(const hos_v1::FramebufferInfo &framebufferInfo) {
     currentLine = 0;
 
     clear();
+    flip();
 }
 
 

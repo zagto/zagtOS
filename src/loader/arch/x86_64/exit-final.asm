@@ -18,7 +18,7 @@ section .text
 ;
 ; Parameters:
 ; - rdi: virtual address of the kernel entry
-; - rsi: master page table to activate
+; - rsi: pointer to a pointer to the master page table to activate
 ; - rdx: kernel boot info (this pointer will be passed directly to kernel)
 ; - rcx: temporary stack
 ; - r8: processorID
@@ -49,7 +49,8 @@ ExitFinalize:
 
     ; backup rdx
     mov r10, rdx
-    mov r11, rsi
+    ; dereference pointer, so r11 now points to an actual page table
+    mov r11, [rsi]
 
     ; enable SSE (based on: https://wiki.osdev.org/SSE)
     mov rax, cr0

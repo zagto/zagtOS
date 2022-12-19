@@ -4,28 +4,24 @@
 #include <common/panic.hpp>
 
 class Processor;
+class Logger;
 
 /* Although in a separate file, the register state is part of the kernel handover interface and
  * chaging it means introducing a new inteface */
 class RegisterState {
 public:
-    static const uint64_t FLAG_USER_IOPL{(3 << 12)};
-    static const uint64_t FLAG_INTERRUPTS{(1 << 9)};
+    static constexpr uint64_t FLAG_INTERRUPTS = 1 << 7;
+    static constexpr uint64_t FLAG_EL1 = 0b101;
 
     /* if state was saved from syscall, less registers need to be restored */
     bool fromSyscall;
-
-    /* keep things 16-byte aligned */
-    uint64_t dummy;
-
-    /* callee-saved */
-    uint64_t r15, r14, r13, r12, rbp, rbx;
-
-    uint64_t r11, r10, r9, r8;
-    uint64_t rdi, rsi;
-    uint64_t rdx, rcx, rax;
-    uint64_t intNr, errorCode;
-    uint64_t rip, cs, rflags, rsp, ss;
+    bool fromUser;
+    uint64_t pstate;
+    uint64_t pc;
+    uint64_t sp;
+    uint64_t exceptionType;
+    uint64_t exceptionSyndrome;
+    uint64_t x[30];
 
     RegisterState() noexcept;
     RegisterState(UserVirtualAddress entry,
@@ -35,18 +31,20 @@ public:
                   KernelVirtualAddress stackPointer) noexcept;
 
     inline size_t stackPointer() const noexcept {
-        return rsp;
+        return sp;
     }
     inline void setSyscallResult(size_t value) noexcept {
-        rax = value;
+        x[0] = value;
     }
     inline void setEntryArgument(uint32_t value) noexcept {
-        rdi = value;
+        x[0] = value;
     }
     bool interruptsFlagSet() const noexcept {
-        return rflags & FLAG_INTERRUPTS;
+        return pstate & FLAG_INTERRUPTS;
     }
 };
+
+Logger &operator<<(Logger &logger, const RegisterState &registerState);
 
 class alignas(64) VectorRegisterState {
 private:

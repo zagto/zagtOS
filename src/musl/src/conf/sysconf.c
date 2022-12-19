@@ -2,7 +2,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <sys/sysinfo.h>
-#include <zagtos/hardware.h>
+#include <zagtos/Hardware.h>
 #include "syscall.h"
 #include "libc.h"
 
@@ -189,7 +189,7 @@ long sysconf(int name)
 		return DELAYTIMER_MAX;
 	case JT_NPROCESSORS_CONF & 255:
 	case JT_NPROCESSORS_ONLN & 255: ;
-        return zagtos_get_processor_count();
+        return ZoGetProcessorCount();
 	case JT_PHYS_PAGES & 255:
 	case JT_AVPHYS_PAGES & 255: ;
         // always claim to have 1GiB

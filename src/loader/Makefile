@@ -16,7 +16,7 @@ all-aarch64:
 	#make -f Makefile.efi all-efi
 	make -f Makefile.android all-android
 
-clean-x86_64:
+clean-aarch64:
 	#make -f Makefile.efi clean-efi
 	make -f Makefile.android clean-android
 

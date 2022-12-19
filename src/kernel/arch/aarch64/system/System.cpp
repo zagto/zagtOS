@@ -7,6 +7,7 @@ hos_v1::System *_HandOverSystem;
 
 System::System() :
         CommonSystem(*_HandOverSystem){
+    cout << "System()" << endl;
     /* TODO: support for Intel PCIDs could be added here */
     tlbContextsPerProcessor = 1;
 

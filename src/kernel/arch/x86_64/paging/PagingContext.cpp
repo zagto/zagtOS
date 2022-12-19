@@ -50,9 +50,9 @@ PagingContext::PagingContext() {
 }
 
 
-PagingContext::PagingContext(PhysicalAddress masterPageTableAddress) :
-        masterPageTableAddress{masterPageTableAddress},
-        masterPageTable{masterPageTableAddress.identityMapped().asPointer<PageTable>()} {
+PagingContext::PagingContext(const hos_v1::PagingContext &handOver) :
+        masterPageTableAddress{handOver.root},
+        masterPageTable{handOver.root.identityMapped().asPointer<PageTable>()} {
 }
 
 PagingContext::~PagingContext() noexcept {

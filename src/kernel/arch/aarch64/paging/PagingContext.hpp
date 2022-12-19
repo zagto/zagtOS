@@ -3,7 +3,7 @@
 
 class PagingContext {
 public:
-    static const size_t NUM_LEVELS{4};
+    static const size_t NUM_LEVELS{3};
     static const size_t MASTER_LEVEL{NUM_LEVELS - 1};
 
 private:
@@ -12,22 +12,22 @@ private:
     };
 
     /* physical and virtual address of the same thing */
-    PhysicalAddress masterPageTableAddress;
-    PageTable *masterPageTable;
+    PhysicalAddress kernelMasterPageTableAddress;
+    PageTable *kernelMasterPageTable;
+    PhysicalAddress userMasterPageTableAddress;
+    PageTable *userMasterPageTable;
 
-    PageTableEntry *walkEntries(VirtualAddress address, MissingStrategy missingStrategy);
-    void _unmap(VirtualAddress address, bool freeFrame) noexcept;
+    PageTableEntry *walkEntries(PageTable *masterPageTable,
+                                VirtualAddress address,
+                                MissingStrategy missingStrategy);
 
 public:
     enum class AccessOperation {
         READ, WRITE, VERIFY_ONLY
     };
 
-    static const size_t KERNEL_ENTRIES_OFFSET = PageTable::NUM_ENTRIES / 2;
-    static const size_t NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
-
     PagingContext();
-    PagingContext(PhysicalAddress masterPageTableAddress);
+    PagingContext(const hos_v1::PagingContext &handOverPagingContext);
     PagingContext(PagingContext &other) = delete;
     PagingContext operator=(PagingContext &other) = delete;
     ~PagingContext() noexcept;

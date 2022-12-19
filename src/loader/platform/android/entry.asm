@@ -2,6 +2,8 @@
 .extern _end
 .extern _got
 .extern _got_plt_end
+.extern _bss
+.extern _bss_end
 .extern _loader_stack
 .extern _init_array
 .extern _init_array_end
@@ -45,6 +47,17 @@ fixGOTLoop:
     add x1, x1, #8
     cmp x1, x2
     blt fixGOTLoop
+
+    # clear BSS
+    mov x0, #0
+    adr x1, _bss
+    ldr x2, =_bss_end
+    add x2, x2, x20
+clearBSSLoop:
+    str x0, [x1]
+    add x1, x1, #8
+    cmp x1, x2
+    blt clearBSSLoop
 
     # setup stack pointer
     adr x0, _loader_stack

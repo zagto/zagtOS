@@ -5,6 +5,7 @@
 #include <system/Processor.hpp>
 namespace basicLog {
 
+// TODO: globals break global constructor ordering
 static SerialBackend serialBackend;
 static FramebufferBackend framebufferBackend;
 

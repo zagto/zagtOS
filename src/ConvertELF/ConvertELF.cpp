@@ -30,7 +30,19 @@ static constexpr size_t USER_STACK_START = 0x0000800000000000 - USER_STACK_SIZE;
 static constexpr size_t TLS_INFO_ADDRESS = 0x7FFFFFDF5800;
 static constexpr size_t PTHREAD_SELF_SIZE = 0x800;
 #else
+#ifdef ZAGTOS_ARCH_aarch64
+static const size_t PAGE_SIZE = 0x1000;
+
+static constexpr size_t USER_STACK_SIZE = 2 * 1024 * 1024;
+static constexpr size_t USER_STACK_BORDER = 0x1000 * 10;
+
+static constexpr size_t USER_STACK_START = 0x0000008000000000 - USER_STACK_SIZE;
+
+static constexpr size_t TLS_INFO_ADDRESS = 0x7FFFDF5800;
+static constexpr size_t PTHREAD_SELF_SIZE = 0x800;
+#else
 #error "Please add page definition for arch"
+#endif
 #endif
 
 struct TLSInfo {
@@ -173,7 +185,7 @@ int main(int argc, char **argv) {
     if (!outFile.is_open()) {
         throw std::runtime_error("could not open output file");
     }
-    assert(output.numHandles() == 0);
-    outFile.write(reinterpret_cast<const char *>(output.data()), output.size());
+    assert(output.numHandles == 0);
+    outFile.write(reinterpret_cast<const char *>(output.data), output.size);
     outFile.close();
 }

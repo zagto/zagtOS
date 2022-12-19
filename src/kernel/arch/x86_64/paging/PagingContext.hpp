@@ -27,7 +27,7 @@ public:
     static const size_t NUM_KERNEL_ENTRIES = PageTable::NUM_ENTRIES - KERNEL_ENTRIES_OFFSET;
 
     PagingContext();
-    PagingContext(PhysicalAddress masterPageTableAddress);
+    PagingContext(const hos_v1::PagingContext &handOver);
     PagingContext(PagingContext &other) = delete;
     PagingContext operator=(PagingContext &other) = delete;
     ~PagingContext() noexcept;

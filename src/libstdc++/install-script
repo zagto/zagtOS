@@ -4,7 +4,7 @@ set -e
 # libstdc++ has to be built in the gcc build directory, otherwise it would
 # re-build the whole compiler
 
-GCC_BUILD_DIR="$SHBUILD_ROOT/build/libstdc++"
+GCC_BUILD_DIR="$SHBUILD_ROOT/build/$ARCH/libstdc++"
 cd "${GCC_BUILD_DIR}"
 make install-target-libsanitizer
 make install-target-libstdc++-v3

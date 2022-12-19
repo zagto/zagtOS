@@ -2,6 +2,8 @@
 
 using namespace zagtos;
 
+#ifdef __x86_64__
+
 Interrupt Device::allocateMSIInterrupt() {
     ProcessorInterruptInfo info;
     Interrupt interrupt(zagtos::TriggerMode::RISING_EDGE, info);
@@ -31,3 +33,5 @@ Interrupt Device::allocateMSIInterrupt() {
     }
     return interrupt;
 }
+
+#endif

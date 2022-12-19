@@ -77,22 +77,6 @@ Logger &Logger::operator<<(void *pointer) {
     return *this << reinterpret_cast<size_t>(pointer);
 }
 
-Logger &Logger::operator<<(const RegisterState &regs) {
-    return *this << "[" << endl
-                 << "\tRIP=" << regs.rip << ", RSP=" << regs.rsp << endl
-                 << "\tRBP=" << regs.rbp << endl
-                 << "\tCS=" << regs.cs << ", SS=" << regs.ss << endl
-                 << "\tRDI=" << regs.rdi << ", RSI=" << regs.rsi << endl
-                 << "\tRAX=" << regs.rax << ", RBX=" << regs.rbx << endl
-                 << "\tRCX=" << regs.rcx << ", RDX=" << regs.rdx << endl
-                 << "\tR8=" << regs.r8 << ", R9=" << regs.r9 << endl
-                 << "\tR10=" << regs.r10 << ", R11=" << regs.r11 << endl
-                 << "\tR12=" << regs.r12 << ", R13=" << regs.r13 << endl
-                 << "\tR14=" << regs.r14 << ", R15=" << regs.r15 << endl
-                 << "\tinterrupt type: " << regs.intNr << ", error code: " << regs.errorCode << endl
-                 << "]";
-}
-
 Logger &Logger::operator<<(hos_v1::Permissions permissions) {
     using hos_v1::Permissions;
     switch (permissions) {

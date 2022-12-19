@@ -79,7 +79,7 @@ struct ZoMmapArguments {
 };
 
 /* FUTEX_LOCK_PI wants to or a bit with a handle so make sure upmost bit is reserved */
-static const uint32_t ZAGTOS_MAX_HANDLES = 0x4000'0000;
+static const uint32_t ZAGTOS_MAX_HANDLES = 0x40000000;
 static const uint32_t ZAGTOS_INVALID_HANDLE = 0xffffffff;
 
 #endif /* __ZAGTOS_KERNEL_API_H */

@@ -18,13 +18,19 @@ PageTable *HandOverMasterPageTable{nullptr};
 #define NUM_PAGE_TABLE_LEVELS 4
 
 
+void InitPaging(void) {
+    cout << "Handover Master Page Table is at: "
+         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
+    ClearPageTable(HandOverMasterPageTable);
+    CreateGlobalMasterPageTableEntries();
+}
+
 void ClearPageTable(PageTable *pageTable) {
     size_t index;
     for (index = 0; index < ENTRIES_PER_PAGE_TABLE; index++) {
         (*pageTable)[index] = 0;
     }
 }
-
 
 void CreateGlobalMasterPageTableEntries() {
     /* upper half is global area */
@@ -38,7 +44,6 @@ void CreateGlobalMasterPageTableEntries() {
     }
 }
 
-
 #define ADDRESS_PAGE_SHIFT 12
 #define PAGE_LEVEL_SHIFT 9
 #define ADDRESS_PART_MASK ((1 << PAGE_LEVEL_SHIFT) - 1)
@@ -49,7 +54,6 @@ static PageTableEntry *getPageTableEntry(PageTable *pageTable,
             & (ENTRIES_PER_PAGE_TABLE - 1);
     return &(*pageTable)[index];
 }
-
 
 void MapAddress(PagingContext pagingContext,
                 VirtualAddress virtualAddress,
@@ -99,7 +103,7 @@ void MapAddress(PagingContext pagingContext,
     if (!executable) {
         *entry |= PAGE_NON_EXECUTABLE;
     }
-    if (virtualAddress.value() >= 0xffff800000000000) {
+    if (virtualAddress.isKernel()) {
         *entry |= PAGE_GLOBAL;
     }
     if (large) {

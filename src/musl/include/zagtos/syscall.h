@@ -54,7 +54,8 @@ static const uint32_t SYS_LOG = 1,
 
                       SYS_SPAWN_PROCESS = 50,
 
-                      SYS_PIN_THREAD = 60;
+                      SYS_PIN_THREAD = 60,
+                      SYS_PROCESSOR_COUNT = 61;
 
 #ifdef __cplusplus
 }

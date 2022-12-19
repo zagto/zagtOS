@@ -4,7 +4,7 @@
 #include <zagtos/protocols/PS2.hpp>
 #include <zagtos/Interrupt.hpp>
 #include <zagtos/IOPortRange.hpp>
-#include <zagtos/protocols/Controller.hpp>
+#include <zagtos/protocols/Driver.hpp>
 #include <zagtos/Topology.hpp>
 #include <chrono>
 #include "Controller.hpp"
@@ -26,7 +26,7 @@ int main() {
                                std::tuple<zagtos::Interrupt,
                                           zagtos::Interrupt,
                                           zagtos::IOPortRange>>;
-    auto [controllerID, envPort, tuple] = zagtos::decodeRunMessage<MsgType>(zagtos::controller::MSG_START);
+    auto [controllerID, envPort, tuple] = zagtos::decodeRunMessage<MsgType>(zagtos::driver::MSG_START);
 
     std::cout << "Hello" << std::endl;
 

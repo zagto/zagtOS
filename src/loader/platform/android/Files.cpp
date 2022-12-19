@@ -23,12 +23,20 @@ void findInitrd() {
         Panic();
     }
     // TODO: use #address-cells?
-    size_t initrdAddress = initrdStartProperty->getInt<size_t>();
-    const size_t zbonHeaderSize = 9;
-    LittleEndian<uint64_t> kernelSize;
-    memcpy(&kernelSize, reinterpret_cast<const void *>(initrdAddress + 1), sizeof(uint64_t));
+    uint64_t initrdAddress = initrdStartProperty->getInt<uint32_t>(0, 2);
+    initrdAddress = (initrdAddress << 32) | initrdStartProperty->getInt<uint32_t>(1, 2);
+    //size_t initrdAddress = initrdStartProperty->getInt<size_t>();
+
+    const size_t headerSize = 1+3*8;
+    LittleEndian<uint64_t> kernelPropertiesSize;
+    /* check ZBON type ID for OBJECT (3) */
+    assert(*reinterpret_cast<const uint8_t *>(initrdAddress) == 3);
+    memcpy(&kernelPropertiesSize, reinterpret_cast<const void *>(initrdAddress + 17), sizeof(uint64_t));
+    const size_t kernelSize = headerSize + kernelPropertiesSize;
     kernelImageAddress = initrdAddress;
-    processImageAddress = initrdAddress + zbonHeaderSize + kernelSize;
+    processImageAddress = initrdAddress + kernelSize;
+    /* check ZBON type ID for OBJECT (3) */
+    assert(*reinterpret_cast<const uint8_t *>(processImageAddress) == 3);
     initrdFound = true;
 }
 

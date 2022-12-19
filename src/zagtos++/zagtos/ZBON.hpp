@@ -19,9 +19,9 @@ using EncodedData = zagtos::MessageData;
 #else
 namespace zbon {
 struct EncodedData {
-    uint8_t *data;
+    const uint8_t *data;
     size_t size;
-    size_t numHandles;
+    std::size_t numHandles;
     bool allocatedExternally;
 
     constexpr EncodedData(const uint8_t *data,
@@ -32,8 +32,8 @@ struct EncodedData {
         size{size},
         numHandles{numHandles},
         allocatedExternally{allocatedExternally} {}
-    EncodedData(const MessageData &other) = delete;
-    EncodedData(MessageData &&other) = default;
+    EncodedData(const EncodedData &other) = delete;
+    EncodedData(EncodedData &&other) = default;
     ~EncodedData() {
         if (data != nullptr && !allocatedExternally) {
             delete[] data;

@@ -5,27 +5,22 @@
 #include <MemoryMap.hpp>
 #include <memory/PhysicalMemory.hpp>
 
-
-void InitPaging(void) {
-    cout << "Handover Master Page Table is at: "
-         << reinterpret_cast<size_t>(HandOverMasterPageTable) << endl;
-    ClearPageTable(HandOverMasterPageTable);
-    CreateGlobalMasterPageTableEntries();
-}
-
+extern char _data;
 
 void MapLoaderMemory() {
-    size_t frameIndex;
+    const size_t dataAddress = reinterpret_cast<size_t>(&_data);
+    assert(dataAddress % PAGE_SIZE == 0);
 
     for (optional<Region> region = memoryMap::firstReclaimableRegion();
          region;
          region = memoryMap::nextReclaimableRegion()) {
-        for (frameIndex = 0; frameIndex < region->length / PAGE_SIZE; frameIndex++) {
+        for (size_t frameIndex = 0; frameIndex < region->length / PAGE_SIZE; frameIndex++) {
+            bool isData = region->start + frameIndex * PAGE_SIZE >= dataAddress;
             MapAddress(PagingContext::HANDOVER,
                        region->start + frameIndex * PAGE_SIZE,
                        region->start + frameIndex * PAGE_SIZE,
-                       true,
-                       true,
+                       isData,
+                       !isData,
                        false,
                        CacheType::CACHE_NORMAL_WRITE_BACK);
         }

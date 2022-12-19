@@ -1,5 +1,6 @@
 #include <log/BasicLog.hpp>
 #include <log/FramebufferBackend.hpp>
+#include <log/SerialBackend.hpp>
 #include <Framebuffer.hpp>
 #include <iostream>
 

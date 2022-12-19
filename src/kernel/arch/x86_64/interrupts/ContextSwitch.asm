@@ -243,7 +243,6 @@ returnFromInterrupt:
     ; switch to state-save-stack passed as parameter
     mov rsp, rdi
 
-commonReturn:
     ; switch to real stack if coming from user space interrupt
     ; check if the cs on stack is 0x20|3
     cmp qword [rsp+RegisterState.cs], 0x08

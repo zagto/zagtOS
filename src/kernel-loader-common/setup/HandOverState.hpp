@@ -119,13 +119,22 @@ struct FrameStack {
     size_t addIndex;
 };
 
+struct PagingContext {
+#if defined(__x86_64__)
+    PhysicalAddress root;
+#elif defined(__aarch64__)
+    PhysicalAddress lowRoot;
+    PhysicalAddress highRoot;
+#endif
+};
+
 struct System {
     size_t version;
 
     FramebufferInfo framebufferInfo;
     FrameStack freshFrameStack[DMAZone::COUNT];
     FrameStack usedFrameStack[DMAZone::COUNT];
-    PhysicalAddress handOverPagingContext;
+    PagingContext handOverPagingContext;
     FirmwareType firmwareType;
     PhysicalAddress firmwareRoot;
     /* TODO: a way to pass time offset to APIC timer */

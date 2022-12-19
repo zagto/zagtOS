@@ -48,6 +48,8 @@ public:
     }
 };
 
+Logger &operator<<(Logger &logger, const RegisterState &registerState);
+
 class alignas(64) VectorRegisterState {
 private:
     uint8_t data[1024];

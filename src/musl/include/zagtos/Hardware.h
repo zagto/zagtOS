@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-uint32_t zagtos_get_processor_count(void);
+uint32_t ZoGetProcessorCount(void);
 
 #endif

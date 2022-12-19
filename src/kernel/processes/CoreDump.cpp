@@ -167,12 +167,13 @@ void ProcessAddressSpace::coreDump(Thread *crashedThread) {
     }
 
     NoteHeader noteHeader;
-    RegisterState &regs = *crashedThread->kernelStack->userRegisterState();
 
     PRStatus prStatus;
     memset(&prStatus, 0, sizeof(PRStatus));
+#ifdef SYSTEM_X86_64
     uint64_t *prRegs = prStatus.data + PRStatus::RegistersOffset / PRStatus::ElementSize;
 
+    RegisterState &regs = *crashedThread->kernelStack->userRegisterState();
     /* from bfd/hosts/x64-64linux.h of binutils */
     prRegs[0] = regs.r15;
     prRegs[1] = regs.r14;
@@ -201,6 +202,9 @@ void ProcessAddressSpace::coreDump(Thread *crashedThread) {
     prRegs[24] = 0x18|3;
     prRegs[25] = 0x18|3;
     prRegs[26] = 0x18|3;
+#else
+    cout << "TODO: prStatus output for this architecture" << endl;
+#endif
 
     writeDump(dumpFile, &noteHeader, 12);
     writeDump(dumpFile, noteHeader.name, 8);

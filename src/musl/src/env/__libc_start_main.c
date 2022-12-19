@@ -116,7 +116,15 @@ int __libc_start_main(int (*main)(int,char **,char **),
         zagtos_init_file_descriptor(2, &syslog_fd);
     //}
 
+#ifdef __x86_64__
     struct TLSInfo *tlsInfo = (struct TLSInfo *)0x7FFFFFDF5800;
+#else
+#ifdef __aarch64__
+    struct TLSInfo *tlsInfo = (struct TLSInfo *)0x7FFFDF5800;
+#else
+#error "Unknown architecture"
+#endif
+#endif
 
 	/* External linkage, and explicit noinline attribute if available,
 	 * are used to prevent the stack frame used during init from
