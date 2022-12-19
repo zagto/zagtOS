@@ -88,6 +88,6 @@ __cxa_atexit:
     ret
 
 .section ".data"
-    .align 8
+    .balign 8
 DeviceTreeAddress:
     .quad 0

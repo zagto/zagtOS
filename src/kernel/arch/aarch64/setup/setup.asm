@@ -4,4 +4,5 @@
 
 switchStack:
     mov sp, x0
-    ret
+    mov x0, x2
+    br x1

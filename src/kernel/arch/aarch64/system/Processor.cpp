@@ -2,12 +2,16 @@
 #include <system/System.hpp>
 #include <processes/Process.hpp>
 #include <interrupts/ContextSwitch.hpp>
+#include <interrupts/util.hpp>
 
 Processor::Processor():
         CommonProcessor() {
 }
 
+extern const char ExceptionVectorTable;
+
 void Processor::localInitialization() noexcept {
+    SetExceptionVectorTable(&ExceptionVectorTable);
 }
 
 [[noreturn]] void Processor::returnToUserMode() noexcept {
@@ -24,9 +28,8 @@ void Processor::localInitialization() noexcept {
 
     thread->process->addressSpace.activate();
 
-    /*CurrentSystem.gdt.resetTSS(id);
-    tss.update(thread);
-    writeModelSpecificRegister(MSR::FSBASE, thread->tlsPointer);*/
+    SetUserTLSRegister(thread->tlsPointer);
+    cout << "returnToUserMode" << endl;
     returnFromInterrupt(thread->kernelStack->userRegisterState());
 }
 

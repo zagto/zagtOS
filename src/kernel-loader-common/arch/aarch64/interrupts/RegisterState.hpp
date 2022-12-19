@@ -11,7 +11,7 @@ class Logger;
 class RegisterState {
 public:
     static constexpr uint64_t FLAG_INTERRUPTS = 1 << 7;
-    static constexpr uint64_t FLAG_EL1 = 0b101;
+    static constexpr uint64_t FLAG_EL1H = 0b101;
 
     /* if state was saved from syscall, less registers need to be restored */
     bool fromSyscall;
@@ -21,6 +21,8 @@ public:
     uint64_t sp;
     uint64_t exceptionType;
     uint64_t exceptionSyndrome;
+    /* make sizeof(RegisterState) a multiple of 16 for stack alignment */
+    uint64_t dummy;
     uint64_t x[30];
 
     RegisterState() noexcept;

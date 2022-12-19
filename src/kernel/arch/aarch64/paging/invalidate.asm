@@ -4,13 +4,28 @@
 
 .section ".text"
 
-# x0 - TLB Context ID (0 until PCID support)
+# x0 - TLB Context ID (ASID)
 # x1 - address
 basicInvalidateTLBContext:
-    b basicInvalidateTLBContext
+    # TODO
+    tlbi vmalle1
+    ret
 
 basicInvalidate:
-    b basicInvalidate
+    # TODO
+    tlbi vmalle1
+    ret
 
 basicSwitchMasterPageTable:
-    b basicSwitchMasterPageTable
+    # set lowest bit (TTBR_CNP) in the page table addresses
+    orr x0, x0, #1
+    msr ttbr0_el1, x0
+
+    # TODO
+    tlbi vmalle1
+
+    dsb ish
+    isb
+
+    ret
+

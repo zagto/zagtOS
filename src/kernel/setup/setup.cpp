@@ -55,8 +55,6 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
     CurrentProcessor()->hardwareID = hardwareID;
     assert(CurrentProcessor()->id == processorID);
 
-    cout << "switching to initial process" << endl;
-
     CurrentProcessor()->kernelStack->switchToKernelEntry(KernelEntry2, handOver);
 }
 
@@ -65,6 +63,7 @@ void testThrow() {
 }
 
 __attribute__((noreturn)) void KernelEntry2(void *_handOver) {
+
     hos_v1::System *handOver = static_cast<hos_v1::System *>(_handOver);
     size_t processorID = CurrentProcessor()->id;
 

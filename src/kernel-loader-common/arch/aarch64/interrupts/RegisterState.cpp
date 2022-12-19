@@ -23,7 +23,7 @@ RegisterState::RegisterState(UserVirtualAddress entry,
     if (entry.isKernel()) {
         fromUser = true;
     } else {
-        pstate = FLAG_EL1;
+        pstate = FLAG_EL1H;
     }
     pc = entry.value();
     pstate |= FLAG_INTERRUPTS;

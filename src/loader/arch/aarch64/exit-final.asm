@@ -80,8 +80,6 @@ ExitFinalize:
     dsb ish
     isb
 
-    #b output
-
     # move arguments for kernel entry and call it
     mov x10, x0
     mov x0, x2
