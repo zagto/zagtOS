@@ -73,6 +73,7 @@ std::filesystem::file_time_type lastModifiedDir(std::string path) {
 
         std::string filename = entry.path().string();
         if (filename.find(".creator.") == std::string::npos
+                && filename.find("/.qtc_clangd/") == std::string::npos
                 && filename.substr(filename.length() - 4) != ".bak"
                 && filename.substr(filename.length() - 7) != ".config"
                 && filename.substr(filename.length() - 8) != ".creator"
