@@ -76,6 +76,10 @@ initArrayLoop:
     b initArrayLoop
 initArrayDone:
 
+    # enable vector/floating poinz instructions: set FPEN in cpacr_el1, no SVE, no tracing for now
+    mov x0, #(0b11 << 20)
+    msr cpacr_el1, x0
+
 bl LoaderMain
 # LoaderMain should never return
 hang:
