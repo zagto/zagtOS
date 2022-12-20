@@ -3,6 +3,7 @@
 .global basicIdleProcessor
 .global SetUserTLSRegister
 .global SetExceptionVectorTable
+.global readFAR
 
 .section ".text"
 
@@ -24,4 +25,8 @@ basicIdleProcessor:
 
 SetExceptionVectorTable:
     msr vbar_el1, x0
+    ret
+
+readFAR:
+    mrs x0, far_el1
     ret

@@ -1,7 +1,10 @@
 .global returnFromInterrupt
 .global syscallEntry
 .global ExceptionVectorTable
+.global InKernelReturnEntry
+
 .extern handleInterrupt
+.extern InKernelReturnEntryRestoreInterruptsLock
 
 .struct 0
 RegisterState.fromSyscall:
@@ -70,7 +73,8 @@ ExceptionVectorTable:
     stp x18, x19, [sp, RegisterState.x + 18 * 8]
     mov x18, 0x10
     str x18, [sp, RegisterState.exceptionType]
-    mov x18, 0
+    mov x18, sp
+    add x18, x18, RegisterState.end
     mov x19, 0
     b commonExceptionVector
 # EL1H IRQ
@@ -79,7 +83,8 @@ ExceptionVectorTable:
     stp x18, x19, [sp, RegisterState.x + 18 * 8]
     mov x18, 0x11
     str x18, [sp, RegisterState.exceptionType]
-    mov x18, 0
+    mov x18, sp
+    add x18, x18, RegisterState.end
     mov x19, 0
     b commonExceptionVector
 # EL1H FIQ
@@ -88,7 +93,8 @@ ExceptionVectorTable:
     stp x18, x19, [sp, RegisterState.x + 18 * 8]
     mov x18, 0x12
     str x18, [sp, RegisterState.exceptionType]
-    mov x18, 0
+    mov x18, sp
+    add x18, x18, RegisterState.end
     mov x19, 0
     b commonExceptionVector
 # EL1H error
@@ -97,7 +103,8 @@ ExceptionVectorTable:
     stp x18, x19, [sp, RegisterState.x + 18 * 8]
     mov x18, 0x13
     str x18, [sp, RegisterState.exceptionType]
-    mov x18, 0
+    mov x18, sp
+    add x18, x18, RegisterState.end
     mov x19, 0
     b commonExceptionVector
 # EL0 64-bit syncronous
@@ -182,6 +189,10 @@ commonExceptionVector:
     str x18, [sp, RegisterState.exceptionSyndrome]
     mov x18, 0
     str x18, [sp, RegisterState.fromSyscall]
+    mrs x18, spsr_el1
+    str x18, [sp, RegisterState.pstate]
+    mrs x18, elr_el1
+    str x18, [sp, RegisterState.pc]
 
     # save general-purpose registers
     stp x0, x1, [sp, RegisterState.x + 0 * 8]
@@ -206,8 +217,12 @@ commonExceptionVector:
     b handleInterrupt
     # handleInterrupt should never return here
 
+InKernelReturnEntry:
+    mov sp, x0
+    bl InKernelReturnEntryRestoreInterruptsLock
+    mov x0, sp
+
 returnFromInterrupt:
-    b returnFromInterrupt
     # switch to state-save-stack passed as parameter
     mov sp, x0
 
@@ -226,6 +241,9 @@ returnFromInterrupt:
     msr sp_el0, x0
 
 inKernelReturn:
+    ldr x0, [sp, RegisterState.pstate]
+    msr spsr_el1, x0
+
     ldp x0, x1, [sp, RegisterState.x + 0 * 8]
     ldp x2, x3, [sp, RegisterState.x + 2 * 8]
     ldp x4, x5, [sp, RegisterState.x + 4 * 8]
@@ -242,7 +260,7 @@ inKernelReturn:
     ldp x26, x27, [sp, RegisterState.x + 26 * 8]
     ldp x28, x29, [sp, RegisterState.x + 28 * 8]
 
-    add sp, sp, RegisterState.x + 30
+    add sp, sp, RegisterState.end
     eret
 
 registerStateFromSyscallButNotUser:

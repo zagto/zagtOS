@@ -14,8 +14,9 @@ public:
     static constexpr uint64_t FLAG_EL1H = 0b101;
 
     /* if state was saved from syscall, less registers need to be restored */
-    bool fromSyscall;
-    bool fromUser;
+    /* fromUser and fromSyscall are used as booleans */
+    uint64_t fromSyscall;
+    uint64_t fromUser;
     uint64_t pstate;
     uint64_t pc;
     uint64_t sp;

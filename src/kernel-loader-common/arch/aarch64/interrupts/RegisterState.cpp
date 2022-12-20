@@ -21,9 +21,9 @@ RegisterState::RegisterState(UserVirtualAddress entry,
     x[0] = entryArgument;
 
     if (entry.isKernel()) {
-        fromUser = true;
-    } else {
         pstate = FLAG_EL1H;
+    } else {
+        fromUser = true;
     }
     pc = entry.value();
     pstate |= FLAG_INTERRUPTS;
@@ -35,12 +35,14 @@ Logger &operator<<(Logger &logger, const RegisterState &regs) {
            << "\tPSTATE=" << regs.pstate << endl;
 
     for (size_t index = 0; index < 10; index += 2) {
-        logger << "\tX" << ('0'+index) << "=" << regs.x[index]
-               << ", X" << ('1'+index) << "=" << regs.x[index+1] << endl;
+        logger << "\tX" << static_cast<char>('0'+index) << "=" << regs.x[index]
+               << ", X" << static_cast<char>('1'+index) << "=" << regs.x[index+1] << endl;
     }
     for (size_t index = 10; index < 30; index += 2) {
-        logger << "\tX" << ('0'+index/10) << ('0'+index%10) << "=" << regs.x[index]
-               << ", X" << ('0'+index/10) << ('1'+index%10) << "=" << regs.x[index+1] << endl;
+        logger << "\tX" << static_cast<char>('0'+index/10) << static_cast<char>('0'+index%10)
+               << "=" << regs.x[index]
+               << ", X" << static_cast<char>('0'+index/10) << static_cast<char>('1'+index%10)
+               << "=" << regs.x[index+1] << endl;
     }
 
     logger << "\texception type: " << regs.exceptionType << ", exception syndrome: "
