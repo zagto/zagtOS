@@ -1,4 +1,4 @@
-KERNEL_BASE = 0xffffffff80000000;
+KERNEL_BASE = 0xffffff8000000000;
 
 ENTRY(KernelEntry)
 SECTIONS
