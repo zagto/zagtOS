@@ -154,7 +154,11 @@ void handleUserException(RegisterState *registerState) {
                 processor->scheduler.checkChanges();
             } else if (DynamicInterruptRegion.contains(registerState->intNr)) {
                 cout << "Dynamic Interrupt " << registerState->intNr << " occured" << endl;
+                /* Interrupt manager uses mutexes (and is noexcept so we don't have to catch
+                 * exceptios here) */
+                KernelInterruptsLock.unlock();
                 InterruptManager.occur({processor->id, registerState->intNr});
+                KernelInterruptsLock.lock();
             } else {
                 cout << "Unknown Interrupt " << registerState->intNr << endl;
                 Panic();
@@ -164,7 +168,8 @@ void handleUserException(RegisterState *registerState) {
         }
     } while (action == Exception::Action::RETRY);
 
-    /* Page fault handling unlocks KernelInterruptsLock, so current Processor may have changed */
+    /* Page fault and dynamic interrupt handling unlocks KernelInterruptsLock, so current Processor
+     * may have changed */
     processor = CurrentProcessor();
 
     /* Generic kernel work. This may be refactored to an own method. Notice that we may be running
