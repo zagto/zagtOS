@@ -11,6 +11,7 @@ static size_t startingID = 0;
 static size_t startingHardwareID = 0;
 static bool currentlyStarting = false;
 static bool releaseToKernel = false;
+static hos_v1::PagingContext handOverPagingContext;
 
 size_t BootProcessorHardwareID;
 
@@ -41,7 +42,7 @@ extern "C" void LoaderEntrySecondaryProcessor() {
     __atomic_store_n(&currentlyStarting, false, __ATOMIC_SEQ_CST);
 
     while (!__atomic_load_n(&releaseToKernel, __ATOMIC_SEQ_CST)) {}
-    ExitToKernel(id, hardwareID);
+    ExitToKernel(id, hardwareID, &handOverPagingContext);
 }
 
 void releaseSecondaryProcessorsToKernel() {
@@ -90,7 +91,7 @@ static size_t findProcessors() {
 
 
 
-void setupSecondaryProcessorEntry(PageTable *masterPageTable) {
+void setupSecondaryProcessorEntry() {
     size_t length = secondaryProcessorEntryCodeLength();
     size_t mptOffset = static_cast<size_t>(&SecondaryProcessorEntryMasterPageTable
                                            - &SecondaryProcessorEntryCode);
@@ -98,7 +99,7 @@ void setupSecondaryProcessorEntry(PageTable *masterPageTable) {
                                            - &SecondaryProcessorEntryCode);
     size_t stackPtrOffset = static_cast<size_t>(&SecondaryProcessorEntryStackPointerPointer
                                            - &SecondaryProcessorEntryCode);
-    size_t mptAddress = reinterpret_cast<size_t>(masterPageTable);
+    size_t mptAddress = handOverPagingContext.root.value();
     size_t entryCodeAddress = SecondaryProcessorEntry.value();
 
     assert(mptAddress < 0x100000000);
@@ -131,7 +132,8 @@ size_t secondaryProcessorEntryCodeLength() {
 }
 
 size_t startSecondaryProcessors() {
-    setupSecondaryProcessorEntry(HandOverMasterPageTable);
+    handOverPagingContext = GetPagingContext();
+    setupSecondaryProcessorEntry();
     size_t numProcessors = findProcessors();
     FreePhysicalFrame(SecondaryProcessorEntry);
     return numProcessors;

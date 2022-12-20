@@ -1,6 +1,7 @@
 #include <common/utils.hpp>
 #include <interrupts/RegisterState.hpp>
 #include <memory/ArchRegions.hpp>
+#include <iostream>
 
 
 RegisterState::RegisterState() noexcept {
@@ -32,8 +33,8 @@ RegisterState::RegisterState(UserVirtualAddress entry,
     rflags |= FLAG_INTERRUPTS;
 }
 
-Logger &operator<<(Logger &logger, const RegisterState &registerState) {
-    return *this << "[" << endl
+Logger &operator<<(Logger &logger, const RegisterState &regs) {
+    return logger << "[" << endl
                  << "\tRIP=" << regs.rip << ", RSP=" << regs.rsp << endl
                  << "\tRBP=" << regs.rbp << endl
                  << "\tCS=" << regs.cs << ", SS=" << regs.ss << endl

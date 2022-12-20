@@ -4,6 +4,7 @@
 #include <common/panic.hpp>
 
 class Processor;
+class Logger;
 
 /* Although in a separate file, the register state is part of the kernel handover interface and
  * chaging it means introducing a new inteface */

@@ -11,6 +11,10 @@ extern uint8_t SecondaryProcessorEntryTarget;
 
 extern size_t BootProcessorHardwareID;
 
+namespace hos_v1 {
+struct PagingContext;
+}
+
 size_t secondaryProcessorEntryCodeLength();
 size_t startSecondaryProcessors();
 void releaseSecondaryProcessorsToKernel();

@@ -4,6 +4,7 @@
 
 #include <interrupts/APICEnum.hpp>
 #include <interrupts/Interrupts.hpp>
+#include <interrupts/TriggerMode.hpp>
 
 namespace apic {
 

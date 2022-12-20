@@ -15,11 +15,14 @@ struct ProcessorInterrupt {
 namespace interruptManager {
 class Manager;
 }
+namespace apic {
+class IOAPIC;
+}
 
 class BoundInterrupt {
 private:
     friend class System;
-#ifdef ZAGTOS_ARCH_X86_64
+#ifdef SYSTEM_X86_64
     friend class apic::IOAPIC;
 #endif
     friend class interruptManager::Manager;

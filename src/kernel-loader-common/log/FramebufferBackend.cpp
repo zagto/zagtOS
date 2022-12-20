@@ -3,7 +3,7 @@
 #include <log/FramebufferBackend.hpp>
 #include <log/FramebufferFont.hpp>
 #include <log/BasicLog.hpp>
-#include <common/utils.cpp>
+#include <common/utils.hpp>
 
 /* in the bootloader, we want to use the framebuffer before memory management is initialized. So we
  * can't allocate a back buffer of the exact size needed. Instead here is 50MB of memory to use. */

@@ -16,16 +16,6 @@ void ExitToKernel(size_t processorID, size_t hardwareID, hos_v1::PagingContext *
         cout << "Handover data at: " << reinterpret_cast<size_t>(BootInfo) << endl;
     }
 
-    uint64_t r;
-    asm volatile ("mrs %0, id_aa64mmfr0_el1" : "=r" (r));
-    uint64_t b=r&0xF;
-    cout << "supported bits: " << b << endl;
-    //if(r&(0xF<<28)/*4k*/ || b<0b101/*36 bits*/) {
-    //    cout << "ERROR: 4k granule or 63 bit address space not supported" << endl;
-    //    Halt();
-    //}
-
-
     ExitFinalize(KernelEntryAddress,
                  pagingContext,
                  BootInfo,

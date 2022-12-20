@@ -36,7 +36,7 @@ void System::setupSyscalls() noexcept {
 
 void System::detectIOAPICs() {
     /* finds IOAPICs using ACPI tables */
-    const MADTTable *madt = findMADT(ACPIRoot);
+    const MADTTable *madt = findMADT(firmwareRoot);
     assert(madt != nullptr);
     SubtableWrapper<IOAPICSubtable> subtables(madt);
 

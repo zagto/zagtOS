@@ -88,6 +88,7 @@ static void setBestMode(EFI_GRAPHICS_OUTPUT_PROTOCOL *graphicsOutput) {
 
 static void generateFramebufferInfo(EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode) {
     framebufferInfo = hos_v1::FramebufferInfo{
+        .type = hos_v1::SIMPLE_FRAMEBUFFER,
         .frontBuffer = reinterpret_cast<uint8_t *>(mode->FrameBufferBase),
         .backBuffer = nullptr, /* inserted by mapFrameBuffer */
         .width = mode->Info->HorizontalResolution,

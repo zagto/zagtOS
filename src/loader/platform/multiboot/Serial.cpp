@@ -7,4 +7,5 @@ hos_v1::SerialInfo &InitSerial() {
     info.type = hos_v1::SerialType::PC;
     info.baseAddress = PhysicalAddress::Null;
     info.memoryLength = 0;
+    return info;
 }

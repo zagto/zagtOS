@@ -32,7 +32,8 @@ uint8_t *allocateHandOver(size_t numPages) {
     return result;
 }
 
-void freezeAndExitFirmware() {
+void freezeAndExitFirmware(const hos_v1::SerialInfo &serialInfo,
+                           const hos_v1::FramebufferInfo &framebufferInfo) {
     EFI_STATUS status;
     UINTN mapSize;
     UINTN numPages;
@@ -98,7 +99,7 @@ void freezeAndExitFirmware() {
         } else {
             map = memoryMap;
 
-            basicLog::exitBootServices();
+            basicLog::exitBootServices(serialInfo, framebufferInfo);
 
             /* mapSize should now hold the size of the memory map, so we can find out
              * how many descriptors it holds */

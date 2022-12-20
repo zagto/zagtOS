@@ -7,7 +7,7 @@
 
 namespace basicLog {
 
-static bool framebufferInitialized{false};
+static bool backendsInitialized{false};
 
 static FramebufferBackend framebufferBackend;
 static SerialBackend serialBackend;
@@ -15,11 +15,11 @@ static SerialBackend serialBackend;
 void init(hos_v1::SerialInfo &serial, hos_v1::FramebufferInfo &framebuffer) {
     serialBackend.init(serial);
     framebufferBackend.init(framebuffer);
-    framebufferInitialized = true;
+    backendsInitialized = true;
 }
 
 void write(char character) {
-    if (framebufferInitialized) {
+    if (backendsInitialized) {
         serialBackend.write(character);
         framebufferBackend.write(character);
     }

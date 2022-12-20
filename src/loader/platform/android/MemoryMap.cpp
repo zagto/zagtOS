@@ -76,7 +76,7 @@ uint8_t *allocateHandOver(size_t numPages) {
     return memoryMapBlocking::allocateHandOver(numPages);
 }
 
-void freezeAndExitFirmware() {
+void freezeAndExitFirmware(const hos_v1::SerialInfo &, const hos_v1::FramebufferInfo &) {
     /* do nothing */
 }
 

@@ -23,7 +23,7 @@ enum FramebufferFormat : uint32_t {
 };
 
 enum FramebufferType : uint32_t {
-    NO_FRAMEBUFFER = 1, SIMPLE = 2,
+    NO_FRAMEBUFFER = 1, SIMPLE_FRAMEBUFFER = 2,
 };
 
 enum SerialType : uint32_t {

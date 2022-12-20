@@ -14,7 +14,8 @@ void write(char character);
 
 #ifdef ZAGTOS_LOADER
 /* EFI-sepcific */
-void exitBootServices(hos_v1::SerialInfo &serial, hos_v1::FramebufferInfo &framebuffer);
+void exitBootServices(const hos_v1::SerialInfo &serial,
+                      const hos_v1::FramebufferInfo &framebuffer);
 #else
 void sendCoreDump(size_t nameLength,
                   const uint8_t *name,

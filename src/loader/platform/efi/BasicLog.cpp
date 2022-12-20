@@ -28,7 +28,8 @@ void write(char character) {
     }
 }
 
-void exitBootServices(hos_v1::SerialInfo &serial, hos_v1::FramebufferInfo &framebuffer) {
+void exitBootServices(const hos_v1::SerialInfo &serial,
+                      const hos_v1::FramebufferInfo &framebuffer) {
     serialBackend.init(serial);
     framebufferBackend.init(framebuffer);
     logUseBootServices = false;

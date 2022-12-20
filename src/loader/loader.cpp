@@ -107,7 +107,7 @@ extern "C" void LoaderMain() {
     auto handOverString = reinterpret_cast<char *>(pointer);
 
     cout << "Getting Memory Map..." << endl;
-    memoryMap::freezeAndExitFirmware();
+    memoryMap::freezeAndExitFirmware(serialInfo, framebufferInfo);
 
     cout << "Initialzing Memory Management..." << endl;
     PhysicalAddress maxPhysicalAddress = InitPhysicalFrameManagement();

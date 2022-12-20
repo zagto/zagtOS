@@ -25,7 +25,7 @@ endif
 
 EFI_INCLUDE_BASE = $(SHBUILD_ROOT)/src/gnu-efi/inc
 EFI_INCLUDES = -I$(EFI_INCLUDE_BASE) -I$(EFI_INCLUDE_BASE)/$(ARCH) -I$(EFI_INCLUDE_BASE)/protocol
-EFI_LIB_BASE = $(SHBUILD_ROOT)/build/gnu-efi/$(ARCH)
+EFI_LIB_BASE = $(SHBUILD_ROOT)/build/$(ARCH)/gnu-efi/$(ARCH)
 EFI_CRT_OBJS = $(EFI_LIB_BASE)/gnuefi/crt0-efi-$(ARCH).o
 EFI_LDS = $(SHBUILD_ROOT)/src/gnu-efi/gnuefi/elf_$(ARCH)_efi.lds
 

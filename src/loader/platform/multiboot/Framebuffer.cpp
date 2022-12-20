@@ -18,6 +18,7 @@ hos_v1::FramebufferInfo &InitFramebuffer(void) {
     }
 
     info = hos_v1::FramebufferInfo{
+        .type = hos_v1::SIMPLE_FRAMEBUFFER,
         .frontBuffer = reinterpret_cast<uint8_t *>(mboot->address),
         .backBuffer = nullptr, /* inserted by mapFrameBuffer */
         .width = mboot->width,

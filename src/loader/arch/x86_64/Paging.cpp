@@ -113,3 +113,9 @@ void MapAddress(PagingContext pagingContext,
         *entry |= cacheType * PAGE_PAT_LOW;
     }
 }
+
+hos_v1::PagingContext GetPagingContext() {
+    return {
+        .root = reinterpret_cast<size_t>(HandOverMasterPageTable),
+    };
+}

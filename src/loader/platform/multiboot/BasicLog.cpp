@@ -1,33 +1,28 @@
 #include <log/BasicLog.hpp>
-#include <log/SerialBackend.hpp>
 #include <log/FramebufferBackend.hpp>
+#include <log/SerialBackend.hpp>
 #include <Framebuffer.hpp>
+#include <Serial.hpp>
 #include <iostream>
 
 namespace basicLog {
 
-static bool serialInitialized{false};
-static bool framebufferInitialized{false};
+static bool backendsInitialized{false};
 
-static SerialBackend serialBackend;
 static FramebufferBackend framebufferBackend;
+static SerialBackend serialBackend;
 
-void init() {
-    auto &framebufferInfo = GetFramebuffer();
-    framebufferBackend.init(framebufferInfo);
-    framebufferInitialized = true;
+void init(hos_v1::SerialInfo &serial, hos_v1::FramebufferInfo &framebuffer) {
+    serialBackend.init(serial);
+    framebufferBackend.init(framebuffer);
+    backendsInitialized = true;
 }
 
 void write(char character) {
-    /* the loader may try to call write before the the framebuffer is initialized. In this case
-     * we can already output to the serial port */
-    if (!serialInitialized) {
-        serialBackend.init();
-        serialInitialized = true;
-    }
-    serialBackend.write(character);
-    if (framebufferInitialized) {
+    if (backendsInitialized) {
+        serialBackend.write(character);
         framebufferBackend.write(character);
     }
 }
+
 }

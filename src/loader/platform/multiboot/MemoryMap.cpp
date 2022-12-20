@@ -1,5 +1,5 @@
 #include <MemoryMap.hpp>
-#include <MemoryMapBlocking.hpp>
+#include <memory/MemoryMapBlocking.hpp>
 #include <Multiboot.hpp>
 #include <iostream>
 
@@ -27,10 +27,10 @@ void initialize() {
 
     Region loaderRegion(reinterpret_cast<size_t>(&_multiboot),
                         reinterpret_cast<size_t>(&_end) - reinterpret_cast<size_t>(&_multiboot));
-    memoryMapBlocking::blockRegion(loaderRegion);
+    memoryMapBlocking::blockRegion(loaderRegion, true);
 
     Region multibootInfoRegion(reinterpret_cast<size_t>(MultibootInfo), MultibootInfo->totalSize);
-    memoryMapBlocking::blockRegion(multibootInfoRegion);
+    memoryMapBlocking::blockRegion(multibootInfoRegion, true);
 
     /* block multiboot module regions, i.e. kernel & process image */
     size_t index = 0;
@@ -41,7 +41,7 @@ void initialize() {
         }
 
         Region moduleRegion(mod->startAddress, mod->endAddress - mod->startAddress);
-        memoryMapBlocking::blockRegion(moduleRegion);
+        memoryMapBlocking::blockRegion(moduleRegion, true);
 
         index++;
     }
@@ -51,7 +51,7 @@ uint8_t *allocateHandOver(size_t numPages) {
     return memoryMapBlocking::allocateHandOver(numPages);
 }
 
-void freezeAndExitFirmware() {
+void freezeAndExitFirmware(const hos_v1::SerialInfo &, const hos_v1::FramebufferInfo &) {
     /* do nothing */
 }
 
