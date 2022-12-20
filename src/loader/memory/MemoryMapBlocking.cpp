@@ -4,21 +4,30 @@
 
 namespace memoryMapBlocking {
 
-constexpr size_t MAX_BLOCKED_REGIONS = 100;
-static Region blockedRegions[MAX_BLOCKED_REGIONS];
-static Region reclaimableRegions[MAX_BLOCKED_REGIONS];
-static size_t numBlockedRegions = 0;
-static size_t numReclaimableRegions = 0;
+class BlockedRegionsMap {
+private:
+    static constexpr size_t MAX_BLOCKED_REGIONS = 100;
+    Region blockedRegions[MAX_BLOCKED_REGIONS];
+    size_t numBlockedRegions = 0;
+    size_t firmwareIndex = 0;
+    size_t splitIndex = 0;
+    size_t getIndex = 0;
+
+public:
+    void block(Region region);
+    optional<Region> getNextAvailable(bool reset, size_t minimumSize);
+    optional<Region> getNextBlocked(bool reset);
+};
+
+static BlockedRegionsMap allBlockedRegionsMap;
+static BlockedRegionsMap reclaimableRegionsMap;
 static size_t numFirmwareRegions = 0;
 static GetRegionCallback callback;
 
-optional<Region> findNextAvailableRegion(bool reset,
-                                         size_t minimumSize) {
-    static size_t firmwareIndex = 0;
+optional<Region> BlockedRegionsMap::getNextAvailable(bool reset, size_t minimumSize) {
     /* if a Region cotains a blocked Region, we may have to return both the part before and after,
      * thus returning more regions than multiboot has. This variable remembers at which part we
      * are. */
-    static size_t splitIndex = 0;
 
     if (reset) {
         firmwareIndex = 0;
@@ -89,17 +98,11 @@ optional<Region> findNextAvailableRegion(bool reset,
     return {};
 }
 
-void blockRegion(Region region, bool reclaimable) {
+void BlockedRegionsMap::block(Region region) {
     assert(numBlockedRegions < MAX_BLOCKED_REGIONS);
 
     alignedGrow(region.start, region.length, PAGE_SIZE);
     //cout << "Blocking region " << region.start << "," << region.length << endl;
-
-    if (reclaimable) {
-        assert(numReclaimableRegions < MAX_BLOCKED_REGIONS);
-        reclaimableRegions[numReclaimableRegions] = region;
-        numReclaimableRegions++;
-    }
 
     size_t insertIndex;
     for (insertIndex = 0; insertIndex < numBlockedRegions; insertIndex++) {
@@ -130,20 +133,40 @@ void blockRegion(Region region, bool reclaimable) {
     }
 }
 
+optional<Region> BlockedRegionsMap::getNextBlocked(bool reset) {
+    if (reset) {
+        getIndex = 0;
+    } else {
+        getIndex++;
+    }
+    if (numBlockedRegions > getIndex) {
+        return blockedRegions[getIndex];
+    } else {
+        return {};
+    }
+}
+
 void initialize(size_t _numFirmwareRegions, GetRegionCallback _callback) {
     numFirmwareRegions = _numFirmwareRegions;
     callback = _callback;
 }
 
+void blockRegion(Region region, bool reclaimable) {
+    allBlockedRegionsMap.block(region);
+    if (reclaimable) {
+        reclaimableRegionsMap.block(region);
+    }
+}
+
 uint8_t *allocateHandOver(size_t numPages) {
-    auto result = findNextAvailableRegion(true, numPages * PAGE_SIZE);
+    auto result = allBlockedRegionsMap.getNextAvailable(true, numPages * PAGE_SIZE);
     /* avoid fully blocking the first 64k, from which the secondary processor entry page needs to
      * be taken */
     if (result && result->start < (1ul << 16)) {
         result->start += PAGE_SIZE;
         result->length -= PAGE_SIZE;
         if (result->length < numPages * PAGE_SIZE) {
-            result = findNextAvailableRegion(false, numPages * PAGE_SIZE);
+            result = allBlockedRegionsMap.getNextAvailable(false, numPages * PAGE_SIZE);
         }
     }
     if (!result) {
@@ -158,19 +181,12 @@ uint8_t *allocateHandOver(size_t numPages) {
     return reinterpret_cast<uint8_t *>(handOverRegion.start);
 }
 
-static size_t numReclaimableReturned = 0;
+optional<Region> findNextAvailableRegion(bool reset, size_t minimumSize) {
+    return allBlockedRegionsMap.getNextAvailable(reset, minimumSize);
+}
 
 optional<Region> nextReclaimableRegion(bool reset) {
-    if (reset) {
-        numReclaimableReturned = 0;
-    } else {
-        numReclaimableReturned++;
-    }
-    if (numReclaimableRegions > numReclaimableReturned) {
-        return reclaimableRegions[numReclaimableReturned];
-    } else {
-        return {};
-    }
+    return reclaimableRegionsMap.getNextBlocked(reset);
 }
 
 }
