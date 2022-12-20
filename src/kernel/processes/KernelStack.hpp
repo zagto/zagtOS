@@ -6,7 +6,7 @@
 
 class KernelStack {
 private:
-    static constexpr size_t SIZE = 0x1000;
+    static constexpr size_t SIZE = 0x8000;
     static constexpr size_t REGISTER_STATE_ALIGNMENT = 16;
     static constexpr size_t USER_STATE_OFFSET = SIZE - sizeof(RegisterState)
             - (SIZE - sizeof(RegisterState)) % REGISTER_STATE_ALIGNMENT;
