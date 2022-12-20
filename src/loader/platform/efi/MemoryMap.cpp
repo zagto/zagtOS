@@ -15,6 +15,10 @@ static size_t numDescriptors;
 static size_t currentIndex;
 
 
+void initialize() {
+    /* do nothing */
+}
+
 uint8_t *allocateHandOver(size_t numPages) {
     EFI_STATUS status;
     uint8_t *result;
