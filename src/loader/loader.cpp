@@ -1,5 +1,6 @@
 #include <exit.hpp>
 #include <iostream>
+#include <Serial.hpp>
 #include <Framebuffer.hpp>
 #include <Files.hpp>
 #include <MemoryMap.hpp>
@@ -48,12 +49,11 @@ void isort(hos_v1::MappedArea *mappedAreas, size_t len) {
     }
 }
 
-extern void mmu_init();
-
 extern "C" void LoaderMain() {
     //cout << "Initializing..." << endl;
+    hos_v1::SerialInfo &serialInfo = InitSerial();
     hos_v1::FramebufferInfo &framebufferInfo = InitFramebuffer();
-    basicLog::init();
+    basicLog::init(serialInfo, framebufferInfo);
     cout << "Hello from C++" << endl;
 
     detectTimerFrequency();
@@ -62,7 +62,6 @@ extern "C" void LoaderMain() {
 
     cout << "Detecting Images..." << endl;
 
-    LoadKernelImage();
     ProgramBinary kernel = LoadKernelImage();
     ProgramBinary process = LoadProcessImage();
 
@@ -115,6 +114,7 @@ extern "C" void LoaderMain() {
     InitPaging();
     MapLoaderMemory();
     MapFramebufferMemory(framebufferInfo);
+    MapSerialMemory(serialInfo);
     CreateIdentityMap(maxPhysicalAddress);
 
     cout << "Starting secondary Processors..." << endl;
@@ -139,6 +139,7 @@ extern "C" void LoaderMain() {
     *handOverSystem = hos_v1::System{
         .version = 1,
         .framebufferInfo = framebufferInfo,
+        .serialInfo = serialInfo,
         .freshFrameStack = {}, /* correct data will be filled in later */
         .usedFrameStack = {}, /* correct data will be filled in later */
         .handOverPagingContext = GetPagingContext(),

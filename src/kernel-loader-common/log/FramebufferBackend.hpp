@@ -18,6 +18,7 @@ private:
     constexpr static const Color backgroundColor{0xff, 0xff, 0xff};
     Color foregroundColor{0, 0, 0};
 
+    uint32_t type;
     uint8_t *frontBuffer;
     uint8_t *backBuffer;
     uint32_t width;

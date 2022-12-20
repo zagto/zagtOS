@@ -23,9 +23,7 @@ void findInitrd() {
         Panic();
     }
     // TODO: use #address-cells?
-    uint64_t initrdAddress = initrdStartProperty->getInt<uint32_t>(0, 2);
-    initrdAddress = (initrdAddress << 32) | initrdStartProperty->getInt<uint32_t>(1, 2);
-    //size_t initrdAddress = initrdStartProperty->getInt<size_t>();
+    uint64_t initrdAddress = initrdStartProperty->getIntAutoSize();
 
     const size_t headerSize = 1+3*8;
     LittleEndian<uint64_t> kernelPropertiesSize;

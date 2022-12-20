@@ -29,6 +29,9 @@ void MapLoaderMemory() {
 
 
 void MapFramebufferMemory(hos_v1::FramebufferInfo &framebufferInfo) {
+    if (framebufferInfo.type == hos_v1::FramebufferType::NO_FRAMEBUFFER) {
+        return;
+    }
     size_t frontBufferAddress = reinterpret_cast<size_t>(framebufferInfo.frontBuffer);
     size_t framebufferOffset = frontBufferAddress % PAGE_SIZE;
     size_t firstAddress = frontBufferAddress - framebufferOffset;
@@ -74,6 +77,44 @@ void MapFramebufferMemory(hos_v1::FramebufferInfo &framebufferInfo) {
             reinterpret_cast<uint8_t *>(FramebufferRegion.start + framebufferOffset);
     framebufferInfo.backBuffer = framebufferInfo.frontBuffer + numPages * PAGE_SIZE;
 }
+
+void MapSerialMemory(hos_v1::SerialInfo &serialInfo) {
+    if (serialInfo.type == hos_v1::NO_SERIAL || serialInfo.memoryLength == 0) {
+        return;
+    }
+    size_t baseAddress = serialInfo.baseAddress;
+    size_t serialOffset = baseAddress % PAGE_SIZE;
+    size_t firstAddress = baseAddress - serialOffset;
+    size_t lastAddress = baseAddress + serialInfo.memoryLength;
+    size_t numPages = (lastAddress - firstAddress - 1) / PAGE_SIZE + 1;
+    size_t index;
+
+    /* mapping for kernel */
+    for (index = 0; index < numPages; index++) {
+        MapAddress(PagingContext::GLOBAL,
+                   SerialRegion.start + index * PAGE_SIZE,
+                   firstAddress + index * PAGE_SIZE,
+                   true,
+                   false,
+                   false,
+                   CacheType::CACHE_NONE);
+    }
+    /* mapping for loader */
+    for (index = 0; index < numPages; index++) {
+        MapAddress(PagingContext::HANDOVER,
+                   firstAddress + index * PAGE_SIZE,
+                   firstAddress + index * PAGE_SIZE,
+                   true,
+                   false,
+                   false,
+                   CacheType::CACHE_NONE);
+    }
+
+    /* update serial info to contain the "new" address, as this structure will be passed to the
+     * kernel later on */
+    serialInfo.baseAddress = SerialRegion.start + serialOffset;
+}
+
 
 
 void CreateIdentityMap(PhysicalAddress maxPhysicalAddress) {

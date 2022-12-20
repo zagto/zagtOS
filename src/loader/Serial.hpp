@@ -1,5 +1,4 @@
 #pragma once
+#include <setup/HandOverState.hpp>
 
-extern "C" void InitSerial();
-extern "C" void WriteSerial(char c);
-
+hos_v1::SerialInfo &InitSerial();

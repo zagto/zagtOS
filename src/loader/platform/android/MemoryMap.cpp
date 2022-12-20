@@ -45,17 +45,15 @@ static void setupBlockedRegions(const deviceTree::Tree &tree) {
 
     /* reserved-memory node */
     auto reservedMemoryNode = tree.rootNode.findChildNode("reserved-memory");
-    if (!reservedMemoryNode) {
-        cout << "could not find reserved-memory node" << endl;
-        Panic();
-    }
-    auto regionNode = reservedMemoryNode->findChildNode();
-    while (regionNode) {
-        size_t numRegions = regionNode->getNumRegions();
-        for (size_t index = 0; index < numRegions; index++) {
-            memoryMapBlocking::blockRegion(regionNode->getRegionProperty(index), false);
+    if (reservedMemoryNode) {
+        auto regionNode = reservedMemoryNode->findChildNode();
+        while (regionNode) {
+            size_t numRegions = regionNode->getNumRegions();
+            for (size_t index = 0; index < numRegions; index++) {
+                memoryMapBlocking::blockRegion(regionNode->getRegionProperty(index), false);
+            }
+            regionNode = reservedMemoryNode->findChildNode({}, regionNode->findFollowingToken());
         }
-        regionNode = reservedMemoryNode->findChildNode({}, regionNode->findFollowingToken());
     }
 
     /* DTB memory reservation block */

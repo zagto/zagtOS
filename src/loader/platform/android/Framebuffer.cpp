@@ -4,7 +4,6 @@
 #include <setup/HandOverState.hpp>
 #include <DeviceTree.hpp>
 
-static bool framebufferInitialized{false};
 static hos_v1::FramebufferInfo info;
 
 bool findQualcommFramenbuffer(const deviceTree::Tree &tree) {
@@ -71,6 +70,7 @@ bool findQualcommFramenbuffer(const deviceTree::Tree &tree) {
     }
 
     info = hos_v1::FramebufferInfo{
+        .type = hos_v1::FramebufferType::SIMPLE,
         .frontBuffer = reinterpret_cast<uint8_t *>(region.start),
         .backBuffer = nullptr, /* inserted by mapFrameBuffer */
         .width = widthProperty->getInt<uint32_t>(),
@@ -87,14 +87,13 @@ hos_v1::FramebufferInfo &InitFramebuffer(void) {
     deviceTree::Tree tree;
     if (findQualcommFramenbuffer(tree)) {
         cout << "Detected framebuffer type: Qualcomm" << endl;
-        framebufferInitialized = true;
     } else {
         cout << "No framebuffer found" << endl;
+        info.type = hos_v1::NO_FRAMEBUFFER;
     }
     return info;
 }
 
 hos_v1::FramebufferInfo &GetFramebuffer() {
-    assert(framebufferInitialized);
     return info;
 }

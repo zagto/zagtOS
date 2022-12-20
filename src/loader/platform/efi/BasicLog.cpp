@@ -13,7 +13,7 @@ static bool logUseBootServices{true};
 static SerialBackend serialBackend;
 static FramebufferBackend framebufferBackend;
 
-void init() {
+void init(hos_v1::SerialInfo &, hos_v1::FramebufferInfo &) {
     /* do nothing - internal log backends are initialized later once exitBootServices is called */
 }
 
@@ -28,10 +28,9 @@ void write(char character) {
     }
 }
 
-void exitBootServices() {
-    serialBackend.init();
-    auto &framebufferInfo = GetFramebuffer();
-    framebufferBackend.init(framebufferInfo);
+void exitBootServices(hos_v1::SerialInfo &serial, hos_v1::FramebufferInfo &framebuffer) {
+    serialBackend.init(serial);
+    framebufferBackend.init(framebuffer);
     logUseBootServices = false;
     cout << "Log is now written without EFI Boot Services" << endl;
 }

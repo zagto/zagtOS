@@ -49,6 +49,10 @@ void FramebufferBackend::clearLine(uint32_t line) {
 
 
 void FramebufferBackend::init(const hos_v1::FramebufferInfo &framebufferInfo) {
+    type = framebufferInfo.type;
+    if (type == hos_v1::NO_FRAMEBUFFER) {
+        return;
+    }
     height = framebufferInfo.height;
     width = framebufferInfo.width;
     bytesPerLine = framebufferInfo.bytesPerLine;
@@ -123,6 +127,9 @@ void FramebufferBackend::flip() {
 }
 
 void FramebufferBackend::write(char character) {
+    if (type == hos_v1::NO_FRAMEBUFFER) {
+        return;
+    }
     switch (character) {
     case basicLog::ControlCharacter::KERNEL_COLOR:
         foregroundColor = {0, 0, 255};

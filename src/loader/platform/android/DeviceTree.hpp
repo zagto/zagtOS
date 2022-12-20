@@ -15,6 +15,7 @@ struct TreeHeader;
 
 class String {
 private:
+    friend class Property;
     size_t _length;
     const char *data;
 
@@ -58,8 +59,13 @@ public:
     const Token *followingToken() const;
     template<typename T>
     T getInt(size_t index = 0, size_t totalNumElements = 1) const;
+    uint64_t getIntAutoSize() const;
     String getString() const;
+    bool findString(String string) const;
 };
+
+class Node;
+using NodeMatchCallback = bool(*)(const Node &node);
 
 class Node {
 private:
@@ -67,7 +73,7 @@ private:
         FIND_CHILD, FIND_PROPERTY, FIND_FOLLOWING
     };
 
-    const Tree &tree;
+    const Tree &_tree;
     const Token *beginToken;
     const Token *firstInnerToken;
     String name;
@@ -92,6 +98,7 @@ public:
     optional<Node> findNodeByPHandle(uint32_t phandle) const;
     optional<Node> findChildNode(optional<String> name, const Token *startPoint = nullptr) const;
     optional<Node> findChildWithProperty(optional<String> nodeName, String propertyName) const;
+    optional<Node> findChildByCallback(optional<String> nodeName, NodeMatchCallback callback) const;
     /* versions of findChildNode and findChildWithProperty that take a pure C string as argument */
     optional<Node> findChildNode(const char *name) const {
         return findChildNode(String(name));
@@ -106,6 +113,10 @@ public:
     optional<Property> findProperty(String name) const;
     size_t getNumRegions() const;
     Region getRegionProperty(size_t regionIndex = 0) const;
+    const Tree &tree() const {
+        return _tree;
+    }
+    bool checkCompatible(String string) const;
 };
 
 class Tree {
@@ -117,6 +128,8 @@ private:
     uint32_t _addressCellsStringOffset;
     uint32_t _sizeCellsStringOffset;
     uint32_t _regStringOffset;
+    uint32_t _compatibleStringOffset;
+    optional<uint32_t> _statusStringOffset;
 
 public:
     const Node rootNode;
@@ -136,6 +149,12 @@ public:
     }
     uint32_t regStringOffset() const {
         return _regStringOffset;
+    }
+    uint32_t compatibleStringOffset() const {
+        return _compatibleStringOffset;
+    }
+    uint32_t statusStringOffset() const {
+        return _statusStringOffset;
     }
     Region memoryRegion() const;
     Region reservationBlockEntry(size_t index) const;

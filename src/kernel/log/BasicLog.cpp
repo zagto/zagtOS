@@ -1,7 +1,6 @@
 #include <log/BasicLog.hpp>
 #include <log/SerialBackend.hpp>
 #include <log/FramebufferBackend.hpp>
-#include <system/System.hpp>
 #include <system/Processor.hpp>
 namespace basicLog {
 
@@ -11,10 +10,10 @@ static FramebufferBackend framebufferBackend;
 
 static SpinLock logLock;
 
-void init() {
+void init(hos_v1::SerialInfo &serial, hos_v1::FramebufferInfo &framebuffer) {
     assert(!ProcessorsInitialized);
-    serialBackend.init();
-    framebufferBackend.init(_HandOverSystem->framebufferInfo);
+    serialBackend.init(serial);
+    framebufferBackend.init(framebuffer);
     write(KERNEL_COLOR);
 }
 

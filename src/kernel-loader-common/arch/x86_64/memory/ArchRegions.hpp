@@ -9,7 +9,11 @@ static constexpr Region KernelImageRegion(
 );
 static constexpr Region FramebufferRegion(
     0xffff900000000000,
-    0x0000100000000000
+    0x0000080000000000
+);
+static constexpr Region SerialRegion(
+    0xffff980000000000,
+    0x0000080000000000
 );
 static constexpr Region KernelHeapRegion(
     0xffffa00000000000,
@@ -34,6 +38,7 @@ static const Region KernelRegions[]{
 static const Region AllRegions[]{
     KernelImageRegion,
     FramebufferRegion,
+    SerialRegion,
     KernelHeapRegion,
     UserSpaceRegion,
     IdentityMapping

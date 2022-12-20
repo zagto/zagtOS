@@ -22,6 +22,14 @@ enum FramebufferFormat : uint32_t {
     RGB = 1, BGR = 2
 };
 
+enum FramebufferType : uint32_t {
+    NO_FRAMEBUFFER = 1, SIMPLE = 2,
+};
+
+enum SerialType : uint32_t {
+    NO_SERIAL = 1, PC = 2, PRIMECELL_PL011 = 3,
+};
+
 enum FirmwareType : uint32_t {
     ACPI = 1, DTB = 2
 };
@@ -104,6 +112,7 @@ struct Process {
 };
 
 struct FramebufferInfo {
+    uint32_t type;
     uint8_t *frontBuffer;
     uint8_t *backBuffer;
     uint32_t width;
@@ -112,6 +121,12 @@ struct FramebufferInfo {
     uint32_t bytesPerLine;
     uint32_t format;
     uint32_t scaleFactor;
+};
+
+struct SerialInfo {
+    uint32_t type;
+    size_t baseAddress;
+    size_t memoryLength;
 };
 
 struct FrameStack {
@@ -132,6 +147,7 @@ struct System {
     size_t version;
 
     FramebufferInfo framebufferInfo;
+    SerialInfo serialInfo;
     FrameStack freshFrameStack[DMAZone::COUNT];
     FrameStack usedFrameStack[DMAZone::COUNT];
     PagingContext handOverPagingContext;

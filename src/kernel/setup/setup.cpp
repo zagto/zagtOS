@@ -23,7 +23,7 @@ void KernelEntry(hos_v1::System *handOver, size_t processorID, size_t hardwareID
         /* glocal constructor for System and cout needs this */
         _HandOverSystem = handOver;
 
-        basicLog::init();
+        basicLog::init(_HandOverSystem->serialInfo, _HandOverSystem->framebufferInfo);
         cout << "Hello from Kernel" << endl;
 
         /* Call global constructors */

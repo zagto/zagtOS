@@ -57,6 +57,10 @@ public:
         assert(hasValue);
         return _value;
     }
+    const T &operator*() const {
+        assert(hasValue);
+        return _value;
+    }
     operator bool() const {
         return hasValue;
     }
