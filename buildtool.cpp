@@ -300,7 +300,7 @@ void prepareEnvironment() {
     SysrootString = BuildRootString + "/out/" + TargetArchitecture + "/toolchain/sysroot";
     setenv("SYSROOT", SysrootString.c_str(), 1);
 
-    setenv("KERNEL_CFLAGS_x86_64", "-mgeneral-regs-only -mcmodel=large -mno-red-zone -ffixed-r15 -D _ZAGTOS_KERNEL=1", 1);
+    setenv("KERNEL_CFLAGS_x86_64", "-mgeneral-regs-only -mcmodel=large -mno-red-zone -D _ZAGTOS_KERNEL=1", 1);
     setenv("KERNEL_CFLAGS_aarch64", "-mgeneral-regs-only -mcmodel=large -D _ZAGTOS_KERNEL=1", 1);
 
     setenv("AS_x86_64", "nasm -f elf", 1);
