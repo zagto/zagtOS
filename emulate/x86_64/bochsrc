@@ -6,7 +6,7 @@ megs: 1024
 
 
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
-ata1-master: type=disk, mode=flat, path="./out/disk.img"
+ata1-master: type=disk, mode=flat, path="./out/x86_64/disk.img"
 ata0-master:  type=cdrom, path="./emulate/ubuntu.iso", status=inserted
 boot: cdrom, disk
 

@@ -6,7 +6,7 @@ qemu-system-x86_64 \
     -m 512 \
     -net none \
     -enable-kvm \
-    -drive id=disk,file=out/disk.img,if=none \
+    -drive id=disk,file=out/x86_64/disk.img,if=none \
     -device ahci,id=ahci \
     -device ide-hd,drive=disk,bus=ahci.0 \
     -smp 2 \
@@ -16,4 +16,4 @@ qemu-system-x86_64 \
     -no-reboot \
      -no-reboot -no-shutdown   -d int,guest_errors,cpu_reset \
     -s &
-build/DebugBridge/DebugBridge
+build/x86_64/DebugBridge/DebugBridge
