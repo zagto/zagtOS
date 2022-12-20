@@ -70,7 +70,7 @@ bool findQualcommFramenbuffer(const deviceTree::Tree &tree) {
     }
 
     info = hos_v1::FramebufferInfo{
-        .type = hos_v1::FramebufferType::SIMPLE,
+        .type = hos_v1::SIMPLE_FRAMEBUFFER,
         .frontBuffer = reinterpret_cast<uint8_t *>(region.start),
         .backBuffer = nullptr, /* inserted by mapFrameBuffer */
         .width = widthProperty->getInt<uint32_t>(),
