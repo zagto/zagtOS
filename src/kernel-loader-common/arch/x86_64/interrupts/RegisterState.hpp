@@ -19,6 +19,8 @@ public:
     /* keep things 16-byte aligned */
     uint64_t dummy;
 
+    uint8_t fxSaveArea[512];
+
     /* callee-saved */
     uint64_t r15, r14, r13, r12, rbp, rbx;
 

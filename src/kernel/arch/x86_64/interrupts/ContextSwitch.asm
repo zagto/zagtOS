@@ -72,6 +72,8 @@ struc RegisterState
     .fromSyscall resq 1
     .dummy resq 1
 
+    .fxSaveArea resb 512
+
     .r15 resq 1
     .r14 resq 1
     .r13 resq 1
@@ -144,6 +146,7 @@ syscallEntry:
     jne badAction
 
     add rsp, 16*8 ;RegisterState.r10 ; continue with poping r10
+    add rsp, 512 ; ignore fxsave area
 
     swapgs
 
@@ -189,6 +192,9 @@ commonISR:
     push r13
     push r14
     push r15
+
+    sub rsp, 512
+    fxsave [rsp]
 
     ; dummy = 0
     push 0
@@ -264,6 +270,9 @@ inKernelReturn:
 
     ; ignore dummy
     add rsp, 8
+
+    fxrstor [rsp]
+    add rsp, 512
 
     cmp rax, 1
     je fromSyscall
