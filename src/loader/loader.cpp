@@ -84,12 +84,13 @@ extern "C" void LoaderMain() {
             + 2 * numFrames * sizeof(size_t)
             + sizeof(hos_v1::EventQueue);
     uint8_t *pointer = memoryMap::allocateHandOver(handOverSize / PAGE_SIZE + 1);
+    /* put Thread first - it needs to be 16-byte aligned because of RegisterState */
+    auto handOverThread = reinterpret_cast<hos_v1::Thread *>(pointer);
+    pointer += sizeof (hos_v1::Thread);
     auto handOverSystem = reinterpret_cast<hos_v1::System *>(pointer);
     pointer += sizeof (hos_v1::System);
     auto handOverProcess = reinterpret_cast<hos_v1::Process *>(pointer);
     pointer += sizeof (hos_v1::Process);
-    auto handOverThread = reinterpret_cast<hos_v1::Thread *>(pointer);
-    pointer += sizeof (hos_v1::Thread);
     auto handOverHandles = reinterpret_cast<hos_v1::Handle *>(pointer);
     pointer += numHandles * sizeof (hos_v1::Handle);
     auto handOverMappedAreas = reinterpret_cast<hos_v1::MappedArea *>(pointer);
