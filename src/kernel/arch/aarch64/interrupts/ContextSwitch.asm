@@ -25,6 +25,8 @@ RegisterState.dummy:
     .struct RegisterState.dummy + 8
 RegisterState.x:
     .struct RegisterState.x + 8 * 30
+RegisterState.v:
+    .struct RegisterState.v + 8 * 32
 RegisterState.end:
 
 .section ".text"
@@ -211,6 +213,24 @@ commonExceptionVector:
     stp x26, x27, [sp, RegisterState.x + 26 * 8]
     stp x28, x29, [sp, RegisterState.x + 28 * 8]
 
+    # save vector registers
+    stp v0, v1, [sp, RegisterState.v + 0 * 8]
+    stp v2, v3, [sp, RegisterState.v + 2 * 8]
+    stp v4, v5, [sp, RegisterState.v + 4 * 8]
+    stp v6, v7, [sp, RegisterState.v + 6 * 8]
+    stp v8, v9, [sp, RegisterState.v + 8 * 8]
+    stp v10, v11, [sp, RegisterState.v + 10 * 8]
+    stp v12, v13, [sp, RegisterState.v + 12 * 8]
+    stp v14, v15, [sp, RegisterState.v + 14 * 8]
+    stp v16, v17, [sp, RegisterState.v + 16 * 8]
+    stp v18, v19, [sp, RegisterState.v + 18 * 8]
+    stp v20, v21, [sp, RegisterState.v + 20 * 8]
+    stp v22, v23, [sp, RegisterState.v + 22 * 8]
+    stp v24, v25, [sp, RegisterState.v + 24 * 8]
+    stp v26, v27, [sp, RegisterState.v + 26 * 8]
+    stp v28, v29, [sp, RegisterState.v + 28 * 8]
+    stp v30, v31, [sp, RegisterState.v + 30 * 8]
+
     # place a pointer to the saved RegisterState in x0
     mov x0, sp
 
@@ -259,6 +279,23 @@ inKernelReturn:
     ldp x24, x25, [sp, RegisterState.x + 24 * 8]
     ldp x26, x27, [sp, RegisterState.x + 26 * 8]
     ldp x28, x29, [sp, RegisterState.x + 28 * 8]
+
+    ldp v0, v1, [sp, RegisterState.v + 0 * 8]
+    ldp v2, v3, [sp, RegisterState.v + 2 * 8]
+    ldp v4, v5, [sp, RegisterState.v + 4 * 8]
+    ldp v6, v7, [sp, RegisterState.v + 6 * 8]
+    ldp v8, v9, [sp, RegisterState.v + 8 * 8]
+    ldp v10, v11, [sp, RegisterState.v + 10 * 8]
+    ldp v12, v13, [sp, RegisterState.v + 12 * 8]
+    ldp v14, v15, [sp, RegisterState.v + 14 * 8]
+    ldp v16, v17, [sp, RegisterState.v + 16 * 8]
+    ldp v18, v19, [sp, RegisterState.v + 18 * 8]
+    ldp v20, v21, [sp, RegisterState.v + 20 * 8]
+    ldp v22, v23, [sp, RegisterState.v + 22 * 8]
+    ldp v24, v25, [sp, RegisterState.v + 24 * 8]
+    ldp v26, v27, [sp, RegisterState.v + 26 * 8]
+    ldp v28, v29, [sp, RegisterState.v + 28 * 8]
+    ldp v30, v31, [sp, RegisterState.v + 30 * 8]
 
     add sp, sp, RegisterState.end
     eret

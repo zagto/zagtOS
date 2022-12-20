@@ -25,6 +25,7 @@ public:
     /* make sizeof(RegisterState) a multiple of 16 for stack alignment */
     uint64_t dummy;
     uint64_t x[30];
+    uint64_t v[32];
 
     RegisterState() noexcept;
     RegisterState(UserVirtualAddress entry,
