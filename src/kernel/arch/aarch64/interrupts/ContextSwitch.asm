@@ -25,8 +25,8 @@ RegisterState.dummy:
     .struct RegisterState.dummy + 8
 RegisterState.x:
     .struct RegisterState.x + 8 * 30
-RegisterState.v:
-    .struct RegisterState.v + 8 * 32
+RegisterState.q:
+    .struct RegisterState.q + 16 * 32
 RegisterState.end:
 
 .section ".text"
@@ -214,22 +214,22 @@ commonExceptionVector:
     stp x28, x29, [sp, RegisterState.x + 28 * 8]
 
     # save vector registers
-    stp v0, v1, [sp, RegisterState.v + 0 * 8]
-    stp v2, v3, [sp, RegisterState.v + 2 * 8]
-    stp v4, v5, [sp, RegisterState.v + 4 * 8]
-    stp v6, v7, [sp, RegisterState.v + 6 * 8]
-    stp v8, v9, [sp, RegisterState.v + 8 * 8]
-    stp v10, v11, [sp, RegisterState.v + 10 * 8]
-    stp v12, v13, [sp, RegisterState.v + 12 * 8]
-    stp v14, v15, [sp, RegisterState.v + 14 * 8]
-    stp v16, v17, [sp, RegisterState.v + 16 * 8]
-    stp v18, v19, [sp, RegisterState.v + 18 * 8]
-    stp v20, v21, [sp, RegisterState.v + 20 * 8]
-    stp v22, v23, [sp, RegisterState.v + 22 * 8]
-    stp v24, v25, [sp, RegisterState.v + 24 * 8]
-    stp v26, v27, [sp, RegisterState.v + 26 * 8]
-    stp v28, v29, [sp, RegisterState.v + 28 * 8]
-    stp v30, v31, [sp, RegisterState.v + 30 * 8]
+    stp q2, q3, [sp, RegisterState.q + 0 * 16]
+    stp q2, q3, [sp, RegisterState.q + 2 * 16]
+    stp q4, q5, [sp, RegisterState.q + 4 * 16]
+    stp q6, q7, [sp, RegisterState.q + 6 * 16]
+    stp q8, q9, [sp, RegisterState.q + 8 * 16]
+    stp q10, q11, [sp, RegisterState.q + 10 * 16]
+    stp q12, q13, [sp, RegisterState.q + 12 * 16]
+    stp q14, q15, [sp, RegisterState.q + 14 * 16]
+    stp q16, q17, [sp, RegisterState.q + 16 * 16]
+    stp q18, q19, [sp, RegisterState.q + 18 * 16]
+    stp q20, q21, [sp, RegisterState.q + 20 * 16]
+    stp q22, q23, [sp, RegisterState.q + 22 * 16]
+    stp q24, q25, [sp, RegisterState.q + 24 * 16]
+    stp q26, q27, [sp, RegisterState.q + 26 * 16]
+    stp q28, q29, [sp, RegisterState.q + 28 * 16]
+    stp q30, q31, [sp, RegisterState.q + 30 * 16]
 
     # place a pointer to the saved RegisterState in x0
     mov x0, sp
@@ -280,22 +280,22 @@ inKernelReturn:
     ldp x26, x27, [sp, RegisterState.x + 26 * 8]
     ldp x28, x29, [sp, RegisterState.x + 28 * 8]
 
-    ldp v0, v1, [sp, RegisterState.v + 0 * 8]
-    ldp v2, v3, [sp, RegisterState.v + 2 * 8]
-    ldp v4, v5, [sp, RegisterState.v + 4 * 8]
-    ldp v6, v7, [sp, RegisterState.v + 6 * 8]
-    ldp v8, v9, [sp, RegisterState.v + 8 * 8]
-    ldp v10, v11, [sp, RegisterState.v + 10 * 8]
-    ldp v12, v13, [sp, RegisterState.v + 12 * 8]
-    ldp v14, v15, [sp, RegisterState.v + 14 * 8]
-    ldp v16, v17, [sp, RegisterState.v + 16 * 8]
-    ldp v18, v19, [sp, RegisterState.v + 18 * 8]
-    ldp v20, v21, [sp, RegisterState.v + 20 * 8]
-    ldp v22, v23, [sp, RegisterState.v + 22 * 8]
-    ldp v24, v25, [sp, RegisterState.v + 24 * 8]
-    ldp v26, v27, [sp, RegisterState.v + 26 * 8]
-    ldp v28, v29, [sp, RegisterState.v + 28 * 8]
-    ldp v30, v31, [sp, RegisterState.v + 30 * 8]
+    ldp q2, q3, [sp, RegisterState.q + 0 * 16]
+    ldp q2, q3, [sp, RegisterState.q + 2 * 16]
+    ldp q4, q5, [sp, RegisterState.q + 4 * 16]
+    ldp q6, q7, [sp, RegisterState.q + 6 * 16]
+    ldp q8, q9, [sp, RegisterState.q + 8 * 16]
+    ldp q10, q11, [sp, RegisterState.q + 10 * 16]
+    ldp q12, q13, [sp, RegisterState.q + 12 * 16]
+    ldp q14, q15, [sp, RegisterState.q + 14 * 16]
+    ldp q16, q17, [sp, RegisterState.q + 16 * 16]
+    ldp q18, q19, [sp, RegisterState.q + 18 * 16]
+    ldp q20, q21, [sp, RegisterState.q + 20 * 16]
+    ldp q22, q23, [sp, RegisterState.q + 22 * 16]
+    ldp q24, q25, [sp, RegisterState.q + 24 * 16]
+    ldp q26, q27, [sp, RegisterState.q + 26 * 16]
+    ldp q28, q29, [sp, RegisterState.q + 28 * 16]
+    ldp q30, q31, [sp, RegisterState.q + 30 * 16]
 
     add sp, sp, RegisterState.end
     eret
