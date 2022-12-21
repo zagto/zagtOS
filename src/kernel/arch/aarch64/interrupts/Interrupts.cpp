@@ -90,8 +90,6 @@ void handleUserSyncronousException(const ExceptionInfo &info) {
                 throw;
             }
             KernelInterruptsLock.lock();
-
-            cout << "handled user instruction fetch fault" << endl;
             return;
         }
     }
@@ -149,23 +147,6 @@ void handleUserSyncronousException(const ExceptionInfo &info) {
     bool fromUserSpace = info.mode == EL0_64;
     assert(fromUserSpace == ((registerState->pstate & RegisterState::FLAG_EL1H) == 0));
 
-    switch (info.trigger) {
-    case SYNCRONOUS:
-        cout << "Syncronous" << endl;
-        break;
-    case IRQ:
-        cout << "IRQ" << endl;
-        break;
-    case FIQ:
-        cout << "FIQ" << endl;
-        break;
-    case ERROR:
-        cout << "Error" << endl;
-        break;
-    }
-
-    cout << "Exception class: " << info.exceptionClass << " specific syndrome: "
-         << info.specificSyndrome << endl;
     assert(registerState->fromSyscall == 0);
     Thread *thread = CurrentThread();
     assert(thread || (info.trigger != IRQ && info.trigger != FIQ && !fromUserSpace));
@@ -182,6 +163,22 @@ void handleUserSyncronousException(const ExceptionInfo &info) {
                 }
             } else {
                 cout << "Unknown Exception " << registerState << endl;
+                cout << "Exception class: " << info.exceptionClass << " specific syndrome: "
+                     << info.specificSyndrome << endl;
+                switch (info.trigger) {
+                case SYNCRONOUS:
+                    cout << "Syncronous" << endl;
+                    break;
+                case IRQ:
+                    cout << "IRQ" << endl;
+                    break;
+                case FIQ:
+                    cout << "FIQ" << endl;
+                    break;
+                case ERROR:
+                    cout << "Error" << endl;
+                    break;
+                }
                 Panic();
             }
         } catch (Exception &e) {
