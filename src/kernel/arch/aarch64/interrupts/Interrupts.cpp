@@ -58,7 +58,7 @@ void handleUserSyncronousException(const ExceptionInfo &info) {
     assert(CurrentThread()->kernelStack->userRegisterState() == info.registerState);
 
     if (info.exceptionClass == USER_INSTRUCTION_ABORT || info.exceptionClass == USER_DATA_ABORT) {
-        const uint64_t instructionFaultStatusCode = info.specificSyndrome & 0b11111;
+        const uint64_t instructionFaultStatusCode = info.specificSyndrome & 0b111111;
         const bool dataWriteNotRead = info.specificSyndrome & (1ul << 6);
 
         Permissions permissions;
@@ -68,7 +68,9 @@ void handleUserSyncronousException(const ExceptionInfo &info) {
             permissions = dataWriteNotRead ? Permissions::READ_WRITE : Permissions::READ;
         }
 
-        if (instructionFaultStatusCode >= 0b100 && instructionFaultStatusCode <= 0b111) {
+        if ((instructionFaultStatusCode >= 0b100 && instructionFaultStatusCode <= 0b111)
+                || (instructionFaultStatusCode >= 0b1101 && instructionFaultStatusCode <= 0b1111)) {
+            //cout << "Page fault with: " << *info.registerState << endl;
             /* translation fault */
             /* Page fault handling works with address spaces, which uses mutexes */
             KernelInterruptsLock.unlock();
