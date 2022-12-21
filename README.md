@@ -21,9 +21,15 @@ Current features include:
 
 ## Building
 
-Requirements
+Requirements:
 - everything required to build gcc
 - GNU parted, mtools, GRUB to create the disk image
+
+### Installing requirements on Windows (MSYS2)
+
+pacman -S make gcc texinfo diffutils bison flex mpc-devel lz4
+
+### Build
 
 If all of these are installed, you should be able to build with just:
 
