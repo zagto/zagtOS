@@ -2,21 +2,26 @@
 #include <Multiboot.hpp>
 #include <iostream>
 
-PhysicalAddress GetFirmwareRoot() {
+hos_v1::FirmwareInfo GetFirmwareInfo() {
+    size_t result = 0;
     NewACPITag *newTag = MultibootInfo->getTag<NewACPITag>(0);
     if (newTag) {
-        return reinterpret_cast<size_t>(newTag) + sizeof(Tag);
+        result = reinterpret_cast<size_t>(newTag) + sizeof(Tag);
+    } else {
+        OldACPITag *oldTag = MultibootInfo->getTag<OldACPITag>(0);
+        if (oldTag) {
+            result = reinterpret_cast<size_t>(oldTag) + sizeof(Tag);
+        }
     }
 
-    OldACPITag *oldTag = MultibootInfo->getTag<OldACPITag>(0);
-    if (oldTag) {
-        return reinterpret_cast<size_t>(oldTag) + sizeof(Tag);
+    if (result == 0) {
+        cout << "Not ACPI root found in Multiboot info." << endl;
+        Panic();
     }
 
-    cout << "Not ACPI root found in Multiboot info." << endl;
-    Panic();
-}
-
-hos_v1::FirmwareType GetFirmwareType() {
-    return hos_v1::FirmwareType::ACPI;
+    return {
+        .type = hos_v1::FirmwareType::ACPI,
+        .rootAddress = result,
+        .regionLength = 0
+    };
 }

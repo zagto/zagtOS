@@ -11,7 +11,7 @@
 #include <semaphore.h>
 #include <limits.h>
 #include <sys/mman.h>
-#include <zagtos/Acpi.h>
+#include <zagtos/Firmware.h>
 #include <zagtos/SharedMemory.h>
 #include <acpi.h>
 
@@ -33,7 +33,9 @@ ACPI_STATUS AcpiOsInitialize(void) {
 }
 
 ACPI_PHYSICAL_ADDRESS AcpiOsGetRootPointer(void) {
-    return ZoGetAcpiRoot();
+    struct ZoFirmwareInfo info = ZoGetFirmwareInfo();
+    assert(info.type == ZAGTOS_FIRMWARE_TYPE_ACPI);
+    return info.rootAddress;
 }
 
 ACPI_STATUS AcpiOsPredefinedOverride(const ACPI_PREDEFINED_NAMES *PredefinedObject,

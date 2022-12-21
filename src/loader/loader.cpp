@@ -144,8 +144,7 @@ extern "C" void LoaderMain() {
         .freshFrameStack = {}, /* correct data will be filled in later */
         .usedFrameStack = {}, /* correct data will be filled in later */
         .handOverPagingContext = GetPagingContext(),
-        .firmwareType = GetFirmwareType(),
-        .firmwareRoot = GetFirmwareRoot(),
+        .firmwareInfo = GetFirmwareInfo(),
         .numProcesses = 1,
         .processes = convertPointer(handOverProcess),
         .numThreads = 1,

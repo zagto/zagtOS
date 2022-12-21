@@ -143,6 +143,12 @@ struct PagingContext {
 #endif
 };
 
+struct FirmwareInfo {
+    FirmwareType type;
+    PhysicalAddress rootAddress;
+    size_t regionLength;
+};
+
 struct System {
     size_t version;
 
@@ -151,8 +157,7 @@ struct System {
     FrameStack freshFrameStack[DMAZone::COUNT];
     FrameStack usedFrameStack[DMAZone::COUNT];
     PagingContext handOverPagingContext;
-    FirmwareType firmwareType;
-    PhysicalAddress firmwareRoot;
+    FirmwareInfo firmwareInfo;
     /* TODO: a way to pass time offset to APIC timer */
 
     size_t numProcesses;

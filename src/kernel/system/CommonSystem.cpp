@@ -8,7 +8,7 @@ CommonSystem::CommonSystem(const hos_v1::System &handOver):
     time{handOver.timerFrequency},
     kernelOnlyPagingContext(handOver.handOverPagingContext),
     numProcessors{handOver.numProcessors},
-    firmwareRoot{_HandOverSystem->firmwareRoot} {
+    firmwareInfo{_HandOverSystem->firmwareInfo} {
     // TODO: initialize FutexManager?
     cout << "CommonSystem()" << endl;
 

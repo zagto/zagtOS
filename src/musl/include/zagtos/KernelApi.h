@@ -14,6 +14,7 @@ namespace cApi {
 extern "C" {
 #endif
 
+#ifndef KERNEL_API_ONLY_FIRMWARE_INFO
 #ifndef __ZAGTOS_KERNEL_API_H_MESSAGE_DATA
 #define __ZAGTOS_KERNEL_API_H_MESSAGE_DATA
 
@@ -85,6 +86,23 @@ static const uint32_t ZAGTOS_INVALID_HANDLE = 0xffffffff;
 #endif /* __ZAGTOS_KERNEL_API_H */
 #endif /* KERNEL_API_ONLY_MESSAGE_INFO */
 #endif /* KERNEL_API_ONLY_MESSAGE_DATA */
+#endif /* KERNEL_API_ONLY_FIRMWARE_INFO */
+
+#if !defined(KERNEL_API_ONLY_MESSAGE_INFO) && !defined(KERNEL_API_ONLY_MESSAGE_DATA)
+#ifndef __ZAGTOS_KERNEL_API_H_FIRMWARE_INFO
+#define __ZAGTOS_KERNEL_API_H_FIRMWARE_INFO
+
+static const size_t ZAGTOS_FIRMWARE_TYPE_ACPI = 1;
+static const size_t ZAGTOS_FIRMWARE_TYPE_DTB = 2;
+
+struct ZoFirmwareInfo {
+    size_t type;
+    size_t rootAddress;
+    size_t regionLength;
+};
+
+#endif /* __ZAGTOS_KERNEL_API_H_FIRMWARE_INFO */
+#endif /* not KERNEL_API_ONLY_MESSAGE_INFO or KERNEL_API_ONLY_MESSAGE_DATA */
 
 #ifdef __cplusplus
 } /* extern "C" */

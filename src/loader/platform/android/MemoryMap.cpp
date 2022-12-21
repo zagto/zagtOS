@@ -2,6 +2,7 @@
 #include <memory/MemoryMapBlocking.hpp>
 #include <DeviceTree.hpp>
 #include <iostream>
+#include <common/utils.hpp>
 
 namespace memoryMap {
 
@@ -41,7 +42,12 @@ static void setupBlockedRegions(const deviceTree::Tree &tree) {
     memoryMapBlocking::blockRegion(loaderRegion, true);
 
     Region dtbRegion(tree.memoryRegion());
-    memoryMapBlocking::blockRegion(dtbRegion, true);
+    memoryMapBlocking::blockRegion(dtbRegion, false);
+
+    /* ensure loder and dtb don't use the same page - to avoid making the dtb reclaimable */
+    alignedGrow(loaderRegion.start, loaderRegion.length, PAGE_SIZE);
+    alignedGrow(dtbRegion.start, dtbRegion.length, PAGE_SIZE);
+    assert(!loaderRegion.overlaps(dtbRegion));
 
     /* reserved-memory node */
     auto reservedMemoryNode = tree.rootNode.findChildNode("reserved-memory");

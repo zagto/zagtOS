@@ -14,7 +14,7 @@ static BOOLEAN GUIDEquals(EFI_GUID a, EFI_GUID b) {
     return TRUE;
 }
 
-PhysicalAddress GetFirmwareRoot() {
+hos_v1::FirmwareInfo GetFirmwareInfo() {
     BOOLEAN found = FALSE;
     PhysicalAddress result;
     UINTN i;
@@ -37,9 +37,9 @@ PhysicalAddress GetFirmwareRoot() {
         cout << "Unable to find ACPI root in EFI tables" << endl;
         Halt();
     }
-    return result;
-}
-
-hos_v1::FirmwareType GetFirmwareType() {
-    return hos_v1::FirmwareType::ACPI;
+    return {
+        .type = hos_v1::FirmwareType::ACPI,
+        .rootAddress = result,
+        .regionLength = 0
+    };
 }

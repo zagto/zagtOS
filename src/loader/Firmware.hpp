@@ -2,5 +2,4 @@
 
 #include <setup/HandOverState.hpp>
 
-PhysicalAddress GetFirmwareRoot();
-hos_v1::FirmwareType GetFirmwareType();
+hos_v1::FirmwareInfo GetFirmwareInfo();
