@@ -11,7 +11,7 @@ Current features include:
 - Memory Management and Futexes with a Linux-like syscall interface
 - Message passing IPC which is also used for passing handles for access restricted things, like a region of physical address space, or an IPC Port of another user-space Process
 - Interrupt handling by user space Processes (still missing a lot of cases)
-- Bootloader/Kernel [handover protocol](src/kernel/setup/HandOverState.hpp) designed with Live Kernel upgrades in mind (currently the bootloader loads a first Process, which contains the following processes, instead of an initrd-like mechanism)
+- Bootloader/Kernel [handover protocol](src/kernel-loader-common/setup/HandOverState.hpp) designed with Live Kernel upgrades in mind (currently the bootloader loads a first Process, which contains the following processes, instead of an initrd-like mechanism)
 - Bootloader for both UEFI and Multiboot2
 - An own [build tool](buildtool.cpp) to track dependencies between subprojects
 - DebugBridge that can collect core dumps of Processes over the (virtual) serial port
@@ -39,10 +39,10 @@ make
 
 (This has not been tested on many systems yet, please let me know in which way it goes wrong)
 
-Once the build is complete, a BIOS and UEFI bootable disk image is created at `out/disk.img`. Scripts for running the system in different emulaters are in the `emulate` directory, intended to be used from the project root like:
+Once the build is complete, a BIOS and UEFI bootable disk image is created at `out/x86_64/disk.img`. Scripts for running the system in different emulaters are in the `emulate` directory, intended to be used from the project root like:
 
 ```
-./emulate/kvm.sh
+./emulate/x86_64/kvm.sh
 ```
 
 ### VritualBox
