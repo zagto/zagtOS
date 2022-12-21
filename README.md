@@ -27,7 +27,9 @@ Requirements:
 
 ### Installing requirements on Windows (MSYS2)
 
+```
 pacman -S make gcc texinfo diffutils bison flex mpc-devel lz4
+```
 
 ### Build
 
@@ -42,7 +44,7 @@ make
 Once the build is complete, a BIOS and UEFI bootable disk image is created at `out/x86_64/disk.img`. Scripts for running the system in different emulaters are in the `emulate` directory, intended to be used from the project root like:
 
 ```
-./emulate/x86_64/kvm.sh
+./emulate/x86_64/qemu.sh
 ```
 
 ### VritualBox
