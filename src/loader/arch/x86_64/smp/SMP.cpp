@@ -52,7 +52,7 @@ void releaseSecondaryProcessorsToKernel() {
 static size_t findProcessors() {
     cout << "Detecting Processors using ACPI..." << endl;
 
-    const MADTTable *madt = findMADT(GetFirmwareRoot());
+    const MADTTable *madt = findMADT(GetFirmwareInfo().rootAddress);
 
     bool foundBootProcessor = false;
     size_t numProcessors = 0;
