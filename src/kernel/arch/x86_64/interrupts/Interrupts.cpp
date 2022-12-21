@@ -156,6 +156,7 @@ void handleUserException(RegisterState *registerState) {
                 cout << "Dynamic Interrupt " << registerState->intNr << " occured" << endl;
                 /* Interrupt manager uses mutexes (and is noexcept so we don't have to catch
                  * exceptios here) */
+                /* TODO: is this a good idea? rapid-fireing interrutps could stack here */
                 KernelInterruptsLock.unlock();
                 InterruptManager.occur({processor->id, registerState->intNr});
                 KernelInterruptsLock.lock();

@@ -211,6 +211,9 @@ int main() {
 
     std::cout << "Setup..." << std::endl;
 
+    auto x = malloc(0x10003);
+    std::cout << "malloc result: " << x << std::endl;
+
     registerEmbeddedDrivers();
 
     std::cout << "Starting HAL..." << std::endl;

@@ -5,6 +5,8 @@
 
 .extern handleInterrupt
 .extern InKernelReturnEntryRestoreInterruptsLock
+.extern Syscall
+.extern SyscallScheduleNext
 
 .struct 0
 RegisterState.fromSyscall:
@@ -105,6 +107,14 @@ ExceptionVectorTable:
 .balign 0x80
     sub sp, sp, RegisterState.end
     stp x18, x19, [sp, RegisterState.x + 18 * 8]
+
+    # This might be a syscall -> check exceptionClass
+    mrs x18, esr_el1
+    lsr x18, x18, 26
+    and x18, x18, 0b111111
+    cmp x18, 0b010101
+    beq syscallEntry
+
     mov x18, 0x20
     str x18, [sp, RegisterState.exceptionType]
     mrs x18, sp_el0
@@ -165,6 +175,62 @@ ExceptionVectorTable:
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
     b commonExceptionVector
+
+syscallEntry:
+    mrs x18, elr_el1
+    str x18, [sp, RegisterState.pc]
+    str lr, [sp, RegisterState.lr]
+    mrs x18, sp_el0
+    str x18, [sp, RegisterState.sp]
+    mov x18, 1
+    str x18, [sp, RegisterState.fromSyscall]
+    mrs x18, spsr_el1
+    str x18, [sp, RegisterState.pstate]
+    bl Syscall
+
+    # ACTION_SCHEDULE
+    cmp x0, 3
+    beq scheduleAction
+
+    # ACTION_CONTINUE should be the only other option to reach here
+    cmp x0, 2
+    bne badAction
+
+    # continue to user space
+    ldr x18, [sp, RegisterState.pc]
+    msr elr_el1, x18
+    ldr lr, [sp, RegisterState.lr]
+    ldr x18, [sp, RegisterState.sp]
+    msr sp_el0, x18
+    ldr x18, [sp, RegisterState.pstate]
+    msr spsr_el1, x18
+    ldp x18, x19, [sp, RegisterState.x + 18 * 8]
+
+    # load return value
+    ldr x0, [sp, RegisterState.x + 0]
+
+    add sp, sp, RegisterState.end
+    eret
+
+scheduleAction:
+    # save callee-saved registers into our structure
+    stp x20, x21, [sp, RegisterState.x + 20 * 8]
+    stp x22, x23, [sp, RegisterState.x + 22 * 8]
+    stp x24, x25, [sp, RegisterState.x + 24 * 8]
+    stp x26, x27, [sp, RegisterState.x + 26 * 8]
+    stp x28, x29, [sp, RegisterState.x + 28 * 8]
+
+    stp q8, q9, [sp, RegisterState.q + 8 * 16]
+    stp q10, q11, [sp, RegisterState.q + 10 * 16]
+    stp q12, q13, [sp, RegisterState.q + 12 * 16]
+    stp q14, q15, [sp, RegisterState.q + 14 * 16]
+
+    # should not return
+    bl SyscallScheduleNext
+
+badAction:
+    wfe
+    b badAction
 
 # x18 - user sp
 commonExceptionVector:
@@ -289,5 +355,3 @@ registerStateFromSyscallButNotUser:
     wfe
     b registerStateFromSyscallButNotUser
 
-syscallEntry:
-    b syscallEntry
