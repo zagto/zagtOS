@@ -5,12 +5,14 @@
 #include <set>
 #include <zagtos/ZBON.hpp>
 #include <zagtos/Messaging.hpp>
+#include <zagtos/Firmware.hpp>
 #include <zagtos/protocols/Pci.hpp>
 #include <zagtos/protocols/Driver.hpp>
 #include <zagtos/ExternalBinary.hpp>
 #include <zagtos/EnvironmentSpawn.hpp>
 
 EXTERNAL_BINARY(ACPIHAL)
+EXTERNAL_BINARY(DeviceTreeHAL)
 EXTERNAL_BINARY(PCIController)
 EXTERNAL_BINARY(AHCIDriver)
 EXTERNAL_BINARY(PS2Controller)
@@ -188,6 +190,11 @@ void registerEmbeddedDrivers() {
         {},
         {driver::CONTROLLER_TYPE_ROOT}}));
     DriverRegistry.push_back(std::make_shared<Driver>(Driver{
+        DeviceTreeHAL,
+        {},
+        {},
+        {driver::CONTROLLER_TYPE_ROOT}}));
+    DriverRegistry.push_back(std::make_shared<Driver>(Driver{
         PCIController,
         {{driver::CONTROLLER_TYPE_ROOT, zagtos::driver::RootDevice::PCI_CONTROLLER, DeviceMatch::EXACT_MASK}},
         {},
@@ -215,8 +222,18 @@ int main() {
 
     std::cout << "Starting HAL..." << std::endl;
 
-    /* create root device (ACPIHAL) */
-    DeviceTree = std::make_unique<Device>(DriverRegistry[0]);
+    FirmwareInfo firmwareInfo = GetFirmwareInfo();
+    if (firmwareInfo.type == cApi::ZAGTOS_FIRMWARE_TYPE_ACPI) {
+        std::cout << "Detected firmware type: ACPI" << std::endl;
+        /* create root device (ACPIHAL) */
+        DeviceTree = std::make_unique<Device>(DriverRegistry[0]);
+    } else if (firmwareInfo.type == cApi::ZAGTOS_FIRMWARE_TYPE_DTB) {
+        std::cout << "Detected firmware type: ACPI" << std::endl;
+        /* create root device (DeviceTreeHAL) */
+        DeviceTree = std::make_unique<Device>(DriverRegistry[1]);
+    } else {
+        throw std::runtime_error("Unknown firmware type");
+    }
 
     while (true) {
         Event event = DefaultEventQueue.waitForEvent();
