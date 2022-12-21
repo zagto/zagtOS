@@ -10,11 +10,6 @@ hos_v1::System *BootInfo = nullptr;
 
 void ExitToKernel(size_t processorID, size_t hardwareID, hos_v1::PagingContext *pagingContext) {
     assert(processorID < 512);
-    if (processorID == 0) {
-        cout << "kernel entry at: " << KernelEntryAddress << endl;
-        cout << "Temporary stack at: " << reinterpret_cast<size_t>(&temporaryStack) << endl;
-        cout << "Handover data at: " << reinterpret_cast<size_t>(BootInfo) << endl;
-    }
 
     ExitFinalize(KernelEntryAddress,
                  pagingContext,
