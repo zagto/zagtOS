@@ -31,6 +31,16 @@ Requirements:
 pacman -S make gcc texinfo diffutils bison flex mpc-devel lz4
 ```
 
+(you also need grub, mtools and android-tools to generate boot images, there are no instructions for these yet)
+
+
+### Installing requirements on Arch Linux
+
+```
+sudo pacman -S base-devel libmpc parted grub mtools android-tools
+```
+
+
 ### Build
 
 If all of these are installed, you should be able to build with just:
