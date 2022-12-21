@@ -9,12 +9,12 @@
 .struct 0
 RegisterState.fromSyscall:
     .struct RegisterState.fromSyscall + 8
-RegisterState.fromUser:
-    .struct RegisterState.fromUser + 8
 RegisterState.pstate:
     .struct RegisterState.pstate + 8
 RegisterState.pc:
     .struct RegisterState.pc + 8
+RegisterState.lr:
+    .struct RegisterState.lr + 8
 RegisterState.sp:
     .struct RegisterState.sp + 8
 RegisterState.exceptionType:
@@ -40,7 +40,6 @@ ExceptionVectorTable:
     mov x18, 0x00
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
-    mov x19, 0
     b commonExceptionVector
 # EL1T IRQ
 .balign 0x80
@@ -49,7 +48,6 @@ ExceptionVectorTable:
     mov x18, 0x01
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
-    mov x19, 0
     b commonExceptionVector
 # EL1T FIQ
 .balign 0x80
@@ -58,7 +56,6 @@ ExceptionVectorTable:
     mov x18, 0x02
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
-    mov x19, 0
     b commonExceptionVector
 # EL1T error
 .balign 0x80
@@ -67,7 +64,6 @@ ExceptionVectorTable:
     mov x18, 0x03
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
-    mov x19, 0
     b commonExceptionVector
 # EL1H syncronous
 .balign 0x80
@@ -77,7 +73,6 @@ ExceptionVectorTable:
     str x18, [sp, RegisterState.exceptionType]
     mov x18, sp
     add x18, x18, RegisterState.end
-    mov x19, 0
     b commonExceptionVector
 # EL1H IRQ
 .balign 0x80
@@ -87,7 +82,6 @@ ExceptionVectorTable:
     str x18, [sp, RegisterState.exceptionType]
     mov x18, sp
     add x18, x18, RegisterState.end
-    mov x19, 0
     b commonExceptionVector
 # EL1H FIQ
 .balign 0x80
@@ -97,7 +91,6 @@ ExceptionVectorTable:
     str x18, [sp, RegisterState.exceptionType]
     mov x18, sp
     add x18, x18, RegisterState.end
-    mov x19, 0
     b commonExceptionVector
 # EL1H error
 .balign 0x80
@@ -107,7 +100,6 @@ ExceptionVectorTable:
     str x18, [sp, RegisterState.exceptionType]
     mov x18, sp
     add x18, x18, RegisterState.end
-    mov x19, 0
     b commonExceptionVector
 # EL0 64-bit syncronous
 .balign 0x80
@@ -116,7 +108,6 @@ ExceptionVectorTable:
     mov x18, 0x20
     str x18, [sp, RegisterState.exceptionType]
     mrs x18, sp_el0
-    mov x19, 1
     b commonExceptionVector
 # EL0 64-bit IRQ
 .balign 0x80
@@ -125,7 +116,6 @@ ExceptionVectorTable:
     mov x18, 0x21
     str x18, [sp, RegisterState.exceptionType]
     mrs x18, sp_el0
-    mov x19, 1
     b commonExceptionVector
 # EL0 64-bit FIQ
 .balign 0x80
@@ -134,7 +124,6 @@ ExceptionVectorTable:
     mov x18, 0x22
     str x18, [sp, RegisterState.exceptionType]
     mrs x18, sp_el0
-    mov x19, 1
     b commonExceptionVector
 # EL0 64-bit error
 .balign 0x80
@@ -143,7 +132,6 @@ ExceptionVectorTable:
     mov x18, 0x23
     str x18, [sp, RegisterState.exceptionType]
     mrs x18, sp_el0
-    mov x19, 1
     b commonExceptionVector
 # EL0 32-bit syncronous
 .balign 0x80
@@ -152,7 +140,6 @@ ExceptionVectorTable:
     mov x18, 0x30
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
-    mov x19, 1
     b commonExceptionVector
 # EL0 32-bit IRQ
 .balign 0x80
@@ -161,7 +148,6 @@ ExceptionVectorTable:
     mov x18, 0x31
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
-    mov x19, 1
     b commonExceptionVector
 # EL0 32-bit FIQ
 .balign 0x80
@@ -170,7 +156,6 @@ ExceptionVectorTable:
     mov x18, 0x32
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
-    mov x19, 1
     b commonExceptionVector
 # EL0 32-bit error
 .balign 0x80
@@ -179,14 +164,11 @@ ExceptionVectorTable:
     mov x18, 0x33
     str x18, [sp, RegisterState.exceptionType]
     mov x18, 0
-    mov x19, 1
     b commonExceptionVector
 
 # x18 - user sp
-# x19 - fromUser
 commonExceptionVector:
     str x18, [sp, RegisterState.sp]
-    str x19, [sp, RegisterState.fromUser]
     mrs x18, esr_el1
     str x18, [sp, RegisterState.exceptionSyndrome]
     mov x18, 0
@@ -197,6 +179,7 @@ commonExceptionVector:
     str x18, [sp, RegisterState.pc]
 
     # save general-purpose registers
+    str lr, [sp, RegisterState.lr]
     stp x0, x1, [sp, RegisterState.x + 0 * 8]
     stp x2, x3, [sp, RegisterState.x + 2 * 8]
     stp x4, x5, [sp, RegisterState.x + 4 * 8]
@@ -249,10 +232,13 @@ returnFromInterrupt:
     ldr x0, [sp, RegisterState.pc]
     msr elr_el1, x0
 
-    ldr x0, [sp, RegisterState.fromSyscall]
-    ldr x1, [sp, RegisterState.fromUser]
-    cmp x1, 1
-    beq inKernelReturn
+    ldr x1, [sp, RegisterState.fromSyscall]
+    ldr x0, [sp, RegisterState.pstate]
+    msr spsr_el1, x0
+    # tst x0, #1 // FLAG_EL1H sets lowest bit
+    and x0, x0, #1
+    cmp x0, #0
+    bne inKernelReturn
 
     # TODO: can skip restoring caller-saved registers when coming from syscall
 
@@ -261,9 +247,8 @@ returnFromInterrupt:
     msr sp_el0, x0
 
 inKernelReturn:
-    ldr x0, [sp, RegisterState.pstate]
-    msr spsr_el1, x0
 
+    ldr lr, [sp, RegisterState.lr]
     ldp x0, x1, [sp, RegisterState.x + 0 * 8]
     ldp x2, x3, [sp, RegisterState.x + 2 * 8]
     ldp x4, x5, [sp, RegisterState.x + 4 * 8]

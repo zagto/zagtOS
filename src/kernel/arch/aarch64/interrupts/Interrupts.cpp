@@ -147,6 +147,7 @@ void handleUserSyncronousException(const ExceptionInfo &info) {
         break;
     }
     bool fromUserSpace = info.mode == EL0_64;
+    assert(fromUserSpace == ((registerState->pstate & RegisterState::FLAG_EL1H) == 0));
 
     switch (info.trigger) {
     case SYNCRONOUS:

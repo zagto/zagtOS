@@ -22,8 +22,6 @@ RegisterState::RegisterState(UserVirtualAddress entry,
 
     if (entry.isKernel()) {
         pstate = FLAG_EL1H;
-    } else {
-        fromUser = true;
     }
     pc = entry.value();
     pstate |= FLAG_INTERRUPTS;
@@ -32,7 +30,7 @@ RegisterState::RegisterState(UserVirtualAddress entry,
 Logger &operator<<(Logger &logger, const RegisterState &regs) {
     logger << "[" << endl
            << "\tPC=" << regs.pc << ", SP=" << regs.sp << endl
-           << "\tPSTATE=" << regs.pstate << endl;
+           << "\tLR=" << regs.lr << ", PSTATE=" << regs.pstate << endl;
 
     for (size_t index = 0; index < 10; index += 2) {
         logger << "\tX" << static_cast<char>('0'+index) << "=" << regs.x[index]

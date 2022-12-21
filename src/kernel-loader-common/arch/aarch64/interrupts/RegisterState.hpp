@@ -16,9 +16,9 @@ public:
     /* if state was saved from syscall, less registers need to be restored */
     /* fromUser and fromSyscall are used as booleans */
     uint64_t fromSyscall;
-    uint64_t fromUser;
     uint64_t pstate;
     uint64_t pc;
+    uint64_t lr;
     uint64_t sp;
     uint64_t exceptionType;
     uint64_t exceptionSyndrome;

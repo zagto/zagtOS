@@ -29,7 +29,7 @@ void Processor::localInitialization() noexcept {
     thread->process->addressSpace.activate();
 
     SetUserTLSRegister(thread->tlsPointer);
-    cout << "returnToUserMode" << endl;
+    //cout << "returnToUserMode: " << *thread->kernelStack->userRegisterState() << endl;
     returnFromInterrupt(thread->kernelStack->userRegisterState());
 }
 
