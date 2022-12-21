@@ -8,7 +8,25 @@
 #include <queue>
 #include <cassert>
 #include <cstdlib>
+#include <spawn.h>
+#include <unistd.h>
 
+/* concatenate environment variables to the beginning of each command on Windows. There does not
+ * seem to be an easy way to modify the environment for commands launched with system() on MSYS2 */
+static std::string unixEnv = "";
+
+void setEnvitonmentVariable(const std::string &name, const std::string &value) {
+#if defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__)
+	unixEnv += name + "='" + value + "' ";
+	#else
+	int result = setenv(name.c_str(), value.c_str(), 1);
+	assert(result == 0);
+#endif
+}
+
+int runCommand(std::string command) {
+	return system((unixEnv + command).c_str());
+}
 
 class Module {
 private:
@@ -170,7 +188,7 @@ void Module::build() {
     std::string buildDirString = buildDir.string();
 
     std::filesystem::current_path(srcDir);
-    setenv("SHBUILD_BUILD_DIR", buildDirString.c_str(), 1);
+    setEnvitonmentVariable("SHBUILD_BUILD_DIR", buildDirString);
 
     std::filesystem::create_directories(buildDir);
 
@@ -212,7 +230,7 @@ void Module::build() {
 
 
     std::filesystem::current_path(BuildRoot);
-    setenv("SHBUILD_BUILD_DIR", "", 1);
+    setEnvitonmentVariable("SHBUILD_BUILD_DIR", "");
 }
 
 
@@ -238,19 +256,19 @@ void Module::compile() {
     case Type::AUTOTOOLS:
         std::filesystem::current_path(buildDir);
 
-        if (system((srcDir.string() + "/configure --host=" + TargetArchitecture + "-zagto-zagtos").c_str())) {
+        if (runCommand((srcDir.string() + "/configure --host=" + TargetArchitecture + "-zagto-zagtos").c_str())) {
             std::cerr << "Could not run configure script of module " << name << "." << std::endl;
             exit(1);
         }
         /* fall-through */
     case Type::MAKE:
-        if (system(("make -j" + ParallelJobsString + " > /dev/null").c_str())) {
+        if (runCommand(("make -j" + ParallelJobsString + " > /dev/null").c_str())) {
             std::cerr << "Could not run Makefile of module " << name << "." << std::endl;
             exit(1);
         }
         break;
     case Type::SCRIPTS:
-        if (system("./build-script > /dev/null")) {
+        if (runCommand("./build-script > /dev/null")) {
             std::cerr << "Could not run build-script of module " << name << "." << std::endl;
             exit(1);
         }
@@ -264,19 +282,19 @@ void Module::install() {
     switch (type) {
     case Type::AUTOTOOLS:
         std::filesystem::current_path(buildDir);
-        if (system(("make install -j" + ParallelJobsString + " DESTDIR=" + BuildRootString).c_str())) {
+        if (runCommand(("make install -j" + ParallelJobsString + " DESTDIR=" + BuildRootString).c_str())) {
             std::cerr << "Could not run Makefile Install target of module " << name << "." << std::endl;
             exit(1);
         }
         break;
     case Type::MAKE:
-        if (system(("make install -j" + ParallelJobsString + " > /dev/null").c_str())) {
+        if (runCommand(("make install -j" + ParallelJobsString + " > /dev/null").c_str())) {
             std::cerr << "Could not run Makefile Install target of module " << name << "." << std::endl;
             exit(1);
         }
         break;
     case Type::SCRIPTS:
-        if (system("./install-script > /dev/null")) {
+        if (runCommand("./install-script > /dev/null")) {
             std::cerr << "Could not run install-script of module " << name << "." << std::endl;
             exit(1);
         }
@@ -287,26 +305,28 @@ void Module::install() {
 void prepareEnvironment() {
     BuildRoot = std::filesystem::current_path();
     BuildRootString = BuildRoot.string();
-    setenv("SHBUILD_ROOT", BuildRootString.c_str(), 1);
+    setEnvitonmentVariable("SHBUILD_ROOT", BuildRootString);
 
     ParallelJobsString = std::to_string(ParallelJobs);
-    setenv("PARALLEL_JOBS", ParallelJobsString.c_str(), 1);
+    setEnvitonmentVariable("PARALLEL_JOBS", ParallelJobsString);
 
     PathString = BuildRootString + "/out/" + TargetArchitecture + "/toolchain/kernel/bin:"
             + BuildRootString + "/out/" + TargetArchitecture + "/toolchain/system/bin:"
             + getenv("PATH");
-    setenv("PATH", PathString.c_str(), 1);
+    setEnvitonmentVariable("PATH", PathString);
 
     SysrootString = BuildRootString + "/out/" + TargetArchitecture + "/toolchain/sysroot";
-    setenv("SYSROOT", SysrootString.c_str(), 1);
+    setEnvitonmentVariable("SYSROOT", SysrootString.c_str());
 
-    setenv("KERNEL_CFLAGS_x86_64", "-mcmodel=large -mno-red-zone -D _ZAGTOS_KERNEL=1", 1);
-    setenv("KERNEL_CFLAGS_aarch64", "-mcmodel=large -D _ZAGTOS_KERNEL=1", 1);
+    setEnvitonmentVariable("KERNEL_CFLAGS_x86_64", "-mcmodel=large -mno-red-zone -D _ZAGTOS_KERNEL=1");
+    setEnvitonmentVariable("KERNEL_CFLAGS_aarch64", "-mcmodel=large -D _ZAGTOS_KERNEL=1");
 
-    setenv("AS_x86_64", "nasm -f elf", 1);
-    setenv("AS_aarch64", "aarch64-elf-as", 1);
+    setEnvitonmentVariable("AS_x86_64", "nasm -f elf");
+    setEnvitonmentVariable("AS_aarch64", "aarch64-elf-as");
 
-    setenv("ARCH", TargetArchitecture.c_str(), 1);
+    setEnvitonmentVariable("ARCH", TargetArchitecture);
+
+	std::cout << "target arch: " << TargetArchitecture << std::endl;
 
     try {
         std::filesystem::remove_all("out/" + TargetArchitecture + "/esp");
@@ -318,9 +338,9 @@ void prepareEnvironment() {
 
 
 void createBootImage() {
-    if (system((std::string("./create-boot-image-")
-                + TargetArchitecture
-                + std::string(".sh")).c_str())) {
+    if (runCommand((std::string("./create-boot-image-")
+                   + TargetArchitecture
+                   + std::string(".sh")).c_str())) {
         std::cerr << "buildtool: error during create-boot-image-" << TargetArchitecture << ".sh"
                   << std::endl;
         exit(1);
