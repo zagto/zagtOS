@@ -1,4 +1,6 @@
 #!/bin/bash
 set -e
 
+SRC_DIR="$PWD"
+cd "$SHBUILD_BUILD_DIR"
 make install
