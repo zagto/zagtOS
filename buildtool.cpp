@@ -321,7 +321,7 @@ void prepareEnvironment() {
     setEnvitonmentVariable("KERNEL_CFLAGS_x86_64", "-mcmodel=large -mno-red-zone -D _ZAGTOS_KERNEL=1");
     setEnvitonmentVariable("KERNEL_CFLAGS_aarch64", "-mcmodel=large -D _ZAGTOS_KERNEL=1");
 
-    setEnvitonmentVariable("AS_x86_64", "nasm -f elf");
+    setEnvitonmentVariable("AS_x86_64", "nasm -f elf64");
     setEnvitonmentVariable("AS_aarch64", "aarch64-elf-as");
 
     setEnvitonmentVariable("ARCH", TargetArchitecture);
