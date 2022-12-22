@@ -38,6 +38,10 @@ git subtree pull --prefix src/gnu-efi https://git.code.sf.net/p/gnu-efi/code 3.0
 
 Does not seem to have a git repo. Update manually. Currently using mtools 4.0.42
 
+## parted
+
+Git repo does not include configure script. Use Tarball to avoid additional dependencies. Currently version 3.5
+
 ## GRUB (TODO)
 
 GRUB is currently expected to be installed on the system (as a package, does not necessarily need to be used as bootl)

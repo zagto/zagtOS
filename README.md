@@ -37,7 +37,7 @@ pacman -S make gcc nasm texinfo diffutils bison flex mpc-devel lz4
 ### Installing requirements on Arch Linux
 
 ```
-sudo pacman -S base-devel nasm libmpc parted grub android-tools
+sudo pacman -S base-devel nasm libmpc grub android-tools
 ```
 
 
@@ -70,6 +70,7 @@ For VirtualBox, additional setup of the VM is required. The Paravirtualization t
 - `src/musl` [musl](https://www.musl-libc.org/) C library (MIT/BSD)
 - `src/gnu-efi` [GNU EFI](https://sourceforge.net/projects/gnu-efi/), used by zagtOS loader (BSD)
 - `src/mtools` [GNU Mtools](https://www.gnu.org/software/mtools/) used to generate FAT file system for x86_64 boot image (GPLv3)
+- `src/parted` [GNU Parted](https://www.gnu.org/software/parted/) used to generate x86_64 boot image (GPLv3)
 
 ## Licensing
 
