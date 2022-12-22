@@ -69,7 +69,7 @@ For VirtualBox, additional setup of the VM is required. The Paravirtualization t
 - `src/gmp`, `src/mpc`, `src/mpfr` GCC dependencies, not yet used
 - `src/musl` [musl](https://www.musl-libc.org/) C library (MIT/BSD)
 - `src/gnu-efi` [GNU EFI](https://sourceforge.net/projects/gnu-efi/), used by zagtOS loader (BSD)
-- `src/mtools` [GNU Mtools](https://www.gnu.org/software/mtools/) used to generate FAT file system for x86_64 boot image
+- `src/mtools` [GNU Mtools](https://www.gnu.org/software/mtools/) used to generate FAT file system for x86_64 boot image (GPLv3)
 
 ## Licensing
 
