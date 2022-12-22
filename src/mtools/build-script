@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+
+./configure --prefix="$SHBUILD_ROOT/out/$ARCH/toolchain/image-generation"
+make -j "$PARALLEL_JOBS"

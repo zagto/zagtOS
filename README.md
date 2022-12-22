@@ -23,21 +23,21 @@ Current features include:
 
 Requirements:
 - everything required to build gcc
-- GNU parted, mtools, GRUB to create the disk image
+- GNU parted, GRUB to create the disk image
 
 ### Installing requirements on Windows (MSYS2)
 
 ```
-pacman -S make gcc texinfo diffutils bison flex mpc-devel lz4
+pacman -S make gcc nasm texinfo diffutils bison flex mpc-devel lz4
 ```
 
-(you also need grub, mtools and android-tools to generate boot images, there are no instructions for these yet)
+(you also need grub and android-tools to generate boot images, there are no instructions for these yet)
 
 
 ### Installing requirements on Arch Linux
 
 ```
-sudo pacman -S base-devel libmpc parted grub mtools android-tools
+sudo pacman -S base-devel nasm libmpc parted grub android-tools
 ```
 
 
@@ -69,6 +69,7 @@ For VirtualBox, additional setup of the VM is required. The Paravirtualization t
 - `src/gmp`, `src/mpc`, `src/mpfr` GCC dependencies, not yet used
 - `src/musl` [musl](https://www.musl-libc.org/) C library (MIT/BSD)
 - `src/gnu-efi` [GNU EFI](https://sourceforge.net/projects/gnu-efi/), used by zagtOS loader (BSD)
+- `src/mtools` [GNU Mtools](https://www.gnu.org/software/mtools/) used to generate FAT file system for x86_64 boot image
 
 ## Licensing
 
