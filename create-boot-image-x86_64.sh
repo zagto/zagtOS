@@ -11,8 +11,8 @@ cp src/loader/config/grub.cfg out/$ARCH/esp/
 # create image
 dd if=/dev/zero of=out/$ARCH/disk.img bs=1M count=203
 dd if=/dev/zero of=out/$ARCH/esp.img bs=1M count=200
-mkfs.vfat -F32 out/$ARCH/esp.img
-mcopy -s -i out/$ARCH/esp.img out/$ARCH/esp/* ::/
+out/$ARCH/toolchain/image-generation/bin/mformat -F -i out/$ARCH/esp.img
+out/$ARCH/toolchain/image-generation/bin/mcopy -s -i out/$ARCH/esp.img out/$ARCH/esp/* ::/
 parted -s out/$ARCH/disk.img mklabel gpt mkpart ESP fat32 1MiB 201MiB set 1 esp on mkpart bios_grub 201MiB 202MiB set 2 bios_grub on
 dd if=out/$ARCH/esp.img of=out/$ARCH/disk.img bs=1M seek=1 count=200 conv=notrunc
 
