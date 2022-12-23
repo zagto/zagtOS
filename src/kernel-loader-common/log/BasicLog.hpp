@@ -2,6 +2,8 @@
 
 #include <common/inttypes.hpp>
 #include <setup/HandOverState.hpp>
+#include <log/SerialBackend.hpp>
+#include <log/FramebufferBackend.hpp>
 
 namespace basicLog {
 
@@ -21,6 +23,10 @@ void sendCoreDump(size_t nameLength,
                   const uint8_t *name,
                   size_t dataLength,
                   const uint8_t *data);
+
+extern SerialBackend serialBackend;
+extern FramebufferBackend framebufferBackend;
+
 #endif
 
 }

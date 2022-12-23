@@ -4,17 +4,13 @@
 #include <system/Processor.hpp>
 namespace basicLog {
 
-// TODO: globals break global constructor ordering
-static SerialBackend serialBackend;
-static FramebufferBackend framebufferBackend;
-
 static SpinLock logLock;
 
 void init(hos_v1::SerialInfo &serial, hos_v1::FramebufferInfo &framebuffer) {
     assert(!ProcessorsInitialized);
     serialBackend.init(serial);
     framebufferBackend.init(framebuffer);
-    write(KERNEL_COLOR);
+    basicLog::write(KERNEL_COLOR);
 }
 
 static void output(char character) {
