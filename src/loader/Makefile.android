@@ -25,7 +25,7 @@ ELF = $(PLATFORM_ANDROID_BUILD_DIR)/loader.elf
 CXX = $(ARCH)-elf-g++
 LD = $(ARCH)-elf-ld
 
-CXXFLAGS = -Os -ffreestanding -fno-rtti -fno-exceptions -fpic -fno-stack-protector -Wall -Wextra -Werror $(KERNEL_CFLAGS_$(ARCH)) -mcmodel=tiny -I$(PWD) -I$(PWD)/stdlib -I$(PWD)/arch/$(ARCH) -I$(PWD)/platform/android -I$(PWD)/../kernel-loader-common -I$(PWD)/../kernel-loader-common/stdlib -I$(PWD)/../kernel-loader-common/arch/$(ARCH) -DZAGTOS_LOADER
+CXXFLAGS = -Os -ffreestanding -fno-rtti -fno-exceptions -mgeneral-regs-only -fpic -fno-stack-protector -Wall -Wextra -Werror $(KERNEL_CFLAGS_$(ARCH)) -mcmodel=tiny -I$(PWD) -I$(PWD)/stdlib -I$(PWD)/arch/$(ARCH) -I$(PWD)/platform/android -I$(PWD)/../kernel-loader-common -I$(PWD)/../kernel-loader-common/stdlib -I$(PWD)/../kernel-loader-common/arch/$(ARCH) -DZAGTOS_LOADER
 CXXFLAGS += -march=armv8-a -mstrict-align
 export CXXFLAGS
 
