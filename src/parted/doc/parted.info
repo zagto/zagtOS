@@ -1,13 +1,14 @@
-This is parted.info, produced by makeinfo version 6.8 from parted.texi.
+This is parted.info, produced by makeinfo version 7.0.1 from
+parted.texi.
 
-Copyright (C) 1999-2022 Free Software Foundation, Inc.
+Copyright © 1999–2022 Free Software Foundation, Inc.
 
   Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
 any later version published by the Free Software Foundation; with no
 Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
-Texts.  A copy of the license is included in the section entitled "GNU
-Free Documentation License".
+Texts.  A copy of the license is included in the section entitled “GNU
+Free Documentation License”.
 INFO-DIR-SECTION System administration
 START-INFO-DIR-ENTRY
 * parted: (parted).                         GNU partitioning software
@@ -37,7 +38,7 @@ heavily edited by Leslie P. Polzer in 2006.
 * Using Parted::                Partitioning a Hard Drive
 * Related information::         Further reading on related topics
 * Copying This Manual::         How to make copies of this manual
-* History::                     This manual's history
+* History::                     This manual’s history
 * Concept index::               Concept index
 
 
@@ -49,7 +50,7 @@ File: parted.info,  Node: Introduction,  Next: Using Parted,  Prev: Top,  Up: To
 * Menu:
 
 * Overview::                    GNU Parted and prerequisite knowledge
-* Software Required::           GNU Parted's software dependencies
+* Software Required::           GNU Parted’s software dependencies
 * Supported Platforms::         Where you can use GNU Parted
 * License::                     What you may and may not do with GNU Parted
 * Compiling::                   How to build GNU Parted
@@ -79,17 +80,17 @@ web site.
 
   Please send bug reports to <bug-parted@gnu.org>.  When sending bug
 reports, please include the version of GNU Parted.  Please include the
-output from these commands (for disk '/dev/hda'):
+output from these commands (for disk ‘/dev/hda’):
 
      # parted /dev/hda unit s print free
 
-  Feel free to ask for help on this list -- just check that your
-question isn't answered here first.  If you don't understand the
-documentation, please tell us, so we can explain it better.  General
-philosophy is: if you need to ask for help, then something needs to be
-fixed so you (and others) don't need to ask for help.
+  Feel free to ask for help on this list — just check that your question
+isn’t answered here first.  If you don’t understand the documentation,
+please tell us, so we can explain it better.  General philosophy is: if
+you need to ask for help, then something needs to be fixed so you (and
+others) don’t need to ask for help.
 
-  Also, we'd love to hear your ideas :-)
+  Also, we’d love to hear your ideas :-)
 
 
 File: parted.info,  Node: Software Required,  Next: Supported Platforms,  Prev: Overview,  Up: Introduction
@@ -97,11 +98,11 @@ File: parted.info,  Node: Software Required,  Next: Supported Platforms,  Prev: 
 1.2 Software Required for the use of Parted
 ===========================================
 
-If you're installing or compiling Parted yourself, you'll need to have
+If you’re installing or compiling Parted yourself, you’ll need to have
 some other programs installed.  If you are compiling Parted, you will
 need both the normal and devel packages of these programs installed:
 
-   * GNU parted source is available either as a source tarball:
+   • GNU parted source is available either as a source tarball:
 
      <https://git.savannah.gnu.org/gitweb/?p=parted.git>
 
@@ -109,23 +110,23 @@ need both the normal and devel packages of these programs installed:
 
      <https://git.savannah.gnu.org/gitweb/?p=parted.git>
 
-   * libuuid, part of the e2fsprogs package.  If you don't have this,
+   • libuuid, part of the e2fsprogs package.  If you don’t have this,
      you can get it from:
 
      <http://web.mit.edu/tytso/www/linux/e2fsprogs.html>
 
      If you want to compile Parted and e2fsprogs, note that you will
-     need to 'make install' and 'make install-libs' e2fsprogs.
+     need to ‘make install’ and ‘make install-libs’ e2fsprogs.
 
-   * GNU Readline (optional), available from
+   • GNU Readline (optional), available from
 
      <https://ftp.gnu.org/gnu/readline>
 
-     If you are compiling Parted, and you don't have readline, you can
-     disable Parted's readline support with the '--disable-readline'
-     option for 'configure'.
+     If you are compiling Parted, and you don’t have readline, you can
+     disable Parted’s readline support with the ‘--disable-readline’
+     option for ‘configure’.
 
-   * GNU gettext (or compatible software) for compilation, if
+   • GNU gettext (or compatible software) for compilation, if
      internationalisation support is desired.
 
      <https://ftp.gnu.org/gnu/gettext>
@@ -172,32 +173,32 @@ If you want to compile GNU Parted, this is generally done with:
      $ ./configure
      $ make
 
-  However, there are a few options for 'configure':
+  However, there are a few options for ‘configure’:
 
-'--without-readline'
+‘--without-readline’
      turns off use of readline.  This is useful for making rescue disks,
      etc., where few libraries are available.
 
-'--disable-debug'
-     don't include assertions
+‘--disable-debug’
+     don’t include assertions
 
-'--disable-nls'
+‘--disable-nls’
      turns off native language support.  This is useful for use with old
      versions of glibc, or a trimmed down version of glibc suitable for
      rescue disks.
 
-'--disable-shared'
+‘--disable-shared’
      turns off shared libraries.  This may be necessary for use with old
-     versions of GNU libc, if you get a compile error about a "spilled
-     register".  Also useful for boot/rescue disks.
+     versions of GNU libc, if you get a compile error about a “spilled
+     register”.  Also useful for boot/rescue disks.
 
-'--enable-discover-only'
+‘--enable-discover-only’
      support only reading/probing (reduces size considerably)
 
-'--enable-mtrace'
+‘--enable-mtrace’
      enable malloc() debugging
 
-'--enable-read-only'
+‘--enable-read-only’
      disable writing (for debugging)
 
 1.5.1 Introduction
@@ -217,8 +218,8 @@ File: parted.info,  Node: Using Parted,  Next: Related information,  Prev: Intro
 
 * Partitioning::                    Disk partitioning in context
 * Running Parted::                  Partitioning with Parted
-* Invoking Parted::                 Parted's invocation options and commands
-* Command explanations::            Full explanation of parted's commands
+* Invoking Parted::                 Parted’s invocation options and commands
+* Command explanations::            Full explanation of parted’s commands
 
 
 File: parted.info,  Node: Partitioning,  Next: Running Parted,  Up: Using Parted
@@ -265,7 +266,7 @@ always be started with:
 
      # parted DEVICE
 
-where DEVICE is the hard disk device to edit.  (If you're lazy and omit
+where DEVICE is the hard disk device to edit.  (If you’re lazy and omit
 the DEVICE argument, Parted will attempt to guess which device you
 want.)
 
@@ -274,7 +275,7 @@ example:
 
      # parted /dev/sda mklabel gpt mkpart P1 ext3 1MiB 8MiB
 
-Options (like '--help') can only be specified on the command line.
+Options (like ‘--help’) can only be specified on the command line.
 
   In interactive mode, commands are entered one at a time at a prompt,
 and modify the disk immediately.  For example:
@@ -282,8 +283,8 @@ and modify the disk immediately.  For example:
      (parted) mklabel gpt
      (parted) mkpart P1 ext3 1MiB 8MiB
 
-Unambiguous abbreviations are allowed.  For example, you can type "p"
-instead of "print", and "u" instead of "units".  Commands can be typed
+Unambiguous abbreviations are allowed.  For example, you can type “p”
+instead of “print”, and “u” instead of “units”.  Commands can be typed
 either in English, or your native language (if your language has been
 translated).  This may create ambiguities.  Commands are
 case-insensitive.
@@ -292,14 +293,14 @@ case-insensitive.
 decimals.  The suffix selects the unit, which may be one of those
 described in *note unit::, except CHS and compact.  If no suffix is
 given, then the default unit is assumed.  Negative numbers count back
-from the end of the disk, with "-1s" indicating the sector at the end of
+from the end of the disk, with “-1s” indicating the sector at the end of
 the disk.  Parted will compute sensible ranges for the locations you
 specify (e.g.  a range of +/- 500 MB when you specify the location in
-"G"). Use the sector unit "s" to specify exact locations.  With
-parted-2.4 and newer, IEC binary units like "MiB", "GiB", "TiB", etc.,
+“G”).  Use the sector unit “s” to specify exact locations.  With
+parted-2.4 and newer, IEC binary units like “MiB”, “GiB”, “TiB”, etc.,
 specify exact locations as well.  *Note IEC binary units::.
 
-  If you don't give a parameter to a command, Parted will prompt you for
+  If you don’t give a parameter to a command, Parted will prompt you for
 it.  For example:
 
      (parted) mklabel
@@ -330,40 +331,40 @@ begin with a hyphen, commands do not:
 
   Options:
 
-'-h'
-'--help'
+‘-h’
+‘--help’
      display a help message
 
-'-l'
-'--list'
+‘-l’
+‘--list’
      lists partition layout on all block devices
 
-'-m'
-'--machine'
+‘-m’
+‘--machine’
      display output in machine parseable format
 
-'-j'
-'--json'
+‘-j’
+‘--json’
      display output in JSON format
 
-'-s'
-'--script'
+‘-s’
+‘--script’
      never prompt the user
 
-'-f'
-'--fix'
+‘-f’
+‘--fix’
      automatically answer exceptions with "fix" in script mode, which is
      useful for: GPT header not including full disk size; moving the
      backup GPT table to the end of the disk; MAC fix missing partition
      map entry; etc.
 
-'-a alignment-type'
-'--align alignment-type'
+‘-a alignment-type’
+‘--align alignment-type’
      Set alignment for newly created partitions, valid alignment types
      are: none, cylinder, minimal and optimal.
 
-'-v'
-'--version'
+‘-v’
+‘--version’
      display the version
 
 
@@ -405,12 +406,12 @@ File: parted.info,  Node: align-check,  Next: disk_set,  Up: Command explanation
  -- Command: align-check ALIGN-TYPE N
 
      Determine whether the starting sector of partition N meets the
-     disk's selected alignment criteria.  ALIGN-TYPE must be 'minimal',
-     'optimal' or an abbreviation.  When in script mode, if the
+     disk’s selected alignment criteria.  ALIGN-TYPE must be ‘minimal’,
+     ‘optimal’ or an abbreviation.  When in script mode, if the
      partition does not meet the alignment requirement, exit with status
      1; otherwise (including on older kernels for which alignment data
      is not available), continue processing any remaining commands.
-     Without '--script', print either 'N aligned' or 'N not aligned'.
+     Without ‘--script’, print either ‘N aligned’ or ‘N not aligned’.
 
      Example:
 
@@ -425,21 +426,21 @@ File: parted.info,  Node: disk_set,  Next: disk_toggle,  Prev: align-check,  Up:
 
  -- Command: disk_set FLAG STATE
 
-     Changes a flag on the disk.  A flag can be either "on" or "off".
+     Changes a flag on the disk.  A flag can be either “on” or “off”.
      Some or all of these flags will be available, depending on what
      disk label you are using:
 
-     'pmbr_boot'
-          (GPT) - this flag enables the boot flag on the GPT's
+     ‘pmbr_boot’
+          (GPT) - this flag enables the boot flag on the GPT’s
           protective MBR partition.
 
-     The disk's flags are displayed by the print command on the "Disk
+     The disk’s flags are displayed by the print command on the "Disk
      Flags:" line.  They are also output as the last field of the disk
      information in machine mode.
 
           (parted) disk_set pmbr_boot on
 
-     Set the PMBR's boot flag.
+     Set the PMBR’s boot flag.
 
 
 File: parted.info,  Node: disk_toggle,  Next: help,  Prev: disk_set,  Up: Command explanations
@@ -476,23 +477,23 @@ File: parted.info,  Node: mklabel,  Next: mkpart,  Prev: help,  Up: Command expl
  -- Command: mklabel LABEL-TYPE
 
      Creates a new disk label, of type LABEL-TYPE.  The new disk label
-     will have no partitions.  This command (normally) won't technically
+     will have no partitions.  This command (normally) won’t technically
      destroy your data, but it will make it basically unusable, and you
      will need to use the rescue command (*note Related information::)
      to recover any partitions.  Parted works on all partition tables.
      (1)
 
      LABEL-TYPE must be one of these supported disk labels:
-        * aix
-        * amiga
-        * bsd
-        * dvh
-        * gpt
-        * loop (raw disk access)
-        * mac
-        * msdos
-        * pc98
-        * sun
+        • aix
+        • amiga
+        • bsd
+        • dvh
+        • gpt
+        • loop (raw disk access)
+        • mac
+        • msdos
+        • pc98
+        • sun
 
      Example:
 
@@ -503,7 +504,7 @@ File: parted.info,  Node: mklabel,  Next: mkpart,  Prev: help,  Up: Command expl
 
    ---------- Footnotes ----------
 
-   (1) Everyone seems to have a different word for "disk label" -- these
+   (1) Everyone seems to have a different word for “disk label” — these
 are all the same thing: partition table, partition map.
 
 
@@ -516,32 +517,32 @@ File: parted.info,  Node: mkpart,  Next: name,  Prev: mklabel,  Up: Command expl
 
      Creates a new partition, _without_ creating a new file system on
      that partition.  This is useful for creating partitions for file
-     systems (or LVM, etc.)  that Parted doesn't support.  You may
+     systems (or LVM, etc.)  that Parted doesn’t support.  You may
      specify a file system type, to set the appropriate partition code
      in the partition table for the new partition.  FS-TYPE is required
      for data partitions (i.e., non-extended partitions).  START and END
      are the offset from the beginning of the disk, that is, the
-     "distance" from the start of the disk.
+     “distance” from the start of the disk.
 
-     PART-TYPE is one of 'primary', 'extended' or 'logical', and may be
-     specified only with 'msdos' or 'dvh' partition tables.  A NAME must
-     be specified for a 'gpt' partition table.  Neither PART-TYPE nor
-     NAME may be used with a 'sun' partition table.
+     PART-TYPE is one of ‘primary’, ‘extended’ or ‘logical’, and may be
+     specified only with ‘msdos’ or ‘dvh’ partition tables.  A NAME must
+     be specified for a ‘gpt’ partition table.  Neither PART-TYPE nor
+     NAME may be used with a ‘sun’ partition table.
 
      FS-TYPE must be one of these supported file systems:
-        * btrfs
-        * ext2, ext3, ext4
-        * fat16, fat32
-        * hfs, hfs+, hfsx
-        * hp-ufs
-        * jfs
-        * linux-swap, linux-swap(new,old,v0,v1)
-        * nilfs2
-        * ntfs
-        * reiserfs
-        * sun-ufs
-        * ufs
-        * xfs
+        • btrfs
+        • ext2, ext3, ext4
+        • fat16, fat32
+        • hfs, hfs+, hfsx
+        • hp-ufs
+        • jfs
+        • linux-swap, linux-swap(new,old,v0,v1)
+        • nilfs2
+        • ntfs
+        • reiserfs
+        • sun-ufs
+        • ufs
+        • xfs
 
      For example, the following creates a logical partition that will
      contain an ext2 file system.  The partition will start at the
@@ -550,16 +551,16 @@ File: parted.info,  Node: mkpart,  Next: name,  Prev: mklabel,  Up: Command expl
           (parted) mkpart logical 0.0 692.1
 
      Now, we will show how to partition a low-end flash device
-     ("low-end", as of 2011/2012).  For such devices, you should use
+     (“low-end”, as of 2011/2012).  For such devices, you should use
      4MiB-aligned partitions(1).  This command creates a tiny
      place-holder partition at the beginning, and then uses all
-     remaining space to create the partition you'll actually use:
+     remaining space to create the partition you’ll actually use:
 
           $ parted -s /dev/sdX -- mklabel msdos \
               mkpart primary fat32 64s 4MiB \
               mkpart primary fat32 4MiB -1s
 
-     Note the use of '--', to prevent the following '-1s' last-sector
+     Note the use of ‘--’, to prevent the following ‘-1s’ last-sector
      indicator from being interpreted as an invalid command-line option.
      The above creates two empty partitions.  The first is unaligned and
      tiny, with length less than 4MiB. The second partition starts
@@ -574,7 +575,7 @@ File: parted.info,  Node: mkpart,  Next: name,  Prev: mklabel,  Up: Command expl
 
    (1) Cheap flash drives will be with us for a long time to come, and,
 for them, 1MiB alignment is not enough.  Use at least 4MiB-aligned
-partitions.  For details, see Arnd Bergman's article,
+partitions.  For details, see Arnd Bergman’s article,
 <http://lwn.net/Articles/428584/> and its many comments.
 
 
@@ -588,13 +589,13 @@ File: parted.info,  Node: name,  Next: print,  Prev: mkpart,  Up: Command explan
      Sets the name for the partition NUMBER (GPT, Mac, MIPS and PC98
      only).  The name can be placed in quotes.  And depending on the
      shell may need to also be wrapped in single quotes so that the
-     shell doesn't strip off the double quotes.
+     shell doesn’t strip off the double quotes.
 
      Example:
 
           (parted) name 2 'Secret Documents'
 
-     Set the name of partition 2 to 'Secret Documents'.
+     Set the name of partition 2 to ‘Secret Documents’.
 
 
 File: parted.info,  Node: print,  Next: quit,  Prev: name,  Up: Command explanations
@@ -607,17 +608,17 @@ File: parted.info,  Node: print,  Next: quit,  Prev: name,  Up: Command explanat
      Displays the partition table on the device parted is editing, or
      detailed information about a particular partition.
 
-     PRINT-TYPE is optional, and can be one of 'devices', 'free',
-     'list', or 'all'.
+     PRINT-TYPE is optional, and can be one of ‘devices’, ‘free’,
+     ‘list’, or ‘all’.
 
-     'devices'
+     ‘devices’
           display all active block devices
 
-     'free'
+     ‘free’
           display information about free unpartitioned space on the
           current block device
 
-     'list, all'
+     ‘list, all’
           display the partition tables of all active block devices
 
      Example:
@@ -662,7 +663,7 @@ File: parted.info,  Node: quit,  Next: rescue,  Prev: print,  Up: Command explan
      changes Parted has made to the disks.  However, the changes caused
      by typing your commands will _probably_ be made to the disk
      immediately after typing a command.  However, the operating
-     system's cache and the disk's hardware cache may delay this.
+     system’s cache and the disk’s hardware cache may delay this.
 
 
 File: parted.info,  Node: rescue,  Next: resizepart,  Prev: quit,  Up: Command explanations
@@ -674,7 +675,7 @@ File: parted.info,  Node: rescue,  Next: resizepart,  Prev: quit,  Up: Command e
      Rescue a lost partition that used to be located approximately
      between START and END.  If such a partition is found, Parted will
      ask you if you want to create a partition for it.  This is useful
-     if you accidentally deleted a partition with parted's rm command,
+     if you accidentally deleted a partition with parted’s rm command,
      for example.
 
      Example:
@@ -721,7 +722,7 @@ File: parted.info,  Node: rescue,  Next: resizepart,  Prev: quit,  Up: Command e
            1      1049kB  1000MB  999MB   primary                  boot, lba
            2      1000MB  2300MB  1299MB  primary  ext4            lba
 
-     It's back!  :)
+     It’s back!  :)
 
 
 File: parted.info,  Node: resizepart,  Next: rm,  Prev: rescue,  Up: Command explanations
@@ -733,7 +734,7 @@ File: parted.info,  Node: resizepart,  Next: rm,  Prev: rescue,  Up: Command exp
 
      Moves the END position of partition NUMBER.  Note that this does
      not modify any filesystem present in the partition.  If you wish to
-     do this, you will need to use external tools, such as 'resize2fs'.
+     do this, you will need to use external tools, such as ‘resize2fs’.
 
      When growing a partition you will want to grow the filesystem
      afterwards, but when shrinking, you need to shrink the filesystem
@@ -757,7 +758,7 @@ File: parted.info,  Node: rm,  Next: select,  Prev: resizepart,  Up: Command exp
      renumbered.  For example, if you delete a logical partition with a
      partition number of 6, then logical partitions that were number 7,
      8 and 9 would be renumbered to 6, 7 and 8 respectively.  This
-     means, for example, that you have to update '/etc/fstab' on
+     means, for example, that you have to update ‘/etc/fstab’ on
      GNU/Linux systems.
 
      Example:
@@ -782,7 +783,7 @@ File: parted.info,  Node: select,  Next: set,  Prev: rm,  Up: Command explanatio
 
           (parted) select /dev/hdb
 
-     Select '/dev/hdb' (the slave device on the first ide controller on
+     Select ‘/dev/hdb’ (the slave device on the first ide controller on
      Linux) as the device to edit.
 
 
@@ -794,23 +795,23 @@ File: parted.info,  Node: set,  Next: toggle,  Prev: select,  Up: Command explan
  -- Command: set NUMBER FLAG STATE
 
      Changes a flag on the partition with number NUMBER.  A flag can be
-     either "on" or "off".  Some or all of these flags will be
+     either “on” or “off”.  Some or all of these flags will be
      available, depending on what disk label you are using:
 
-     'bios_grub'
+     ‘bios_grub’
           (GPT) - Enable this to record that the selected partition is a
           GRUB BIOS partition.
 
-     'legacy_boot'
+     ‘legacy_boot’
           (GPT) - this flag is used to tell special purpose software
           that the GPT partition may be bootable.
 
-     'bls_boot'
+     ‘bls_boot’
           (MS-DOS, GPT) - Enable this to indicate that the selected
           partition is a Linux Boot Loader Specification compatible
           /boot partition.
 
-     'boot'
+     ‘boot’
           (Mac, MS-DOS, PC98) - should be enabled if you want to boot
           off the partition.  The semantics vary between disk labels.
           For MS-DOS disk labels, only one partition can be bootable.
@@ -818,7 +819,7 @@ File: parted.info,  Node: set,  Next: toggle,  Prev: select,  Up: Command explan
           be bootable.  For PC98 disk labels, all ext2 partitions must
           be bootable (this is enforced by Parted).
 
-     'msftdata'
+     ‘msftdata’
           (GPT) - This flag identifies partitions that contain Microsoft
           filesystems (NTFS or FAT). It may optionally be set on Linux
           filesystems to mimic the type of configuration created by
@@ -827,63 +828,63 @@ File: parted.info,  Node: set,  Next: toggle,  Prev: select,  Up: Command explan
           be removed within parted by replacing it with a competing
           flag, such as boot or msftres.
 
-     'msftres'
+     ‘msftres’
           (MS-DOS,GPT) - This flag identifies a "Microsoft Reserved"
           partition, which is used by Windows.  Note that this flag
           should not normally be set on Windows filesystem partitions
           (those that contain NTFS or FAT filesystems).
 
-     'irst'
+     ‘irst’
           (MS-DOS, GPT) - this flag identifies an Intel Rapid Start
           Technology partition.
 
-     'esp'
+     ‘esp’
           (MS-DOS, GPT) - this flag identifies a UEFI System Partition.
           On GPT it is an alias for boot.
 
-     'chromeos_kernel'
+     ‘chromeos_kernel’
           (GPT) - this flag indicates a partition that can be used with
           the Chrome OS bootloader and verified boot implementation.
 
-     'lba'
+     ‘lba’
           (MS-DOS) - this flag can be enabled to tell MS DOS, MS Windows
           9x and MS Windows ME based operating systems to use Linear
           (LBA) mode.
 
-     'root'
+     ‘root’
           (Mac) - this flag should be enabled if the partition is the
           root device to be used by Linux.
 
-     'linux-home'
+     ‘linux-home’
           (GPT) - Enable this to indicate that the selected partition is
           a Linux /home partition.
 
-     'swap'
+     ‘swap’
           (MS-DOS, GPT, Mac) - this flag should be enabled if the
           partition is the swap device to be used by Linux.
 
-     'hidden'
+     ‘hidden’
           (MS-DOS, PC98) - this flag can be enabled to hide partitions
           from Microsoft operating systems.
 
-     'raid'
+     ‘raid’
           (MS-DOS) - this flag can be enabled to tell linux the
           partition is a software RAID partition.
 
-     'LVM'
+     ‘LVM’
           (MS-DOS) - this flag can be enabled to tell linux the
           partition is a physical volume.
 
-     'PALO'
+     ‘PALO’
           (MS-DOS) - this flag can be enabled so that the partition can
           be used by the Linux/PA-RISC boot loader, palo.
 
-     'PREP'
+     ‘PREP’
           (MS-DOS, GPT) - this flag can be enabled so that the partition
           can be used as a PReP boot partition on PowerPC PReP or IBM
           RS6K/CHRP hardware.
 
-     'DIAG'
+     ‘DIAG’
           (MS-DOS) - Enable this to indicate that a partition can be
           used as a diagnostics / recovery partition.
 
@@ -893,7 +894,7 @@ File: parted.info,  Node: set,  Next: toggle,  Prev: select,  Up: Command explan
 
           (parted) set 1 boot on
 
-     Set the 'boot' flag on partition 1.
+     Set the ‘boot’ flag on partition 1.
 
 
 File: parted.info,  Node: toggle,  Next: unit,  Prev: set,  Up: Command explanations
@@ -919,47 +920,47 @@ File: parted.info,  Node: unit,  Prev: toggle,  Up: Command explanations
 
      UNIT may be one of:
 
-     's'
+     ‘s’
           sector (n bytes depending on the sector size, often 512)
 
-     'B'
+     ‘B’
           byte
 
-     'KiB'
+     ‘KiB’
           kibibyte (1024 bytes)
 
-     'MiB'
+     ‘MiB’
           mebibyte (1048576 bytes)
 
-     'GiB'
+     ‘GiB’
           gibibyte (1073741824 bytes)
 
-     'TiB'
+     ‘TiB’
           tebibyte (1099511627776 bytes)
 
-     'kB'
+     ‘kB’
           kilobyte (1000 bytes)
 
-     'MB'
+     ‘MB’
           megabyte (1000000 bytes)
 
-     'GB'
+     ‘GB’
           gigabyte (1000000000 bytes)
 
-     'TB'
+     ‘TB’
           terabyte (1000000000000 bytes)
 
-     '%'
+     ‘%’
           percentage of the device (between 0 and 100)
 
-     'cyl'
+     ‘cyl’
           cylinders (related to the BIOS CHS geometry)
 
-     'chs'
+     ‘chs’
           cylinders, heads, sectors addressing (related to the BIOS CHS
           geometry)
 
-     'compact'
+     ‘compact’
           This is a special unit that defaults to megabytes for input,
           and picks a unit that gives a compact human readable
           representation for output.
@@ -971,26 +972,26 @@ File: parted.info,  Node: unit,  Prev: toggle,  Up: Command explanations
      particular number, but CHS and cylinder units are not supported as
      a suffix.  If no suffix is given, then the default unit is assumed.
      Parted will compute sensible ranges for the locations you specify
-     (e.g., a range of +/- 500 MB when you specify the location in "G",
-     and a range of +/- 500 KB when you specify the location in "M") and
+     (e.g., a range of +/- 500 MB when you specify the location in “G”,
+     and a range of +/- 500 KB when you specify the location in “M”) and
      will select the nearest location in this range from the one you
      wrote that satisfies constraints from both the operation, the
      filesystem being worked on, the disk label, other partitions and so
-     on.  Use the sector unit "s" to specify exact locations (if they do
+     on.  Use the sector unit “s” to specify exact locations (if they do
      not satisfy all constraints, Parted will ask you for the nearest
      solution).  Note that negative numbers count back from the end of
-     the disk, with "-1s" pointing to the last sector of the disk.
+     the disk, with “-1s” pointing to the last sector of the disk.
 
      Note that as of parted-2.4, when you specify start and/or end
-     values using IEC binary units like "MiB", "GiB", "TiB", etc.,
+     values using IEC binary units like “MiB”, “GiB”, “TiB”, etc.,
      parted treats those values as exact, and equivalent to the same
-     number specified in bytes (i.e., with the "B" suffix), in that it
-     provides _no_ "helpful" range of sloppiness.  Contrast that with a
-     partition start request of "4GB", which may actually resolve to
+     number specified in bytes (i.e., with the “B” suffix), in that it
+     provides _no_ “helpful” range of sloppiness.  Contrast that with a
+     partition start request of “4GB”, which may actually resolve to
      some sector up to 500MB before or after that point.  Thus, when
      creating a partition, you should prefer to specify units of bytes
-     ("B"), sectors ("s"), or IEC binary units like "MiB", but not "MB",
-     "GB", etc.
+     (“B”), sectors (“s”), or IEC binary units like “MiB”, but not “MB”,
+     “GB”, etc.
 
      Example:
 
@@ -1033,20 +1034,20 @@ site.
 
   These files in the Parted distribution contain further information:
 
-   * 'ABOUT-NLS' - information about using Native Language Support, and
+   • ‘ABOUT-NLS’ - information about using Native Language Support, and
      the Free Translation Project.
 
-   * 'AUTHORS' - who wrote what.
+   • ‘AUTHORS’ - who wrote what.
 
-   * 'ChangeLog' - record of changes made to Parted.
+   • ‘ChangeLog’ - record of changes made to Parted.
 
-   * 'COPYING' - the GNU General Public License, the terms under which
+   • ‘COPYING’ - the GNU General Public License, the terms under which
      GNU Parted may be distributed.
 
-   * 'COPYING.DOC' - the GNU Free Documentation Licence, the term under
-     which Parted's documentation may be distributed.
+   • ‘COPYING.DOC’ - the GNU Free Documentation Licence, the term under
+     which Parted’s documentation may be distributed.
 
-   * 'INSTALL' -- how to compile and install Parted, and most other free
+   • ‘INSTALL’ — how to compile and install Parted, and most other free
      software
 
 
@@ -1067,7 +1068,7 @@ A.1 GNU Free Documentation License
 
                      Version 1.3, 3 November 2008
 
-     Copyright (C) 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
+     Copyright © 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
      <https://fsf.org/>
 
      Everyone is permitted to copy and distribute verbatim copies
@@ -1076,14 +1077,14 @@ A.1 GNU Free Documentation License
   0. PREAMBLE
 
      The purpose of this License is to make a manual, textbook, or other
-     functional and useful document "free" in the sense of freedom: to
+     functional and useful document “free” in the sense of freedom: to
      assure everyone the effective freedom to copy and redistribute it,
      with or without modifying it, either commercially or
      noncommercially.  Secondarily, this License preserves for the
      author and publisher a way to get credit for their work, while not
      being considered responsible for modifications made by others.
 
-     This License is a kind of "copyleft", which means that derivative
+     This License is a kind of “copyleft”, which means that derivative
      works of the document must themselves be free in the same sense.
      It complements the GNU General Public License, which is a copyleft
      license designed for free software.
@@ -1104,18 +1105,18 @@ A.1 GNU Free Documentation License
      be distributed under the terms of this License.  Such a notice
      grants a world-wide, royalty-free license, unlimited in duration,
      to use that work under the conditions stated herein.  The
-     "Document", below, refers to any such manual or work.  Any member
-     of the public is a licensee, and is addressed as "you".  You accept
+     “Document”, below, refers to any such manual or work.  Any member
+     of the public is a licensee, and is addressed as “you”.  You accept
      the license if you copy, modify or distribute the work in a way
      requiring permission under copyright law.
 
-     A "Modified Version" of the Document means any work containing the
+     A “Modified Version” of the Document means any work containing the
      Document or a portion of it, either copied verbatim, or with
      modifications and/or translated into another language.
 
-     A "Secondary Section" is a named appendix or a front-matter section
+     A “Secondary Section” is a named appendix or a front-matter section
      of the Document that deals exclusively with the relationship of the
-     publishers or authors of the Document to the Document's overall
+     publishers or authors of the Document to the Document’s overall
      subject (or to related matters) and contains nothing that could
      fall directly within that overall subject.  (Thus, if the Document
      is in part a textbook of mathematics, a Secondary Section may not
@@ -1124,7 +1125,7 @@ A.1 GNU Free Documentation License
      of legal, commercial, philosophical, ethical or political position
      regarding them.
 
-     The "Invariant Sections" are certain Secondary Sections whose
+     The “Invariant Sections” are certain Secondary Sections whose
      titles are designated, as being those of Invariant Sections, in the
      notice that says that the Document is released under this License.
      If a section does not fit the above definition of Secondary then it
@@ -1132,13 +1133,13 @@ A.1 GNU Free Documentation License
      contain zero Invariant Sections.  If the Document does not identify
      any Invariant Sections then there are none.
 
-     The "Cover Texts" are certain short passages of text that are
+     The “Cover Texts” are certain short passages of text that are
      listed, as Front-Cover Texts or Back-Cover Texts, in the notice
      that says that the Document is released under this License.  A
      Front-Cover Text may be at most 5 words, and a Back-Cover Text may
      be at most 25 words.
 
-     A "Transparent" copy of the Document means a machine-readable copy,
+     A “Transparent” copy of the Document means a machine-readable copy,
      represented in a format whose specification is available to the
      general public, that is suitable for revising the document
      straightforwardly with generic text editors or (for images composed
@@ -1150,7 +1151,7 @@ A.1 GNU Free Documentation License
      been arranged to thwart or discourage subsequent modification by
      readers is not Transparent.  An image format is not Transparent if
      used for any substantial amount of text.  A copy that is not
-     "Transparent" is called "Opaque".
+     “Transparent” is called “Opaque”.
 
      Examples of suitable formats for Transparent copies include plain
      ASCII without markup, Texinfo input format, LaTeX input format,
@@ -1163,23 +1164,23 @@ A.1 GNU Free Documentation License
      the machine-generated HTML, PostScript or PDF produced by some word
      processors for output purposes only.
 
-     The "Title Page" means, for a printed book, the title page itself,
+     The “Title Page” means, for a printed book, the title page itself,
      plus such following pages as are needed to hold, legibly, the
      material this License requires to appear in the title page.  For
-     works in formats which do not have any title page as such, "Title
-     Page" means the text near the most prominent appearance of the
-     work's title, preceding the beginning of the body of the text.
+     works in formats which do not have any title page as such, “Title
+     Page” means the text near the most prominent appearance of the
+     work’s title, preceding the beginning of the body of the text.
 
-     The "publisher" means any person or entity that distributes copies
+     The “publisher” means any person or entity that distributes copies
      of the Document to the public.
 
-     A section "Entitled XYZ" means a named subunit of the Document
+     A section “Entitled XYZ” means a named subunit of the Document
      whose title either is precisely XYZ or contains XYZ in parentheses
      following text that translates XYZ in another language.  (Here XYZ
      stands for a specific section name mentioned below, such as
-     "Acknowledgements", "Dedications", "Endorsements", or "History".)
-     To "Preserve the Title" of such a section when you modify the
-     Document means that it remains a section "Entitled XYZ" according
+     “Acknowledgements”, “Dedications”, “Endorsements”, or “History”.)
+     To “Preserve the Title” of such a section when you modify the
+     Document means that it remains a section “Entitled XYZ” according
      to this definition.
 
      The Document may include Warranty Disclaimers next to the notice
@@ -1209,7 +1210,7 @@ A.1 GNU Free Documentation License
 
      If you publish printed copies (or copies in media that commonly
      have printed covers) of the Document, numbering more than 100, and
-     the Document's license notice requires Cover Texts, you must
+     the Document’s license notice requires Cover Texts, you must
      enclose the copies in covers that carry, clearly and legibly, all
      these Cover Texts: Front-Cover Texts on the front cover, and
      Back-Cover Texts on the back cover.  Both covers must also clearly
@@ -1281,15 +1282,15 @@ A.1 GNU Free Documentation License
           the Addendum below.
 
        G. Preserve in that license notice the full lists of Invariant
-          Sections and required Cover Texts given in the Document's
+          Sections and required Cover Texts given in the Document’s
           license notice.
 
        H. Include an unaltered copy of this License.
 
-       I. Preserve the section Entitled "History", Preserve its Title,
+       I. Preserve the section Entitled “History”, Preserve its Title,
           and add to it an item stating at least the title, year, new
           authors, and publisher of the Modified Version as given on the
-          Title Page.  If there is no section Entitled "History" in the
+          Title Page.  If there is no section Entitled “History” in the
           Document, create one stating the title, year, authors, and
           publisher of the Document as given on its Title Page, then add
           an item describing the Modified Version as stated in the
@@ -1299,12 +1300,12 @@ A.1 GNU Free Documentation License
           for public access to a Transparent copy of the Document, and
           likewise the network locations given in the Document for
           previous versions it was based on.  These may be placed in the
-          "History" section.  You may omit a network location for a work
+          “History” section.  You may omit a network location for a work
           that was published at least four years before the Document
           itself, or if the original publisher of the version it refers
           to gives permission.
 
-       K. For any section Entitled "Acknowledgements" or "Dedications",
+       K. For any section Entitled “Acknowledgements” or “Dedications”,
           Preserve the Title of the section, and preserve in the section
           all the substance and tone of each of the contributor
           acknowledgements and/or dedications given therein.
@@ -1313,11 +1314,11 @@ A.1 GNU Free Documentation License
           in their text and in their titles.  Section numbers or the
           equivalent are not considered part of the section titles.
 
-       M. Delete any section Entitled "Endorsements".  Such a section
+       M. Delete any section Entitled “Endorsements”.  Such a section
           may not be included in the Modified Version.
 
        N. Do not retitle any existing section to be Entitled
-          "Endorsements" or to conflict in title with any Invariant
+          “Endorsements” or to conflict in title with any Invariant
           Section.
 
        O. Preserve any Warranty Disclaimers.
@@ -1326,15 +1327,15 @@ A.1 GNU Free Documentation License
      appendices that qualify as Secondary Sections and contain no
      material copied from the Document, you may at your option designate
      some or all of these sections as invariant.  To do this, add their
-     titles to the list of Invariant Sections in the Modified Version's
+     titles to the list of Invariant Sections in the Modified Version’s
      license notice.  These titles must be distinct from any other
      section titles.
 
-     You may add a section Entitled "Endorsements", provided it contains
+     You may add a section Entitled “Endorsements”, provided it contains
      nothing but endorsements of your Modified Version by various
-     parties--for example, statements of peer review or that the text
-     has been approved by an organization as the authoritative
-     definition of a standard.
+     parties—for example, statements of peer review or that the text has
+     been approved by an organization as the authoritative definition of
+     a standard.
 
      You may add a passage of up to five words as a Front-Cover Text,
      and a passage of up to 25 words as a Back-Cover Text, to the end of
@@ -1372,10 +1373,10 @@ A.1 GNU Free Documentation License
      combined work.
 
      In the combination, you must combine any sections Entitled
-     "History" in the various original documents, forming one section
-     Entitled "History"; likewise combine any sections Entitled
-     "Acknowledgements", and any sections Entitled "Dedications".  You
-     must delete all sections Entitled "Endorsements."
+     “History” in the various original documents, forming one section
+     Entitled “History”; likewise combine any sections Entitled
+     “Acknowledgements”, and any sections Entitled “Dedications”.  You
+     must delete all sections Entitled “Endorsements.”
 
   6. COLLECTIONS OF DOCUMENTS
 
@@ -1396,16 +1397,16 @@ A.1 GNU Free Documentation License
 
      A compilation of the Document or its derivatives with other
      separate and independent documents or works, in or on a volume of a
-     storage or distribution medium, is called an "aggregate" if the
+     storage or distribution medium, is called an “aggregate” if the
      copyright resulting from the compilation is not used to limit the
-     legal rights of the compilation's users beyond what the individual
+     legal rights of the compilation’s users beyond what the individual
      works permit.  When the Document is included in an aggregate, this
      License does not apply to the other works in the aggregate which
      are not themselves derivative works of the Document.
 
      If the Cover Text requirement of section 3 is applicable to these
      copies of the Document, then if the Document is less than one half
-     of the entire aggregate, the Document's Cover Texts may be placed
+     of the entire aggregate, the Document’s Cover Texts may be placed
      on covers that bracket the Document within the aggregate, or the
      electronic equivalent of covers if the Document is in electronic
      form.  Otherwise they must appear on printed covers that bracket
@@ -1427,8 +1428,8 @@ A.1 GNU Free Documentation License
      this License or a notice or disclaimer, the original version will
      prevail.
 
-     If a section in the Document is Entitled "Acknowledgements",
-     "Dedications", or "History", the requirement (section 4) to
+     If a section in the Document is Entitled “Acknowledgements”,
+     “Dedications”, or “History”, the requirement (section 4) to
      Preserve its Title (section 1) will typically require changing the
      actual title.
 
@@ -1469,7 +1470,7 @@ A.1 GNU Free Documentation License
 
      Each version of the License is given a distinguishing version
      number.  If the Document specifies that a particular numbered
-     version of this License "or any later version" applies to it, you
+     version of this License “or any later version” applies to it, you
      have the option of following the terms and conditions either of
      that specified version or of any later version that has been
      published (not as a draft) by the Free Software Foundation.  If the
@@ -1477,29 +1478,29 @@ A.1 GNU Free Documentation License
      choose any version ever published (not as a draft) by the Free
      Software Foundation.  If the Document specifies that a proxy can
      decide which future versions of this License can be used, that
-     proxy's public statement of acceptance of a version permanently
+     proxy’s public statement of acceptance of a version permanently
      authorizes you to choose that version for the Document.
 
   11. RELICENSING
 
-     "Massive Multiauthor Collaboration Site" (or "MMC Site") means any
+     “Massive Multiauthor Collaboration Site” (or “MMC Site”) means any
      World Wide Web server that publishes copyrightable works and also
      provides prominent facilities for anybody to edit those works.  A
      public wiki that anybody can edit is an example of such a server.
-     A "Massive Multiauthor Collaboration" (or "MMC") contained in the
+     A “Massive Multiauthor Collaboration” (or “MMC”) contained in the
      site means any set of copyrightable works thus published on the MMC
      site.
 
-     "CC-BY-SA" means the Creative Commons Attribution-Share Alike 3.0
+     “CC-BY-SA” means the Creative Commons Attribution-Share Alike 3.0
      license published by Creative Commons Corporation, a not-for-profit
      corporation with a principal place of business in San Francisco,
      California, as well as future copyleft versions of that license
      published by that same organization.
 
-     "Incorporate" means to publish or republish a Document, in whole or
+     “Incorporate” means to publish or republish a Document, in whole or
      in part, as part of another Document.
 
-     An MMC is "eligible for relicensing" if it is licensed under this
+     An MMC is “eligible for relicensing” if it is licensed under this
      License, and if all works that were first published under this
      License somewhere other than this MMC, and subsequently
      incorporated in whole or in part into the MMC, (1) had no cover
@@ -1526,7 +1527,7 @@ notices just after the title page:
        Free Documentation License''.
 
   If you have Invariant Sections, Front-Cover Texts and Back-Cover
-Texts, replace the "with...Texts." line with this:
+Texts, replace the “with...Texts.” line with this:
 
          with the Invariant Sections being LIST THEIR TITLES, with
          the Front-Cover Texts being LIST, and with the Back-Cover Texts
@@ -1544,10 +1545,10 @@ their use in free software.
 
 File: parted.info,  Node: History,  Next: Concept index,  Prev: Copying This Manual,  Up: Top
 
-Appendix B This manual's history
+Appendix B This manual’s history
 ********************************
 
-This manual was based on the file 'USER' included in GNU Parted version
+This manual was based on the file ‘USER’ included in GNU Parted version
 1.4.22 source distribution.  The GNU Parted source distribution is
 available at <https://ftp.gnu.org/gnu/parted>.
 
@@ -1641,42 +1642,42 @@ Index
 
 
 Tag Table:
-Node: Top764
-Node: Introduction1567
-Node: Overview2023
-Node: Software Required3537
-Node: Supported Platforms4881
-Node: License5335
-Node: Compiling5939
-Node: Using Parted7208
-Node: Partitioning7627
-Node: Running Parted9265
-Node: Invoking Parted11644
-Node: Command explanations12854
-Node: align-check13346
-Node: disk_set14071
-Node: disk_toggle14779
-Node: help14986
-Node: mklabel15272
-Ref: mklabel-Footnote-116195
-Node: mkpart16325
-Ref: mkpart-Footnote-118854
-Node: name19105
-Node: print19622
-Node: quit21389
-Node: rescue21883
-Node: resizepart23957
-Node: rm24505
-Node: select25400
-Node: set25888
-Node: toggle29826
-Node: unit30028
-Ref: IEC binary units32414
-Node: Related information34507
-Node: Copying This Manual35329
-Node: GNU Free Documentation License35573
-Node: History60685
-Node: Concept index61498
+Node: Top771
+Node: Introduction1576
+Node: Overview2034
+Node: Software Required3561
+Node: Supported Platforms4939
+Node: License5393
+Node: Compiling5997
+Node: Using Parted7304
+Node: Partitioning7727
+Node: Running Parted9365
+Node: Invoking Parted11793
+Node: Command explanations13067
+Node: align-check13559
+Node: disk_set14306
+Node: disk_toggle15032
+Node: help15239
+Node: mklabel15525
+Ref: mklabel-Footnote-116470
+Node: mkpart16605
+Ref: mkpart-Footnote-119208
+Node: name19461
+Node: print19984
+Node: quit21779
+Node: rescue22277
+Node: resizepart24355
+Node: rm24907
+Node: select25806
+Node: set26298
+Node: toggle30324
+Node: unit30526
+Ref: IEC binary units32984
+Node: Related information35121
+Node: Copying This Manual35982
+Node: GNU Free Documentation License36226
+Node: History61542
+Node: Concept index62361
 
 End Tag Table
 

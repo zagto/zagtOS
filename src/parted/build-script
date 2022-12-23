@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+
+SRC_DIR="$PWD"
+cd "$SHBUILD_BUILD_DIR"
+"$SRC_DIR/configure" --prefix="$SHBUILD_ROOT/out/$ARCH/toolchain/image-generation"
+make -j "$PARALLEL_JOBS"
