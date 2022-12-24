@@ -34,7 +34,7 @@ ExitFinalize:
     #           |||||              (nGnRnE)
     #           ||||||++-- type 0: normal memory
     #           ||||||||
-    ldr x10, =0x000000ff
+    ldr x10, =0x444400ff
 
     msr mair_el1, x10
 
@@ -67,14 +67,16 @@ ExitFinalize:
     isb
 
     # bits reserved to 1
-    ldr x11, =0xc00800
-    # bits to clear
-    ldr x12, =0x308101f
-    mrs x10, sctlr_el1
-    orr x10, x10, x11
-    bic x10, x10, x12
-    orr x10, x10, #1
+    .equ SCTLR_RESERVED_TO_1, (1 << 11) | (1 << 17)
+    .equ SCTLR_MMU_ENABLE, 1 << 0
+    .equ SCTLR_ALIGNMENT_CHECK, 1 << 1
+    .equ SCTLR_CACHEABILITY, 1 << 2
+    .equ SCTLR_SP_ALIGNMENT_CHECK_EL1, 1 << 3
+    .equ SCTLR_SP_ALIGNMENT_CHECK_EL0, 1 << 4
+    .equ SCTLR_INSTRUCTION_CACHEABLILITY, 1 << 12
+    .equ SCTLR_WRITE_IMPLIES_EXECUTE_NEVER, 1 << 19
 
+    ldr x10, =(SCTLR_RESERVED_TO_1 | SCTLR_MMU_ENABLE | SCTLR_INSTRUCTION_CACHEABLILITY | SCTLR_CACHEABILITY)
     msr sctlr_el1, x10
 
     dsb ish
@@ -88,38 +90,3 @@ ExitFinalize:
     mov sp, x3
 
     br x10
-
-b udff
-
-
-    cmp x0, #1
-    beq udff
-
-output:
-
-    ldr x0, =0xffffff9000000000
-    ldr x1, =0xff88ffff
-    ldr x2, =0xffffff00
-    ldr x3, =0xffffff9000000000+0x1700000
-
-loop:
-    str x1, [x0]
-    add x0, x0, 8
-    cmp x0, x3
-    bne loop
-
-hang:
-    b hang
-
-
-udff:
-    udf #1
-
-enable_paging:
-
-mov x9, lr
-
-
-ret
-
-
