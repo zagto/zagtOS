@@ -228,7 +228,7 @@ int main() {
         /* create root device (ACPIHAL) */
         DeviceTree = std::make_unique<Device>(DriverRegistry[0]);
     } else if (firmwareInfo.type == cApi::ZAGTOS_FIRMWARE_TYPE_DTB) {
-        std::cout << "Detected firmware type: ACPI" << std::endl;
+        std::cout << "Detected firmware type: DTB" << std::endl;
         /* create root device (DeviceTreeHAL) */
         DeviceTree = std::make_unique<Device>(DriverRegistry[1]);
     } else {
