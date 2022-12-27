@@ -53,8 +53,6 @@ void SerialBackend::setProgramNameColor() {
 void SerialBackend::setProgramColor() {
     write(27);
     write('[');
-    write('3');
-    write('0');
     write('m');
 }
 
