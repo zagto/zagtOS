@@ -1,14 +1,14 @@
 #pragma once
 
 #include "setup/HandOverState.hpp"
-#ifdef SYSTEM_X86_64
+#ifdef __x86_64__
 #include <log/PCSerial.hpp>
 #endif
 
 class SerialBackend {
 private:
     hos_v1::SerialInfo info;
-#ifdef SYSTEM_X86_64
+#ifdef __x86_64__
     PCSerial pcSerial;
 #endif
 

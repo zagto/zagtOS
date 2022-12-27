@@ -10,7 +10,7 @@ void SerialBackend::init(const hos_v1::SerialInfo &serialInfo) {
 
     switch (info.type) {
     case hos_v1::SerialType::PC:
-#ifdef SYSTEM_X86_64
+#ifdef __x86_64__
         pcSerial.init();
 #endif
         break;
@@ -24,7 +24,7 @@ void SerialBackend::init(const hos_v1::SerialInfo &serialInfo) {
 void SerialBackend::writeCharacter(char character) {
     switch (info.type) {
     case hos_v1::SerialType::PC:
-#ifdef SYSTEM_X86_64
+#ifdef __x86_64__
         pcSerial.writeCharacter(character);
 #endif
         break;
