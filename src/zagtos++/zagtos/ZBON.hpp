@@ -165,6 +165,14 @@ static const size_t HEADER_SIZE = TYPE_SIZE + COUNT_SIZE * 3;
 
 
 template<typename T>
+static Size sizeFor(const T* object) {
+    return object->ZBONSize();
+}
+template<typename T>
+static Size sizeFor(T* object) {
+    return object->ZBONSize();
+}
+template<typename T>
 static Size sizeFor(const T& object) {
     return object.ZBONSize();
 }
@@ -428,6 +436,14 @@ public:
 
         size_t numHandles = (handlePosition - handlePositionStart) / HANDLE_SIZE;
         encodeSize(numHandles, numHandlesPosition);
+    }
+    template<typename T>
+    void encodeValue(T* object) {
+        object->ZBONEncode(*this);
+    }
+    template<typename T>
+    void encodeValue(const T* object) {
+        object->ZBONEncode(*this);
     }
     template<typename T>
     void encodeValue(const T& object) {
@@ -791,6 +807,10 @@ public:
 
     void decodeValue(zbon::EncodedData &value);
 
+    template<typename T>
+    void decodeValue(T* object) {
+         object->ZBONDecode(*this);
+    }
     template<typename T>
     void decodeValue(T& object) {
          object.ZBONDecode(*this);
