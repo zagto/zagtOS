@@ -41,7 +41,7 @@ struct SpawnProcessSection {
 void zagtos::environmentSpawn(const ExternalBinary &binary,
                               Priority priority,
                               const UUID messageType,
-                              const zbon::EncodedData &runMessage) {
+                              const MessageData &runMessage) {
     ProgramBinary program;
     zbon::decode(binary.data(), program);
 
