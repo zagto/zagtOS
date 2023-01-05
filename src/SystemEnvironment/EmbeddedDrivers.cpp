@@ -41,15 +41,15 @@ void RegisterEmbeddedDrivers() {
     DriverRegistry.push_back(std::make_shared<Driver>(Driver{
         AHCIDriver,
         {{zagtos::driver::CONTROLLER_TYPE_PCI, 0x0106'0000'0000'0000, 0xffff'0000'0000'0000}},
-        {zagtos::driver::DEVICE_CLASS_BLOCK_STORAGE},
+        {zagtos::classDevice::CLASS_BLOCK_STORAGE},
         {}}));
 
-    blockDeviceClass = std::make_shared<DeviceClass>(zagtos::driver::DEVICE_CLASS_BLOCK_STORAGE);
+    blockDeviceClass = std::make_shared<DeviceClass>(zagtos::classDevice::CLASS_BLOCK_STORAGE);
     DeviceClassRegistry.push_back(blockDeviceClass);
 }
 
 void StartStorageEngine() {
-    zagtos::MessageData runMessage = zbon::encode(blockDeviceClass->subscribePort);
+    zagtos::MessageData runMessage = zbon::encode(blockDeviceClass->port);
     environmentSpawn(StorageEngine,
                      zagtos::Priority::BACKGROUND,
                      zagtos::storageEngine::MSG_START,

@@ -1,7 +1,6 @@
 #include "Device.hpp"
 #include "Driver.hpp"
 #include "DeviceClass.hpp"
-#include "ClassDevice.hpp"
 #include <zagtos/EnvironmentSpawn.hpp>
 #include <zagtos/protocols/Driver.hpp>
 
@@ -29,8 +28,7 @@ Device::Device(zagtos::UUID controllerType,
 
 /* root device only */
 Device::Device(std::shared_ptr<Driver> halDriver) :
-    driver{halDriver},
-    port(zagtos::DefaultEventQueue, reinterpret_cast<size_t>(this)) {
+    driver{halDriver} {
 
     auto runMessage = zbon::encode(port);
     environmentSpawn(driver->binary,
@@ -58,7 +56,9 @@ void Device::foundChildDevice(zagtos::UUID controllerType,
     children.push_back(std::move(childDevice));
 }
 
-void Device::foundClassDevice(zagtos::UUID deviceClassID, zagtos::RemotePort consumerPort) {
+void Device::foundClassDevice(zagtos::UUID deviceClassID,
+                              zagtos::RemotePort consumerPort,
+                              zagtos::MessageData consumerData) {
     if (!driver->canProvideDeviceClass(deviceClassID)) {
         std::cout << driver->name() << " found a class device by driver that is not "
                   << "allowed provide it" << std::endl;
@@ -67,12 +67,7 @@ void Device::foundClassDevice(zagtos::UUID deviceClassID, zagtos::RemotePort con
 
     for (std::shared_ptr<DeviceClass> &deviceClass: DeviceClassRegistry) {
         if (deviceClass->id == deviceClassID) {
-            auto classDevice = std::make_unique<ClassDevice>(deviceClass,
-                                                             std::move(consumerPort));
-            //for (RemotePort &consumerPort : deviceClass->consumers) {
-                // TODO: send message
-            //}
-            classDevices.push_back(std::move(classDevice));
+            deviceClass->addInstance(std::move(consumerPort), std::move(consumerData));
             return;
         }
     }
@@ -113,15 +108,15 @@ void Device::handleMessage(const zagtos::Event &event) {
                          std::get<1>(msg),
                          std::move(std::get<2>(msg)));
     } else if (event.messageType() == zagtos::driver::MSG_FOUND_CLASS_DEVICE) {
-        std::tuple<zagtos::UUID, zagtos::RemotePort> msg;
+        std::tuple<zagtos::UUID, zagtos::RemotePort, zagtos::MessageData> msg;
         try {
             zbon::decode(event.messageData(), msg);
         } catch(zbon::DecoderException &e) {
             std::cout << "Received malformed MSG_FOUND_CLASS_DEVICE message." << std::endl;
             return;
         }
-        auto [deviceClass, consumerPort] = std::move(msg);
-        foundClassDevice(deviceClass, std::move(consumerPort));
+        auto [deviceClass, consumerPort, consumerData] = std::move(msg);
+        foundClassDevice(deviceClass, std::move(consumerPort), std::move(consumerData));
     } else {
         std::cout << "Got message of unknown type from DeviceDriver" << std::endl;
     }

@@ -114,7 +114,7 @@ Controller::Controller(ABAR &abar, ControllerType type, zagtos::RemotePort &pciC
     uint32_t implementedMask = regs.PI();
     for (size_t portID = 0; portID < 32; portID++) {
         if (implementedMask & (1 << portID)) {
-            ports.emplace_back(abar.ports[portID]);
+            ports.emplace_back(abar.ports[portID], portID);
         }
     }
     /* wait for devices to be detected */

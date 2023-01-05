@@ -19,9 +19,14 @@ struct IOPortRange {
 
 struct Port {
     const shared_ptr<EventQueue> eventQueue;
-    size_t eventTag;
-};
+    const size_t eventTag;
+    bool active = true;
+    mutex activeLock;
 
+    Port(shared_ptr<EventQueue> eventQueue, size_t eventTag) noexcept :
+        eventQueue{move(eventQueue)},
+        eventTag{eventTag} {}
+};
 
 namespace handleManager {
 
@@ -85,7 +90,9 @@ private:
     AbstractElement *at(uint32_t handle) const noexcept;
     shared_ptr<Process> sharedProcess() const noexcept;
     uint32_t grabFreeNumber();
-    void _removeHandle(uint32_t handle, shared_ptr<Thread> &removedThread);
+    void _removeHandle(uint32_t handle,
+                       shared_ptr<Thread> &removedThread,
+                       shared_ptr<Port> &removedPort);
     bool handleValid(uint32_t handle) const noexcept;
     template<typename T> uint32_t _add(T pointer) noexcept {
         assert(lock.isLocked());
@@ -121,7 +128,9 @@ public:
         }
         return result->pointer;
     }
-    void removeHandle(uint32_t number, shared_ptr<Thread> &removedThread);
+    void removeHandle(uint32_t number,
+                      shared_ptr<Thread> &removedThread,
+                      shared_ptr<Port> &removedPort);
     void transferHandles(vector<uint32_t> &handleValues, HandleManager &destination);
     uint32_t numFreeHandles() noexcept;
     void insertAllProcessPointersAfterKernelHandover(const shared_ptr<Process> &process) noexcept;

@@ -1,6 +1,5 @@
 #include "Driver.hpp"
 #include "Device.hpp"
-#include "ClassDevice.hpp"
 #include "EmbeddedDrivers.hpp"
 #include "PortListener.hpp"
 #include <iostream>

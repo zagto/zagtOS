@@ -10,6 +10,7 @@ class Device;
 
 class Port {
 private:
+    const size_t id;
     PortRegisters &regs;
     DSFISClass *dsfis;
     PSFISClass *psfis;
@@ -39,5 +40,5 @@ public:
     void enableInterrupts2();
     void detectDevice();
 
-    Port(PortRegisters &regs);
+    Port(PortRegisters &regs, size_t id);
 };

@@ -61,6 +61,12 @@ public:
     void remove(const T &element) noexcept {
         buffer.remove(element);
     }
+    using Callback = void (*)(T&, void *) noexcept;
+    void runCallback(Callback callback, void *callbackData) noexcept {
+        for (size_t index = firstIndex; index < buffer.size(); index++) {
+            callback(buffer[index], callbackData);
+        }
+    }
     void clear() noexcept {
         buffer.clear();
         firstIndex = 0;

@@ -6,12 +6,15 @@
 #include <algorithm>
 #include <sys/mman.h>
 #include <zagtos/protocols/Driver.hpp>
+#include <zagtos/protocols/ClassDevice.hpp>
+#include <zagtos/protocols/BlockDevice.hpp>
 #include <zagtos/Messaging.hpp>
 #include <zagtos/protocols/Pci.hpp>
 #include <zagtos/Register.hpp>
 #include <zagtos/Interrupt.hpp>
 #include "Registers.hpp"
 #include "Controller.hpp"
+#include "PortListener.hpp"
 #include "Device.hpp"
 
 using namespace zagtos;
@@ -52,9 +55,13 @@ int main() {
     std::cout << "Controller initialization OK" << std::endl;
 
     for (const Device *device: controller.allDevices()) {
+        classDevice::BlockDeviceInfo info = {
+            .blockSize = device->sectorSize,
+            .numBlocks = device->numSectors,
+        };
         environementPort.sendMessage(
-                    driver::MSG_FOUND_CLASS_DEVICE,
-                    zbon::encodeObject(driver::DEVICE_CLASS_BLOCK_STORAGE, device->port));
+                driver::MSG_FOUND_CLASS_DEVICE,
+                zbon::encodeObject(classDevice::CLASS_BLOCK_STORAGE, device->messagePort, info));
     }
 
     while (true) {
@@ -64,6 +71,8 @@ int main() {
             interrupt.processed();
         } else if (event.isMessage()) {
             std::cout << "Got Message" << std::endl;
+            auto *portListener = reinterpret_cast<PortListener *>(event.tag());
+            portListener->handleMessage(event);
         }
     }
 }

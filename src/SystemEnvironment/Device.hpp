@@ -3,15 +3,12 @@
 #include "Driver.hpp"
 #include "PortListener.hpp"
 
-class ClassDevice;
 class Driver;
 
 class Device : public PortListener {
 private:
     std::vector<std::unique_ptr<Device>> children;
-    std::vector<std::unique_ptr<ClassDevice>> classDevices;
     std::shared_ptr<Driver> driver;
-    zagtos::Port port;
 
 public:
     Device(zagtos::UUID controllerType,
@@ -23,9 +20,11 @@ public:
     void foundChildDevice(zagtos::UUID controllerType,
                           uint64_t deviceID,
                           const zagtos::MessageData &driverMessage);
-    void foundClassDevice(zagtos::UUID deviceClassID, zagtos::RemotePort consumerPort);
+    void foundClassDevice(zagtos::UUID deviceClassID,
+                          zagtos::RemotePort consumerPort,
+                          zagtos::MessageData consumerData);
     const char *name();
-    void handleMessage(const zagtos::Event &event);
+    void handleMessage(const zagtos::Event &event) final;
 };
 
 extern std::unique_ptr<Device> DeviceTree;

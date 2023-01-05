@@ -8,7 +8,8 @@ size_t DeleteHandle(const shared_ptr<Process> &process,
                             size_t,
                             size_t) {
     shared_ptr<Thread> removedThread;
-    process->handleManager.removeHandle(handle, removedThread);
+    shared_ptr<Port> removedPort;
+    process->handleManager.removeHandle(handle, removedThread, removedPort);
     if (removedThread) {
         if (removedThread.get() == CurrentThread()) {
             cout << "removed thread was active thread. returning" << endl;
@@ -18,6 +19,13 @@ size_t DeleteHandle(const shared_ptr<Process> &process,
             cout << "removed thread was not active thread. sending terminate" << endl;
             removedThread->terminate();
         }
+    }
+    if (removedPort) {
+        {
+            scoped_lock sl(removedPort->activeLock);
+            removedPort->active = false;
+        }
+        removedPort->eventQueue->cancelEventsByTag(removedPort->eventTag);
     }
     return 0;
 }

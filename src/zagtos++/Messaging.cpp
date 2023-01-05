@@ -48,7 +48,7 @@ Event Port::waitForMessage() {
     return privateEventQueue->waitForEvent();
 }
 
-void RemotePort::sendMessage(UUID messageTypeID, MessageData messageData) const {
+void RemotePort::sendMessage(UUID messageTypeID, const MessageData &messageData) const {
     zagtos_syscall5(SYS_SEND_MESSAGE,
                     _handle,
                     reinterpret_cast<size_t>(&messageTypeID),

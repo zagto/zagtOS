@@ -36,6 +36,10 @@ EventQueue::~EventQueue() {
 unique_ptr<Event> EventQueue::getEvent() noexcept {
     assert(lock.isLocked());
 
+    /* events can be cancelled by replacing them with a nullptr */
+    while (!events.empty() && !events.top()) {
+        events.pop();
+    }
     if (events.empty()) {
         return nullptr;
     }
@@ -67,4 +71,18 @@ void EventQueue::addEvent(unique_ptr<Event> event) {
         waitingThreads.pop();
         Scheduler::schedule(wokenThread, true);
     }
+}
+
+/* replace events in the queue by a nullptr to cancel them. This is used if user space deletes a
+ * port, for whose tag there are still events pending. */
+void callback(unique_ptr<Event> &event, void *data) noexcept {
+    size_t *tag = static_cast<size_t *>(data);
+    if (event && event->eventInfo.tag == *tag) {
+        event = nullptr;
+    }
+}
+
+void EventQueue::cancelEventsByTag(size_t tag) noexcept {
+    scoped_lock sl(lock);
+    events.runCallback(callback, &tag);
 }

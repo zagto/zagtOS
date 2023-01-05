@@ -23,7 +23,7 @@ public:
     using HandleObject::HandleObject;
 
     void sendMessage(const UUID messageType,
-                     MessageData messageData) const;
+                     const MessageData &messageData) const;
 };
 
 class invalid_message : public std::runtime_error {
@@ -46,7 +46,11 @@ public:
         return *this;
     }
 
-    bool ZBONDecode(zbon::Decoder &) = delete;
+    // TODO: currently the BlockDevice protocol header uses ZBON_ENCODING_FUNCTIONS
+    // bool ZBONDecode(zbon::Decoder &) = delete;
+    bool ZBONDecode(zbon::Decoder &) {
+        throw std::logic_error("Port object should never be decoded");
+    }
 
     Event waitForMessage();
     template<typename T> T waitForMessage(UUID type) {

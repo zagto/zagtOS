@@ -4,10 +4,10 @@
 
 class PortListener {
 public:
-    zagtos::Port port;
+    zagtos::Port messagePort;
 
     PortListener() :
-        port(zagtos::DefaultEventQueue, reinterpret_cast<size_t>(this)) {}
+        messagePort(zagtos::DefaultEventQueue, reinterpret_cast<size_t>(this)) {}
     PortListener(const PortListener &other) = delete;
     virtual void handleMessage(const zagtos::Event &event) = 0;
 };

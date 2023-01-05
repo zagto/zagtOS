@@ -147,8 +147,9 @@ void Message::transferHandles() {
         /* undo creating destination handles */
         for (uint32_t handle: handles) {
             shared_ptr<Thread> dummy;
+            shared_ptr<Port> dummy2;
             try {
-                destinationProcess->handleManager.removeHandle(handle, dummy);
+                destinationProcess->handleManager.removeHandle(handle, dummy, dummy2);
             } catch(BadUserSpace &e) {
                 /* removing handles should only fail if invalid handle numbers are passed */
                 cout << "transferHandles: destination process has messed with handles that were "

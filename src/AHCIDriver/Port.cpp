@@ -112,7 +112,7 @@ void Port::detectDevice() {
                               << std::endl;
                     return;
                 }
-                device = std::make_unique<Device>(sectorSize, numSectors);
+                device = std::make_unique<Device>(sectorSize, numSectors, id);
             }
         }
     } else {
@@ -143,7 +143,8 @@ void Port::enableInterrupts2() {
     regs.IE.PCE(1);
 }
 
-Port::Port(PortRegisters &regs):
+Port::Port(PortRegisters &regs, size_t id) :
+    id{id},
     regs{regs} {
 
     ensureNotRunning();

@@ -1,19 +1,24 @@
 #pragma once
 
 #include "PortListener.hpp"
+#include "DeviceClassSubscription.hpp"
 #include <set>
 
 class ClassDevice;
 
-struct DeviceClass : public PortListener {
+class DeviceClass : public PortListener {
+private:
+    std::vector<std::unique_ptr<DeviceClassSubscription>> subscriptions;
+    std::vector<zagtos::RemotePort> instancePorts;
+    std::vector<zagtos::MessageData> instanceData;
+
+public:
     const zagtos::UUID id;
-    std::vector<zagtos::RemotePort> consumers;
-    std::set<ClassDevice *> instances;
-    zagtos::Port subscribePort;
 
     DeviceClass(zagtos::UUID id) :
         id{id} {}
-    void handleMessage(const zagtos::Event &event) override;
+    void addInstance(zagtos::RemotePort remotePort, zagtos::MessageData data);
+    void handleMessage(const zagtos::Event &event) final;
 };
 
 extern std::vector<std::shared_ptr<DeviceClass>> DeviceClassRegistry;

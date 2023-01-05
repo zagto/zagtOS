@@ -129,7 +129,9 @@ uint32_t HandleManager::grabFreeNumber() {
  * this handleManager, not a REMOTE_THREAD type), removing it's handle leads to thread termination,
  * which requires further action by the caller. Such a thread is returned in the removedThread
  * argument */
-void HandleManager::_removeHandle(uint32_t handle, shared_ptr<Thread> &removedThread) {
+void HandleManager::_removeHandle(uint32_t handle,
+                                  shared_ptr<Thread> &removedThread,
+                                  shared_ptr<Port> &removedPort) {
     assert(lock.isLocked());
     if (!handleValid(handle)) {
         throw BadUserSpace(sharedProcess());
@@ -138,17 +140,22 @@ void HandleManager::_removeHandle(uint32_t handle, shared_ptr<Thread> &removedTh
     AbstractElement *element = at(handle);
     auto threadElement = dynamic_cast<PointerElement<shared_ptr<Thread>> *>(element);
     if (threadElement) {
-        removedThread = threadElement->pointer;
+        removedThread = move(threadElement->pointer);
     }
-
+    auto portElement = dynamic_cast<PointerElement<shared_ptr<Port>> *>(element);
+    if (portElement) {
+        removedPort = move(portElement->pointer);
+    }
     element->~AbstractElement();
     new (element) FreeElement(nextFreeHandle);
     nextFreeHandle = handle;
 }
 
-void HandleManager::removeHandle(uint32_t number, shared_ptr<Thread> &removedThread) {
+void HandleManager::removeHandle(uint32_t number,
+                                 shared_ptr<Thread> &removedThread,
+                                 shared_ptr<Port> &removedPort) {
     scoped_lock sl(lock);
-    _removeHandle(number, removedThread);
+    _removeHandle(number, removedThread, removedPort);
 }
 
 bool HandleManager::handleValid(uint32_t handle) const noexcept {
@@ -193,8 +200,9 @@ void HandleManager::transferHandles(vector<uint32_t> &handleValues,
         /* on error, destroy any newly created handles */
         for (size_t destroyIndex = 0; destroyIndex < transferIndex; destroyIndex++) {
             shared_ptr<Thread> dummy;
+            shared_ptr<Port> dummy2;
             try {
-                _removeHandle(handleValues[destroyIndex], dummy);
+                _removeHandle(handleValues[destroyIndex], dummy, dummy2);
             } catch(...) {
                 cout << "transferHandles: destination process has messed with handles that were "
                      << "not even passed to it yet and deserves to crash." << endl;

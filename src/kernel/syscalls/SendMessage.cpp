@@ -11,11 +11,19 @@ size_t SendMessage(const shared_ptr<Process> &process,
     weak_ptr<Port> weakPort = process->handleManager.lookup<weak_ptr<Port>>(handle);
     shared_ptr<Port> port = weakPort.lock();
     if (!port) {
-        cout << "sendMessage: destination port no longer exists: " << handle << endl;
+        cout << "sendMessage: destination port no longer exists (object deleted): " << handle
+             << endl;
         return ENXIO;
     }
 
     UserSpaceObject<UUID, USOOperation::READ> messageType(messageTypeAddress);
+
+    scoped_lock(port->activeLock);
+    if (!port->active) {
+        cout << "sendMessage: destination port no longer exists (active == false): " << handle
+             << endl;
+        return ENXIO;
+    }
 
     auto message = make_unique<Message>(process.get(),
                                         port->eventQueue->process.get(),

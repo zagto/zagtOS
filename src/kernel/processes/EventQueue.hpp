@@ -29,4 +29,5 @@ public:
     unique_ptr<Event> getEvent() noexcept;
     void wait(Thread *thread) noexcept;
     void addEvent(unique_ptr<Event> message);
+    void cancelEventsByTag(size_t tag) noexcept;
 };
