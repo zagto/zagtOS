@@ -1,11 +1,11 @@
 #pragma once
 
-#include "PortListener.hpp"
+#include <zagtos/EventListener.hpp>
 
-struct DeviceClassSubscription : public PortListener {
+struct DeviceClassSubscription : public zagtos::EventListener {
     zagtos::RemotePort remotePort;
 
     DeviceClassSubscription(zagtos::RemotePort &&remotePort) :
         remotePort{std::move(remotePort)} {}
-    void handleMessage(const zagtos::Event &event) final;
+    void handleEvent(const zagtos::Event &event) final;
 };

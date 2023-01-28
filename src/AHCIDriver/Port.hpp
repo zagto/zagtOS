@@ -20,7 +20,6 @@ private:
 
     void ensureNotRunning();
     void waitWhileBusy();
-    void executeCommand(Command &command);
     void reset();
 
 protected:
@@ -39,6 +38,7 @@ public:
     void enableInterrupts1();
     void enableInterrupts2();
     void detectDevice();
+    void executeCommand(Command &command, bool syncronous);
 
     Port(PortRegisters &regs, size_t id);
 };

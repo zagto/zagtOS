@@ -6,6 +6,7 @@
 #include <zagtos/EnvironmentSpawn.hpp>
 #include <zagtos/protocols/Driver.hpp>
 #include <zagtos/protocols/ClassDevice.hpp>
+#include <zagtos/protocols/BlockDevice.hpp>
 
 EXTERNAL_BINARY(ACPIHAL)
 EXTERNAL_BINARY(DeviceTreeHAL)
@@ -41,10 +42,10 @@ void RegisterEmbeddedDrivers() {
     DriverRegistry.push_back(std::make_shared<Driver>(Driver{
         AHCIDriver,
         {{zagtos::driver::CONTROLLER_TYPE_PCI, 0x0106'0000'0000'0000, 0xffff'0000'0000'0000}},
-        {zagtos::classDevice::CLASS_BLOCK_STORAGE},
+        {zagtos::blockDevice::DEVICE_CLASS},
         {}}));
 
-    blockDeviceClass = std::make_shared<DeviceClass>(zagtos::classDevice::CLASS_BLOCK_STORAGE);
+    blockDeviceClass = std::make_shared<DeviceClass>(zagtos::blockDevice::DEVICE_CLASS);
     DeviceClassRegistry.push_back(blockDeviceClass);
 }
 

@@ -7,6 +7,7 @@
 #include "Port.hpp"
 #include "Command.hpp"
 #include "Device.hpp"
+#include "MemoryArea.hpp"
 
 
 void Port::ensureNotRunning() {
@@ -46,16 +47,18 @@ void Port::freeCommandSlot(size_t slotIndex) {
     slotInUse[slotIndex] = false;
 }
 
-void Port::executeCommand(Command &command) {
-    assert(&command.port == this);
+void Port::executeCommand(Command &command, bool syncronous) {
+    assert(&command.device.port == this);
     waitWhileBusy();
     regs.CI(1u << command.slotID);
-    while (regs.CI() & (1u << command.slotID)) {}
 
-    if (!(regs.TFD.ERR() == 0 && regs.TFD.STS_ERR() == 0)) {
-        std::cout << "Failed to execute command: TFD.ERR: " << regs.TFD.ERR()
-                  << ", TFD.STS.ERR: " << regs.TFD.STS_ERR() << std::endl;
-        throw std::logic_error("TODO: identify error"); // COMRESET?
+    if (syncronous) {
+        while (regs.CI() & (1u << command.slotID)) {}
+        if (!(regs.TFD.ERR() == 0 && regs.TFD.STS_ERR() == 0)) {
+            std::cout << "Failed to execute command: TFD.ERR: " << regs.TFD.ERR()
+                      << ", TFD.STS.ERR: " << regs.TFD.STS_ERR() << std::endl;
+            throw std::logic_error("TODO: command execution error error"); // COMRESET?
+        }
     }
 }
 
@@ -87,10 +90,12 @@ void Port::detectDevice() {
             if (!device) {
                 std::cout << "detected SATA device" << std::endl;
 
-                Command cmd(*this, ATACommand::IDENTIFY_DEVICE, 512, false);
-                executeCommand(cmd);
+                Device temporaryDevice(512, 1, *this);
+                MemoryArea memoryArea(temporaryDevice, PAGE_SIZE);
+                Command cmd(ATACommand::IDENTIFY_DEVICE, 0, 0, 1, false, &memoryArea);
+                executeCommand(cmd, true);
 
-                auto identify = cmd.dataMemory.map<IdentifyDeviceData>(PROT_READ);
+                auto identify = memoryArea.sharedMemory.map<IdentifyDeviceData>(PROT_READ);
 
                 uint64_t sectorSize = static_cast<uint64_t>(identify->wordsPerLogicalSector) * 2;
                 if (sectorSize == 0) {
@@ -107,12 +112,14 @@ void Port::detectDevice() {
                     numSectors = identify->maxLBA28;
                 }
 
+                zagtos::UnmapWhole(identify);
+
                 if (numSectors == 0) {
                     std::cout << "Ignoring device that does not support LBA addressing"
                               << std::endl;
                     return;
                 }
-                device = std::make_unique<Device>(sectorSize, numSectors, id);
+                device = std::make_unique<Device>(sectorSize, numSectors, *this);
             }
         }
     } else {

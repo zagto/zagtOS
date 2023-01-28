@@ -12,9 +12,9 @@
 #include <zagtos/protocols/Pci.hpp>
 #include <zagtos/Register.hpp>
 #include <zagtos/Interrupt.hpp>
+#include <zagtos/EventListener.hpp>
 #include "Registers.hpp"
 #include "Controller.hpp"
-#include "PortListener.hpp"
 #include "Device.hpp"
 
 using namespace zagtos;
@@ -55,13 +55,13 @@ int main() {
     std::cout << "Controller initialization OK" << std::endl;
 
     for (const Device *device: controller.allDevices()) {
-        classDevice::BlockDeviceInfo info = {
+        blockDevice::DeviceInfo info = {
             .blockSize = device->sectorSize,
             .numBlocks = device->numSectors,
         };
         environementPort.sendMessage(
                 driver::MSG_FOUND_CLASS_DEVICE,
-                zbon::encodeObject(classDevice::CLASS_BLOCK_STORAGE, device->messagePort, info));
+                zbon::encodeObject(blockDevice::DEVICE_CLASS, device->EventListener::port, info));
     }
 
     while (true) {
@@ -71,8 +71,8 @@ int main() {
             interrupt.processed();
         } else if (event.isMessage()) {
             std::cout << "Got Message" << std::endl;
-            auto *portListener = reinterpret_cast<PortListener *>(event.tag());
-            portListener->handleMessage(event);
+            auto *eventListener = reinterpret_cast<zagtos::EventListener *>(event.tag());
+            eventListener->handleEvent(event);
         }
     }
 }

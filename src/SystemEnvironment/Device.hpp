@@ -1,11 +1,11 @@
 #pragma once
 
 #include "Driver.hpp"
-#include "PortListener.hpp"
+#include <zagtos/EventListener.hpp>
 
 class Driver;
 
-class Device : public PortListener {
+class Device : public zagtos::EventListener {
 private:
     std::vector<std::unique_ptr<Device>> children;
     std::shared_ptr<Driver> driver;
@@ -24,7 +24,7 @@ public:
                           zagtos::RemotePort consumerPort,
                           zagtos::MessageData consumerData);
     const char *name();
-    void handleMessage(const zagtos::Event &event) final;
+    void handleEvent(const zagtos::Event &event) final;
 };
 
 extern std::unique_ptr<Device> DeviceTree;

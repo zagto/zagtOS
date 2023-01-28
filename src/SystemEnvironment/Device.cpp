@@ -79,7 +79,7 @@ const char *Device::name() {
     return driver->name();
 }
 
-void Device::handleMessage(const zagtos::Event &event) {
+void Device::handleEvent(const zagtos::Event &event) {
     std::cout << "Message from " << driver->name() << std::endl;
 
     if (event.messageType() == zagtos::driver::MSG_START_RESULT) {

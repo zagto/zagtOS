@@ -2,20 +2,25 @@
 
 #include <zagtos/SharedMemory.hpp>
 #include "Port.hpp"
+#include "MemoryArea.hpp"
 
 class Command {
 private:
-
-    Command(Port &port);
+    Command(Device &device);
 
 public:
-    Port &port;
+    Device &device;
     const size_t slotID;
     CommandHeader &header;
     CommandTable &table;
-    zagtos::SharedMemory dataMemory;
+    MemoryArea *memoryArea;
 
-    Command(Port &port, ATACommand cmd, size_t length, bool write);
+    Command(ATACommand cmd,
+            uint64_t startSector,
+            size_t startPage,
+            size_t numSectors,
+            bool write,
+            MemoryArea *memoryArea);
     ~Command();
     Command(Command &other) = delete;
 };

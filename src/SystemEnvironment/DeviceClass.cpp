@@ -3,7 +3,7 @@
 
 std::vector<std::shared_ptr<DeviceClass>> DeviceClassRegistry;
 
-void DeviceClass::handleMessage(const zagtos::Event &event) {
+void DeviceClass::handleEvent(const zagtos::Event &event) {
     if (event.messageType() == zagtos::classDevice::MSG_SUBSCRIBE) {
         std::cout << "Device class subscribe message" << std::endl;
         zagtos::RemotePort subscriptionPort;
@@ -22,7 +22,7 @@ void DeviceClass::handleMessage(const zagtos::Event &event) {
 }
 
 void DeviceClass::addInstance(zagtos::RemotePort remotePort, zagtos::MessageData data) {
-    zbon::EncodedData subscriberMessage = zbon::encodeObject(remotePort, data);
+    zbon::EncodedData subscriberMessage = zbon::encodeObject(remotePort, nextInstanceID, data);
     for (auto &subscription: subscriptions) {
         subscription->remotePort.sendMessage(zagtos::classDevice::MSG_FOUND_DEVICE,
                                              subscriberMessage);
@@ -30,4 +30,6 @@ void DeviceClass::addInstance(zagtos::RemotePort remotePort, zagtos::MessageData
 
     instancePorts.push_back(std::move(remotePort));
     instanceData.push_back(std::move(data));
+    instanceIDs.push_back(nextInstanceID);
+    nextInstanceID++;
 }

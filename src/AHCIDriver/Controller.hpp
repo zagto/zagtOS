@@ -3,6 +3,7 @@
 #include <vector>
 #include "Registers.hpp"
 #include "Port.hpp"
+#include "MemoryArea.hpp"
 #include "zagtos/Messaging.hpp"
 
 namespace zagtos {

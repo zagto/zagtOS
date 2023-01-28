@@ -1,11 +1,11 @@
 #include "Driver.hpp"
 #include "Device.hpp"
 #include "EmbeddedDrivers.hpp"
-#include "PortListener.hpp"
 #include <iostream>
 #include <zagtos/ZBON.hpp>
 #include <zagtos/Messaging.hpp>
 #include <zagtos/Firmware.hpp>
+#include <zagtos/EventListener.hpp>
 
 static constexpr zagtos::UUID MSG_BE_INIT(
         0x72, 0x75, 0xb0, 0x4d, 0xdf, 0xc1, 0x41, 0x18,
@@ -36,9 +36,5 @@ int main() {
     std::cout << "Starting StorageEngine..." << std::endl;
     StartStorageEngine();
 
-    while (true) {
-        zagtos::Event event = zagtos::DefaultEventQueue.waitForEvent();
-        PortListener *sender = reinterpret_cast<PortListener *>(event.tag());
-        sender->handleMessage(event);
-    }
+    zagtos::DefaultEventLoop();
 }

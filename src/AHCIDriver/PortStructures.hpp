@@ -20,6 +20,7 @@ enum FISType {
 
 enum class ATACommand {
     IDENTIFY_DEVICE = 0xec,
+    READ_DMA_EXT = 0x25,
 };
 
 struct __attribute__((packed)) IdentifyDeviceData {
@@ -37,7 +38,7 @@ struct __attribute__((packed)) IdentifyDeviceData {
     uint32_t wordsPerLogicalSector;
 };
 enum SupportedCommandSet{
-    LBA48 = (1u<10)
+    LBA48 = (1u<<10)
 };
 
 class H2DFIS {
@@ -62,6 +63,13 @@ public:
     void command(ATACommand value) {
         _command = static_cast<uint8_t>(value);
         commandBitPMPort |= COMMAND_BIT;
+    }
+    void lba(uint64_t lba) {
+        deviceLBALow |= (lba & 0xffffff) | (1 << (6+24));
+        featuresLBAHigh |= ((lba >> 24) & 0xffffff);
+    }
+    void sectorCount(uint16_t count) {
+        controlICCCount |= count;
     }
 };
 
