@@ -5,7 +5,8 @@
 #include <chrono>
 #include <thread>
 #include "Port.hpp"
-#include "Command.hpp"
+#include "PhysicalCommand.hpp"
+#include "LogicalCommand.hpp"
 #include "Device.hpp"
 #include "MemoryArea.hpp"
 
@@ -33,31 +34,83 @@ void Port::waitWhileBusy() {
 }
 
 size_t Port::allocateCommandSlot() {
+    assert(numFreeSlots > 0);
     for (size_t slotIndex = 0; slotIndex < NumCommandSlots; slotIndex++) {
-        if (!slotInUse[slotIndex]) {
-            slotInUse[slotIndex] = true;
+        if (!slotCommands[slotIndex]) {
+            numFreeSlots--;
             return slotIndex;
         }
     }
-    throw std::logic_error("command slot allocation while none where available");
+    throw std::logic_error("numFreeSlots and used slots out of sync");
 }
 
 void Port::freeCommandSlot(size_t slotIndex) {
-    assert(slotInUse[slotIndex]);
-    slotInUse[slotIndex] = false;
+    numFreeSlots++;
+    assert(!slotCommands[slotIndex]);
 }
 
-void Port::executeCommand(Command &command, bool syncronous) {
-    assert(&command.device.port == this);
+bool Port::commandSlotAvailable() const {
+    return numFreeSlots > 0;
+}
+
+void Port::submitLogicalCommand(std::unique_ptr<LogicalCommand> logicalCommand) {
+    if (commandSlotAvailable()) {
+        assert(commandQueue.empty());
+        const size_t slotID = allocateCommandSlot();
+        auto physicalCommand = std::make_unique<PhysicalCommand>(std::move(logicalCommand), slotID);
+        submitPhysicalCommand(std::move(physicalCommand), false);
+    } else {
+        commandQueue.push(std::move(logicalCommand));
+    }
+}
+
+void Port::submitPhysicalCommand(std::unique_ptr<PhysicalCommand> command, bool syncronous) {
+    assert(&command->device.port == this);
+    const size_t slotID = command->slotID;
+    assert(!slotCommands[slotID]);
+    slotCommands[slotID] = std::move(command);
     waitWhileBusy();
-    regs.CI(1u << command.slotID);
+    regs.CI(1u << slotID);
 
     if (syncronous) {
-        while (regs.CI() & (1u << command.slotID)) {}
+        while (regs.CI() & (1u << slotID)) {}
+        slotCommands[slotID] = {};
         if (!(regs.TFD.ERR() == 0 && regs.TFD.STS_ERR() == 0)) {
             std::cout << "Failed to execute command: TFD.ERR: " << regs.TFD.ERR()
                       << ", TFD.STS.ERR: " << regs.TFD.STS_ERR() << std::endl;
             throw std::logic_error("TODO: command execution error error"); // COMRESET?
+        }
+    }
+}
+
+void Port::checkCommandsComplete() {
+    for (size_t slotID = 0; slotID < NumCommandSlots; slotID++) {
+        if (slotCommands[slotID]) {
+            /* check if command issue register got cleared */
+            if ((regs.CI() & (1u << slotID)) == 0) {
+                if (!(regs.TFD.ERR() == 0 && regs.TFD.STS_ERR() == 0)) {
+                    std::cout << "Failed to execute command: TFD.ERR: " << regs.TFD.ERR()
+                              << ", TFD.STS.ERR: " << regs.TFD.STS_ERR() << std::endl;
+                    throw std::logic_error("TODO: command execution error error"); // COMRESET?
+                }
+
+                /* success */
+                std::unique_ptr<LogicalCommand> logicalCommand =
+                        std::move(slotCommands[slotID]->logicalCommand);
+                slotCommands[slotID] = {};
+                logicalCommand->memoryArea->commandComplete(*logicalCommand);
+                logicalCommand = {};
+
+                if (commandQueue.empty()) {
+                    freeCommandSlot(slotID);
+                } else {
+                    logicalCommand = std::move(commandQueue.front());
+                    commandQueue.pop();
+                    auto physicalCommand =
+                            std::make_unique<PhysicalCommand>(std::move(logicalCommand), slotID);
+                    submitPhysicalCommand(std::move(physicalCommand), false);
+                }
+            }
         }
     }
 }
@@ -92,8 +145,20 @@ void Port::detectDevice() {
 
                 Device temporaryDevice(512, 1, *this);
                 MemoryArea memoryArea(temporaryDevice, PAGE_SIZE);
-                Command cmd(ATACommand::IDENTIFY_DEVICE, 0, 0, 1, false, &memoryArea);
-                executeCommand(cmd, true);
+                auto logicalCommand = std::make_unique<LogicalCommand>(LogicalCommand{
+                    .memoryArea = &memoryArea,
+                    .action = LogicalCommand::Action::IDENTIFY,
+                    .cookie = 0,
+                    .startSector = 0,
+                    .startPage = 0,
+                    .numSectors = 1,
+                    .responsePort = {},
+                });
+                const size_t slotID = allocateCommandSlot();
+                auto physicalCommand =
+                        std::make_unique<PhysicalCommand>(std::move(logicalCommand), slotID);
+                submitPhysicalCommand(std::move(physicalCommand), true);
+                freeCommandSlot(slotID);
 
                 auto identify = memoryArea.sharedMemory.map<IdentifyDeviceData>(PROT_READ);
 
@@ -196,5 +261,5 @@ Port::Port(PortRegisters &regs, size_t id) :
         commandList[slotIndex].CTBA0 = static_cast<uint32_t>(deviceAddresses2[slotIndex]);
         commandList[slotIndex].CTBA_U0 = deviceAddresses2[slotIndex] >> 32;
     }
-
+    numFreeSlots = NumCommandSlots;
 }

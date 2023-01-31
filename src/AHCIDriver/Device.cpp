@@ -1,5 +1,6 @@
 #include "Device.hpp"
 #include "MemoryArea.hpp"
+#include "Port.hpp"
 #include <zagtos/protocols/BlockDevice.hpp>
 
 using namespace zagtos;

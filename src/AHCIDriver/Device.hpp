@@ -2,8 +2,8 @@
 
 #include <zagtos/EventListener.hpp>
 #include <unordered_set>
-#include "Port.hpp"
 
+class Port;
 class MemoryArea;
 
 class Device : public zagtos::EventListener {

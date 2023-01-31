@@ -1,6 +1,8 @@
 #include "MemoryArea.hpp"
 #include "Registers.hpp"
-#include "Command.hpp"
+#include "LogicalCommand.hpp"
+#include "Device.hpp"
+#include "Port.hpp"
 #include <zagtos/protocols/BlockDevice.hpp>
 
 using namespace zagtos;
@@ -12,29 +14,55 @@ MemoryArea::MemoryArea(Device &device, size_t length) :
 }
 
 void MemoryArea::handleEvent(const Event &event) {
-    blockDevice::receive::Read readMessage;
-    if (event.messageType() == readMessage.uuid) {
+    blockDevice::receive::SubmitAction message;
+    if (event.messageType() == message.uuid) {
         try {
-            zbon::decode(event.messageData(), readMessage);
+            zbon::decode(event.messageData(), message);
         } catch (zbon::DecoderException &) {
-            std::cerr << "Got malformed READ message" << std::endl;
+            std::cerr << "Got malformed SubmitAction message" << std::endl;
             return;
         }
-        std::cout << "Got read message startSector " << readMessage.startSector << " numSectors " << readMessage.numSectors << " startPage " << readMessage.startPage << std::endl;
+        std::cout << "Got message action " << message.action << " cookie " << message.cookie << " startSector " << message.startSector << " numSectors " << message.numSectors << " startPage " << message.startPage << std::endl;
 
-        /* TODO: check free command slots */
-        Command cmd(ATACommand::READ_DMA_EXT,
-                    readMessage.startSector,
-                    readMessage.startPage,
-                    readMessage.numSectors,
-                    false,
-                    this);
-        /* TODO: make non-syncronous */
-        device.port.executeCommand(cmd, true);
+        /* TODO: validate input */
 
-        blockDevice::send::ReadResult resultMessage{true};
-        readMessage.responsePort.sendMessage(resultMessage.uuid, zbon::encode(resultMessage));
+        LogicalCommand::Action action;
+        switch(message.action) {
+        case blockDevice::ACTION_READ:
+            action = LogicalCommand::Action::READ;
+            break;
+        case blockDevice::ACTION_WRITE:
+            action = LogicalCommand::Action::WRITE;
+            break;
+        default:
+        {
+            blockDevice::send::ActionComplete response{
+                .result = blockDevice::ACTION_RESULT_INVALID,
+                .cookie = message.cookie,
+            };
+            message.responsePort.sendMessage(response.uuid, zbon::encode(response));
+            return;
+        }}
+
+        auto logicalCommand = std::make_unique<LogicalCommand>(LogicalCommand{
+            .memoryArea = this,
+            .action = action,
+            .cookie = message.cookie,
+            .startSector = message.startSector,
+            .startPage = message.startPage,
+            .numSectors = message.numSectors,
+            .responsePort = std::move(message.responsePort),
+        });
+        device.port.submitLogicalCommand(std::move(logicalCommand));
     } else {
         std::cerr << "Unexpected message type on MemoryArea port" << std::endl;
     }
+}
+
+void MemoryArea::commandComplete(LogicalCommand &command) {
+    blockDevice::send::ActionComplete completeMessage{
+        .result = blockDevice::ACTION_RESULT_OK,
+        .cookie = command.cookie,
+    };
+    command.responsePort.sendMessage(completeMessage.uuid, zbon::encode(completeMessage));
 }

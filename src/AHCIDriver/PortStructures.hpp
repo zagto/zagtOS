@@ -21,6 +21,7 @@ enum FISType {
 enum class ATACommand {
     IDENTIFY_DEVICE = 0xec,
     READ_DMA_EXT = 0x25,
+    WRITE_DMA_EXT = 0x35,
 };
 
 struct __attribute__((packed)) IdentifyDeviceData {

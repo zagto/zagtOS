@@ -144,3 +144,11 @@ std::vector<const Device *> Controller::allDevices() const {
     }
     return result;
 }
+
+void Controller::checkCommandsComplete() {
+    for (Port &port: ports) {
+        if (port.device != nullptr) {
+            port.checkCommandsComplete();
+        }
+    }
+}

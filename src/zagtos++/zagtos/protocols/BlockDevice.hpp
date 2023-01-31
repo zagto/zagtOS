@@ -18,10 +18,11 @@ struct DeviceInfo {
     ZBON_ENCODING_FUNCTIONS(blockSize, numBlocks)
 };
 
-static constexpr UUID WRITE(
-    0x5a, 0x25, 0x78, 0x96, 0xfe, 0x99, 0x4a, 0x8d, 0xaa, 0x27, 0xc3, 0xb7, 0xe2, 0x76, 0x4b, 0x12);
-static constexpr UUID WRITE_RESULT(
-    0x49, 0x17, 0x6e, 0x3a, 0x34, 0xcf, 0x46, 0xca, 0xb3, 0xe5, 0x84, 0xce, 0xe1, 0x77, 0x25, 0x61);
+static constexpr uint32_t ACTION_READ = 1;
+static constexpr uint32_t ACTION_WRITE = 2;
+
+static constexpr uint32_t ACTION_RESULT_OK = 1;
+static constexpr uint32_t ACTION_RESULT_INVALID = 2;
 
 namespace send {
 struct Allocate {
@@ -46,27 +47,30 @@ struct AllocateResult {
     ZBON_ENCODING_FUNCTIONS(sharedMemory, port);
 };
 
-struct Read {
+struct SubmitAction {
     static constexpr UUID uuid{
             0x9a, 0x87, 0x13, 0x34, 0x77, 0x63, 0x4e, 0x1a,
             0x9e, 0x42, 0x82, 0x0a, 0x9b, 0x66, 0xf7, 0xf1};
 
+    uint32_t action;
+    uint32_t cookie;
     size_t startPage;
     size_t startSector;
     size_t numSectors;
     Port &responsePort;
 
-    ZBON_ENCODING_FUNCTIONS(startPage, startSector, numSectors, responsePort);
+    ZBON_ENCODING_FUNCTIONS(action, cookie, startPage, startSector, numSectors, responsePort);
 };
 
-struct ReadResult {
+struct ActionComplete {
     static constexpr UUID uuid{
             0x1c, 0xc6, 0x52, 0xd5, 0x53, 0x86, 0x43, 0x99,
             0x80, 0x4e, 0x80, 0xff, 0xf1, 0x16, 0xba, 0x1e};
 
-    bool success;
+    uint32_t result;
+    uint32_t cookie;
 
-    ZBON_ENCODING_FUNCTIONS(success);
+    ZBON_ENCODING_FUNCTIONS(result, cookie);
 };
 }
 
@@ -93,20 +97,22 @@ struct AllocateResult {
     ZBON_ENCODING_FUNCTIONS(sharedMemory, port);
 };
 
-struct Read {
+struct SubmitAction {
     static constexpr UUID uuid{
             0x9a, 0x87, 0x13, 0x34, 0x77, 0x63, 0x4e, 0x1a,
             0x9e, 0x42, 0x82, 0x0a, 0x9b, 0x66, 0xf7, 0xf1};
 
+    uint32_t action;
+    uint32_t cookie;
     size_t startPage;
-    uint64_t startSector;
+    size_t startSector;
     size_t numSectors;
     RemotePort responsePort;
 
-    ZBON_ENCODING_FUNCTIONS(startPage, startSector, numSectors, responsePort);
+    ZBON_ENCODING_FUNCTIONS(action, cookie, startPage, startSector, numSectors, responsePort);
 };
 
-using send::ReadResult;
+using send::ActionComplete;
 }
 
 

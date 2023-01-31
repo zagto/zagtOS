@@ -68,7 +68,11 @@ int main() {
         Event event = DefaultEventQueue.waitForEvent();
         if (event.isInterrupt()) {
             std::cout << "Got AHCI interrupt" << std::endl;
+            controller.checkCommandsComplete();
             interrupt.processed();
+
+            std::cout << "Interrupt handling complete" << std::endl;
+
         } else if (event.isMessage()) {
             std::cout << "Got Message" << std::endl;
             auto *eventListener = reinterpret_cast<zagtos::EventListener *>(event.tag());

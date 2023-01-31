@@ -25,7 +25,9 @@ void Device::sendAllocateHeader() {
 }
 
 void Device::sendLoadHeader() {
-    zagtos::blockDevice::send::Read message {
+    zagtos::blockDevice::send::SubmitAction message {
+        .action = zagtos::blockDevice::ACTION_READ,
+        .cookie = 0,
         .startPage = 0,
         .startSector = 1,
         .numSectors = 1,
@@ -45,7 +47,9 @@ void Device::sendAllocatePartitions() {
 }
 
 void Device::sendLoadPartitions() {
-    zagtos::blockDevice::send::Read message {
+    zagtos::blockDevice::send::SubmitAction message {
+        .action = zagtos::blockDevice::ACTION_READ,
+        .cookie = 0,
         .startPage = 0,
         .startSector = gptHeader->firstPartitionEntryLba,
         .numSectors = numPartitionSectors,
@@ -68,10 +72,10 @@ void Device::handleEvent(const zagtos::Event &event) {
             break;
         }
         case State::LOAD_HEADER: {
-            zagtos::blockDevice::receive::ReadResult message;
+            zagtos::blockDevice::receive::ActionComplete message;
             assert(message.uuid == event.messageType()); // TODO
             zbon::decode(event.messageData(), message);
-            assert(message.success == true);
+            assert(message.result == zagtos::blockDevice::ACTION_RESULT_OK);
             gptHeader = gptHeaderMemory.map<const GptHeader>(PROT_READ);
 
             const char *expectedSignature = "EFI PART";
@@ -103,10 +107,10 @@ void Device::handleEvent(const zagtos::Event &event) {
             break;
         }
         case State::LOAD_PARTITIONS: {
-            zagtos::blockDevice::receive::ReadResult message;
+            zagtos::blockDevice::receive::ActionComplete message;
             assert(message.uuid == event.messageType()); // TODO
             zbon::decode(event.messageData(), message);
-            assert(message.success == true);
+            assert(message.result == zagtos::blockDevice::ACTION_RESULT_OK);
 
             auto entry = gptPartitionsMemory.map<const PartitionEntry>(PROT_READ);
             partitionEntries.resize(gptHeader->numPartitionEntries);
