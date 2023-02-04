@@ -15,8 +15,8 @@ Current features include:
 - Bootloader for both UEFI and Multiboot2
 - An own [build tool](buildtool.cpp) to track dependencies between subprojects
 - DebugBridge that can collect core dumps of Processes over the (virtual) serial port
-- Currently only x86_64, but written with portability in mind
-- Current area of work: first device drivers (PS/2 and AHCI)
+- Currently on x86_64 and ARMv8 (WIP)
+- Current area of work: adding storage / file system support
 
 
 ## Building
@@ -58,6 +58,9 @@ Once the build is complete, a BIOS and UEFI bootable disk image is created at `o
 ```
 
 ### VritualBox
+
+(currently not working due to hard dependency on TSC deadline mode which is not available in VirtualBox)
+
 For VirtualBox, additional setup of the VM is required. The Paravirtualization type needs to be set to `minimal`, and for the DebugBridge to work, the serial port COM1 needs to be bound to TCP port 30000. The script currently assumes the VM is called `Test`. On launch it coverts the `disk.img` to `disk.vdi` which can be added to the VM.
 
 ## Third Party Software
